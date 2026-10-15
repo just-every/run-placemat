@@ -1,0 +1,4 @@
+guest_id,name,email,phone,notes,visit_date,party_size,visit_status
+shape-001,Alex Sample,alex.sample@example.test,+61 400 000 001,"Window seat preferred, historical note",2026-08-10,2,completed
+shape-001,Alex Sample,alex.sample@example.test,+61 400 000 001,"Window seat preferred, historical note",2026-09-05,4,cancelled
+shape-002,Sam Example,sam.example@example.test,+61 400 000 002,Fixture-only guest,2026-09-12,3,no-show

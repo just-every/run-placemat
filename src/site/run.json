@@ -1,0 +1,10 @@
+{
+  "name": "placemat",
+  "repository": "https://github.com/just-every/run-placemat",
+  "clone": "git clone https://github.com/just-every/run-placemat.git",
+  "folder": "run-placemat",
+  "requirements": "Needs Node 22 or later and pnpm 10.12.4, on macOS, Linux or Windows with WSL2.",
+  "licence": "MIT",
+  "docs": false,
+  "hosted": []
+}

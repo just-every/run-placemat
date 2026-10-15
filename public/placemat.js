@@ -1,0 +1,259 @@
+/* Live restaurant screens: transport, venue time, rendering, and form actions. */
+const $ = (selector, root = document) => root.querySelector(selector);
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const options = (rows, selected) => rows.map(([value, text]) => `<option value="${esc(value)}"${String(value) === String(selected) ? ' selected' : ''}>${esc(text)}</option>`).join('');
+const empty = text => `<p class="empty">${esc(text)}</p>`;
+const button = (text, action, id = '', secondary = true) => `<button type="button" ${secondary ? 'class="secondary"' : ''} data-action="${action}" data-id="${esc(id)}">${esc(text)}</button>`;
+const field = (label, name, type = 'text', value = '', attributes = '') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" ${attributes}></label>`;
+const select = (label, name, choices, selected = '') => `<label>${esc(label)}<select name="${name}" required>${options(choices, selected)}</select></label>`;
+const form = (command, content, submit, disabled = false) => `<form data-command="${command}"><fieldset ${disabled ? 'disabled' : ''}><div class="form-grid">${content}<div class="wide"><button type="submit">${esc(submit)}</button></div></div></fieldset></form>`;
+let data, state, actor, serviceId = '', floorTime = '', guestQuery = '', publicData, publicParty = 2, importPlan, importCsv = '';
+const transitions = {booked:['seated','cancelled','no-show'],seated:['completed'],completed:[],cancelled:[],'no-show':[]};
+const isPublic = document.body.dataset.page === 'public';
+const canEdit = () => actor && !actor.agent && ['owner', 'admin'].includes(actor.role);
+const isOwner = () => canEdit() && actor.role === 'owner';
+const canPrepare = () => canEdit() || actor?.agent;
+const guest = id => data.guests.find(g => g.id === id);
+const service = () => state.services.find(s => s.id === serviceId);
+const tableNames = ids => ids.map(id => state.tables.find(t => t.id === id)?.label ?? id).join(', ');
+const zone = () => (isPublic ? publicData.venue : state.venue).timezone;
+function notice(message, kind = '') {
+  const el = $('#notice'); el.textContent = message; el.dataset.kind = kind; el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  if (kind === 'error' && el.getBoundingClientRect().top < 0) el.scrollIntoView({block:'center'});
+}
+async function api(path, body, method = 'POST') {
+  const response = await fetch(path, {credentials:'same-origin', headers:body === undefined ? {} : {'Content-Type':'application/json'}, ...(body === undefined ? {} : {method, body:JSON.stringify(body)})});
+  const json = await response.json().catch(() => null);
+  if (!response.ok) { const error = new Error(json?.error || `Request failed (${response.status}). Please try again.`); error.status = response.status; throw error; }
+  if (!json) throw new Error('The server returned an unreadable response. Please refresh.');
+  return json;
+}
+function partsAt(value, timezone) {
+  return Object.fromEntries(new Intl.DateTimeFormat('en-CA', {timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)).filter(p => p.type !== 'literal').map(p => [p.type,p.value]));
+}
+function localTime(value, timezone = zone()) { const p = partsAt(value, timezone); return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`; }
+function time(value) { return new Intl.DateTimeFormat(undefined, {timeZone:zone(),dateStyle:'medium',timeStyle:'short'}).format(new Date(value)); }
+// Obtain actual zone offsets around the date, then roundtrip each candidate.
+// A gap has no candidates; a repeated local hour has two and must be rejected.
+function toUtc(value) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error('Enter a complete local date and time.');
+  const wall = Date.parse(`${value}:00Z`), offsets = new Set();
+  for (let h = -48; h <= 48; h += 6) {
+    const sample = wall + h * 3600000;
+    offsets.add(Date.parse(`${localTime(sample)}:00Z`) - sample);
+  }
+  const candidates = [...offsets].map(offset => wall - offset).filter(candidate => localTime(candidate) === value);
+  if (candidates.length !== 1) throw new Error(candidates.length ? `That time repeats during a daylight-saving change in ${zone()}. Choose another time.` : `That local time does not exist in ${zone()}. Choose another time.`);
+  return new Date(candidates[0]).toISOString();
+}
+function serviceChoices() { return state.services.map(s => [s.id, `${s.name} · ${time(s.startAt)} · ${s.status}`]); }
+function serviceField() { return select('Service', 'serviceId', state.services.filter(s => s.status === 'published').map(s => [s.id,`${s.name} · ${time(s.startAt)}`]), serviceId); }
+function tableField(selected = [], required = false) { return `<label class="wide">Tables <span class="help">${required ? 'Choose the exact tables for the proposed assignment.' : 'Leave empty for automatic assignment.'} Use Ctrl or ⌘ to select several.</span><select name="tableIds" multiple ${required ? 'required' : ''}>${state.tables.map(t => `<option value="${esc(t.id)}" ${selected.includes(t.id) ? 'selected' : ''}>${esc(t.label)} · ${t.seats} seats</option>`).join('')}</select></label>`; }
+function personFields() { return field('Guest name', 'name', 'text', '', 'required maxlength="200" autocomplete="name"') + field('Party size', 'partySize', 'number', 2, 'required min="1" max="20"') + field('Email', 'email', 'email', '', 'autocomplete="email"') + field('Phone', 'phone', 'tel', '', 'autocomplete="tel"'); }
+function startField(value = '') { return field(`Arrival (${zone()})`, 'startAt', 'datetime-local', value || floorTime, 'required'); }
+async function loadStaff() {
+  const next = await api('/api/state'); data = next; state = next.state; actor = next.actor;
+  data.people = canEdit() ? await api('/auth/operators') : [];
+  if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
+  if (!floorTime && service()) floorTime = localTime(service().startAt);
+  $('#venue-name').textContent = state.venue.name; $('#venue-zone').textContent = `${state.venue.timezone} · ${actor.agent ? 'Agent preparation access' : actor.role === 'member' ? 'Read-only access' : 'Live operations'}`;
+  renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn();
+}
+function renderFloor() {
+  const s = service();
+  $('#floor-content').innerHTML = `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}</div>${!s ? empty('Start by adding tables and creating a service below.') : `<div id="floor-room"></div><div class="legend"><span>Available</span><span class="booked">Booked</span><span class="seated">Seated</span></div><div id="bookings-list"></div>${canEdit() && s.status === 'published' ? `<details><summary>Add a walk-in</summary>${form('booking.walkin', serviceField() + personFields() + startField() + tableField(), 'Seat walk-in')}</details>` : ''}`}`;
+  if (!s) return;
+  renderRoom(); renderBookings();
+}
+function renderRoom() {
+  let at;
+  try { at = Date.parse(toUtc(floorTime)); } catch (error) { $('#floor-room').innerHTML = empty(error.message); return; }
+  const bookings = state.bookings.filter(b => ['booked','seated'].includes(b.status) && Date.parse(b.startAt) <= at && Date.parse(b.endAt) > at);
+  $('#floor-room').innerHTML = state.tables.length ? `<div class="floor-map" aria-label="Floor plan at selected time"><div class="floor-canvas">${state.tables.map(t => {
+    const occupied = bookings.find(b => b.tableIds.includes(t.id)), g = occupied && guest(occupied.guestId);
+    return `<div class="floor-table" data-occupancy="${occupied?.status || 'available'}" data-x="${t.x}" data-y="${t.y}" title="${esc(occupied ? `${g?.name || 'Erased guest'} · ${time(occupied.startAt)} to ${time(occupied.endAt)}` : 'Available at selected time')}"><strong>${esc(t.label)}</strong><small>${t.seats} seats</small><small>${esc(occupied ? `${g?.name || 'Erased guest'} · ${occupied.partySize}` : 'Available')}</small></div>`;
+  }).join('')}</div></div>` : empty('No tables yet. Add the tables in your room below.');
+  document.querySelectorAll('.floor-table').forEach(el => { el.style.left = `${5 + Number(el.dataset.x) * .9}%`; el.style.top = `${12 + Number(el.dataset.y) * .76}%`; });
+}
+function renderBookings() {
+  const rows = state.bookings.filter(b => b.serviceId === serviceId).sort((a,b) => a.startAt.localeCompare(b.startAt));
+  const covers = rows.filter(b => !['cancelled','no-show'].includes(b.status)).reduce((n,b) => n+b.partySize,0);
+  $('#bookings-list').innerHTML = `<div class="split-heading"><h3>Bookings</h3><span class="badge">${covers} / ${service().coverLimit} covers</span></div>${rows.length ? `<div class="table-scroll"><table class="bookings-table"><thead><tr><th>Guest</th><th>Arrival / end</th><th>Party / tables</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(b => `<tr><td><strong>${esc(guest(b.guestId)?.name || 'Erased guest')}</strong><br><span class="muted">${esc(b.source)}</span></td><td>${esc(time(b.startAt))}<br><span class="muted">until ${esc(time(b.endAt))}</span></td><td>${b.partySize} guests<br>${esc(tableNames(b.tableIds))}</td><td>${canEdit() ? `<select aria-label="Status for ${esc(guest(b.guestId)?.name || 'booking')}" data-status="${esc(b.id)}">${options([b.status,...transitions[b.status]].map(v => [v,v]), b.status)}</select>` : `<span class="badge">${esc(b.status)}</span>`}</td><td><div class="actions">${canEdit() ? `<a href="/api/calendar/${encodeURIComponent(b.id)}">Calendar</a>` : ''}${canPrepare() && ['booked','seated'].includes(b.status) ? button('Reassign', 'reassign', b.id) : ''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('No bookings for this service yet. Share the guest booking page or add a walk-in.')}<div id="reassignment"></div>`;
+}
+function renderServices() {
+  const editable = canEdit();
+  $('#services-content').innerHTML = `<div class="columns"><div><h3>Services</h3>${state.services.map(s => `<article class="card"><div class="split-heading"><h4>${esc(s.name)}</h4><span class="badge">${s.status}</span></div><p>${esc(time(s.startAt))}<br>until ${esc(time(s.endAt))}</p><p class="help">${s.turnMinutes} minute turns · ${s.coverLimit} covers · version ${s.version}</p><div class="actions">${editable && s.status === 'draft' ? button('Edit service','edit-service',s.id) : ''}${canPrepare() && s.status === 'draft' ? button('Prepare publication','publish',s.id) : ''}</div></article>`).join('') || empty('Create your first service with its opening hours and capacity.')}<div id="service-editor">${editable ? serviceEditor() : ''}</div></div><div><h3>Tables</h3>${state.tables.length ? `<div class="table-scroll"><table><thead><tr><th>Table</th><th>Seats</th><th>Position</th>${editable ? '<th></th>' : ''}</tr></thead><tbody>${state.tables.map(t => `<tr><td>${esc(t.label)}</td><td>${t.seats}</td><td>${t.x}%, ${t.y}%</td>${editable ? `<td>${state.bookings.some(b => b.tableIds.includes(t.id)) ? '<span class="help">History retained</span>' : button('Edit','edit-table',t.id)}</td>` : ''}</tr>`).join('')}</tbody></table></div>` : empty('Add each physical table. Bookings can combine tables when needed.')}<div id="table-editor">${editable ? tableEditor() : ''}</div></div></div>`;
+}
+function serviceEditor(s) {
+  return `<details ${s || !state.services.length ? 'open' : ''}><summary>${s ? `Edit ${esc(s.name)}` : 'Create service'}</summary>${form('service.save', `<input type="hidden" name="id" value="${esc(s?.id || '')}">` + field('Service name','name','text',s?.name || '', 'required maxlength="120"') + field('Turn duration (minutes)','turnMinutes','number',s?.turnMinutes || 90,'required min="15" max="360"') + field(`Starts (${zone()})`,'startAt','datetime-local',s ? localTime(s.startAt) : '', 'required') + field(`Ends (${zone()})`,'endAt','datetime-local',s ? localTime(s.endAt) : '', 'required') + field('Cover limit','coverLimit','number',s?.coverLimit || '', 'required min="1" max="500"'), 'Save service')}</details>`;
+}
+function tableEditor(t) {
+  return `<details ${t || !state.tables.length ? 'open' : ''}><summary>${t ? `Edit ${esc(t.label)}` : 'Add table'}</summary><p class="help">Position runs from 0% (left / top) to 100% (right / bottom).</p>${form('table.save', `<input type="hidden" name="id" value="${esc(t?.id || '')}">` + field('Table label','label','text',t?.label || '', 'required maxlength="40"') + field('Seats','seats','number',t?.seats || 2,'required min="1" max="20"') + field('Across the room (%)','x','number',t?.x ?? 20,'required min="0" max="100"') + field('Down the room (%)','y','number',t?.y ?? 20,'required min="0" max="100"'), 'Save table')}</details>`;
+}
+function renderWaitlist() {
+  const rows = state.waitlist.filter(w => w.serviceId === serviceId);
+  $('#waitlist-content').innerHTML = `<p class="help">${esc(service()?.name || 'Choose or create a service first.')} · arrival times use ${esc(zone())}</p>${rows.map(w => `<article class="card"><div class="split-heading"><h4>${esc(guest(w.guestId)?.name || 'Erased guest')} · ${w.partySize} guests</h4><span class="badge">${w.status}</span></div>${canEdit() && w.status === 'waiting' ? form('waitlist.seat', `<input type="hidden" name="waitlistId" value="${esc(w.id)}">` + startField() + tableField(), 'Seat party') : ''}</article>`).join('') || empty('The waitlist for this service is empty.')}${canEdit() && service()?.status === 'published' ? `<details><summary>Add a waiting party</summary>${form('waitlist.add', serviceField() + personFields(), 'Add to waitlist')}</details>` : ''}`;
+}
+function renderGuests() {
+  $('#guests-content').innerHTML = `<label>Find a guest<input type="search" id="guest-search" value="${esc(guestQuery)}" placeholder="Name, email or phone"></label><div id="guest-results"></div>`;
+  renderGuestResults();
+}
+function renderGuestResults() {
+  const rows = data.guests.filter(g => !g.erased && `${g.name} ${g.email} ${g.phone}`.toLowerCase().includes(guestQuery.toLowerCase()));
+  $('#guest-results').innerHTML = rows.map(g => {
+    const visits = [...(g.history || []), ...state.bookings.filter(b => b.guestId === g.id).map(b => ({date:b.startAt, partySize:b.partySize, status:b.status}))].sort((a,b) => b.date.localeCompare(a.date));
+    return `<details class="card"><summary>${esc(g.name)} <span class="muted">${esc(g.email)} · ${esc(g.phone)}</span></summary><p class="help">${visits.length} recorded visits</p>${visits.length ? `<ul>${visits.map(v => `<li>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests · ${esc(v.status)}</li>`).join('')}</ul>` : ''}${canEdit() ? form('guest.update', `<input type="hidden" name="guestId" value="${esc(g.id)}"><label class="wide">Guest notes<textarea name="notes" maxlength="4000">${esc(g.notes)}</textarea></label>`, 'Save notes') : `<p>${esc(g.notes || 'No notes.')}</p>`}${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
+  }).join('') || empty(guestQuery ? 'No guests match your search.' : 'Guests appear here after a booking, walk-in, waitlist entry or import.');
+}
+function proposalDescription(p) {
+  const s = p.plan.service || state.services.find(s => s.id === p.plan.serviceId);
+  if (p.kind === 'service.publish') return `Publish ${s?.name || p.plan.serviceId}${s ? ` · ${time(s.startAt)} to ${time(s.endAt)} · ${s.coverLimit} covers` : ''}`;
+  if (p.kind === 'reminders') return `Prepare reminders for ${s?.name || p.plan.serviceId}`;
+  return `Reassign booking ${p.plan.bookingId} to ${tableNames(p.plan.tableIds || [])}`;
+}
+function renderApprovals() {
+  $('#approvals-content').innerHTML = `${canPrepare() && service()?.status === 'published' ? `<div class="toolbar"><p>Prepare reminders for <strong>${esc(service().name)}</strong>.</p>${button('Prepare reminder batch','reminders',serviceId,false)}</div>` : ''}${state.proposals.slice().reverse().map(p => `<article class="card"><div class="split-heading"><h4>${esc(proposalDescription(p))}</h4><span class="badge">${esc(p.status)}</span></div><p>${esc(p.reason)}</p><p class="help">Prepared by ${esc(p.preparedBy)} · ${esc(time(p.preparedAt))}${p.approvedBy ? `<br>${p.status === 'declined' ? 'Declined' : 'Approved'} by ${esc(p.approvedBy)} · ${esc(time(p.approvedAt))}` : ''}</p><details><summary>Exact plan</summary><pre class="code-block">${esc(JSON.stringify(p.plan,null,2))}</pre></details>${p.status === 'pending' && canEdit() ? `<div class="actions">${button('Approve plan','approve',p.id,false)}${button('Decline','decline',p.id)}</div>` : ''}</article>`).join('') || empty('No proposals yet. Prepare a service publication, table reassignment or reminder batch.')}<h3>Approved reminders</h3><p>${state.reminders.length} reminders ready or previously exported.</p>${canEdit() ? '<a class="button-link" href="/api/reminders.csv" download>Download reminders CSV</a>' : ''}<details><summary>Reminder messages</summary>${state.reminders.map(r => `<div class="card"><p>${esc(r.message)}</p><span class="badge">${esc(r.status)}</span><p class="help">Approved by ${esc(r.approvedBy)} · ${esc(time(r.approvedAt))}</p></div>`).join('') || '<p>No approved reminders.</p>'}</details>`;
+}
+function renderSettings() {
+  $('#settings-content').innerHTML = `${canEdit() ? form('venue.update', field('Venue name','name','text',state.venue.name,'required maxlength="120"') + field('Venue timezone','timezone','text',state.venue.timezone,'required placeholder="Australia/Brisbane"'), 'Save venue') : empty('Venue settings can be changed by an owner or admin.')}${isOwner() ? `<details><summary>Agent preparation keys</summary><p class="help">Keys can read operations and prepare proposals. A signed-in person must approve each plan. Copy a new key immediately; it is shown once.</p>${form('key.create',field('Key name','name','text','','required maxlength="80"'),'Create preparation key')}<div id="key-result"></div>${(data.keys || []).map(k => `<article class="card"><strong>${esc(k.name)}</strong><p class="help">${esc(k.id)} · ${k.revoked_at ? 'Revoked' : 'Active'}</p>${!k.revoked_at ? button('Revoke key','revoke-key',k.id) : ''}</article>`).join('')}</details><details><summary>Backup & restore</summary><p><a href="/api/backup" download>Download venue backup</a></p><p class="help">Restore requires an empty product destination. Choose a backup archive and type RESTORE. The server validates its integrity and erasure fences.</p><form data-command="backup.restore"><label>Backup archive<input type="file" name="archiveFile" accept=".json,application/json" required></label>${field('Type RESTORE to confirm','confirm','text','','required pattern="RESTORE" autocomplete="off"')}<label>Trusted later backup for erasure journal (optional)<input type="file" name="journalFile" accept=".json,application/json"></label><button type="submit">Restore backup</button></form></details>` : ''}${canEdit() ? `<details><summary>People & invitations</summary><p class="help">Admin manages the floor. Member can read operations. Invitations need your configured production mail; local development suppresses mail.</p>${form('people.invite',field('Person name','displayName','text','','required maxlength="120"')+field('Email','email','email','','required')+select('Role','role',isOwner()?[['member','Read-only staff'],['admin','Manager'],['owner','Owner']]:[['member','Read-only staff']]),'Invite person')}<div>${data.people.map(p=>`<p><strong>${esc(p.displayName)}</strong> · ${esc(p.email)} · ${esc(p.role)} · ${esc(p.status)}</p>`).join('')}</div></details>` : ''}`;
+}
+function renderMoveIn() {
+  $('#move-in-content').innerHTML = isOwner() ? `<p class="help">Tablein guest CSV. Required header: <code>guest_id,name,email,phone,notes,visit_date,party_size,visit_status</code>. Repeated guest IDs combine visit history. Previewing does not change your venue.</p><form data-command="import.preview"><label>CSV file<input type="file" name="csvFile" accept=".csv,text/csv" required></label><button type="submit">Preview import</button></form><div id="import-plan"></div><details><summary>Import journal & undo</summary><p class="help">Undo removes only records written by an import, subject to the server’s integrity checks.</p>${button('Load import journal','import-journal')}<div id="import-journal"></div></details>` : empty('The venue owner can preview, apply and undo a move-in import.');
+  if (importPlan && isOwner()) renderImportPlan();
+}
+function renderImportPlan() {
+  const plan = importPlan;
+  $('#import-plan').innerHTML = `<article class="card"><h3>Import preview</h3><pre class="code-block">${esc(JSON.stringify(plan.counts,null,2))}</pre>${plan.diagnostics.map(d => `<p><span class="badge">${esc(d.severity)}</span> ${d.location?.row ? `Row ${d.location.row}: ` : ''}${esc(d.message)}</p>`).join('')}<details><summary>Guest preview</summary><pre class="code-block">${esc(JSON.stringify(plan.preview,null,2))}</pre></details><p class="help">Plan fingerprint: ${esc(plan.fingerprint)}</p>${plan.canApply ? `<label><input type="checkbox" id="import-confirm"> I reviewed this plan and want to import these records.</label><div class="actions">${button('Apply reviewed import','import-apply','',false)}</div>` : '<p>Resolve the reported errors and preview the file again before applying.</p>'}</article>`;
+}
+async function loadJournal() {
+  const result = (await api('/api/import/journal')).result;
+  $('#import-journal').innerHTML = result.jobs.map(job => `<article class="card"><h4>Import ${esc(job.id)}</h4><p>State: ${esc(job.state)} · ${esc(job.checkpoint)} / ${esc(job.total)}</p><p class="help">Fingerprint: ${esc(job.fingerprint)}</p><div class="actions">${button('View journal','import-job',job.id)}${job.state !== 'undone' ? button('Review undo','import-review-undo',job.id) : ''}</div><div data-job-detail="${esc(job.id)}"></div></article>`).join('') || empty('No imports have been applied.');
+}
+async function loadPublic(preserve = {}) {
+  publicData = await api(`/api/public/services?partySize=${publicParty}`);
+  $('#venue-line').textContent = `${publicData.venue.name} · All times in ${publicData.venue.timezone}`;
+  const services = publicData.services;
+  $('#public-content').innerHTML = `<form data-command="public.book"><div class="form-grid">${field('Party size','partySize','number',publicParty,'required min="1" max="20"')}${select('Service','serviceId',services.map(s => [s.id,`${s.name} · ${time(s.startAt)}`]),preserve.serviceId)}<div class="wide" id="public-times"></div>${field('Your name','name','text',preserve.name || '', 'required maxlength="200" autocomplete="name"')}${field('Email','email','email',preserve.email || '', 'required autocomplete="email"')}${field('Phone (optional)','phone','tel',preserve.phone || '', 'autocomplete="tel"')}<div class="wide"><button type="submit" ${!services.length ? 'disabled' : ''}>Confirm booking</button></div></div></form>${!services.length ? empty(`No services with available times for ${publicParty} guests. Try another party size or contact the venue.`) : ''}`;
+  renderPublicTimes(preserve.startAt);
+}
+function renderPublicTimes(selected) {
+  const id = $('#public-content select[name=serviceId]')?.value;
+  const slots = publicData.services.find(s => s.id === id)?.slots || [];
+  $('#public-times').innerHTML = slots.length ? select('Available arrival time', 'startAt', slots.map(s => [s.startAt,time(s.startAt)]), selected) : empty('No available times for this service and party size. Please choose another service.');
+  $('#public-content button[type=submit]').disabled = !slots.length;
+}
+function payloadFrom(formEl) {
+  const values = Object.fromEntries(new FormData(formEl));
+  for (const name of ['partySize','seats','x','y','turnMinutes','coverLimit']) if (name in values) values[name] = Number(values[name]);
+  if ('tableIds' in values) values.tableIds = new FormData(formEl).getAll('tableIds');
+  if (values.tableIds?.length === 0) delete values.tableIds;
+  if (values.id === '') delete values.id;
+  return values;
+}
+async function execute(command, payload) {
+  return (await api('/api/commands', {command,payload})).result;
+}
+async function busy(work, message = 'Saving…') {
+  const controls = [...document.querySelectorAll('button:not(:disabled)')];
+  controls.forEach(el => el.disabled = true); notice(message);
+  try { await work(); }
+  catch (error) { notice(error.message, 'error'); }
+  finally { controls.forEach(el => { if (el.isConnected) el.disabled = false; }); }
+}
+async function prepare(kind, plan, reason) {
+  await execute('proposal.prepare', {kind,plan,reason}); await loadStaff();
+  notice('Plan prepared. Review its exact details under Approvals before approving.', 'success');
+  location.hash = 'approvals';
+}
+async function submitForm(el) {
+  const command = el.dataset.command, payload = payloadFrom(el);
+  if (command === 'public.book') {
+    let result;
+    try { result = (await api('/api/public/book',payload)).result; }
+    catch (error) { if (error.status === 409) await loadPublic(payload); throw error; }
+    $('#public-content').innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(payload.name)}, your table for ${payload.partySize} guests is booked at ${esc(time(result.startAt))}, until ${esc(time(result.endAt))}.</p><p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${button('Make another booking','book-another')}</article>`;
+    notice('Your booking is confirmed.', 'success'); return;
+  }
+  if (command === 'import.preview') {
+    importCsv = await payload.csvFile.text();
+    importPlan = (await api('/api/import/dry-run',{csv:importCsv})).result;
+    renderImportPlan(); notice(importPlan.canApply ? 'Preview ready. Review the plan before applying.' : 'The preview found issues. Review the diagnostics.', importPlan.canApply ? 'success' : 'error'); return;
+  }
+  if (command === 'import.undo') {
+    const result = (await api('/api/import/undo',payload)).result;
+    await loadStaff(); await loadJournal(); notice(`Import ${result.job.id}: ${result.job.state}.`, 'success'); return;
+  }
+  if (command === 'backup.restore') {
+    let archive;
+    try { archive = JSON.parse(await payload.archiveFile.text()); } catch { throw new Error('Choose a valid JSON backup archive.'); }
+    const journal=payload.journalFile?.size?JSON.parse(await payload.journalFile.text()):undefined;
+    await api('/api/restore',{archive,confirm:payload.confirm,...(journal?{journal}:{})}); await loadStaff(); notice('Backup restored.', 'success'); return;
+  }
+  if (command === 'people.invite') {
+    await api('/auth/invite',{...payload,returnTo:'/app'});await loadStaff();notice('Invitation recorded. Production sends a sign-in email; local development suppresses mail.','success');return;
+  }
+  if (command === 'key.create') {
+    const result = (await api('/api/agent-keys',payload)).result;
+    await loadStaff();
+    $('#key-result').innerHTML = '<p>Copy this preparation key now. It will only be shown once.</p><pre class="code-block"></pre>';
+    $('#key-result pre').textContent = result.key;
+    notice('Preparation key created. Copy it before leaving this page.', 'success'); return;
+  }
+  if (command === 'table.assign') {
+    await prepare(command,{bookingId:payload.bookingId,tableIds:payload.tableIds},payload.reason); return;
+  }
+  for (const name of ['startAt','endAt']) if (payload[name]) payload[name] = toUtc(payload[name]);
+  if (command === 'service.save' && Date.parse(payload.endAt) <= Date.parse(payload.startAt)) throw new Error('Service end must be after its start.');
+  await execute(command,payload); await loadStaff(); notice('Saved successfully.', 'success');
+}
+document.addEventListener('submit', event => {
+  const el = event.target.closest('form[data-command]'); if (!el) return;
+  event.preventDefault(); busy(() => submitForm(el));
+});
+document.addEventListener('change', event => {
+  const el = event.target;
+  if (el.name === 'floor-service') { serviceId = el.value; floorTime = localTime(service().startAt); renderFloor(); renderWaitlist(); renderApprovals(); }
+  if (el.name === 'floor-time') { floorTime = el.value; renderRoom(); }
+  if (el.dataset.status) busy(async () => { try { await execute('booking.status',{bookingId:el.dataset.status,status:el.value}); } finally { await loadStaff(); } notice('Booking status saved.', 'success'); });
+  if (isPublic && el.name === 'serviceId') renderPublicTimes();
+  if (isPublic && el.name === 'partySize') {
+    if (!el.checkValidity()) { el.reportValidity(); return; }
+    const preserve = payloadFrom(el.closest('form')); publicParty = Number(el.value);
+    busy(async () => { await loadPublic(preserve); notice('Availability updated.'); },'Checking availability…');
+  }
+});
+document.addEventListener('input', event => {
+  if (event.target.id === 'guest-search') { guestQuery = event.target.value; renderGuestResults(); }
+});
+document.addEventListener('click', event => {
+  const el = event.target.closest('[data-action]'); if (!el) return;
+  const action = el.dataset.action, id = el.dataset.id;
+  if (action === 'edit-service') { $('#service-editor').innerHTML = serviceEditor(state.services.find(s => s.id === id)); $('#service-editor').scrollIntoView({block:'center'}); return; }
+  if (action === 'edit-table') { $('#table-editor').innerHTML = tableEditor(state.tables.find(t => t.id === id)); $('#table-editor').scrollIntoView({block:'center'}); return; }
+  if (action === 'reassign') {
+    const booking = state.bookings.find(b => b.id === id);
+    $('#reassignment').innerHTML = `<article class="card"><h3>Prepare table reassignment</h3><p>${esc(guest(booking.guestId)?.name || 'Erased guest')} · ${booking.partySize} guests · ${esc(time(booking.startAt))}</p>${form('table.assign',`<input type="hidden" name="bookingId" value="${esc(id)}">` + tableField(booking.tableIds, true) + field('Reason','reason','text','','required maxlength="500"'), 'Prepare reassignment')}</article>`;
+    $('#reassignment').scrollIntoView({block:'center'}); return;
+  }
+  busy(async () => {
+    if (action === 'refresh') { await loadStaff(); notice('Venue refreshed.', 'success'); }
+    if (action === 'book-another') { await loadPublic(); notice('Choose your next booking.'); }
+    if (action === 'publish') await prepare('service.publish',{serviceId:id},'Publish the reviewed service hours, capacity and table plan.');
+    if (action === 'reminders') await prepare('reminders',{serviceId:id},'Prepare a reminder batch for this service for export to the venue’s own sender.');
+    if (['approve','decline'].includes(action)) { await execute(`proposal.${action}`,{proposalId:id}); await loadStaff(); notice(action === 'approve' ? 'Plan approved and applied.' : 'Plan declined.', 'success'); }
+    if (action === 'revoke-key') { await api(`/api/agent-keys/${encodeURIComponent(id)}`,{},'DELETE'); await loadStaff(); notice('Key revoked.', 'success'); }
+    if (action === 'import-apply') {
+      if (!$('#import-confirm')?.checked) throw new Error('Confirm that you reviewed the import plan before applying it.');
+      const result = (await api('/api/import/apply',{csv:importCsv,confirm:importPlan.fingerprint})).result;
+      importPlan = undefined; importCsv = ''; await loadStaff(); await loadJournal(); notice(`Import ${result.job.id}: ${result.job.state}.`, 'success');
+    }
+    if (action === 'import-journal') { await loadJournal(); notice('Import journal loaded.'); }
+    if (['import-job','import-review-undo'].includes(action)) {
+      const job = (await api(`/api/import/journal/${encodeURIComponent(id)}`)).result.job;
+      const target = [...document.querySelectorAll('[data-job-detail]')].find(node => node.dataset.jobDetail === id);
+      target.innerHTML = `<pre class="code-block">${esc(JSON.stringify(job,null,2))}</pre>${action === 'import-review-undo' ? `<form data-command="import.undo"><input type="hidden" name="jobId" value="${esc(id)}"><input type="hidden" name="fingerprint" value="${esc(job.fingerprint)}">${field('Type UNDO to remove this import’s records','confirm','text','','required pattern="UNDO" autocomplete="off"')}<button type="submit" class="danger">Undo import</button></form>` : ''}`;
+      notice('Journal details loaded.');
+    }
+  });
+});
+busy(async () => { if (isPublic) await loadPublic(); else await loadStaff(); notice(''); },'Loading…');

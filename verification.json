@@ -1,0 +1,40 @@
+{
+  "push": [
+    {
+      "name": "source",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run check --profile first-party"
+      ]
+    },
+    {
+      "name": "api",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:api"
+      ]
+    },
+    {
+      "name": "runtime",
+      "browser": true,
+      "hosted": true,
+      "commands": [
+        "pnpm run build",
+        "pnpm run typecheck",
+        "pnpm run test:runtime"
+      ]
+    }
+  ],
+  "nightly": [
+    {
+      "name": "installer",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:install"
+      ]
+    }
+  ]
+}
