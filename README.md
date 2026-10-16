@@ -4,6 +4,8 @@ Tables booked. Guests remembered. Guests book online, walk-ins and the waitlist 
 
 The owner guides are in [docs/](docs/site.json), starting with [Getting started](docs/getting-started.md); the run site publishes them at `/docs`.
 
+The run site is at https://run-placemat.com. Its run page, https://run-placemat.com/run, gives the install and `rer dev` steps; to run it on your own computer, follow **Clone and run** below.
+
 ## Clone and run
 
 You need Git and internet access on macOS, Linux or Windows with WSL2. RER selects this project's pinned Node **22.20.0** and pnpm **10.12.4**; you do not need to change your global Node version.
