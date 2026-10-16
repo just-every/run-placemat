@@ -1,7 +1,7 @@
 {
   "name": "Placemat",
   "repository": "https://github.com/just-every/run-placemat",
-  "clone": "git clone https://github.com/just-every/run-placemat.git",
+  "clone": "npx -y @runeditrun/rer dev just-every/run-placemat",
   "folder": "run-placemat",
   "requirements": "Needs Node 22 or later and pnpm 10.12.4, on macOS, Linux or Windows with WSL2.",
   "licence": "MIT",

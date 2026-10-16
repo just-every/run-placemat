@@ -4,21 +4,13 @@ Placemat runs on your own computer with one command, and later in your own Cloud
 
 You need Git and an internet connection, on macOS, Linux or Windows with WSL2. Placemat uses its own pinned Node 22 and pnpm 10.12.4, so you do not need to change the versions you already have.
 
-1. Install `rer`, the Run Edit Run command, once per computer:
+One line installs `rer`, the Run Edit Run command, clones Placemat and starts it:
 
-   ```sh
-   curl -fsSL https://runeditrun.com/install.sh | sh
-   export PATH="$HOME/.local/bin:$PATH"
-   ```
+```sh
+npx -y @runeditrun/rer dev just-every/run-placemat
+```
 
-   Or install it with npm: `npm install -g @runeditrun/rer`.
-
-2. Get Placemat and start it:
-
-   ```sh
-   git clone https://github.com/just-every/run-placemat.git
-   cd run-placemat && rer dev
-   ```
+To start it again later, run `cd run-placemat && rer dev`.
 
 The first start installs everything, prepares the local database and makes you the owner. Give it a few minutes. When it is ready it prints two lines:
 

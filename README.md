@@ -10,25 +10,17 @@ The run site is at https://run-placemat.com. Its run page, https://run-placemat.
 
 You need Git and internet access on macOS, Linux or Windows with WSL2. RER selects this project's pinned Node **22.20.0** and pnpm **10.12.4**; you do not need to change your global Node version.
 
-1. Install rer, the Run Edit Run command, once per computer:
+One line installs rer, the Run Edit Run command, clones Placemat and starts it:
 
-   ```sh
-   curl -fsSL https://runeditrun.com/install.sh | sh
-   export PATH="$HOME/.local/bin:$PATH"
-   ```
+```sh
+npx -y @runeditrun/rer dev just-every/run-placemat
+```
 
-   or `npm install -g @runeditrun/rer`.
-
-2. Get Placemat and start it:
-
-   ```sh
-   git clone https://github.com/just-every/run-placemat.git
-   cd run-placemat && rer dev
-   ```
+To start it again later, run `cd run-placemat && rer dev`.
 
 The first run installs dependencies, applies every D1 migration and creates a local review owner. Give it up to ten minutes. Open the printed `RER_OPEN` link on this computer, check the owner on **Finish setup**, tick its confirmation and click **Finish setup**. You arrive at `/app`. Keep `RER_OPEN` private: it signs you in. Local development sends no email. A fresh installation is empty.
 
-If `rer` is not on your shell's PATH after installation, run `export PATH="$HOME/.local/bin:$PATH"`. Start again with `rer dev`; it resumes a partial launch. The saved port is printed as `RER_READY`; use that address throughout, not a guessed port. Stop with `rer dev --stop` or Ctrl-C.
+If `rer` is not on your shell's PATH after installation, run `export PATH="$HOME/.local/bin:$PATH"`. Start again with `rer dev` in the `run-placemat` folder; it resumes a partial launch. The saved port is printed as `RER_READY`; use that address throughout, not a guessed port. Stop with `rer dev --stop` or Ctrl-C.
 
 For an installation belonging to a real person, use `rer install`, then `rer setup` and answer its owner-email prompt before `rer dev`. Setup preserves existing data on reruns. `rer dev --as admin` and `rer dev --as member` provide local manager and read-only personas; `rer dev --as signed-out` opens the guest view. Return to the owner with `rer dev --as owner`.
 
