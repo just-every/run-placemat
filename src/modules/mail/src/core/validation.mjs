@@ -47,9 +47,19 @@ export function validateConfig(config, dependencies = {}) {
   return config;
 }
 
+// `name <addr>` or bare `addr`: a single trailing angle pair, none elsewhere.
+function mailbox(text) {
+  const open = text.indexOf('<');
+  if (open === -1) return /^[^<>]+$/u.test(text) ? [text, undefined, text] : null;
+  if (!text.endsWith('>')) return null;
+  const inner = text.slice(open + 1, -1), name = text.slice(0, open).trimEnd();
+  if (!inner || /[<>]/u.test(inner) || /[<>\n\r\u2028\u2029]/u.test(name)) return null;
+  return [text, name, inner];
+}
+
 export function parseAddress(value) {
   bounded(value, 998, 'invalid_address');
-  const match = value.trim().match(/^(?:(.*?)\s*<([^<>]+)>|([^<>]+))$/u);
+  const match = mailbox(value.trim());
   const email = (match?.[2] ?? match?.[3] ?? '').trim();
   // Conservative mailbox subset; never serialize multiple mailboxes as one.
   const parts = email.split('@');
