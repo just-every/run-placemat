@@ -56,8 +56,11 @@ function tableField(selected = [], required = false) { return `<label class="wid
 function personFields() { return field('Guest name', 'name', 'text', '', 'required maxlength="200" autocomplete="name"') + field('Party size', 'partySize', 'number', 2, 'required min="1" max="20"') + field('Email', 'email', 'email', '', 'autocomplete="email"') + field('Phone', 'phone', 'tel', '', 'autocomplete="tel"'); }
 function startField(value = '') { return field(`Arrival (${zone()})`, 'startAt', 'datetime-local', value || floorTime, 'required'); }
 async function loadStaff() {
-  const next = await api('/api/state'); data = next; state = next.state; actor = next.actor;
-  data.people = canEdit() ? await api('/auth/operators') : [];
+  const editor = actor ? canEdit() : 'editor' in document.body.dataset;
+  const [next, people] = await Promise.all([api('/api/state'), editor ? api('/auth/operators').then(rows => ({rows}), error => ({error})) : null]);
+  data = next; state = next.state; actor = next.actor;
+  if (people?.error && canEdit()) throw people.error;
+  data.people = !canEdit() ? [] : people ? people.rows : await api('/auth/operators');
   if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
   if (!floorTime && service()) floorTime = localTime(service().startAt);
   $('#venue-name').textContent = state.venue.name; $('#venue-zone').textContent = `${state.venue.timezone} · ${actor.agent ? 'Agent preparation access' : actor.role === 'member' ? 'Read-only access' : 'Live operations'}`;
