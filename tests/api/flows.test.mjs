@@ -111,3 +111,24 @@ test('Erasure removes guest and imported custody, blocks reimport and fences old
   await empty.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400})
  }finally{await h.close();await empty.close()}
 })
+
+test('A guest re-imported under a new id can be erased, then a booked guest too; refusals and approvals read in plain language',async()=>{
+ const h=await installation(),empty=await installation();try{
+  const {service:s}=await service(h),amelia=(await h.api('/api/public/book',publicGuest(s,0,{name:'Amelia Patel',phone:'0412 345 603'}),{as:'',status:201})).result
+  const csv=id=>`guest_id,name,email,phone,notes,visit_date,party_size,visit_status\n${id},Grace Wilson,grace@example.test,+61 400 111 301,,2026-08-10,2,completed\n`
+  for(const id of ['g-1','g-2']){
+   const dry=(await h.api('/api/import/dry-run',{csv:csv(id)})).result,job=(await h.api('/api/import/apply',{csv:csv(id),confirm:dry.fingerprint})).result.job
+   if(id==='g-1'){await h.api('/api/import/undo',{jobId:job.id,confirm:'UNDO',fingerprint:dry.fingerprint});continue}
+   const grace=(await h.api('/api/state')).guests.find(g=>g.name==='Grace Wilson');await h.command('guest.update',{guestId:grace.id,notes:'Edited by staff'})
+   const refused=await h.api('/api/import/undo',{jobId:job.id,confirm:'UNDO',fingerprint:dry.fingerprint},{status:409});assert.match(refused.error,/Grace Wilson/);assert.ok(!/NATIVE_EDIT_CONFLICT/.test(refused.error))
+   const archive=await h.api('/api/backup');await h.api('/api/restore',{archive,confirm:'RESTORE'},{status:409}).then(r=>assert.ok(!/ik_batches|target_not_empty/.test(r.error)))
+   await h.command('guest.erase',{guestId:grace.id,confirm:'ERASE'})
+   const later=await h.api('/api/backup');assert.ok(!/erasure_epoch/.test((await empty.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400})).error))
+  }
+  const key=(await h.api('/api/agent-keys',{name:'Dinner planning assistant'})).result,agent={as:'',headers:{authorization:'Bearer '+key.key}}
+  const p=await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:amelia.id,tableIds:[(await h.api('/api/state')).state.tables.at(-1).id]},reason:'Move the booking'},agent);await h.command('proposal.approve',{proposalId:p.id})
+  const state=await h.api('/api/state');assert.equal(state.names[p.preparedBy],'Dinner planning assistant (preparation key)');assert.equal(state.names[state.state.proposals.at(-1).approvedBy],'Venue owner')
+  await h.command('guest.erase',{guestId:state.guests.find(g=>g.name==='Amelia Patel').id,confirm:'ERASE'})
+  const csvNow=await (await h.request('/api/reminders.csv')).text();assert.ok(!csvNow.includes('Amelia'))
+ }finally{await h.close();await empty.close()}
+})

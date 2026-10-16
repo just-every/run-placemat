@@ -69,7 +69,7 @@ Errors are `{ "error": "message" }` with a non-2xx status. Successes are
   `{jobId,confirm:"UNDO",fingerprint:job.fingerprint}`: result `{job}`. Completed
   imports use strict undo. Partial imports use rollback. The kit checks exact
   native values and revision, so a guest edited after import blocks reversal
-  with `NATIVE_EDIT_CONFLICT` or an atomic guard conflict and preserves the edit.
+  with a 409 whose `error` names the edited guests, says nothing was undone and that the edit was kept.
 
 A job contains `id`, `fingerprint`, `destination`, `namespace`, `mappingVersion`,
 `principalId`, `state`, `checkpoint`, `total`, `fence`, `error`, and optionally
