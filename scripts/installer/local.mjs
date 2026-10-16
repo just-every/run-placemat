@@ -23,8 +23,9 @@ export const commandAdapter = createCommandAdapter(lifecycle, {
  dev: developmentTarget, preview: previewTarget, verify: ['pnpm', ['run', 'verify:app']], deploy: ownerDeploy('deploy.json', lifecycle),
  portability: localPortability({ database: 'foundation', policyModule: 'src/placemat/archive-policy.mjs', transient: ['local runtime caches and logs'] }),
  setup: { manifestFile: 'rer-setup.json' }, browserModule: 'scripts/installer/ui/seed.mjs',
- // The run site (rer build --site, rer deploy --site, RER_SITE): pages from
- // edition identity and Run data, written to an ignored folder; its domain is in deploy-site.json.
+ // The run site (rer build --site, rer deploy --site, RER_SITE): the approved
+ // landing, /run and the docs from docs/*.md, written to an ignored folder;
+ // its domain is in deploy-site.json.
  site: { entry: 'src/site/pages.ts', output: 'dist/site', declaration: 'deploy-site.json' },
  // Local dev identity: the local-only Worker entry, the build output rer build
  // scans for the dev layer.

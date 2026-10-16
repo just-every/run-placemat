@@ -1,6 +1,6 @@
 # Source and scope
 
-The runnable edition was generated from the committed Base foundation at **c7cb0613120074c5ffca63f610533802afbda6bd**, then composed and converted to package mode with the maintained exporter. `composition.lock.json` records copied Base source. `@runeditrun/rer` is pinned to the newest published version read at the start, **0.2.22**. The installer/deploy/Worker/D1 identities assigned by that generation are retained.
+The runnable edition was generated from the committed Base foundation at **c7cb0613120074c5ffca63f610533802afbda6bd**, then composed and converted to package mode with the maintained exporter. `composition.lock.json` records copied Base source. `@runeditrun/rer` is pinned to the newest published version, **0.2.26** (moved from 0.2.22 with the style pass on 16 Oct 2026). The installer/deploy/Worker/D1 identities assigned by that generation are retained.
 
 Adapted sibling source, read without modifying its repository:
 

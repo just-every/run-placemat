@@ -1,0 +1,36 @@
+/* The run site's frame: page, header, footer, buttons and links. Tokens come
+   from /rer-theme.css; the floor plan from /plan.css. */
+.site{margin:0;min-height:100vh;background:var(--pm-paper);color:var(--pm-ink);font:400 17px/1.55 var(--pm-ui);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:clip}
+.site *,.site *::before,.site *::after{box-sizing:border-box}
+:where(.site) :where(h1,h2,h3,p,ul,ol,figure,dl){margin:0}
+.site a{color:inherit}
+.site :focus-visible{outline:2px solid var(--pm-ink);outline-offset:3px;border-radius:6px}
+.site .nowrap{white-space:nowrap}
+
+.site-bar,.site-foot{width:min(1360px,100% - 32px);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.site-bar{padding:18px clamp(0px,3vw,40px) 16px;border-bottom:1px solid var(--pm-rule)}
+.lockup{display:inline-flex;align-items:center;gap:12px;font:600 28px/1 var(--pm-display);letter-spacing:-.015em;text-decoration:none}
+.lockup .mark{display:block;flex:none}
+.site-bar nav,.site-foot nav{display:flex;gap:44px;font:500 16px/1 var(--pm-ui)}
+.site-bar nav a,.site-foot nav a{text-decoration:none;padding:8px 0}
+.site-bar nav a:hover,.site-foot nav a:hover,.site-bar nav a[aria-current=page]{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:5px}
+.site-foot{padding:26px clamp(0px,3vw,40px) 44px;border-top:1px solid var(--pm-rule)}
+.lockup.small{font-size:24px;gap:10px}
+.lockup .dot{margin:0 4px;color:var(--pm-muted);font:400 16px var(--pm-ui)}
+.lockup .licence{font:400 16px/1 var(--pm-ui);color:var(--pm-muted)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:50px;padding:0 30px;border-radius:999px;background:var(--pm-ink);color:var(--rer-accent-text);font:600 17px/1 var(--pm-ui);text-decoration:none;transition:background-color .15s}
+.site .btn{color:var(--rer-accent-text)}
+.btn:hover{background:#363d47}
+.arrow{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.text-link{font:400 19px/1.4 var(--pm-display);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+.text-link:hover{text-decoration-thickness:2px}
+
+@media (max-width:760px){
+  .site-bar{padding:14px 0 12px}
+  .lockup{font-size:25px;gap:10px}
+  .site-bar nav{gap:28px;font-size:16px}
+  .site-foot{flex-direction:column;align-items:flex-start;gap:18px;padding:24px 0 36px}
+  .site-foot nav{gap:32px}
+}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}

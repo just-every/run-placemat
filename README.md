@@ -1,17 +1,28 @@
 # Placemat
 
-Restaurant table bookings, a service floor, walk-ins, waitlist and guest history in your own Cloudflare account. Release one has no payments or per-cover network. [ACCEPTANCE.md](ACCEPTANCE.md) names the working scope.
+Tables booked. Guests remembered. Guests book online, walk-ins and the waitlist share one floor, and every visit stays yours: on your own computer or in your own Cloudflare account. 100% free, open source alternative to OpenTable, Tablein and ResDiary, MIT licensed. Release one has no payments or per-cover network. [ACCEPTANCE.md](ACCEPTANCE.md) names the working scope.
+
+The owner guides are in [docs/](docs/site.json), starting with [Getting started](docs/getting-started.md); the run site publishes them at `/docs`.
 
 ## Clone and run
 
-You need Git and internet access on macOS or Linux. RER selects this project's pinned Node **22.20.0** and pnpm **10.12.4**; you do not need to change your global Node version.
+You need Git and internet access on macOS, Linux or Windows with WSL2. RER selects this project's pinned Node **22.20.0** and pnpm **10.12.4**; you do not need to change your global Node version.
 
-```sh
-npx -y @runeditrun/rer@0.2.22 cli install
-git clone https://github.com/just-every/run-placemat.git
-cd run-placemat
-rer dev
-```
+1. Install rer, the Run Edit Run command, once per computer:
+
+   ```sh
+   curl -fsSL https://runeditrun.com/install.sh | sh
+   export PATH="$HOME/.local/bin:$PATH"
+   ```
+
+   or `npm install -g @runeditrun/rer`.
+
+2. Get Placemat and start it:
+
+   ```sh
+   git clone https://github.com/just-every/run-placemat.git
+   cd run-placemat && rer dev
+   ```
 
 The first run installs dependencies, applies every D1 migration and creates a local review owner. Give it up to ten minutes. Open the printed `RER_OPEN` link on this computer, check the owner on **Finish setup**, tick its confirmation and click **Finish setup**. You arrive at `/app`. Keep `RER_OPEN` private: it signs you in. Local development sends no email. A fresh installation is empty.
 
@@ -29,7 +40,7 @@ For an installation belonging to a real person, use `rer install`, then `rer set
 6. Under **Approvals & reminders**, **Prepare reminder batch**, review its exact bookings and approve it. **Download reminders CSV** gives contacts and approved messages for your venue's own sender. Placemat records approval and export; it does not deliver email or SMS. Cancelled/no-show/erased guests are omitted. Each booking also has a **Calendar** download.
 7. Under **Guests**, expand a guest to read visits and save notes. Owners can explicitly erase personal details there. Staff cannot erase guests.
 
-Publication fixes the service's hours, cover limit and turn duration. To offer another sitting, create another service. Draft edits invalidate old publication proposals. Tables with booking history are kept unchanged; add a new table when the physical layout changes. The floor is a functional table layout on Base's theme; visual design comes later.
+Publication fixes the service's hours, cover limit and turn duration. To offer another sitting, create another service. Draft edits invalidate old publication proposals. Tables with booking history are kept unchanged; add a new table when the physical layout changes.
 
 ## Move in and undo
 
@@ -83,6 +94,6 @@ pnpm test:api
 rer verify
 ```
 
-The six HTTP integration tests run the real workerd/D1 implementation, with only the paid mail boundary faked. They cover the Friday flow, direct auth and CSRF, person approvals, concurrent table claims, import/undo, erasure and restore. The emitted-Worker smoke check also runs on pushes. GitHub **Verify** runs source, API and built-runtime shards in parallel; installer journeys run on release tags and nightly. No tests run during build or deploy. The suite remains below the 200-test budget.
+The six HTTP integration tests run the real workerd/D1 implementation, with only the paid mail boundary faked. They cover the Friday flow, direct auth and CSRF, person approvals, concurrent table claims, import/undo, erasure and restore. The emitted-Worker smoke check and the run site check (`pnpm test:site`: `rer build --site`, the homepage's Run Placemat opens `/run`, every guide in `docs/site.json` is published) also run on pushes. GitHub **Verify** runs source, API, run-site and built-runtime shards in parallel; installer journeys run on release tags and nightly. No tests run during build or deploy. The suite remains below the 200-test budget.
 
-Pinned RER: **0.2.22**. Foundation: [`runeditrun/base@c7cb0613`](https://github.com/runeditrun/base/tree/c7cb0613120074c5ffca63f610533802afbda6bd). Reuse and known shared-module gaps are documented in [SOURCES.md](docs/SOURCES.md).
+Pinned RER: **0.2.26**. Foundation: [`runeditrun/base@c7cb0613`](https://github.com/runeditrun/base/tree/c7cb0613120074c5ffca63f610533802afbda6bd). Reuse and known shared-module gaps are documented in [SOURCES.md](docs/SOURCES.md).

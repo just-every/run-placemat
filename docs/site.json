@@ -1,0 +1,36 @@
+{
+  "sections": [
+    {
+      "title": "Start here",
+      "pages": [
+        { "slug": "getting-started", "file": "getting-started.md", "title": "Getting started", "summary": "Run Placemat on your computer, finish setup and set your venue's timezone." },
+        { "slug": "deploy", "file": "deploy.md", "title": "Deploy to Cloudflare", "summary": "Put Placemat in your own Cloudflare account so guests can book from anywhere." }
+      ]
+    },
+    {
+      "title": "Run service",
+      "pages": [
+        { "slug": "tables-and-services", "file": "tables-and-services.md", "title": "Tables and services", "summary": "Add your tables, create a service and publish it for guests to book." },
+        { "slug": "floor-and-bookings", "file": "floor-and-bookings.md", "title": "Floor and bookings", "summary": "Online bookings, the floor plan, statuses, walk-ins, the waitlist and no-shows." },
+        { "slug": "guests", "file": "guests.md", "title": "Guest history", "summary": "Find a guest, read their visits, keep notes and erase their details on request." },
+        { "slug": "reminders", "file": "reminders.md", "title": "Reminders and calendar files", "summary": "Export approved reminder messages for your own sender, and calendar files for bookings." }
+      ]
+    },
+    {
+      "title": "Your data and your team",
+      "pages": [
+        { "slug": "moving-in", "file": "moving-in.md", "title": "Bring your guest list", "summary": "Preview a CSV of guests and past visits, apply it, and undo it if you need to." },
+        { "slug": "backup-and-restore", "file": "backup-and-restore.md", "title": "Backup and restore", "summary": "Download a venue backup and restore it into a new installation." },
+        { "slug": "people-and-access", "file": "people-and-access.md", "title": "People and agent keys", "summary": "Owner, manager and read-only staff, invitations, and keys for agents that prepare work." }
+      ]
+    },
+    {
+      "title": "Reference",
+      "pages": [
+        { "slug": "move-in-csv", "file": "MOVE-IN.md", "title": "Move-in CSV format", "summary": "Every column, rule and limit of the guest import, and its HTTP requests." },
+        { "slug": "agents-api", "file": "AGENTS-API.md", "title": "Agent preparation API", "summary": "How an agent with a preparation key reads state and prepares plans." },
+        { "slug": "http-contract", "file": "HTTP-CONTRACT.md", "title": "HTTP contract", "summary": "Every product route, who may call it and what it returns." }
+      ]
+    }
+  ]
+}

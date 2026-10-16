@@ -9,7 +9,7 @@ export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
   purpose: '{deployment} keeps your restaurant tables, bookings, waitlist and guest history in your own account.',
-  tagline: 'Restaurant tables, bookings and guest history.',
+  tagline: 'Guests book online, walk-ins and the waitlist share one floor, and every visit stays yours. Free and open source.',
   signInPath: '/signin',
   // The run site `rer deploy --site` publishes (deploy-site.json).
   runSite: `https://${site.domain}`,
