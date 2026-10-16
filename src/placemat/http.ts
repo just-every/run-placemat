@@ -5,6 +5,7 @@ import { load,guests,hash,save } from './store'
 import { slots } from './availability'
 import { execute,onlineBook } from './commands'
 import { productPage } from './views'
+import { actorNames } from './people'
 import { importResponse,eraseImportedGuest } from './import/index'
 import { backup,restore,erasureCheckpoint } from './backup'
 import { reminderCsv,calendar } from './downloads'
@@ -40,7 +41,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
   if(path==='/api/state'&&request.method==='GET'){
    const {state,version}=await load(env.DB)
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]
-   return json({state,version,guests:await guests(env.DB),actor,keys})
+   return json({state,version,guests:await guests(env.DB),actor,keys,names:await actorNames(env.DB,state)})
   }
   if(path==='/api/commands'&&request.method==='POST'){
    const p=await jsonBody(request)

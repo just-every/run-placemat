@@ -1,4 +1,4 @@
-import { canonicalJson,eraseD1ImportTarget, type D1Database,type D1Sql } from './kit'
+import { canonicalJson,eraseD1ImportTarget,upgradeD1ImportErasureIndex, type D1Database,type D1Sql } from './kit'
 import { contextWithAuthority,requireOwner } from './context'
 import { guestIdentityHashes, importedGuestId } from './identity'
 import { Problem,type Actor,type Guest } from '../model'
@@ -18,6 +18,8 @@ export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Acto
  const statements:D1Sql[]=[guard,...hashes.map(hash=>({sql:'INSERT OR IGNORE INTO pm_erased(identity_hash,erased_at) VALUES(?,?)',params:[hash,at]})),{sql:'UPDATE pm_guests SET version=version+1,data=? WHERE id=?',params:[canonicalJson(erased),guestId]},{sql:'DELETE FROM pm_import_guest_revisions WHERE guest_id=?',params:[guestId]},...extraStatements]
  const selected=new Set([guest.id,guest.email,guest.phone].filter(Boolean))
  const related={source:(record:any)=>{const payload=record.payload;return payload&&typeof payload==='object'&&(!Array.isArray(payload))&&(payload.id===guest.id||guestIdentityHashes(payload).some(hash=>hashes.includes(hash)))},original:(bytes:Uint8Array)=>{try{return parseOriginal(bytes,selected,hashes)}catch{return false}}}
+ // Erasing older installations left some jobs unindexed; index them before this erasure.
+ for(let page=await upgradeD1ImportErasureIndex(context);!page.complete;page=await upgradeD1ImportErasureIndex(context));
  const result=await eraseD1ImportTarget('guest',guestId,statements,context,related)
  return {erasedRecords:result.erasedRecords,identityHashes:hashes}
 }

@@ -2,6 +2,7 @@ import type { Bindings } from '../../auth.server'
 import { Problem,type Actor } from '../model'
 import { requestContext } from './context'
 import { reviewCsv } from './plan'
+import { editedAfterImport } from './conflict'
 import { applyD1ImportBatches,createD1ImportJob,readD1ImportJob,undoD1Import,rollbackD1Import,sha256,type D1ImportContext } from './kit'
 export { eraseImportedGuest } from './erase'
 export { guestIdentityHashes } from './identity'
@@ -55,7 +56,8 @@ export async function importResponse(request:Request,env:Bindings,actor:Actor):P
    const jobId=required(input.jobId,'jobId'),fingerprint=required(input.fingerprint,'fingerprint')
    context.reviewedFingerprint=fingerprint
    const job=await readD1ImportJob(jobId,context)
-   return response({job:await (['queued','applying','failed','rolling_back','rolled_back'].includes(job.state)?rollbackD1Import(jobId,context):undoD1Import(jobId,context))})
+   try{return response({job:await (['queued','applying','failed','rolling_back','rolled_back'].includes(job.state)?rollbackD1Import(jobId,context):undoD1Import(jobId,context))})}
+   catch(error){if(error instanceof Error&&error.message.startsWith('NATIVE_EDIT_CONFLICT'))throw new Problem(409,await editedAfterImport(env.DB,jobId));throw error}
   }
   throw new Problem(404,'Move-in endpoint not found.')
  }catch(error){
