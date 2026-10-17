@@ -7,10 +7,10 @@ import { fixedId, type Clock } from './clock'
 export const venue = { name: 'Fern & Fig', timezone: 'America/Los_Angeles' }
 
 const room: [string, number, number, number][] = [
-  ['Ana 11', 2, 0, 0], ['Ana 12', 4, 10, 0], ['Ana 13', 4, 20, 0], ['Ana 21', 4, 0, 55], ['Ana 22', 4, 10, 55],
-  ['Ben 14', 4, 34, 0], ['Ben 23', 4, 44, 0], ['Ben 24', 4, 39, 55],
-  ['Cole 31', 4, 58, 0], ['Cole 32', 2, 68, 0], ['Cole 33', 4, 78, 0], ['Cole 34', 4, 88, 0], ['Cole 41', 4, 58, 55], ['Cole 42', 6, 68, 55],
-  ['Bar 1', 2, 80, 55], ['Bar 2', 2, 90, 55],
+  ['Ana 11', 2, 0, 0], ['Ana 12', 4, 11, 0], ['Ana 13', 4, 22, 0], ['Ana 21', 4, 0, 55], ['Ana 22', 4, 11, 55],
+  ['Ben 14', 4, 35, 0], ['Ben 23', 4, 46, 0], ['Ben 24', 4, 40, 55],
+  ['Cole 31', 4, 59, 0], ['Cole 32', 2, 70, 0], ['Cole 33', 4, 81, 0], ['Cole 34', 4, 59, 55], ['Cole 41', 4, 70, 55], ['Cole 42', 6, 81, 55],
+  ['Bar 1', 2, 92, 0], ['Bar 2', 2, 92, 55],
 ]
 export const tables: Table[] = room.map(([label, seats, x, y], i) => ({ id: fixedId(1, i + 1), label, seats, x, y }))
 export const table = (label: string) => tables.find(t => t.label === label)!

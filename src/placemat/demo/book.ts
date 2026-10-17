@@ -10,14 +10,14 @@ import { table, tables, type Guests } from './venue'
 const dinner = { open: '17:00', close: '22:30', turn: 90, covers: 120, last: '21:00' }
 const brunch = { open: '10:30', close: '14:30', turn: 75, covers: 70, last: '13:15' }
 const parties = [[2, 46], [3, 10], [4, 30], [5, 5], [6, 6], [8, 3]] as const
-const dinnerStarts = ['17:00', '17:15', '17:30', '17:45', '18:00', '18:15', '18:30', '18:45', '19:00', '19:15', '19:30', '19:45', '20:00', '20:15', '20:30', '20:45', '21:00'].map((t, i) => [t, [3, 2, 4, 3, 6, 5, 7, 6, 8, 7, 8, 6, 6, 4, 4, 2, 2][i]] as const)
+const dinnerStarts = ['17:00', '17:15', '17:30', '17:45', '18:00', '18:15', '18:30', '18:45', '19:00', '19:15', '19:30', '19:45', '20:00', '20:15', '20:30', '20:45', '21:00'].map((t, i) => [t, [5, 2, 4, 3, 6, 5, 7, 6, 8, 7, 8, 6, 6, 4, 4, 2, 2][i]] as const)
 const brunchStarts = ['10:30', '10:45', '11:00', '11:15', '11:30', '11:45', '12:00', '12:15', '12:30', '12:45', '13:00', '13:15'].map((t, i) => [t, [3, 2, 5, 4, 6, 5, 6, 4, 4, 3, 2, 1][i]] as const)
 // How full each night's book is: busier for the near days and weekends.
 const ahead = [30, 26, 22, 19, 15, 12, 9, 6]
 
 // Tonight, from the homepage's service sheet: who, how many, when, at which tables.
 const tonight: [string, number, string, string[]?][] = [
-  ['Rachel Abrams', 2, '17:00'], ['Daniel Cho', 4, '17:00'], ['Lucia Diaz', 4, '17:30'], ['Henry Moss', 4, '17:30'],
+  ['Rachel Abrams', 2, '17:00'], ['Daniel Cho', 4, '17:00'], ['Lucia Diaz', 4, '17:00'], ['Henry Moss', 4, '17:00'],
   ['Ethan Feld', 8, '18:00', ['Cole 41', 'Cole 34']], ['Olivia Gray', 4, '18:00'], ['Hannah Kowalski', 2, '18:30'], ['Mateo Ibarra', 4, '18:30'],
   ['Siobhan Kerr', 4, '19:00', ['Ben 24']], ['Marcus Daniels', 4, '19:15'], ['Priya Raman', 4, '19:30', ['Ana 12']], ['Jordan Blake', 4, '19:30'],
   ['Chidi Okafor', 8, '20:15', ['Ana 21', 'Ana 22']], ["Danny O'Neill", 4, '20:00'], ['Noah Weiss', 4, '20:00'], ['Wei Lin', 2, '20:30'],
@@ -38,7 +38,7 @@ export function book(clock: Clock, people: Guests, venue: State['venue']): Book 
     try {
       const fit = allocation(state, s, partySize, slot, requested?.map(label => table(label).id))
       const createdAt = source === 'online' ? new Date(Date.parse(slot.startAt) - (2 + Math.floor(rng.next() * 12)) * 86400000 - Math.floor(rng.next() * 600) * 60000).toISOString() : slot.startAt
-      const b: Booking = { id: fixedId(3, ++bookingN), serviceId: s.id, guestId, partySize, ...slot, tableIds: fit.map(t => t.id), status: 'booked', source, createdAt: createdAt < slot.startAt ? createdAt : slot.startAt }
+      const b: Booking = { id: fixedId(3, ++bookingN), serviceId: s.id, guestId, partySize, ...slot, tableIds: fit.map(t => t.id), status: 'booked', source, createdAt: [createdAt, slot.startAt, new Date(clock.now - Math.floor(rng.next() * 900) * 60000).toISOString()].sort()[0] }
       state.bookings.push(b); return b
     } catch (error) { if ((error as { status?: number }).status === 409) return null; throw error }
   }

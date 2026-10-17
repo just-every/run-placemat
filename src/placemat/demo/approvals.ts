@@ -25,7 +25,7 @@ export function decide({ state: s, tonight, tomorrow, draft, published }: Book, 
 
   // Each published service went out from its exact draft (version 1 -> 2).
   for (const service of published) {
-    const day = Math.floor((Date.parse(service.startAt) - Date.parse(tonight.startAt) + 43200000) / 86400000), preparedAt = clock.at(day - 7, '10:15')
+    const day = Math.floor((Date.parse(service.startAt) - Date.parse(tonight.startAt) + 43200000) / 86400000), preparedAt = clock.at(day - 8, '10:15')
     proposal('service.publish', { serviceId: service.id, service: { ...structuredClone(service), status: 'draft', version: 1 }, tables: floor, venue }, assistant.id, preparedAt,
       `${service.name}: usual hours, ${service.coverLimit} covers, ${service.turnMinutes}-minute turns.`, { by: ownerId, at: minutes(preparedAt, 95), status: 'approved' })
   }
