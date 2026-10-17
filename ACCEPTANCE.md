@@ -20,7 +20,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **PLAN-001 — Exact plans and accountable decisions.** **Status: done.** Prepare with an owner-issued key, refuse key approval, change a draft, refuse stale approval, then approve a fresh plan as manager and read its identities; prepare and approve a valid table move. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs`.
 
-- **MSG-001 — Approved reminder CSV custody.** **Status: done.** Book guests, mark one no-show, approve remaining reminders and download CSV; erase a booked guest and download again, proving the guest’s personal values are absent. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs`.
+- **MSG-001 — Approved reminder CSV custody.** **Status: partial.** Book guests, mark one no-show, approve remaining reminders and download CSV with US-formatted local times; erase a booked guest and download again, proving the guest’s personal values are absent. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs`. **Remaining:** Approval, export attribution, no-show and erasure exclusion work; reminder text is rendered with an `en-AU` date format, not US format.
 
 - **WAIT-001 — Staff walk-ins and waiting parties.** **Status: done.** Run the Friday HTTP journey with online bookings, a walk-in, a waiting party and a no-show; seat the waiting party and refuse completion before seating. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`.
 
@@ -34,7 +34,11 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **SITE-001 — Runnable product and owner guides.** **Status: partial.** Build the run site and follow homepage to /run and /docs; open the installed root after fresh setup and reach empty restaurant operations. **Current evidence:** `tests/site.mjs`; `tests/runtime.mjs`; `src/placemat/model.ts`. **Remaining:** Site links and the native runtime are exercised separately; the combined fresh-installed empty-product browser journey is not covered.
 
-## Venue setup and service policy
+## Target clauses
+
+Target journeys, grouped as in CONTRACT.md.
+
+### Venue setup and service policy
 
 - **SETUP-001 — US restaurant onboarding.** **Status: partial.** Finish onboarding for a 72-seat US restaurant, preview its booking page and create services across both DST changes; refuse nonexistent local times and disambiguate repeated times. **Current evidence:** `src/placemat/commands.ts`; `public/placemat.js`; `tests/api/flows.test.mjs`. **Remaining:** Name/timezone and offset instants exist; US defaults, business/contact fields, policy setup and US DST browser evidence are absent.
 
@@ -44,19 +48,21 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **SERVICE-004 — Party and advance-booking rules.** **Status: partial.** Configure different lunch/dinner rules; try early, late, oversized and blocked public requests, then authorize a lead-time override and inspect its audit. **Current evidence:** `src/placemat/availability.ts`; `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** Fixed party bounds and 15-minute slots exist; configurable service/channel rules and overrides do not.
 
-- **SERVICE-005 — Arrival pacing and concurrent covers.** **Status: partial.** Set a 12-cover arrival limit and 48 simultaneous covers, book through two channels concurrently and prove the next party is refused despite a physically free table. **Current evidence:** `src/placemat/availability.ts`; `tests/api/flows.test.mjs`. **Remaining:** Cumulative service covers and table occupancy exist; interval pacing, concurrent-cover and kitchen/area limits are absent.
+- **SERVICE-005 — Arrival pacing and concurrent covers.** **Status: partial.** Set a 12-cover arrival limit and 48 simultaneous covers, book through two channels concurrently and prove the next public party is refused despite a physically free table, while a staff booking at the same moment receives a warning and needs a SERVICE-007 override. **Current evidence:** `src/placemat/availability.ts`; `tests/api/flows.test.mjs`. **Remaining:** Cumulative service covers and table occupancy exist; interval pacing, concurrent-cover and kitchen/area limits are absent.
 
 - **SERVICE-006 — Turn and cleanup rules.** **Status: partial.** Configure 90-minute two-tops, 120-minute six-tops and a 15-minute reset; search last seating, book both sizes and verify adjacent turns and a policy edit. **Current evidence:** `src/placemat/availability.ts`; `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** One full-turn duration per service exists; party/table/area durations and cleanup buffers do not.
 
-## Booking and distribution
+- **SERVICE-007 — Staff pacing overrides with warnings.** **Status: missing.** With a full 12-cover 7:30 interval and a physically free four-top, have a public request and an agent request refused. As a host without the grant, be refused. As a granted host, see the warning naming the limit and excess, confirm with a reason and book; read the audit row, the flag on the timeline and the override count in the pacing report. Attempt an override onto an occupied table and be refused. **Remaining:** The service cover limit refuses every channel, staff included; there is no override, warning, reason or override reporting.
 
-- **BOOK-002 — Branded website booking widget.** **Status: partial.** Embed on an allowed test website, search and book at 1440 and 390 widths, navigate by keyboard and verify the same slot disappears on the standalone page. **Current evidence:** `src/placemat/views.ts`; `public/placemat.js`; `public/placemat.css`; `tests/api/flows.test.mjs`. **Remaining:** Standalone branded booking exists; embed SDK, host-site installation and browser booking evidence are absent.
+### Booking and distribution
+
+- **BOOK-002 — Branded website booking widget.** **Status: partial.** Embed on an allowed test website, search and book at 1440 and 390 widths, navigate by keyboard and verify the same slot disappears on the standalone page; observe the GA4 and Meta test events for the completed booking with no guest contact data, then decline analytics consent and observe none. **Current evidence:** `src/placemat/views.ts`; `public/placemat.js`; `public/placemat.css`; `tests/api/flows.test.mjs`. **Remaining:** Standalone branded booking exists; embed SDK, host-site installation and browser booking evidence are absent.
 
 - **BOOK-003 — Reservation search and availability alternatives.** **Status: missing.** Search a full Friday for an accessible four-top, select a Saturday alternative and complete it; race a stale result and receive a clear reselect path. **Remaining:** No implementation of this journey exists.
 
 - **BOOK-004 — Secure guest modification and cancellation.** **Status: missing.** Use a delivered link to move a two-top to four, fail an unavailable move without losing the old booking, cancel with policy acknowledgment and refuse an expired or foreign token. **Remaining:** No implementation of this journey exists.
 
-- **BOOK-005 — Staff telephone and concierge reservations.** **Status: partial.** As host, book next Friday for a returning caller, identify the concierge source, confirm by SMS and read the booking in the same floor schedule as online guests. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** Staff walk-ins and guest matching exist; future staff reservations, concierge source and delivered confirmation are absent.
+- **BOOK-005 — Staff telephone and concierge reservations.** **Status: partial.** As host, book next Friday for a returning caller, identify the concierge source, confirm by SMS and read the booking in the same floor schedule as online guests; book a six-top under a deposit policy and see the PAY-010 request delivered. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** Staff walk-ins and guest matching exist; future staff reservations, concierge source and delivered confirmation are absent.
 
 - **BOOK-006 — Booking holds and duplicate submissions.** **Status: partial.** Two guests start checkout for the final four-top, expire one hold, complete the other and retry its booking/payment request after a network interruption; find one booking and one charge. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs`. **Remaining:** Floor-version race guards and same-guest/time duplicate refusal exist; temporary holds and idempotent checkout recovery do not.
 
@@ -72,7 +78,9 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **DIST-005 — Guest accounts and repeat booking.** **Status: missing.** Book without an account, verify a diner account, attach only the verified booking, rebook a favorite on another device and revoke saved preferences. **Remaining:** No implementation of this journey exists.
 
-## The host stand and floor
+- **DIST-006 — Verified diner reviews and restaurant replies.** **Status: missing.** Complete a visit, receive the review invitation, submit a four-star review and see it with its visit date on the venue page and widget. Refuse a review for a no-show and a second review for the same visit. Reply as manager and see the reply public; report an abusive review and read the moderation outcome; prove a manager cannot delete a one-star review. **Remaining:** No diner reviews, ratings, replies or moderation exist.
+
+### The host stand and floor
 
 - **FLOOR-002 — Rooms and editable floor plans.** **Status: partial.** Draw dining room and patio, retire a booked table with an approved replacement, book both areas and watch occupancy update on a second host device. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/views.ts`; `public/placemat.js`; `tests/api/flows.test.mjs`. **Remaining:** Positioned tables and manual refreshed occupancy exist; rooms, table attributes, editable combinations and live synchronization do not.
 
@@ -80,7 +88,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **FLOOR-004 — Server sections and fair covers.** **Status: missing.** Assign two sections and servers, seat uneven parties, put one server on break and move a table; verify cover totals, suggested rotation and attributed service history. **Remaining:** No implementation of this journey exists.
 
-- **FLOOR-005 — Timeline and overdue turns.** **Status: missing.** Seat a late six-top, extend its actual turn and inspect the collision with the next arrival; propose and approve a fitting replacement and read both histories. **Remaining:** No implementation of this journey exists.
+- **FLOOR-005 — Timeline and overdue turns.** **Status: missing.** Seat a late six-top, extend its actual turn and inspect the collision with the next arrival; move the next arrival to a fitting replacement as a host in one action and read both histories. **Remaining:** No implementation of this journey exists.
 
 - **FLOOR-006 — Service statuses and handover.** **Status: partial.** Run a reservation from arrival through paid and clearing to ready, correct an accidental state with a reason and inspect the next shift’s handover. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/model.ts`; `tests/api/flows.test.mjs`. **Remaining:** Booked/seated/completed/cancelled/no-show transitions exist; arrival, course/check, cleanup timestamps and correction history do not.
 
@@ -88,7 +96,11 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **FLOOR-008 — Concurrent devices and operational outage.** **Status: partial.** Seat from two tablets, disconnect one, record a pending walk-in and reconnect after its table is sold; refuse silent overwrite and reconcile to a different table. **Current evidence:** `src/placemat/store.ts`; `src/placemat/http.ts`; `public/placemat.js`; `tests/api/flows.test.mjs`. **Remaining:** Server version checks and explicit refresh exist; live device sync, offline sheet and pending-action reconciliation are absent.
 
-## Waitlist and cancellation demand
+- **FLOOR-009 — Direct host table moves, swaps and locks.** **Status: partial.** Signed in as a host, not a manager, move a seated four-top to a free fitting table, swap two booked parties and lock a third assignment, each in one HTTP command and one floor-screen gesture at 1440 and 390 widths; read the three audit rows. Refuse a move into an occupied table and into a table whose next turn clashes. Book a new party and prove automatic allocation leaves the locked assignment untouched. Prove a preparation key can still only prepare a `table.assign` proposal. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs`. **Remaining:** Clash-checked reassignment exists only as a `table.assign` proposal that an owner/admin approves; a direct host move, swap, lock, host role and per-move audit row do not exist.
+
+- **FLOOR-010 — Counter seats and unassigned bar pools.** **Status: missing.** Define a 10-seat counter and a 20-cover lounge pool; book five two-tops at the counter and refuse a sixth for the same turn; seat two adjacent counter guests and prove those seats are not sold twice across overlapping turns. Book a lounge reservation, seat it at assigned bar seats on arrival and then move it to a table, reading pool and table occupancy after each step. **Remaining:** Only whole tables and table combinations exist; seat-level counter inventory and unassigned pools do not.
+
+### Waitlist and cancellation demand
 
 - **WAIT-002 — Remote and walk-up joining.** **Status: partial.** Join by phone QR and staff intake, refuse a duplicate, change party size and pause online intake while allowing a host entry. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** Staff intake and seating exist; public joining, guest management links, duplicate rules and pause controls do not.
 
@@ -100,7 +112,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **WAIT-006 — Waitlist accountability.** **Status: partial.** Close a shift containing an unanswered offer, a no-phone party and a seated party; inspect dispositions, actual waits and assigned follow-up with no unresolved ghost offers. **Current evidence:** `src/placemat/model.ts`; `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** Waiting/seated states exist; offers, abandoned/expired disposition, reasons and wait history do not.
 
-## Delivered communications and follow-up
+### Delivered communications and follow-up
 
 - **MSG-002 — Twilio SMS and WhatsApp connection.** **Status: missing.** Connect approved test senders, send a table-ready SMS and WhatsApp template, ingest signed delivery/reply events and reject a forged webhook; surface unregistered sender failure to the manager. **Remaining:** No implementation of this journey exists.
 
@@ -108,7 +120,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **MSG-004 — Booking and cancellation delivery.** **Status: missing.** Book online, modify and cancel; inspect three distinct provider receipts and the guest’s messages, then fail one delivery and find a staff follow-up without a duplicate booking. **Remaining:** No implementation of this journey exists.
 
-- **MSG-005 — Scheduled reminders and reconfirmations.** **Status: partial.** Schedule a 24-hour reconfirmation and 2-hour reminder, confirm by link, cancel another booking and restart the scheduler; verify correct recipients, no repeats and an owned unanswered task. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs`. **Remaining:** Reviewed reminder CSV preparation exists; scheduled provider delivery, reconfirmation links and reply/failure follow-up do not.
+- **MSG-005 — Scheduled reminders and reconfirmations.** **Status: partial.** Schedule a 24-hour reconfirmation and 2-hour reminder, confirm one booking by link and another by replying C, cancel a third by replying X and restart the scheduler; verify correct recipients, no repeats and an owned unanswered task. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs`. **Remaining:** Reviewed reminder CSV preparation exists; scheduled provider delivery, reconfirmation links and reply/failure follow-up do not.
 
 - **MSG-006 — Unified two-way guest inbox.** **Status: missing.** Receive a late-arrival text, assign it to a host, reply from the inbox, receive an email follow-up and resolve it; verify both channels and reservation context in one history. **Remaining:** No implementation of this journey exists.
 
@@ -118,7 +130,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **MSG-009 — Templates and guest communication preferences.** **Status: missing.** Preview and deliver an English/Spanish reminder with long names and special characters, then change the template; prior messages retain their actual rendered content and policy version. **Remaining:** No implementation of this journey exists.
 
-## Payments and table protection
+### Payments and table protection
 
 - **PAY-001 — Stripe merchant connection and token custody.** **Status: missing.** Connect a Stripe test merchant, collect a hosted payment method, inspect redacted product records and disconnect; existing obligations stay visible while new charges are blocked. **Remaining:** No implementation of this journey exists.
 
@@ -138,7 +150,9 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **PAY-009 — Disputes and payment operations.** **Status: missing.** Open a test dispute, assemble the booking/policy/message evidence, approve a response and export its ledger to accounting; trace a rejected sync back to an owned task. **Remaining:** No implementation of this journey exists.
 
-## Experiences and ticketed dining
+- **PAY-010 — Staff-requested card and deposit links.** **Status: missing.** As a host, book a six-top by phone under a $25-per-person deposit policy; read the delivered SMS and email provider receipts carrying a link to Stripe-hosted test collection with a deadline; pay and see the booking marked protected with its receipt. Book a second party and leave it unpaid: see the unprotected flag and the staff reminder task, advance past the deadline and verify the table is released, the booking cancelled and the guest notified; replay a late payment callback and verify the booking is not resurrected without a person and the payment is refunded or flagged. Waive a third party’s requirement with a reason and read its audit row. **Remaining:** No payment request, Stripe collection, deadline, unprotected state, auto-release or waiver exists.
+
+### Experiences and ticketed dining
 
 - **EXP-001 — Experience catalog and event inventory.** **Status: missing.** Publish a tasting dinner and a free patio event, book both beside normal reservations and prove the same table cannot be sold through two catalogs. **Remaining:** No implementation of this journey exists.
 
@@ -150,7 +164,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **EXP-005 — Prepaid pickup experiences.** **Status: missing.** Publish a Thanksgiving take-home pickup experience, pay for a 4 p.m. slot, transfer its line items to the connected POS and mark pickup complete; reject a sold-out slot and refund a cancelled order. **Remaining:** No implementation of this journey exists.
 
-## Guest relationships and repeat visits
+### Guest relationships and repeat visits
 
 - **GUEST-002 — Searchable profiles and structured preferences.** **Status: partial.** Find a returning guest by US phone, add a VIP tag and seating preference, then book again and view the preferences and their sources at arrival. **Current evidence:** `src/placemat/guests.ts`; `public/placemat.js`; `src/placemat/model.ts`; `tests/api/flows.test.mjs`. **Remaining:** Contact records, free-text notes and client search exist; normalized search, structured tags/preferences and field provenance are absent.
 
@@ -174,7 +188,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **CRM-006 — Return offers and loyalty handoff.** **Status: missing.** Approve a $20 return offer after a recovery, book its recipient, redeem on one POS check and refuse reuse; inspect actual repeat visit and net contribution. **Remaining:** No implementation of this journey exists.
 
-## POS and service connections
+### POS and service connections
 
 - **POS-001 — Toast connection.** **Status: missing.** Connect an authorized Toast sandbox, seat a guest, open/pay/void a mapped check and reconcile guest spend and table state; revoke access and show stale data plus an assigned repair task. **Remaining:** No implementation of this journey exists.
 
@@ -190,7 +204,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **POS-007 — Live check and kitchen pace.** **Status: missing.** Open, course, pay and clear a check, slow a kitchen signal and inspect suggested availability; drop the POS feed and prove the last observed state is labelled stale instead of assumed ready. **Remaining:** No implementation of this journey exists.
 
-## Service and commercial reporting
+### Service and commercial reporting
 
 - **REPORT-001 — Covers cancellations and no-shows.** **Status: partial.** Run two shifts with cancellations and no-shows, filter one local date, drill a total to its bookings and reconcile its CSV to attended versus booked covers. **Current evidence:** `src/placemat/model.ts`; `public/placemat.js`; `tests/api/flows.test.mjs`. **Remaining:** Current-service totals/statuses exist; historical filtered reports, denominators and row-level downloads do not.
 
@@ -206,7 +220,7 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **COST-001 — Predictable operating costs.** **Status: missing.** Preview 1,000 reminders and a promoted event, inspect projected provider/cover cost, set a budget alert and reconcile the bill to usage and processor fees. **Remaining:** No implementation of this journey exists.
 
-## Migration from each incumbent
+### Migration from each incumbent
 
 - **MIG-002 — OpenTable migration.** **Status: missing.** Dry-run representative customer Guestbook and reservation CSVs, map Friday tables, apply approved imports and compare future-booking/date/cover and consent totals; keep unmapped rows in an actionable exception report. **Remaining:** No implementation of this journey exists.
 
@@ -224,17 +238,19 @@ Statuses below match the contract at code commit `536f4d6f1c5c54543b09f40a1ea848
 
 - **DATA-003 — Complete portable business records.** **Status: partial.** Export a complete multi-channel paid service, restore supported records into an empty installation and open the CSVs; reconcile counts and references, inspect exclusions and prove erased personal data stays absent. **Current evidence:** `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs`. **Remaining:** Existing domain archive integrity and empty restore exist; new target records and documented business CSV exports are absent.
 
-## Rights, APIs and daily operation
+### Rights, APIs and daily operation
 
 - **ROLE-001 — Owner and group-administrator rights.** **Status: partial.** As owner connect two venues, grant a scoped group admin, revoke it and prove direct API access stops; deny a venue manager an owner export, erasure and provider credential change. **Current evidence:** `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs`. **Remaining:** Owner-only keys/import/erase/backups and admin role exist; venue/group scoping, granular grants and provider finance rights do not.
 
 - **ROLE-002 — Manager and shift-lead rights.** **Status: partial.** Give a manager a $100 refund limit and a lead seating-only override; test each direct operation, refuse the excess refund and provider change, and record a permitted decision. **Current evidence:** `src/placemat/access.ts`; `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** Admin can operate and approve; distinct lead capability, financial limits and scoped reporting do not exist.
 
-- **ROLE-003 — Host server and read-only rights.** **Status: partial.** Sign in as host, server and read-only member, seat as host, inspect only the server’s section and refuse member mutations and all three actors’ bulk guest exports. **Current evidence:** `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs`. **Remaining:** Member read-only enforcement exists; host/server roles, section visibility and field/bulk-export permissions are absent.
+- **ROLE-003 — Host server and read-only rights.** **Status: partial.** Sign in as host, server and read-only member, seat, move and swap tables as host without approval, inspect only the server’s section and refuse member mutations and all three actors’ bulk guest exports. **Current evidence:** `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs`. **Remaining:** Member read-only enforcement exists; host/server roles, section visibility and field/bulk-export permissions are absent.
 
 - **ROLE-004 — Finance marketing and integration rights.** **Status: partial.** Grant finance, marketing and integration identities, run permitted jobs and deny direct unrelated reads/writes; revoke an integration credential during a queued job and prove the job cannot proceed. **Current evidence:** `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs`. **Remaining:** Owner-issued preparation-only keys and revocation exist; finance/marketing roles and scoped connector/service execution grants do not.
 
 - **SEC-001 — Identity and session lifecycle.** **Status: partial.** Invite and suspend a host, revoke an active session, test direct access, then require step-up for an owner export/refund policy change and provision a scoped SSO user. **Current evidence:** `src/modules/operator-auth/accounts/admin.mjs`; `src/modules/operator-auth/accounts/native.mjs`; `tests/runtime.mjs`; `tests/api/flows.test.mjs`. **Remaining:** Native sessions/invitations and active-role checks exist; MFA, step-up and group SSO journeys are absent.
+
+- **SEC-002 — Shared host-stand device and quick staff switch.** **Status: missing.** Register a host iPad as a venue device, switch between two hosts by PIN, seat and move parties and read audit rows attributed to each host. Let it idle and see it lock; enter wrong PINs until throttled; suspend one host and refuse their PIN; refuse a guest export from a PIN session without step-up; revoke the device and refuse its next request. **Remaining:** Only personal native sessions exist; venue devices, PIN switching, idle lock and per-PIN attribution do not.
 
 - **AUDIT-001 — Reservation and financial change history.** **Status: partial.** Move and cancel a reservation, change consent and refund a deposit; inspect/export their before/after history by actor and verify a guest erasure redacts personal values without losing action accountability. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/model.ts`; `tests/api/flows.test.mjs`. **Remaining:** Actor/action/subject events and proposal decisions exist; before/after records, financial/provider history, filters and audit export do not.
 
