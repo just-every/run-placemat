@@ -10,6 +10,10 @@ export interface Rendered { html: string; toc: { id: string; text: string }[]; p
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 const plain = (value: string) => value.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
 const slugify = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').trim().replace(/\s+/g, '-')
+// One block per source line, its newline kept inside so Copy and selection read
+// the text unchanged; docs.css hangs a wrapped line's continuation under it.
+const codeLines = (text: string) => text.replace(/\n$/, '').split('\n')
+  .map((line, i, all) => `<span class="docs-line">${escapeHtml(line)}${i < all.length - 1 ? '\n' : ''}</span>`).join('')
 
 /** `slugs` maps each docs file name to its slug; `source` is the repository's blob URL prefix. */
 export function renderMarkdown(markdown: string, slugs: Map<string, string>, source: string): Rendered {
@@ -35,7 +39,7 @@ export function renderMarkdown(markdown: string, slugs: Map<string, string>, sou
       code({ text, lang }) {
         const language = (lang ?? '').trim().split(/\s+/)[0]
         if (!language) problems.push('has a code block without a language')
-        return `<div class="docs-code" data-lang="${escapeHtml(language)}"><pre><code>${escapeHtml(text.replace(/\n$/, ''))}</code></pre><button class="docs-copy" type="button" hidden>Copy</button></div>\n`
+        return `<div class="docs-code" data-lang="${escapeHtml(language)}"><pre><code>${codeLines(text)}</code></pre><button class="docs-copy" type="button" hidden>Copy</button></div>\n`
       },
       html({ text }) { return escapeHtml(text) },
       link({ href: target, title, tokens }) {

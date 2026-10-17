@@ -1,4 +1,4 @@
-Placemat runs on your own computer with one command, and later in your own Cloudflare account if you want guests to book from anywhere. It is free and open source under the MIT license. Providers such as Stripe and your text sender bill you directly.
+Placemat runs on your own computer with one command, and later in your own Cloudflare account if you want guests to book from anywhere. It is free and open source under the MIT license.
 
 ## Run it on your computer
 

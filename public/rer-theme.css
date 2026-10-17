@@ -81,5 +81,7 @@ body:has(> .bar) .step h2 { font-weight: 700; }
 body:has(> .bar) .num { font-weight: 800; }
 body:has(> .bar) .code { border-radius: 14px; }
 /* A command too long for its card wraps inside the padding Base reserves for
-   Copy, so it never runs under the button. */
+   Copy, so it never runs under the button, and its continuation hangs under it
+   so the rest reads as the same command, never a new one. */
 body:has(> .bar) .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+body:has(> .bar) .code pre code { display: block; padding-left: 2ch; text-indent: -2ch; }
