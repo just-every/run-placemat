@@ -55,7 +55,7 @@ html{scroll-behavior:smooth;scroll-padding-top:24px}
 .rer-themed button.link-button{min-height:0;padding:0;border:0;border-radius:2px;background:none;color:var(--pm-ink);font-weight:400;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .rer-themed button:disabled{opacity:.5;cursor:not-allowed}
 .rer-themed label{gap:6px;font-size:14px;font-weight:500}
-.rer-themed input:not([type=checkbox]):not([type=hidden]):not([type=file]),.rer-themed select,.rer-themed textarea{width:100%;min-height:44px;padding:9px 14px;border:1px solid var(--pm-control);border-radius:10px;background:var(--pm-surface);color:var(--pm-ink);font:400 16px/1.4 var(--pm-ui)}
+.rer-themed input:not([type=checkbox]):not([type=hidden]):not([type=file]),.rer-themed select,.rer-themed textarea{width:100%;min-width:0;min-height:44px;padding:9px 14px;border:1px solid var(--pm-control);border-radius:10px;background:var(--pm-surface);color:var(--pm-ink);font:400 16px/1.4 var(--pm-ui)}
 .rer-themed select{appearance:none;padding-right:40px;background:var(--pm-surface) url('/brand/chevron.svg') calc(100% - 16px) 50% / 12px 8px no-repeat}
 .rer-themed select[multiple]{padding-right:14px;background-image:none}
 .rer-themed textarea{min-height:110px;resize:vertical}

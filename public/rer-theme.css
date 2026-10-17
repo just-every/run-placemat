@@ -80,3 +80,6 @@ body:has(> .bar) .step { background: var(--pm-surface); border-color: var(--pm-r
 body:has(> .bar) .step h2 { font-weight: 700; }
 body:has(> .bar) .num { font-weight: 800; }
 body:has(> .bar) .code { border-radius: 14px; }
+/* A command too long for its card wraps inside the padding Base reserves for
+   Copy, so it never runs under the button. */
+body:has(> .bar) .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }

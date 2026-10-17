@@ -1,7 +1,8 @@
 /* The hero. The painting and everything set into it share one 1536 x 1024
-   stage, scaled by --k in steps (0.9375 at 1440, 1 at 1536, 0.78 at 1200) and
+   stage, scaled by --k (0.9375 at 1440, 1 at 1536, 0.78 at 1200) and
    anchored right; the header and copy scale and sit with it, so the copy keeps
-   its place against the art at every width;
+   its place against the art at every width. From 1200 px up --k follows the
+   viewport (100vw / 1536px) so the painting always reaches both edges;
    the tablet's screen is mapped onto the painted screen by a homography
    (matrix3d) and clipped where the menu books cover it. Under 1024 px the copy
    stacks over a crop of the same painting (--kp) and two of the tags. */
@@ -10,7 +11,6 @@
 .hero-stage{position:absolute;top:0;right:0;width:calc(1536px * var(--k));height:calc(1024px * var(--k))}
 .stage{position:absolute;left:0;top:0;width:1536px;height:1024px;transform:scale(var(--k));transform-origin:0 0}
 .stage picture,.stage img{display:block;width:1536px;height:1024px}
-.hero-stage::after{content:'';position:absolute;inset:0 auto 0 0;width:70px;background:linear-gradient(90deg,#FDF7ED,rgb(253 247 237 / 0))}
 .stage-ui{position:absolute;inset:0;clip-path:polygon(0 0,1536px 0,1536px 820px,1500px 826px,1330px 874px,1300px 926px,1290px 1024px,0 1024px)}
 .hero-copy{position:relative;z-index:2;padding:calc(136px * var(--k)) 0 0 calc(var(--stage-left) + 78px * var(--k))}
 .home .site-bar{width:100%;max-width:none;padding:calc(22px * var(--k)) calc(90px * var(--k)) 0 calc(var(--stage-left) + 78px * var(--k))}
@@ -67,12 +67,8 @@
 
 .hero-phone,.hero-cards{display:none}
 
-@media (min-width:1800px){.home{--k:1.17}}
-@media (min-width:2048px){.home{--k:1.333}}
-@media (max-width:1535px){.home{--k:.9375}}
-@media (max-width:1439px){.home{--k:.885}}
-@media (max-width:1359px){.home{--k:.833}}
-@media (max-width:1279px){.home{--k:.78}}
+/* tan(atan2(a, b)) is a / b as a plain number, so the stage is exactly as wide as the viewport. */
+@media (min-width:1200px){.home{--k:tan(atan2(100vw, 1536px))}}
 @media (max-width:1199px){
   .home .site-bar{padding:20px 40px 0}
   .hero{--kp:.95;height:auto;padding-bottom:56px;background:linear-gradient(180deg,#FDF7ED,#FBF1E2)}
@@ -98,7 +94,7 @@
   .hero h1{font-size:52px;line-height:.96;letter-spacing:-.04em}
   .hero .sub{margin-top:20px;font-size:19px;line-height:1.42}
   .hero .alt{font-size:18px}
-  .hero .actions{display:grid;grid-template-columns:1fr 1fr;justify-items:center;gap:20px 12px}
+  .hero .actions{display:grid;justify-items:center;gap:20px}
   .hero .btn{grid-column:1 / -1;width:100%}
   .hero .text-link{font-size:18px}
   .hero-phone,.hero-cards{width:calc(100% - 32px);margin-left:16px;margin-right:16px}

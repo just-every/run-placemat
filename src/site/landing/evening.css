@@ -159,6 +159,11 @@
   .kc-ticket h3{font-size:20px}
   .kc-tip{font-size:14px;padding:6px 10px}
   .kc-chart .ax{font-size:24px}
+  /* At this size the time labels drop clear of the "10" tick, and "usual 14 min"
+     sits under its dashed line, ending inside the plot. */
+  .kc-chart .ax-x{transform:translateY(12px)}
+  .kc-chart .usual-label{text-anchor:end;transform:translate(34px,26px)}
+  .kc-ticket{padding-bottom:20px}
   .kc-agent{padding:22px 18px}
   .kc-agent h3{font-size:24px}
   .kc-agent li{gap:16px;font-size:16px}

@@ -57,7 +57,7 @@
 .cf-cards{position:absolute;top:0;right:0;width:780px;height:712px}
 .cf-text{position:absolute;right:182px;top:0;width:442px;padding:22px 22px 26px}
 .cf-deposit{position:absolute;right:0;top:300px;width:432px;padding:22px 26px 14px;z-index:2}
-.cf-tally{position:absolute;right:0;top:606px;width:716px;display:grid;grid-template-columns:repeat(3,auto) 1fr;align-items:center;padding:18px 18px 18px 24px}
+.cf-tally{position:absolute;right:0;top:606px;width:764px;display:grid;grid-template-columns:repeat(3,auto) 1fr;align-items:center;padding:18px 18px 18px 24px}
 .who{display:flex;align-items:center;gap:16px;font:400 18px/1.3 var(--pm-ui)}
 .who b{font-weight:600}
 .cf-text .bubble{margin-top:14px}
@@ -71,7 +71,7 @@
 .cf-deposit .g{width:32px;height:32px;stroke-width:1.5;color:#1F3A2F}
 .cf-tally p{display:grid;gap:8px;padding:0 22px;border-left:1px solid var(--pm-rule)}
 .cf-tally p:first-child{padding-left:0;border-left:0}
-.cf-tally .k{display:flex;align-items:center;gap:12px;font:500 16px/1 var(--pm-ui)}
+.cf-tally .k{display:flex;align-items:center;gap:12px;white-space:nowrap;font:500 16px/1 var(--pm-ui)}
 .cf-tally .dot{width:14px;height:14px}
 .cf-tally b{padding-left:26px;font:700 28px/1 var(--pm-ui)}
 .cf-tally .cf-offer{white-space:nowrap;display:flex;align-items:center;justify-content:flex-end;gap:14px;font:400 16px/1.3 var(--pm-ui);text-decoration:underline;text-underline-offset:3px}
@@ -163,7 +163,7 @@
   .cf-tally{grid-template-columns:repeat(3,1fr);padding:18px;row-gap:16px}
   .cf-tally p{padding:0 12px}
   .cf-tally b{padding-left:0;font-size:36px}
-  .cf-tally .k{font-size:14px;gap:8px}
+  .cf-tally .k{font-size:14px;gap:8px;white-space:normal}
   .cf-tally .k .dot{display:none}
   .cf-tally p:nth-child(2) b{color:#C9852A}.cf-tally p:nth-child(3) b{color:var(--pm-red)}
   .cf-tally .cf-offer{grid-column:1 / -1;justify-content:flex-start;padding:14px 0 0;border-left:0;border-top:1px solid var(--pm-rule);text-decoration:none}
