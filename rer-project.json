@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "projectId": "just-every/run-placemat",
+  "name": "Placemat",
+  "sourceRepository": "https://github.com/just-every/run-placemat",
+  "license": "MIT"
+}
