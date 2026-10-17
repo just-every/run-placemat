@@ -94,8 +94,8 @@
   .hero h1{font-size:52px;line-height:.96;letter-spacing:-.04em}
   .hero .sub{margin-top:20px;font-size:19px;line-height:1.42}
   .hero .alt{font-size:18px}
-  .hero .actions{display:grid;justify-items:center;gap:20px}
-  .hero .btn{grid-column:1 / -1;width:100%}
+  .hero .actions{flex-wrap:wrap;justify-content:center;gap:20px 28px}
+  .hero .btn{flex:0 0 100%}
   .hero .text-link{font-size:18px}
   .hero-phone,.hero-cards{width:calc(100% - 32px);margin-left:16px;margin-right:16px}
   .hero-phone{margin-top:28px;border-radius:18px}

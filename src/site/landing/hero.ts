@@ -35,12 +35,14 @@ const art = (prefix: string, sizes: string, widths: number[], width: number, hei
 }
 
 export function hero(docs: boolean): string {
+  // Each hosted option in run.json (the /run page's cards) is also a text link beside Read the docs, so the link goes when the demo is taken down.
+  const demos = run.hosted.map(h => `<a class="text-link" href="${esc(h.href)}">${esc(h.title)}</a>`).join('')
   return `<section class="hero" aria-labelledby="hero-title">`
     + `<div class="hero-stage" role="img" aria-label="${esc(label)}"><div class="stage">${art('hero', '(max-width:1199px) 1px, 100vw', [768, 1152, 1536], 1536, 1024, true)}<div class="stage-ui">${tablet}</div>${tags}</div></div>`
     + `<div class="hero-copy"><h1 id="hero-title">Every table, filled.</h1>`
     + `<p class="sub">Placemat takes reservations from your site, Google and Instagram, runs the host stand and waitlist, and remembers every guest.</p>`
     + `<p class="alt">100% free, open source alternative to <b>OpenTable</b>, <b>Resy</b> and <b>SevenRooms</b></p>`
-    + `<div class="actions"><a class="btn" href="/run">Run Placemat${arrow}</a><a class="btn" href="https://demo.run-placemat.com/">Try the demo</a><a class="text-link" href="${docs ? '/docs' : esc(run.repository)}">Read the docs</a></div></div>`
+    + `<div class="actions"><a class="btn" href="/run">Run Placemat${arrow}</a>${demos}<a class="text-link" href="${docs ? '/docs' : esc(run.repository)}">Read the docs</a></div></div>`
     + `<div class="hero-phone" aria-hidden="true"><div class="stage">${art('hero-phone', '(max-width:1199px) 760px, 1px', [380, 760], 760, 774, false)}<div class="stage-ui">${tablet}</div></div></div>`
     + `<div class="hero-cards">${tag('t-table', 'd-green', 'Table 12', ['Priya +3 · 7:30 · anniversary'])}${tag('t-wait', 'd-violet', 'Waitlist', ['Marco, 2 · 15 min · text sent'])}</div>`
     + `</section>`
