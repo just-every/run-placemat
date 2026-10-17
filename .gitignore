@@ -10,6 +10,8 @@ dist/
 *.tsbuildinfo
 
 .rer/
+.rer/demo/
+.rer/demo-host/
 exports/
 test-results/
 playwright-report/

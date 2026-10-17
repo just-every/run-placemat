@@ -24,7 +24,7 @@ schema at construction. Apply the bookkeeping migration first. Policy fields:
 | `derivedTables` | Virtual/FTS tables to regenerate; their shadow tables are excluded. |
 | `secretColumns` | Per-table nullable base columns omitted at export and written as NULL. Primary keys and generated columns cannot be secret. |
 | `exportRow(table,row)` | Pure, synchronous, idempotent transformation of encoded base cells. Restore writes its result verbatim; SQLite recomputes generated cells. |
-| `replaceableTables` | Bootstrap or migration-seeded rows replaced in the atomic restore batch. Populated excluded dependents reachable through modifying FK actions refuse replacement. |
+| `replaceableTables` | Bootstrap rows replaced in the atomic restore batch. Rows the destination's own migrations insert need no entry where the runner passes `migrations` (see "Migration-seeded rows"). Populated excluded dependents reachable through modifying FK actions refuse replacement. |
 | `requiredConfiguration` | Setting names returned after restore for the owner to re-enter. |
 | `validateStaged({db,tables,read,manifest})` | Read-only product validation before any object write; false or a thrown error refuses restore. `tables` names the staging tables for bounded SQL queries; `read` is a convenience for small tables. |
 | `acceptedSchemas` | Map from an earlier full schema hash to `{upgradeRow(table,row)}`. Upgrade functions are pure and synchronous. No older schema is accepted by default. |
@@ -301,8 +301,12 @@ transactions remain atomic.
 download streams completed jobs. Abort removes snapshots and stored parts.
 
 `imports.create(manifest,actor?)` creates staging under one durable import lock.
-Upload parts strictly in order. Same-index/same-hash retries are no-ops; different
-content returns 409. Finalize requires the closing `archiveHash` and verifies all
+Upload parts strictly in order. Each upload stages rows and archived JSON in
+batches bounded by D1 transport bytes, checkpointing each batch atomically.
+A same-index/same-hash retry resumes an interrupted part or acknowledges a finished
+part; different content returns 409. Reassembled bytes pass the part checksum
+before completion advances. Staged data stays private until finalization.
+Finalize requires the closing `archiveHash` and verifies all
 parts, semantic contents, destination
 emptiness, erasure and product invariants. R2 ownership is recorded after the
 empty-namespace check. Verified object writes precede one atomic D1 batch, with
@@ -310,6 +314,18 @@ deferred FKs, trigger suppression/recreation, replaceable rows, staged inserts,
 journal adoption and completion. FK cycles and self-references restore together.
 An unsuccessful commit removes only owned objects. A lost commit acknowledgement
 is resolved by reading durable completion before any cleanup.
+
+### Migration-seeded rows
+
+A fresh destination already holds the rows its own migrations insert, such as a
+seed's default settings. When the runner passes `migrations` (Node runners: a
+scratch replay of the destination's applied migrations), finalize treats a target
+table holding exactly those rows as empty: the archive's rows replace them in the
+restore batch, or they stay when the archive predates the table (an additive
+bridge). The batch repeats the check. Any other row refuses with
+`target_not_empty:<table>`, which the CLI reports with the table's name and the
+export, reset and import commands to run. A Worker import has no replay, so a
+hosted restore still needs such tables in `replaceableTables`.
 
 An empty destination must be reserved for restore: pause destination writers and
 serialize finalize/abort calls. Product writes to source tables can continue.
@@ -439,6 +455,7 @@ modules/portability/migration-statements.mjs
 modules/portability/legacy-safety.mjs
 modules/portability/export.mjs
 modules/portability/import.mjs
+modules/portability/import-staging.mjs
 modules/portability/payloads.mjs
 modules/portability/journal.mjs
 modules/portability/http.mjs

@@ -107,8 +107,7 @@ export async function targetErasure(target: { kind: string; id: string } | undef
     after.push(...erasedCustody(plan, next, job.id, snapshot), ...retained.statements);
     if (fields.length) after.push(...redactedCustody(plan, next, job.id, snapshot, fields, step?.selection.range));
     // A severed record's index row moves from its native target (or none) to the erased target.
-    // Index row writes drop the job's indexed marker by trigger, so mark it indexed again.
-    if (canonicalJson(planIndex(next, job.id)) !== canonicalJson(planIndex(plan, job.id))) after.push(sql('DELETE FROM ik_d1_plan_index WHERE job_id=?', job.id), ...planIndexRows(next, job.id), sql('INSERT OR REPLACE INTO ik_d1_indexed_jobs(job_id,fingerprint) VALUES(?,?)', job.id, next.fingerprint));
+    if (canonicalJson(planIndex(next, job.id)) !== canonicalJson(planIndex(plan, job.id))) after.push(sql('DELETE FROM ik_d1_plan_index WHERE job_id=?', job.id), ...planIndexRows(next, job.id));
     after.push(guard(sql('(SELECT count(*) FROM ik_d1_creation_plans WHERE job_id=? AND released=0)=? AND (SELECT count(*) FROM ik_d1_plan_chunks WHERE job_id=?)=?', job.id, retained.encoded.chunks.length, job.id, retained.encoded.chunks.length)));
     changedJobs.push({ id: job.id, body: retained.body, fingerprint: next.fingerprint, erasedRecords: next.entries.filter(entry => entry.erased).length, policyHash: reversal.binding === null ? null : policyHash(job.id, next.fingerprint, reversal.policy) });
     // Changing the fingerprint fences stale apply/undo evidence while preserving

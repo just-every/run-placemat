@@ -62,10 +62,12 @@ async function loadStaff() {
   if (people?.error && canEdit()) throw people.error;
   data.people = !canEdit() ? [] : people ? people.rows : await api('/auth/operators');
   if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
-  if (!floorTime && service()) floorTime = localTime(service().startAt);
+  if (!floorTime && service()) floorTime = floorStart(service());
   $('#venue-name').textContent = state.venue.name; $('#venue-zone').textContent = `${state.venue.timezone} · ${actor.agent ? 'Agent preparation access' : actor.role === 'member' ? 'Read-only access' : 'Live operations'}`;
   renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn();
 }
+// During its service the floor opens at the current quarter hour, otherwise at the service's start.
+function floorStart(s) { const now = Date.now(); return localTime(now >= Date.parse(s.startAt) && now < Date.parse(s.endAt) ? now - now % 900000 : s.startAt); }
 function renderFloor() {
   const s = service();
   $('#floor-content').innerHTML = !s ? emptyRoom('Start by adding tables and creating a service below.') : `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}</div><div id="floor-room"></div><div class="legend"><span>Available</span><span class="booked">Booked</span><span class="seated">Seated</span></div>`;
@@ -223,7 +225,7 @@ document.addEventListener('submit', event => {
 });
 document.addEventListener('change', event => {
   const el = event.target;
-  if (el.name === 'floor-service') { serviceId = el.value; floorTime = localTime(service().startAt); renderFloor(); renderWaitlist(); renderApprovals(); }
+  if (el.name === 'floor-service') { serviceId = el.value; floorTime = floorStart(service()); renderFloor(); renderWaitlist(); renderApprovals(); }
   if (el.name === 'floor-time') { floorTime = el.value; renderRoom(); }
   if (el.dataset.status) busy(async () => { try { await execute('booking.status',{bookingId:el.dataset.status,status:el.value}); } finally { await loadStaff(); } notice('Booking status saved.', 'success'); });
   if (isPublic && el.name === 'serviceId') renderPublicTimes();

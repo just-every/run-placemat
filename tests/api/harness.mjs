@@ -7,13 +7,13 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import assert from 'node:assert/strict'
-export async function installation(){
+export async function installation({entry='tests/api/worker.ts',bindings={}}={}){
  const directory=await mkdtemp(join(tmpdir(),'placemat-api-'))
- const bundled=await build({entryPoints:['tests/api/worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
+ const bundled=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
  const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),messages=[]
  const origin='https://venue.example.test'
  const mail=async request=>{assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}
- const options=port=>({...convertV4MiniflareOptions({host:'127.0.0.1',upstream:origin,port,modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-network-edge'},outboundService:mail}),resourcePersistencePath:directory})
+ const options=port=>({...convertV4MiniflareOptions({host:'127.0.0.1',upstream:origin,port,modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-network-edge',...bindings},outboundService:mail}),resourcePersistencePath:directory})
  const mf=new Miniflare(options(0))
  try{
   await mf.ready
@@ -32,7 +32,7 @@ export async function installation(){
    const link=new URL(match),confirmed=await request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}});assert.equal(confirmed.status,303)
    return confirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
   }
-  return {mf,db,origin,cookie,request,api,command,signIn,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  return {mf,db,origin,cookie,request,api,command,signIn,messages,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
 export async function service(h,{tables=4,seats=2,covers=8}={}){

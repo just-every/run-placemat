@@ -10,7 +10,7 @@ The page lists only 15-minute starts where a whole turn fits. Placemat picks the
 
 ## Read the floor
 
-Choose the **Service** and a time in **View at**. The floor plan shows every table with its label and seats, marked:
+Choose the **Service** and a time in **View at**. While a service is running, **View at** starts at the current time; otherwise it starts when the service opens. The floor plan shows every table with its label and seats, marked:
 
 - **Available**: free at that time.
 - **Booked**: a booking holds the table, with the guest's name.

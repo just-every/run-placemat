@@ -3,6 +3,8 @@ import { allocation,instant,interval,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save } from './store'
 
+/** The approved reminder text a venue exports for its own sender. */
+export const reminderMessage=(s:State,b:Booking)=>`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`
 function booking(s:State,bookingId:unknown){return s.bookings.find(b=>b.id===bookingId)??fail(404,'Booking not found.')}
 const plain=(v:any)=>JSON.stringify(v)
 export async function execute(db:D1Database,actor:Actor,command:string,p:any){
@@ -70,7 +72,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   }else if(proposal.kind==='reminders'){
    const rows=s.bookings.filter(b=>b.serviceId===plan.serviceId&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
    if(plain(rows)!==plain(plan.bookings)||plain(s.venue)!==plain(plan.venue))fail(409,'Bookings changed. Prepare and review the reminders again.')
-   for(const b of rows)s.reminders.push({id:id(),bookingId:b.id,guestId:b.guestId,message:`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`,status:'approved',approvedBy:actor.id,approvedAt:now})
+   for(const b of rows)s.reminders.push({id:id(),bookingId:b.id,guestId:b.guestId,message:reminderMessage(s,b),status:'approved',approvedBy:actor.id,approvedAt:now})
   }else{
    const b=booking(s,plan.bookingId)
    if(plain(b)!==plain(plan.booking))fail(409,'This booking changed. Prepare a new table assignment.')

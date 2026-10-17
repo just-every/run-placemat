@@ -22,11 +22,9 @@ export function parseHeaders(value) {
     const colon = line.indexOf(':');
     const name = line.slice(0, colon);
     if (colon < 1 || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name) || /[\u2028\u2029]/.test(line)) fail('invalid_inbound_headers');
-    let start = colon + 1; while (line[start] === ' ' || line[start] === '\t') start++;
-    const match = [line, name, line.slice(start)];
-    previous = match[1].toLowerCase();
+    previous = name.toLowerCase();
     if (map.has(previous) && singleton.has(previous)) fail('duplicate_inbound_header');
-    const text = headerText(match[2].trim());
+    const text = headerText(line.slice(colon + 1).trim());
     map.set(previous, map.has(previous) ? `${map.get(previous)}, ${text}` : text);
   }
   return map;
@@ -133,7 +131,7 @@ export function addresses(value) {
 export function messageIds(value) {
   if (value == null || value === '') return [];
   const source = unfold(value); const ids = source.match(/<[^<>\s]+>/g) ?? [];
-  if (!ids.length || source.split(/<[^<>\s]+>/).some(gap => gap.trim())) fail('invalid_inbound_thread');
+  if (!ids.length || !/^(?:<[^<>\s]+>\s*)+$/.test(source)) fail('invalid_inbound_thread');
   return ids;
 }
 export function metadata(headers, from, to, subject) {

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "domain": "run-placemat.com",
+  "name": "Placemat",
+  "ownerEmail": "nina@fernandfig.example",
+  "settings": {
+    "MAIL_FROM": "reservations@fernandfig.example"
+  }
+}
