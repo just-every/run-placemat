@@ -40,7 +40,7 @@ export function hero(docs: boolean): string {
     + `<div class="hero-copy"><h1 id="hero-title">Every table, filled.</h1>`
     + `<p class="sub">Placemat takes reservations from your site, Google and Instagram, runs the host stand and waitlist, and remembers every guest.</p>`
     + `<p class="alt">100% free, open source alternative to <b>OpenTable</b>, <b>Resy</b> and <b>SevenRooms</b></p>`
-    + `<div class="actions"><a class="btn" href="/run">Run Placemat${arrow}</a><a class="text-link" href="${docs ? '/docs' : esc(run.repository)}">Read the docs</a></div></div>`
+    + `<div class="actions"><a class="btn" href="/run">Run Placemat${arrow}</a><a class="btn" href="https://demo.run-placemat.com/">Try the demo</a><a class="text-link" href="${docs ? '/docs' : esc(run.repository)}">Read the docs</a></div></div>`
     + `<div class="hero-phone" aria-hidden="true"><div class="stage">${art('hero-phone', '(max-width:1199px) 760px, 1px', [380, 760], 760, 774, false)}<div class="stage-ui">${tablet}</div></div></div>`
     + `<div class="hero-cards">${tag('t-table', 'd-green', 'Table 12', ['Priya +3 · 7:30 · anniversary'])}${tag('t-wait', 'd-violet', 'Waitlist', ['Marco, 2 · 15 min · text sent'])}</div>`
     + `</section>`
