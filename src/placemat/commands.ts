@@ -13,7 +13,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  switch(command){
  case 'venue.update':{
   const name=text(p.name,'Venue name',120),timezone=text(p.timezone,'Timezone',80)
-  try{new Intl.DateTimeFormat('en',{timeZone:timezone}).format()}catch{fail(400,'Use an IANA timezone such as Australia/Brisbane.')}
+  try{new Intl.DateTimeFormat('en',{timeZone:timezone}).format()}catch{fail(400,'Use an IANA timezone such as America/New_York.')}
   if(s.services.length&&timezone!==s.venue.timezone)fail(409,'Keep the venue timezone after creating a service; existing services retain their instants.')
   result=s.venue={name,timezone};break
  }
@@ -70,7 +70,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   }else if(proposal.kind==='reminders'){
    const rows=s.bookings.filter(b=>b.serviceId===plan.serviceId&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
    if(plain(rows)!==plain(plan.bookings)||plain(s.venue)!==plain(plan.venue))fail(409,'Bookings changed. Prepare and review the reminders again.')
-   for(const b of rows)s.reminders.push({id:id(),bookingId:b.id,guestId:b.guestId,message:`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-AU',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`,status:'approved',approvedBy:actor.id,approvedAt:now})
+   for(const b of rows)s.reminders.push({id:id(),bookingId:b.id,guestId:b.guestId,message:`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`,status:'approved',approvedBy:actor.id,approvedAt:now})
   }else{
    const b=booking(s,plan.bookingId)
    if(plain(b)!==plain(plan.booking))fail(409,'This booking changed. Prepare a new table assignment.')

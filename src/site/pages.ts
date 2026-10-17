@@ -11,21 +11,32 @@ import { docsPages } from './docs/content'
 import { landingBody, landingMeta } from './landing/landing'
 import { documentHtml } from './shell'
 import run from './run.json'
+
+// Code cards get their Copy button only when script runs; without it the command is still there to select.
+// Base's shared Run page (src/base/run-site.ts, copied unchanged) prints British "licence";
+// Placemat is a US product, so its /run says "license".
+const usSpelling = (html: string) => html.replaceAll(`${run.licence} licence<`, `${run.licence} license<`)
+
+const COPY = "document.querySelectorAll('.docs-copy').forEach(b=>{b.hidden=false;b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(b.closest('.docs-code').querySelector('code').textContent);b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1600)}catch{}})})"
 import './site.css'
 import './landing/landing.css'
+import './landing/hero.css'
+import './landing/afternoon.css'
+import './landing/host.css'
+import './landing/evening.css'
 import './docs/docs.css'
 
 export function sitePages({ styles, contract }: SiteContext): SiteBuild {
   const data: RunData = run
   return {
     pages: [
-      { path: '/', html: documentHtml(styles, { ...landingMeta, body: landingBody(data.docs) }) },
-      { path: '/run', html: runPageHtml(identity, data, contract) },
+      { path: '/', html: documentHtml(styles, { ...landingMeta, body: landingBody(data.docs), bodyClass: 'home' }) },
+      { path: '/run', html: usSpelling(runPageHtml(identity, data, contract)) },
       ...(contract ? [{ path: '/contract', html: contractPageHtml(identity, data, contract) }] : []),
       { path: '/docs', html: documentHtml(styles, { ...docsMeta, body: docsIndexBody(), current: 'docs' }) },
-      ...docsPages.map(page => ({ path: `/docs/${page.slug}`, html: documentHtml(styles, { title: `${page.title} · Placemat docs`, description: page.summary, body: docsArticleBody(page), current: 'docs' as const }) })),
+      ...docsPages.map(page => ({ path: `/docs/${page.slug}`, html: documentHtml(styles, { title: `${page.title} · Placemat docs`, description: page.summary, body: docsArticleBody(page), current: 'docs' as const, script: COPY }) })),
       { path: '/404', html: siteNotFoundHtml(identity, data, contract) },
     ],
-    assets: ['rer-theme.css', 'plan.css', 'fonts', 'brand'],
+    assets: ['rer-theme.css', 'fonts', 'brand', 'site', 'favicon.ico', 'apple-touch-icon.png'],
   }
 }

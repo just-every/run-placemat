@@ -1,6 +1,7 @@
 // The docs pages in the landing's look: the index of every guide by section,
 // and each article with the docs menu, its contents and the next/previous page.
 import { esc } from '../shell'
+import { sky } from '../landing/glyphs'
 import { docsPages, docsSections, renderDocsPage, type DocsPage } from './content'
 
 export const docsMeta = {
@@ -13,7 +14,7 @@ const menu = (current?: string) => `<nav class="docs-menu" aria-label="Docs">${d
     `<li><a href="/docs/${page.slug}"${page.slug === current ? ' aria-current="page"' : ''}>${esc(page.title)}</a></li>`).join('')}</ul>`).join('')}</nav>`
 
 export function docsIndexBody(): string {
-  return `<main class="docs docs-index"><div class="docs-intro"><h1>Placemat docs</h1><p>Set up the room, run service, keep your guest list and bring it with you. Every guide describes the app as it is.</p></div>`
+  return `<main class="docs docs-index"><div class="docs-intro"><p class="docs-eyebrow">${sky.sun}<span>Owner guides</span></p><h1>Placemat docs</h1><p>Set up the room, run service, keep your guest list and bring it with you. Every guide describes the app as it is.</p></div>`
     + docsSections.map(section => `<section class="docs-group" aria-labelledby="g-${esc(section.title.toLowerCase().replace(/\W+/g, '-'))}"><h2 id="g-${esc(section.title.toLowerCase().replace(/\W+/g, '-'))}">${esc(section.title)}</h2><ul class="docs-cards">`
       + section.pages.map(page => `<li><a href="/docs/${page.slug}"><span class="docs-card-title">${esc(page.title)}</span><span class="docs-card-summary">${esc(page.summary)}</span></a></li>`).join('')
       + '</ul></section>').join('') + '</main>'

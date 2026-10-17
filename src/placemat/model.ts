@@ -7,7 +7,7 @@ export type Proposal = { id:string; kind:'service.publish'|'reminders'|'table.as
 export type Reminder = { id:string; bookingId:string; guestId:string; message:string; status:'approved'|'exported'; approvedBy:string; approvedAt:string }
 export type State = { venue:{name:string;timezone:string}; tables:Table[]; services:Service[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:Array<{id:string;at:string;actor:string;action:string;subject:string}> }
 export type Actor = {id:string;name:string;role:string;agent?:boolean}
-export const emptyState = ():State => ({venue:{name:'Placemat',timezone:'Australia/Brisbane'},tables:[],services:[],bookings:[],waitlist:[],proposals:[],reminders:[],audit:[]})
+export const emptyState = ():State => ({venue:{name:'Placemat',timezone:'America/New_York'},tables:[],services:[],bookings:[],waitlist:[],proposals:[],reminders:[],audit:[]})
 export class Problem extends Error { constructor(public status:number, message:string){super(message)} }
 export const fail = (status:number,message:string):never=>{throw new Problem(status,message)}
 export const id = ()=>crypto.randomUUID()

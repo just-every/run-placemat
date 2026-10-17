@@ -1,55 +1,47 @@
-// The hero: the headline block over the dining room drawn as a floor plan,
-// with the three step cards set into it (Booked online → On the floor →
-// Remembered). Every string in the drawing is real text from the app.
+// The hero: the approved golden-hour dining room seen from the host stand
+// (plates/plate-hero.png, its menu-book emboss redrawn as the real mark), with
+// every string laid over it as HTML: the copy, the five tags and the tablet's
+// floor plan and waitlist, set into the screen's perspective. The art and its
+// overlays share one 1536 x 1024 stage that CSS scales per breakpoint.
 import run from '../run.json'
 import { arrow, esc } from '../shell'
-import { counter, dashed, icon, table, type TableSpec } from './plan'
+import { glyph } from './glyphs'
+import { sections, waitlist, type FloorTable } from './sheet'
 
-export const docsHref = (docs: boolean) => docs ? '/docs' : run.repository
+const tag = (cls: string, dot: string, title: string, lines: string[], tick = false) =>
+  `<div class="tag ${cls}"><p class="tag-title"><i class="dot ${dot}"></i>${esc(title)}</p>${lines.map((line, i) => `<p>${esc(line)}${tick && i === lines.length - 1 ? glyph('check', 'tick') : ''}</p>`).join('')}</div>`
 
-const label = 'Placemat in three steps: a guest books Friday dinner at 18:00 online, the booking appears on the floor plan as table T1 booked beside T3 seated, and Mia Chen’s guest history shows 4 recorded visits.'
+const tags = tag('t-table', 'd-green', 'Table 12', ['Priya +3 · 7:30', 'anniversary'])
+  + tag('t-regular', 'd-blue', 'Regular', ['15th visit', 'likes the window'])
+  + tag('t-deposit', 'd-amber', 'Deposit $50', ['held'])
+  + tag('t-wait', 'd-violet', 'Waitlist', ['Marco, 2 · 15 min', 'text sent'])
+  + tag('t-cancel', 'd-red', 'Cancellation', ['8:00 → filled', 'from waitlist'], true)
 
-// The room around the cards: tables at % positions (wide), their phone
-// positions along the side strips, or hidden on the phone.
-const room: TableSpec[] = [
-  { x: 8, y: 25, round: true, narrow: [9, 8] },
-  { x: 8, y: 52, state: 'booked', narrow: [9, 25] },
-  { x: 36.5, y: 17, state: 'booked', narrow: [9, 43] },
-  { x: 36.5, y: 55, seats: 2, narrow: [9, 61] },
-  { x: 36.5, y: 86, narrow: [9, 79] },
-  { x: 63.5, y: 17, round: true, narrow: [91, 10] },
-  { x: 63.5, y: 55, state: 'booked', narrow: [91, 28] },
-  { x: 63.5, y: 86, seats: 2, narrow: [91, 46] },
-  { x: 46, y: 88, round: true, narrow: [9, 94] },
-  { x: 54.5, y: 88, state: 'booked', narrow: false },
-  { x: 73, y: 87, narrow: [91, 64] },
-  { x: 83.5, y: 87, round: true, narrow: [91, 82] },
-  { x: 92.5, y: 21, state: 'booked', narrow: false },
-  { x: 92.5, y: 45, seats: 2, narrow: false },
-  { x: 92.5, y: 69, state: 'booked', narrow: false },
-]
+// The tablet shows the host stand at 6:40, the same tables and states as the
+// host stand section, in the desk's three-by-three room.
+const table = (id: string) => sections.flatMap(s => s.tables).find(t => t.id === id || t.id.split('+').includes(id)) as FloorTable
+const room = [['11', '12', '13'], ['21', '22', '23'], ['31', '32', '33']]
+const tile = (id: string) => { const t = table(id); return `<span class="tt ${t.shape === 'round' || id === '22' ? 'round' : 'sq'} st-${t.state}">${id}</span>` }
+const tablet = `<div class="screen" aria-hidden="true"><div class="scr-tabs"><span class="on">Floor plan</span><span>Waitlist</span><span>Reservations</span></div>`
+  + `<div class="scr-body"><div class="scr-floor">${room.map(row => row.map(tile).join('')).join('')}<i class="leaf l1"></i><i class="leaf l2"></i><i class="leaf l3"></i><i class="leaf l4"></i></div>`
+  + `<div class="scr-wait"><p class="scr-wait-title">Waitlist (${waitlist.length})</p>${waitlist.slice(0, 3).map((w, i) => `<div class="scr-party">${glyph('people')}<p><b>${esc(w.name)}</b><span>${w.size} · ${esc(w.quote.replace('quoted ', ''))} min</span></p>${glyph('chat', 'g msg')}${i === 0 ? '<em>text sent</em>' : ''}</div>`).join('')}</div></div></div>`
 
-const step = (n: number, title: string, body: string) =>
-  `<div class="step s${n}"><p class="step-head"><span class="num" aria-hidden="true">${n}</span><span>${esc(title)}</span></p>${body}</div>`
+const label = 'The host stand at golden hour: a tablet shows the floor plan and a waitlist of five, with notes for Table 12 (Priya, party of 4 at 7:30, anniversary), a regular on her 15th visit, Marco on the waitlist with a text sent, a $50 deposit held and an 8:00 cancellation filled from the waitlist.'
 
-const booked = `<div class="mini"><p class="mini-title">Book a table</p><p class="row">${icon('calendar')}Friday dinner · 18:00</p><p class="row">${icon('person')}2 guests</p><span class="ink-btn">Confirm booking</span></div>`
-const floor = `<div class="mini-floor">${[
-  table({ x: 0, y: 0, seats: 2, state: 'booked', lines: ['T1', 'Booked'] }),
-  table({ x: 0, y: 0, round: true, lines: ['T2'] }),
-  table({ x: 0, y: 0, round: true, state: 'seated', lines: ['T3', 'Seated'] }),
-  table({ x: 0, y: 0, seats: 2, lines: ['T4'] }),
-].join('')}</div><p class="legend"><span>Available</span><span class="booked">Booked</span><span class="seated">Seated</span></p>`
-const remembered = '<div class="mini"><p class="mini-title">Mia Chen</p><p class="meta">4 recorded visits</p><div class="notes"><span>Guest notes</span><i></i><i></i><i></i></div></div>'
+const art = (prefix: string, sizes: string, widths: number[], width: number, height: number, eager: boolean) => {
+  const set = (type: string) => widths.map(w => `/site/${prefix}-${w}.${type} ${w}w`).join(', ')
+  return `<picture><source type="image/avif" srcset="${set('avif')}" sizes="${sizes}"><source type="image/webp" srcset="${set('webp')}" sizes="${sizes}">`
+    + `<img src="/site/${prefix}-${widths[widths.length - 1]}.webp" alt="" width="${width}" height="${height}"${eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async"></picture>`
+}
 
 export function hero(docs: boolean): string {
-  return `<section class="hero" aria-labelledby="hero-title"><div class="hero-copy">`
-    + `<h1 id="hero-title">Tables booked. <span class="nowrap">Guests remembered.</span></h1>`
-    + `<p class="sub">Guests book online, walk-ins and the waitlist share one floor, and every visit stays yours.</p>`
-    + `<p class="alt">100% free, open source alternative to <b>OpenTable</b>, <b>Tablein</b> and <b>ResDiary</b></p>`
-    + `<div class="actions"><a class="btn" href="/run">Run Placemat${arrow}</a><a class="text-link" href="${esc(docsHref(docs))}">Read the docs</a></div>`
-    + `<p class="fine">Free and open source, MIT licensed.</p></div>`
-    + `<figure class="hero-room floor-map" role="img" aria-label="${esc(label)}">`
-    + room.map(spec => table(spec)).join('') + counter(19.5, 88, '23%', 6, false)
-    + `<div class="steps">${step(1, 'Booked online', booked)}${dashed('d1')}${step(2, 'On the floor', floor)}${dashed('d2')}${step(3, 'Remembered', remembered)}</div>`
-    + `</figure></section>`
+  return `<section class="hero" aria-labelledby="hero-title">`
+    + `<div class="hero-stage" role="img" aria-label="${esc(label)}"><div class="stage">${art('hero', '(max-width:1199px) 1px, 100vw', [768, 1152, 1536], 1536, 1024, true)}<div class="stage-ui">${tablet}</div>${tags}</div></div>`
+    + `<div class="hero-copy"><h1 id="hero-title">Every table, filled.</h1>`
+    + `<p class="sub">Placemat takes reservations from your site, Google and Instagram, runs the host stand and waitlist, and remembers every guest.</p>`
+    + `<p class="alt">100% free, open source alternative to <b>OpenTable</b>, <b>Resy</b> and <b>SevenRooms</b></p>`
+    + `<div class="actions"><a class="btn" href="/run">Run Placemat${arrow}</a><a class="text-link" href="/run">Try the demo</a><a class="text-link" href="${docs ? '/docs' : esc(run.repository)}">Read the docs</a></div></div>`
+    + `<div class="hero-phone" aria-hidden="true"><div class="stage">${art('hero-phone', '(max-width:1199px) 760px, 1px', [380, 760], 760, 774, false)}<div class="stage-ui">${tablet}</div></div></div>`
+    + `<div class="hero-cards">${tag('t-table', 'd-green', 'Table 12', ['Priya +3 · 7:30 · anniversary'])}${tag('t-wait', 'd-violet', 'Waitlist', ['Marco, 2 · 15 min · text sent'])}</div>`
+    + `</section>`
 }

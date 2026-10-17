@@ -1,52 +1,82 @@
 /* Placemat's tokens, defined once. Base pages (sign-in, /setup, the Lobby, the
    Run page) read the --rer-* names; the app (placemat.css), the floor plan
-   (plan.css) and the run site read the --pm-* names. Ink on warm paper for all
-   chrome; sea-glass only inside drawings and as the app's small fills. Fonts
-   are declared in /fonts/fonts.css. */
+   (plan.css) and the run site read the --pm-* names. Forest green and warm
+   white from the mark; the service's light (gold afternoon to night indigo)
+   and the host stand's table states only inside the run site's drawings and
+   the app's small fills. Fonts are declared in /fonts/fonts.css. */
 :root {
-  --pm-paper: #FBFAF6;
+  --pm-paper: #FBF8F2;
   --pm-surface: #FFFFFF;
-  --pm-ink: #1F242B;
-  --pm-muted: #5B636B;
-  --pm-rule: #E2E1DB;
-  --pm-head: #F6F5F0;
-  --pm-control: #8B9096;
-  --pm-plan: #2A3038;
-  --pm-sea-soft: #C7E7DE;
-  --pm-sea-deep: #8BC1C6;
-  --pm-notice: #E4F3EE;
-  --pm-shadow: 0 1px 2px rgb(31 36 43 / .06), 0 10px 28px rgb(31 36 43 / .07);
-  --pm-display: Gelasio, Georgia, 'Times New Roman', serif;
-  --pm-ui: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --pm-ink: #0B2A20;
+  --pm-muted: #56605B;
+  --pm-soft: #7A827E;
+  --pm-rule: #E8E4DB;
+  --pm-head: #F5F2EB;
+  --pm-control: #8E948F;
+  --pm-plan: #22332C;
+  --pm-forest: #16583D;
+  --pm-forest-deep: #12482F;
+  --pm-night: #0C2A22;
+  --pm-cream: #FBF5EB;
+  --pm-green: #2D8C4C;
+  --pm-mint: #E4F0E2;
+  --pm-sage: #99B49C;
+  --pm-amber: #F6BF5E;
+  --pm-amber-soft: #FCEBC5;
+  --pm-amber-ink: #B9741C;
+  --pm-red: #DF5248;
+  --pm-red-soft: #FCE5E3;
+  --pm-lilac: #D3C7FB;
+  --pm-sky: #DCE8FB;
+  --pm-bussing: #D4D4D7;
+  --pm-sea-soft: #DCEBDD;
+  --pm-sea-deep: #99B49C;
+  --pm-notice: #E4F0E2;
+  --pm-shadow: 0 1px 2px rgb(11 42 32 / .05), 0 18px 40px -22px rgb(60 42 20 / .28);
+  --pm-display: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --pm-ui: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --pm-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --rer-font-heading: var(--pm-display);
   --rer-font-body: var(--pm-ui);
+  --rer-font-mono: var(--pm-mono);
   --rer-page: var(--pm-paper);
   --rer-surface: var(--pm-surface);
   --rer-text: var(--pm-ink);
   --rer-muted: var(--pm-muted);
   --rer-border: var(--pm-control);
-  --rer-focus: var(--pm-ink);
-  --rer-link: var(--pm-ink);
-  --rer-accent: var(--pm-ink);
+  --rer-focus: var(--pm-forest);
+  --rer-link: var(--pm-forest);
+  --rer-accent: var(--pm-forest);
   --rer-accent-text: #FFFFFF;
+  --rer-code-background: var(--pm-night);
+  --rer-code-text: #EAF2EC;
+  --rer-wordmark-tracking: -.025em;
   --rer-radius: 14px;
   --rer-logo: url('/brand/mark.svg');
 }
 
-/* Base's no-JavaScript pages (sign-in, /setup) sit over a faint plan of the
-   room; the app and the guest page (body[data-page]) do not. */
-.rer-themed body:not([data-page]) { position: relative; isolation: isolate; }
-.rer-themed body:not([data-page])::before {
-  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: url('/brand/room.svg') center / cover no-repeat; opacity: .12;
-}
+/* Base's no-JavaScript pages (sign-in, /setup) sit on warm paper with the
+   afternoon light in one corner; the app and the guest page (body[data-page])
+   do not. */
+.rer-themed body:not([data-page]) { position: relative; isolation: isolate; background: radial-gradient(90% 70% at 100% 0%, #FCEFD8, transparent 60%), var(--pm-paper); }
 .rer-themed body:not([data-page]) main { position: relative; margin-top: 8vh; border: 1px solid var(--pm-rule); box-shadow: var(--pm-shadow); }
-.rer-themed body:not([data-page]) :is(.rer-brand, .brand) { justify-content: center; margin-bottom: 22px; color: var(--pm-ink); font-size: 24px; font-weight: 600; }
-.rer-themed body:not([data-page]) h1 { font-weight: 600; text-align: center; }
+.rer-themed body:not([data-page]) :is(.rer-brand, .brand) { justify-content: center; margin-bottom: 22px; color: var(--pm-ink); font-size: 24px; font-weight: 800; letter-spacing: -.025em; }
+.rer-themed body:not([data-page]) h1 { font-weight: 800; letter-spacing: -.025em; text-align: center; }
 .rer-themed body:not([data-page]) button { border-radius: 999px; }
-.rer-themed body:not([data-page]) input:not([type=checkbox]):not([type=hidden]) { border-color: var(--pm-control); border-radius: 10px; }
+.rer-themed body:not([data-page]) input:not([type=checkbox]):not([type=hidden]) { border: 1px solid var(--pm-rule); border-radius: 10px; }
 .rer-themed body:not([data-page]) h1 { font-size: 36px; }
 .rer-themed body:not([data-page]) dl { grid-template-columns: 112px minmax(0, 1fr); gap: 0; border-top: 1px solid var(--pm-rule); }
 .rer-themed body:not([data-page]) :is(dt, dd) { padding: 11px 0; border-bottom: 1px solid var(--pm-rule); }
 @media (max-width: 480px) { .rer-themed body:not([data-page]) h1 { font-size: 30px; } .rer-themed body:not([data-page]) dl { grid-template-columns: 76px minmax(0, 1fr); } }
+
+/* Base's Run page and not-found page, in the run site's look: warm paper with
+   the afternoon light, the heavy grotesk, white step cards and forest numerals. */
+body:has(> .bar) { background: radial-gradient(80% 60% at 100% 0%, #FCEFD8, transparent 62%), radial-gradient(70% 50% at 0% 100%, #F3EEDF, transparent 60%), var(--pm-paper); }
+body:has(> .bar) .brand { font-weight: 800; }
+@media (min-width: 761px) { body:has(> .bar) .bar { padding-top: 22px; } body:has(> .bar) .brand { font-size: 26px; } body:has(> .bar) .brand img { width: 46px; height: 46px; } }
+body:has(> .bar) h1 { font-weight: 800; letter-spacing: -.035em; }
+body:has(> .bar) .step { background: var(--pm-surface); border-color: var(--pm-rule); box-shadow: var(--pm-shadow); backdrop-filter: none; }
+body:has(> .bar) .step h2 { font-weight: 700; }
+body:has(> .bar) .num { font-weight: 800; }
+body:has(> .bar) .code { border-radius: 14px; }

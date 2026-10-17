@@ -35,7 +35,7 @@ export function renderMarkdown(markdown: string, slugs: Map<string, string>, sou
       code({ text, lang }) {
         const language = (lang ?? '').trim().split(/\s+/)[0]
         if (!language) problems.push('has a code block without a language')
-        return `<pre class="docs-code" data-lang="${escapeHtml(language)}"><code>${escapeHtml(text.replace(/\n$/, ''))}</code></pre>\n`
+        return `<div class="docs-code" data-lang="${escapeHtml(language)}"><pre><code>${escapeHtml(text.replace(/\n$/, ''))}</code></pre><button class="docs-copy" type="button" hidden>Copy</button></div>\n`
       },
       html({ text }) { return escapeHtml(text) },
       link({ href: target, title, tokens }) {

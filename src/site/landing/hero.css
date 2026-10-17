@@ -1,0 +1,106 @@
+/* The hero. The painting and everything set into it share one 1536 x 1024
+   stage, scaled by --k in steps (0.9375 at 1440, 1 at 1536, 0.78 at 1200) and
+   anchored right; the header and copy scale and sit with it, so the copy keeps
+   its place against the art at every width;
+   the tablet's screen is mapped onto the painted screen by a homography
+   (matrix3d) and clipped where the menu books cover it. Under 1024 px the copy
+   stacks over a crop of the same painting (--kp) and two of the tags. */
+.home{--k:1;--stage-left:calc(100vw - 1536px * var(--k))}
+.hero{position:relative;height:calc(1024px * var(--k));background:#FDF7ED;overflow:hidden}
+.hero-stage{position:absolute;top:0;right:0;width:calc(1536px * var(--k));height:calc(1024px * var(--k))}
+.stage{position:absolute;left:0;top:0;width:1536px;height:1024px;transform:scale(var(--k));transform-origin:0 0}
+.stage picture,.stage img{display:block;width:1536px;height:1024px}
+.hero-stage::after{content:'';position:absolute;inset:0 auto 0 0;width:70px;background:linear-gradient(90deg,#FDF7ED,rgb(253 247 237 / 0))}
+.stage-ui{position:absolute;inset:0;clip-path:polygon(0 0,1536px 0,1536px 820px,1500px 826px,1330px 874px,1300px 926px,1290px 1024px,0 1024px)}
+.hero-copy{position:relative;z-index:2;padding:calc(136px * var(--k)) 0 0 calc(var(--stage-left) + 78px * var(--k))}
+.home .site-bar{width:100%;max-width:none;padding:calc(22px * var(--k)) calc(90px * var(--k)) 0 calc(var(--stage-left) + 78px * var(--k))}
+.hero h1{max-width:9ch;font:800 calc(112px * var(--k))/.94 var(--pm-display);letter-spacing:-.035em;color:#06231C}
+.hero .sub{max-width:calc(530px * var(--k));margin-top:calc(46px * var(--k));font:400 calc(25px * var(--k))/1.38 var(--pm-ui);color:#3E4A44}
+.hero .alt{max-width:calc(430px * var(--k));margin-top:calc(26px * var(--k));font:400 calc(21px * var(--k))/1.38 var(--pm-ui);color:#3E4A44}
+.hero .alt b{font-weight:700;color:var(--pm-ink)}
+.hero .actions{display:flex;align-items:center;gap:30px;margin-top:calc(32px * var(--k))}
+.hero .btn{min-height:calc(66px * var(--k));padding:0 calc(38px * var(--k));font-size:calc(21px * var(--k))}
+
+/* The five tags, at the painting's scale. */
+.tag{position:absolute;white-space:nowrap;padding:13px 18px 13px 16px;border-radius:12px;background:rgb(255 255 255 / .95);box-shadow:0 10px 24px -12px rgb(70 40 10 / .45);font:400 14px/1.6 var(--pm-ui);color:#5E6560}
+.tag::after{content:'';position:absolute;left:50%;top:100%;width:1.5px;height:var(--stem,36px);background:rgb(255 255 255 / .9)}
+.tag-title{display:flex;align-items:center;gap:9px;margin-bottom:2px;font:700 17px/1.3 var(--pm-ui);color:#14231D}
+.tag p:not(.tag-title){padding-left:24px;position:relative}
+.tag p:not(.tag-title)::before{content:'';position:absolute;left:0;top:5px;width:14px;height:14px;border-radius:50%;background:#EEEBE6}
+.tag p+p:not(.tag-title)::before{display:none}
+.tag .dot{width:16px;height:16px}
+.tag .tick{width:16px;height:16px;margin-left:4px;vertical-align:-3px;fill:none;stroke:var(--pm-green);stroke-width:2.4}
+.t-table{left:754px;top:192px;min-width:170px;--stem:52px}
+.t-regular{left:1077px;top:228px;min-width:158px;--stem:34px}
+.t-deposit{left:1316px;top:313px;min-width:157px;--stem:16px}
+.t-wait{left:829px;top:384px;min-width:177px;--stem:36px}
+.t-cancel{left:1224px;top:412px;min-width:168px;--stem:32px}
+
+/* The tablet's screen: drawn at 1000 x 620 and mapped onto the painted screen. */
+.screen{position:absolute;left:0;top:0;width:1000px;height:620px;transform-origin:0 0;transform:matrix3d(.374854,-.04248,0,-.00014547,-.199285,.447346,0,-.0000902,0,0,1,0,842,527,0,1);background:#FBFAF6;font-family:var(--pm-ui);color:#14231D;overflow:hidden}
+.scr-tabs{display:flex;gap:46px;padding:34px 0 0 52px;height:92px;font:500 25px/1 var(--pm-ui);color:#7A807C}
+.scr-tabs span{padding-bottom:18px}
+.scr-tabs .on{color:#14231D;font-weight:700;border-bottom:5px solid var(--pm-forest)}
+.scr-body{display:grid;grid-template-columns:600px 1fr;gap:26px;height:528px;padding:0 26px 26px 26px}
+.scr-floor{position:relative;display:grid;grid-template-columns:repeat(3,1fr);place-items:center;padding:30px 40px;border-radius:18px;background:#F1EFE8}
+.tt{display:grid;place-items:center;width:104px;height:104px;font:600 28px/1 var(--pm-ui);color:#14231D}
+.tt.round{border-radius:50%}
+.tt.sq{width:118px;height:90px;border-radius:12px}
+.tt.st-seated{background:#3E9A60;color:#FFFFFF}
+.tt.st-mains{background:#A6C1A8}
+.tt.st-dessert{background:#F3B95A}
+.tt.st-check{background:#D3C7FB}
+.tt.st-reserved{background:transparent;border:4px dashed #8E948F}
+.tt.st-bussing{background:#DCDCDC}
+.leaf{position:absolute;width:26px;height:38px;border-radius:0 100% 0 100%;background:#5B9B52;opacity:.8}
+.l1{left:14px;top:14px}.l2{right:14px;top:150px;transform:rotate(90deg)}.l3{left:14px;bottom:60px}.l4{right:16px;bottom:30px;transform:rotate(90deg)}
+.scr-wait{padding:30px 30px;border-radius:18px;background:#FFFFFF;box-shadow:0 4px 18px rgb(0 0 0 / .06)}
+.scr-wait-title{font:700 27px/1 var(--pm-ui);margin-bottom:22px}
+.scr-party{position:relative;display:grid;grid-template-columns:44px 1fr 36px;align-items:center;gap:12px;padding:20px 0;border-bottom:1.5px solid #EEECE7}
+.scr-party:last-child{border-bottom:0}
+.scr-party .g{width:38px;height:38px;color:#3C4743}
+.scr-party p{display:grid;gap:8px}
+.scr-party b{font:600 24px/1 var(--pm-ui)}
+.scr-party span{font:400 22px/1 var(--pm-ui);color:#5E6560}
+.scr-party .msg{width:34px;height:34px;color:#3E7BF0}
+.scr-party em{position:absolute;right:0;bottom:6px;font:500 16px/1 var(--pm-ui);font-style:normal;color:#3E7BF0}
+
+.hero-phone,.hero-cards{display:none}
+
+@media (min-width:1800px){.home{--k:1.17}}
+@media (min-width:2048px){.home{--k:1.333}}
+@media (max-width:1535px){.home{--k:.9375}}
+@media (max-width:1439px){.home{--k:.885}}
+@media (max-width:1359px){.home{--k:.833}}
+@media (max-width:1279px){.home{--k:.78}}
+@media (max-width:1199px){
+  .home .site-bar{padding:20px 40px 0}
+  .hero{--kp:.95;height:auto;padding-bottom:56px;background:linear-gradient(180deg,#FDF7ED,#FBF1E2)}
+  .hero-stage{display:none}
+  .hero-copy{padding:112px 40px 0;max-width:800px}
+  .hero h1{max-width:none;font-size:76px;line-height:.95}
+  .hero .sub{max-width:none;margin-top:26px;font-size:21px}
+  .hero .alt{max-width:none;margin-top:18px;font-size:19px}
+  .hero .actions{flex-wrap:wrap;gap:18px 28px;margin-top:28px}
+  .hero .btn{min-height:60px;padding:0 34px;font-size:20px}
+  .hero-phone{display:block;position:relative;width:min(720px,100% - 80px);height:calc(774px * var(--kp));margin:36px 40px 0;border-radius:20px;overflow:hidden;box-shadow:0 18px 40px -24px rgb(70 40 10 / .5)}
+  .hero-phone .stage{left:50%;transform:translate(calc(-1080px * var(--kp)),calc(-250px * var(--kp))) scale(var(--kp))}
+  .hero-phone picture{position:absolute;left:700px;top:250px;width:760px;height:774px}
+  .hero-phone img{width:760px;height:774px}
+  .hero-cards{display:grid;gap:12px;width:min(720px,100% - 80px);margin:14px 40px 0}
+  .hero-cards .tag{white-space:normal;position:relative;left:auto;top:auto;width:auto;padding:16px 20px;box-shadow:var(--pm-shadow)}
+  .hero-cards .tag::after{display:none}
+}
+@media (max-width:600px){
+  .hero{--kp:.5}
+  .home .site-bar{padding:16px 16px 0}
+  .hero-copy{padding:96px 16px 0}
+  .hero h1{font-size:52px;line-height:.96;letter-spacing:-.04em}
+  .hero .sub{margin-top:20px;font-size:19px;line-height:1.42}
+  .hero .alt{font-size:18px}
+  .hero .actions{display:grid;grid-template-columns:1fr 1fr;justify-items:center;gap:20px 12px}
+  .hero .btn{grid-column:1 / -1;width:100%}
+  .hero .text-link{font-size:18px}
+  .hero-phone,.hero-cards{width:calc(100% - 32px);margin-left:16px;margin-right:16px}
+  .hero-phone{margin-top:28px;border-radius:18px}
+}

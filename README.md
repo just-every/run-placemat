@@ -1,6 +1,6 @@
-# Placemat
+# <img src="public/brand/mark.svg" alt="" width="44" height="44" align="top"> Placemat
 
-Tables booked. Guests remembered. Guests book online, walk-ins and the waitlist share one floor, and every visit stays yours: on your own computer or in your own Cloudflare account. 100% free, open source alternative to OpenTable, Tablein and ResDiary, MIT licensed. Release one has no payments or per-cover network. [ACCEPTANCE.md](ACCEPTANCE.md) names the working scope.
+Every table, filled. Placemat is restaurant reservations, the host stand, the waitlist and guest history for US restaurants: a 100% free, open source alternative to OpenTable, Resy and SevenRooms, MIT licensed, on your own computer or in your own Cloudflare account. [CONTRACT.md](CONTRACT.md) is the product it is being built towards; [ACCEPTANCE.md](ACCEPTANCE.md) says which journeys work today. This release has no payments, deposits, card holds or provider sends.
 
 The owner guides are in [docs/](docs/site.json), starting with [Getting started](docs/getting-started.md); the run site publishes them at `/docs`.
 
@@ -10,11 +10,14 @@ The run site is at https://run-placemat.com. Its run page, https://run-placemat.
 
 You need Git and internet access on macOS, Linux or Windows with WSL2. RER selects this project's pinned Node **22.20.0** and pnpm **10.12.4**; you do not need to change your global Node version.
 
-One line installs rer, the Run Edit Run command, clones Placemat and starts it:
+Install rer, the Run Edit Run command, then start Placemat. These are the same two lines as https://run-placemat.com/run:
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-placemat
+curl -fsSL https://runeditrun.com/install.sh | sh
+rer dev just-every/run-placemat
 ```
+
+The installer adds rer for you alone, with its own Node if you have no Node 22 or later; if it prints an `export PATH=…` line, run that line before the second. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-placemat` does both steps in one line.
 
 To start it again later, run `cd run-placemat && rer dev`.
 
@@ -26,11 +29,11 @@ For an installation belonging to a real person, run `npx -y @runeditrun/rer setu
 
 ## Run Friday dinner
 
-1. In **Settings**, save the venue name and an IANA timezone, for example `Australia/Brisbane`. The app displays and accepts venue time even when your computer uses another timezone. Set it before creating a service.
-2. In **Services & tables**, add four two-seat tables, T1–T4, at distinct floor positions such as 15%, 38%, 61% and 84% across, 40% down. Create a future **Friday dinner**, 18:00–22:00, 90-minute turns and eight covers. Click **Prepare publication**, follow **Approvals & reminders**, expand **Exact plan**, and **Approve plan**. A draft is private until approved.
-3. Open **Guest booking page** (`/book`) in a private browser window. Book three parties of two at 18:00 with distinct guest emails. Each success displays its booking reference. The page lists only available 15-minute starts that fit a complete turn. Staff click **Refresh** to see new bookings.
-4. In **Floor & bookings**, expand **Add a walk-in** and seat a fourth party of two at 18:00. Leave Tables empty for automatic assignment. The floor shows booked and seated tables at the selected time. Table combinations are automatic when one table cannot fit a party; table clashes and the service's cumulative cover limit cannot be overridden.
-5. In **Waitlist**, add the next party. In the bookings list change one booked party to **no-show**. Seat the waiting party at 18:00. The no-show stays in guest history and its freed capacity is available. Staff can mark a booked guest seated, then completed; cancelled and no-show bookings remain in history.
+1. In **Settings**, save the venue name and an IANA timezone, for example `America/New_York`. The app displays and accepts venue time even when your computer uses another timezone. Set it before creating a service.
+2. In **Services & tables**, add four two-seat tables, T1–T4, at distinct floor positions such as 15%, 38%, 61% and 84% across, 40% down. Create a future **Friday dinner**, 6:00 PM–10:00 PM, 90-minute turns and eight covers. Click **Prepare publication**, follow **Approvals & reminders**, expand **Exact plan**, and **Approve plan**. A draft is private until approved.
+3. Open **Guest booking page** (`/book`) in a private browser window. Book three parties of two at 6:00 PM with distinct guest emails. Each success displays its booking reference. The page lists only available 15-minute starts that fit a complete turn. Staff click **Refresh** to see new bookings.
+4. In **Floor & bookings**, expand **Add a walk-in** and seat a fourth party of two at 6:00 PM. Leave Tables empty for automatic assignment. The floor shows booked and seated tables at the selected time. Table combinations are automatic when one table cannot fit a party; table clashes and the service's cumulative cover limit cannot be overridden.
+5. In **Waitlist**, add the next party. In the bookings list change one booked party to **no-show**. Seat the waiting party at 6:00 PM. The no-show stays in guest history and its freed capacity is available. Staff can mark a booked guest seated, then completed; cancelled and no-show bookings remain in history.
 6. Under **Approvals & reminders**, **Prepare reminder batch**, review its exact bookings and approve it. **Download reminders CSV** gives contacts and approved messages for your venue's own sender. Placemat records approval and export; it does not deliver email or SMS. Cancelled/no-show/erased guests are omitted. Each booking also has a **Calendar** download.
 7. Under **Guests**, expand a guest to read visits and save notes. Owners can explicitly erase personal details there. Staff cannot erase guests.
 
@@ -90,4 +93,4 @@ rer verify
 
 The six HTTP integration tests run the real workerd/D1 implementation, with only the paid mail boundary faked. They cover the Friday flow, direct auth and CSRF, person approvals, concurrent table claims, import/undo, erasure and restore. The emitted-Worker smoke check and the run site check (`pnpm test:site`: `rer build --site`, the homepage's Run Placemat opens `/run`, every guide in `docs/site.json` is published) also run on pushes. GitHub **Verify** runs source, API, run-site and built-runtime shards in parallel; installer journeys run on release tags and nightly. No tests run during build or deploy. The suite remains below the 200-test budget.
 
-Pinned RER: **0.2.26**. Foundation: [`runeditrun/base@c7cb0613`](https://github.com/runeditrun/base/tree/c7cb0613120074c5ffca63f610533802afbda6bd). Reuse and known shared-module gaps are documented in [SOURCES.md](docs/SOURCES.md).
+Pinned RER: **0.2.42**. Foundation: [`runeditrun/base@c7cb0613`](https://github.com/runeditrun/base/tree/c7cb0613120074c5ffca63f610533802afbda6bd). Reuse and known shared-module gaps are documented in [SOURCES.md](docs/SOURCES.md).
