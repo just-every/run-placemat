@@ -22,7 +22,7 @@ The first run installs dependencies, applies every D1 migration and creates a lo
 
 If `rer` is not on your shell's PATH after installation, run `export PATH="$HOME/.local/bin:$PATH"`. Start again with `rer dev` in the `run-placemat` folder; it resumes a partial launch. The saved port is printed as `RER_READY`; use that address throughout, not a guessed port. Stop with `rer dev --stop` or Ctrl-C.
 
-For an installation belonging to a real person, use `rer install`, then `rer setup` and answer its owner-email prompt before `rer dev`. Setup preserves existing data on reruns. `rer dev --as admin` and `rer dev --as member` provide local manager and read-only personas; `rer dev --as signed-out` opens the guest view. Return to the owner with `rer dev --as owner`.
+For an installation belonging to a real person, run `npx -y @runeditrun/rer setup just-every/run-placemat` in place of the one line and answer its owner-email prompt, then `cd run-placemat && rer dev`. Setup preserves existing data on reruns. `rer dev --as admin` and `rer dev --as member` provide local manager and read-only personas; `rer dev --as signed-out` opens the guest view. Return to the owner with `rer dev --as owner`.
 
 ## Run Friday dinner
 
