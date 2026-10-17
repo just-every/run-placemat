@@ -23,7 +23,7 @@ export function documentHtml(styles: string[], { title, description, body, curre
 
 function header(current?: 'docs'): string {
   return `<header class="site-bar"><a class="lockup" href="/">${mark(32)}<span>${esc(identity.product)}</span></a>`
-    + `<nav aria-label="Site"><a href="/docs"${current === 'docs' ? ' aria-current="page"' : ''}>Docs</a><a href="${esc(run.repository)}">Source</a></nav></header>`
+    + `<nav aria-label="Site"><a href="/docs"${current === 'docs' ? ' aria-current="page"' : ''}>Docs</a><a href="/contract">Contract</a><a href="${esc(run.repository)}">Source</a></nav></header>`
 }
 
 function footer(): string {
