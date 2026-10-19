@@ -427,16 +427,16 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 10 | 5 | 0 | 15 |
+| Published | 11 | 4 | 0 | 15 |
 | Target and push further | 1 | 37 | 79 | 117 |
-| All | 11 | 42 | 79 | 132 |
+| All | 12 | 41 | 79 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
 | `ACCESS-001` | Native sessions and preparation authority | published | done | `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` |  |
 | `PRIVACY-001` | Public guest isolation | published | done | `src/placemat/http.ts`; `src/placemat/commands.ts`; `tests/api/privacy.test.mjs` |  |
 | `BOOK-001` | Live assigned reservations | published | done | `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` |  |
-| `FLOOR-001` | Conflict-safe physical capacity | published | partial | `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` | Core combinations, race and cover cap are exercised; duplicate-table and cross-service conflict journeys are not explicitly exercised. |
+| `FLOOR-001` | Conflict-safe physical capacity | published | done | `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` |  |
 | `SERVICE-001` | Reviewed dated service publication | published | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` |  |
 | `PLAN-001` | Exact plans and accountable decisions | published | done | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs` |  |
 | `MSG-001` | Approved reminder CSV custody | published | partial | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs` | Approval, export attribution, no-show and erasure exclusion work; reminder text is rendered with an `en-AU` date format, not US format. |

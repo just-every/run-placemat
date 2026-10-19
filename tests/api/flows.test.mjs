@@ -50,19 +50,38 @@ test('Direct transport roles, CSRF, agent preparation and exact-draft person app
  }finally{await h.close()}
 })
 
-test('Table combinations, cover cap, simultaneous claims and conflict review protect capacity',async()=>{
+test('FLOOR-001: combinations, UTC turn bounds, service-wide table conflicts, cover cap and stale review protect capacity',async()=>{
  const h=await installation();try{
   const {service:s,floor}=await service(h,{tables:2,seats:2,covers:8})
   const results=await Promise.all([0,1].map(i=>h.request('/api/public/book',{method:'POST',as:'',body:publicGuest(s,i,{partySize:4})})))
   assert.equal(results.filter(r=>r.status===201).length,1);assert.equal(results.filter(r=>r.status===409).length,1)
   let state=(await h.api('/api/state')).state;assert.equal(state.bookings[0].tableIds.length,2)
   const b=state.bookings[0]
+  assert.equal(b.startAt,s.startAt);assert.equal(b.endAt,new Date(Date.parse(s.startAt)+90*60000).toISOString())
+  const later=new Date(Date.parse(s.startAt)+90*60000).toISOString()
+  const availability=(await h.api('/api/public/services?partySize=4',undefined,{as:''})).services.find(v=>v.id===s.id)
+  assert.ok(availability.slots.some(slot=>slot.startAt===later),'A turn ending at the next start does not overlap it')
+  assert.ok(!availability.slots.some(slot=>slot.startAt===new Date(Date.parse(s.startAt)+75*60000).toISOString()),'An overlapping turn still holds both physical tables')
+  await h.api('/api/public/book',publicGuest(s,2,{startAt:new Date(Date.parse(s.startAt)+5*60000).toISOString()}),{as:'',status:400})
+  await h.api('/api/public/book',publicGuest(s,2,{startAt:new Date(Date.parse(s.endAt)-75*60000).toISOString()}),{as:'',status:400})
+  await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:b.id,tableIds:[floor[0].id,floor[0].id]},reason:'Reject a duplicate physical table'},{status:400})
+  const overlapping=await h.command('service.save',{name:'Private dining shares the floor',startAt:s.startAt,endAt:s.endAt,turnMinutes:90,coverLimit:8})
+  const publication=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:overlapping.id},reason:'Review overlapping service capacity'})
+  await h.command('proposal.approve',{proposalId:publication.id})
+  await h.api('/api/public/book',publicGuest(overlapping,2,{partySize:4}),{as:'',status:409})
+  assert.equal((await h.api('/api/state')).state.bookings.length,1,'A second service cannot sell the same physical tables')
+  const stale=await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:b.id,tableIds:floor.map(t=>t.id)},reason:'Review exact booked party'})
   await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:b.id,tableIds:[floor[0].id]},reason:'Too few seats'},{status:409})
   await h.command('booking.status',{bookingId:b.id,status:'completed'},{status:409})
-  await h.command('booking.status',{bookingId:b.id,status:'seated'});await h.command('booking.status',{bookingId:b.id,status:'completed'})
-  const later=new Date(Date.parse(s.startAt)+90*60000).toISOString()
-  await h.api('/api/public/book',publicGuest(s,2,{partySize:4,startAt:later}),{as:'',status:201})
-  await h.api('/api/public/book',publicGuest(s,3,{startAt:new Date(Date.parse(s.startAt)+120*60000).toISOString()}),{as:'',status:409})
+  await h.command('booking.status',{bookingId:b.id,status:'seated'})
+  await h.command('proposal.approve',{proposalId:stale.id},{status:409})
+  await h.command('booking.status',{bookingId:b.id,status:'completed'})
+  const next=(await h.api('/api/public/book',publicGuest(s,2,{partySize:4,startAt:later}),{as:'',status:201})).result
+  await h.command('booking.status',{bookingId:next.id,status:'seated'});await h.command('booking.status',{bookingId:next.id,status:'completed'})
+  await h.api('/api/public/book',publicGuest(s,3,{startAt:new Date(Date.parse(s.startAt)+150*60000).toISOString()}),{as:'',status:409})
+  const after=await h.api('/api/state')
+  assert.ok(after.state.bookings.every(b=>b.status==='completed'),'The cover cap still applies after physical tables become free')
+  assert.equal(after.state.proposals.find(p=>p.id===stale.id).status,'pending','A changed plan requires renewed review')
   assert.equal((await h.api('/api/state')).state.bookings.reduce((n,b)=>n+b.partySize,0),8)
  }finally{await h.close()}
 })

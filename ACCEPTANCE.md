@@ -14,7 +14,7 @@ Statuses below match the contract at code commit `d1ee743104d2256f1a3211a958f7b5
 
 - **BOOK-001 — Live assigned reservations.** **Status: done.** Publish a service, make three public reservations and race the final fitting combination from two guest requests; exactly one succeeds and the next availability read reflects it. **Current evidence:** `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs`.
 
-- **FLOOR-001 — Conflict-safe physical capacity.** **Status: partial.** Book a combined table through HTTP, reject too few or duplicate tables and over-capacity arrivals, finish a turn and book a later one; attempt a clash across services and require refusal. **Current evidence:** `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs`. **Remaining:** Core combinations, race and cover cap are exercised; duplicate-table and cross-service conflict journeys are not explicitly exercised.
+- **FLOOR-001 — Conflict-safe physical capacity.** **Status: done.** Book a combined table through HTTP, reject too few or duplicate tables and over-capacity arrivals, finish a turn and book a later one; attempt a clash across services and require refusal. **Current evidence:** `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs`.
 
 - **SERVICE-001 — Reviewed dated service publication.** **Status: done.** Create tables and a Friday service through commands, prepare publication, edit it, refuse stale approval and approve a fresh plan; only the published service becomes bookable. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`.
 
