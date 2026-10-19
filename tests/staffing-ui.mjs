@@ -54,6 +54,6 @@ try{
    assert.equal((await move(second.id,tables[1])).status(),409);await page.getByRole('alert').filter({hasText:/break/}).waitFor()
    const filter=page.locator('form[data-timeline-filter]');await filter.locator('[name=serverId]').selectOption(servers[1].id);await filter.getByRole('button',{name:'Apply timeline filters'}).click();await page.waitForFunction(()=>document.querySelectorAll('.timeline-table tbody tr').length===2);assert.match(await page.locator('.timeline-table').innerText(),/Priya Shah/);await screenshot('server-timeline',page.locator('#floor-timeline'))
    assert.deepEqual(errors,[]);console.log(`FLOOR-004 shift sections, uneven covers, breaks, direct serving history and timeline passed at ${width}`)
-  }finally{await context.close();await h.close()}
+  }finally{await context.unrouteAll({behavior:'wait'});await context.close();await h.close()}
  }
 }finally{await browser.close()}

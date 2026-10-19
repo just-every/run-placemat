@@ -63,6 +63,6 @@ try{
    await page.locator(`#bookings-list [data-action=reassign][data-id="${booked.id}"]`).click();await page.locator('#reassignment summary').filter({hasText:'Assignment and turn history'}).click();assert.match(await page.locator('#reassignment').innerText(),/Before[\s\S]*12[\s\S]*After[\s\S]*14/);await capture('retained-history',page,page.locator('#reassignment'))
    await contexts[1].clearCookies();await second.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await second.locator('#floor-sync').innerText(),/Sign in again/)
    assert.deepEqual(errors,[]);console.log(`FLOOR-002 rooms, shapes, retirement/history and live second host passed at ${width}`)
-  }finally{for(const c of contexts)await c.close();await h.close()}
+  }finally{for(const c of contexts){await c.unrouteAll({behavior:'wait'});await c.close()}await h.close()}
  }
 }finally{await browser.close()}
