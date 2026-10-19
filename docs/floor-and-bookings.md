@@ -20,7 +20,7 @@ Booked and seated parties hold their tables until their booking ends. Press **Re
 
 ## The bookings list
 
-Under the floor, **Bookings** lists the service's bookings with the covers taken against the cover limit, for example "6 / 8 covers". Each row shows the guest and where the booking came from (online or walk-in), the arrival and end time, party size and tables.
+Under the floor, **Bookings** lists the service's bookings with the covers taken against the cover limit, for example "6 / 8 covers". Each row shows the guest and where the booking came from (online or walk-in), the arrival and end time, party size and tables. Explicit VIP status, tags and seating preferences appear with their recorded sources; open **Guests** for the complete profile and visit history.
 
 Change a booking's status from its **Status** menu:
 

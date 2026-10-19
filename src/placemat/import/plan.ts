@@ -3,7 +3,7 @@ import { parseCsv } from './csv'
 import { canonicalJson, sha256, planD1Import, type D1ImportContext, type Diagnostic, type SourceBundle, type Json } from './kit'
 import { NAMESPACE, MAPPING_VERSION, normalizedPhoneSql } from './adapter'
 import { importedGuestId, guestIdentityHashes } from './identity'
-import type { Guest } from '../model'
+import type { Guest, GuestFieldProvenance } from '../model'
 
 const statuses=new Set(['booked','seated','completed','cancelled','no-show'])
 export async function reviewCsv(csv:string,context:D1ImportContext){
@@ -18,7 +18,8 @@ export async function reviewCsv(csv:string,context:D1ImportContext){
   if(!sourceId||sourceId.length>100||!name||name.length>200||email.length>254||phone.length>80||notes.length>4000){diagnostic('error','INVALID_GUEST','Guest ID/name is missing or a guest field exceeds its documented limit.',line);continue}
   if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){diagnostic('error','INVALID_EMAIL','Email has an invalid shape.',line);continue}
   if(phone&&!/^[+()\d\s.-]+$/.test(phone)){diagnostic('error','INVALID_PHONE','Phone must contain a dialable number.',line);continue}
-  const guest:Guest={id:importedGuestId(sourceId),name,email,phone,notes,history:[]}
+  const provenance:GuestFieldProvenance={source:'imported',actor:null,at:null,reference:artifactHash+':'+sourceId}
+  const guest:Guest={id:importedGuestId(sourceId),name,email,phone,notes,history:[],provenance:{name:provenance,...email?{email:provenance}:{},...phone?{phone:provenance}:{},...notes?{notes:provenance}:{}}}
   const prior=groups.get(sourceId)
   if(prior){const {history:_,...a}=prior.guest,{history:__,...b}=guest;if(canonicalJson(a)!==canonicalJson(b)){diagnostic('error','CONFLICTING_GUEST','Repeated guest_id has different contact details or notes.',line);continue}}
   const group=prior??{guest,row:line,sourceId};groups.set(sourceId,group)

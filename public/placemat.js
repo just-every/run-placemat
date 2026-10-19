@@ -1,3 +1,4 @@
+import { guestProfile,profileSummary } from './placemat-profiles.js';
 import { renderReports } from './placemat-reports.js';
 /* Live restaurant screens: transport, venue time, rendering, and form actions. */
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -91,7 +92,7 @@ function renderBookings() {
   const rows = state.bookings.filter(b => b.serviceId === serviceId).sort((a,b) => a.startAt.localeCompare(b.startAt));
   const covers = rows.filter(b => !['cancelled','no-show'].includes(b.status)).reduce((n,b) => n+b.partySize,0);
   const s = service();
-  $('#bookings-list').innerHTML = `<div class="split-heading"><h2>Bookings</h2><span class="badge">${covers} / ${s.coverLimit} covers</span></div>${rows.length ? `<div class="table-scroll"><table class="bookings-table"><thead><tr><th>Guest</th><th>Arrival / end</th><th>Party / tables</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(b => `<tr><td><strong>${esc(guest(b.guestId)?.name || 'Erased guest')}</strong><br><span class="muted">${esc(b.source)}</span></td><td>${esc(time(b.startAt))}<br><span class="muted">until ${esc(time(b.endAt))}</span></td><td>${b.partySize} guests<br>${esc(tableNames(b.tableIds))}</td><td>${canEdit() ? `<select class="status-select" data-value="${esc(b.status)}" aria-label="Status for ${esc(guest(b.guestId)?.name || 'booking')}" data-status="${esc(b.id)}">${options([b.status,...transitions[b.status]].map(v => [v,v]), b.status)}</select>` : badge(b.status)}</td><td><div class="actions">${canEdit() ? `<a href="/api/calendar/${encodeURIComponent(b.id)}">Calendar</a>` : ''}${canPrepare() && ['booked','seated'].includes(b.status) ? `<button type="button" class="link-button" data-action="reassign" data-id="${esc(b.id)}">Reassign</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('No bookings for this service yet. Share the guest booking page or add a walk-in.')}<div id="reassignment"></div>${canEdit() && s.status === 'published' ? `<details><summary>Add a walk-in</summary>${form('booking.walkin', serviceField() + personFields() + startField() + tableField(), 'Seat walk-in')}</details>` : ''}`;
+  $('#bookings-list').innerHTML = `<div class="split-heading"><h2>Bookings</h2><span class="badge">${covers} / ${s.coverLimit} covers</span></div>${rows.length ? `<div class="table-scroll"><table class="bookings-table"><thead><tr><th>Guest</th><th>Arrival / end</th><th>Party / tables</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(b => `<tr><td><strong>${esc(guest(b.guestId)?.name || 'Erased guest')}</strong><br><span class="muted">${esc(b.source)}</span>${profileSummary(guest(b.guestId),{esc,who,time})}</td><td>${esc(time(b.startAt))}<br><span class="muted">until ${esc(time(b.endAt))}</span></td><td>${b.partySize} guests<br>${esc(tableNames(b.tableIds))}</td><td>${canEdit() ? `<select class="status-select" data-value="${esc(b.status)}" aria-label="Status for ${esc(guest(b.guestId)?.name || 'booking')}" data-status="${esc(b.id)}">${options([b.status,...transitions[b.status]].map(v => [v,v]), b.status)}</select>` : badge(b.status)}</td><td><div class="actions">${canEdit() ? `<a href="/api/calendar/${encodeURIComponent(b.id)}">Calendar</a>` : ''}${canPrepare() && ['booked','seated'].includes(b.status) ? `<button type="button" class="link-button" data-action="reassign" data-id="${esc(b.id)}">Reassign</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('No bookings for this service yet. Share the guest booking page or add a walk-in.')}<div id="reassignment"></div>${canEdit() && s.status === 'published' ? `<details><summary>Add a walk-in</summary>${form('booking.walkin', serviceField() + personFields() + startField() + tableField(), 'Seat walk-in')}</details>` : ''}`;
 }
 function renderServices() {
   const editable = canEdit();
@@ -109,13 +110,15 @@ function renderWaitlist() {
 }
 function renderGuests() {
   $('#guests-content').innerHTML = `<label class="search-field"><span class="search-label">${searchIcon}Find a guest</span><input type="search" id="guest-search" value="${esc(guestQuery)}" placeholder="Name, email or phone"></label><div id="guest-results"></div>`;
-  renderGuestResults();
+  renderGuestResults().catch(error=>notice(error.message,'error'));
 }
-function renderGuestResults() {
-  const rows = data.guests.filter(g => !g.erased && `${g.name} ${g.email} ${g.phone}`.toLowerCase().includes(guestQuery.toLowerCase()));
+async function renderGuestResults() {
+  const query=guestQuery;
+  const rows=(await api('/api/guests?search='+encodeURIComponent(query))).guests;
+  if(query!==guestQuery)return;
   $('#guest-results').innerHTML = rows.map(g => {
     const visits = [...(g.history || []), ...state.bookings.filter(b => b.guestId === g.id).map(b => ({date:b.startAt, partySize:b.partySize, status:b.status}))].sort((a,b) => b.date.localeCompare(a.date));
-    return `<details class="card guest"><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${canEdit() ? form('guest.update', `<input type="hidden" name="guestId" value="${esc(g.id)}"><label class="wide">Guest notes<textarea name="notes" maxlength="4000">${esc(g.notes)}</textarea></label>`, 'Save notes') : `<p class="notes-label">Guest notes</p><p>${esc(g.notes || 'No notes.')}</p>`}</div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
+    return `<details class="card guest"><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}</div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
   }).join('') || empty(guestQuery ? 'No guests match your search.' : 'Guests appear here after a booking, walk-in, waitlist entry or import.');
 }
 function proposalDescription(p) {
@@ -159,6 +162,7 @@ function renderPublicTimes(selected) {
 function payloadFrom(formEl) {
   const values = Object.fromEntries(new FormData(formEl));
   for (const name of ['partySize','seats','x','y','turnMinutes','coverLimit']) if (name in values) values[name] = Number(values[name]);
+  if ('tags' in values) values.tags=values.tags.split(',').map(s=>s.trim()).filter(Boolean);
   if ('tableIds' in values) values.tableIds = new FormData(formEl).getAll('tableIds');
   if (values.tableIds?.length === 0) delete values.tableIds;
   if (values.id === '') delete values.id;
@@ -237,7 +241,7 @@ document.addEventListener('change', event => {
   }
 });
 document.addEventListener('input', event => {
-  if (event.target.id === 'guest-search') { guestQuery = event.target.value; renderGuestResults(); }
+  if (event.target.id === 'guest-search') { guestQuery = event.target.value; renderGuestResults().catch(error=>notice(error.message,'error')); }
 });
 document.addEventListener('click', event => {
   const el = event.target.closest('[data-action]'); if (!el) return;
