@@ -6,12 +6,15 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  const row=await db.prepare('SELECT version,data FROM pm_state WHERE id=1').first()
  if(!row)return []
  const state=JSON.parse(row.data) as State
- const bookings=[...state.bookings,...state.proposals.flatMap(p=>[...(p.plan?.bookings??[]),...(p.plan?.booking?[p.plan.booking]:[])])]
+ const bookings=[...state.bookings,...state.proposals.flatMap(p=>[...(p.plan?.bookings??[]),...(p.plan?.snapshot?.bookings??[]),...(p.plan?.booking?[p.plan.booking]:[])])]
  for(const b of bookings)if(b.guestId===guestId&&b.ruleOverride)b.ruleOverride.reason=''
  const relatedServices=new Set(state.waitlist.filter(w=>w.guestId===guestId).map(w=>w.serviceId))
  const closeReasons=new Set(state.services.filter(s=>relatedServices.has(s.id)).map(s=>s.closeReason).filter(Boolean))
  for(const service of state.services)if(relatedServices.has(service.id))service.closeReason=''
- for(const proposal of state.proposals)if(relatedServices.has(proposal.plan?.service?.id))proposal.plan.service.closeReason=''
+ for(const proposal of state.proposals){
+  if(relatedServices.has(proposal.plan?.service?.id))proposal.plan.service.closeReason=''
+  for(const service of [...(proposal.plan?.snapshot?.services??[]),...(proposal.plan?.candidates??[]).map((c:any)=>c.service)])if(relatedServices.has(service?.id))service.closeReason=''
+ }
  for(const row of state.waitlist){
   if(row.guestId===guestId){
    if(row.quote)row.quote.basis=''

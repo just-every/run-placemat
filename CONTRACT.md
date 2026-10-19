@@ -60,7 +60,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 - **SETUP-001 — US restaurant onboarding.** The owner sets legal/trading name, address, US phone, contact channels, logo, booking policies, USD currency and an IANA venue timezone. Setup previews a realistic service without creating fake production guests; Los Angeles and New York daylight-saving gaps and repeated hours require explicit resolution. **Acceptance evidence:** Finish onboarding for a 72-seat US restaurant, preview its booking page and create services across both DST changes; refuse nonexistent local times and disambiguate repeated times.
 
-- **SERVICE-002 — Recurring shifts and seasonal schedules.** Managers define weekly breakfast, lunch and dinner templates, seasonal date ranges and special holiday shifts. They preview generated services, conflicts and capacity before publication; editing a template never silently rewrites existing guest commitments. **Acceptance evidence:** Create a recurring dinner template and Thanksgiving exception, preview and publish a week, then change the template and inspect which future services need renewed approval.
+- **SERVICE-002 — Recurring shifts and seasonal schedules.** Managers define weekly breakfast, lunch and dinner templates, seasonal date ranges and special holiday shifts. They preview generated services, conflicts and capacity before publication; editing a template never silently rewrites existing guest commitments. Seasons and preview dates are inclusive venue-local calendar dates; dated exceptions replace the weekly shift, including opening a normally closed day. End time at or before start means the following local day. Nonexistent DST times refuse generation and repeated times require an explicit valid UTC offset. Preview shows physical seats, service covers and overlapping services, and publication binds the exact schedules, venue, floor, services and bookings. A template edit marks changed future generated services for renewed approval; only explicitly selected unbooked services can be renewed or closed by that reviewed batch. Booked services and historical services remain unchanged and affected bookings require the separately reviewed SERVICE-003 change workflow. Batches cover up to 31 dates each and successive batches cover a longer season. **Acceptance evidence:** Create a recurring dinner template and Thanksgiving exception, preview and publish a week, then change the template and inspect which future services need renewed approval.
 
 - **SERVICE-003 — Closures and emergency service changes.** Managers close dates, rooms or arrival windows, hold inventory for private use and safely amend a published service. Affected bookings become a named outreach/reaccommodation queue with delivery outcomes and explicit refund decisions; closure cannot make them disappear. **Acceptance evidence:** Close a room with three future bookings; preview impacts, confirm the change, relocate one, cancel/refund another and track failed outreach for the third to staff ownership.
 
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 2 | 0 | 15 |
-| Target and push further | 6 | 32 | 79 | 117 |
-| All | 19 | 34 | 79 | 132 |
+| Target and push further | 7 | 31 | 79 | 117 |
+| All | 20 | 33 | 79 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -449,7 +449,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `OSS-001` | Free and open source, MIT licensed | published | partial | `LICENSE`; `src/site/run.json` | `LICENSE` is MIT and no charge exists anywhere in the product; no test asserts the license lines or the absence of a paywall, and COST-001 provider-cost disclosure is not built. |
 | `BOUND-001` | Stated boundary: online ordering, gift cards and the POS | published | partial | `src/placemat/http.ts` | Nothing in the product sells gift cards or takes orders, so the boundary holds in code; the homepage line and docs statement are not on main and no test compares the page, docs and product. |
 | `SETUP-001` | US restaurant onboarding | target | partial | `src/placemat/commands.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Name/timezone and offset instants exist; US defaults, business/contact fields, policy setup and US DST browser evidence are absent. |
-| `SERVICE-002` | Recurring shifts and seasonal schedules | target | partial | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Only individual dated services exist; recurrence, seasons, generation and exception reconciliation are absent. |
+| `SERVICE-002` | Recurring shifts and seasonal schedules | target | done | `src/placemat/schedules.ts`; `public/placemat-schedules.js`; `tests/api/schedules.test.mjs` |  |
 | `SERVICE-003` | Closures and emergency service changes | target | missing |  | No implementation of this journey exists. |
 | `SERVICE-004` | Party and advance-booking rules | target | done | `src/placemat/booking-rules.ts`; `src/placemat/commands.ts`; `src/placemat/availability.ts`; `public/placemat-rules.js`; `tests/api/booking-rules.test.mjs` |  |
 | `SERVICE-005` | Arrival pacing and concurrent covers | target | partial | `src/placemat/availability.ts`; `tests/api/flows.test.mjs` | Cumulative service covers and table occupancy exist; interval pacing, concurrent-cover and kitchen/area limits are absent. |

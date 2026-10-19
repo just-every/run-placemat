@@ -1,3 +1,4 @@
+import {executeSchedule,approveSchedule} from './schedules'
 import {initializeQueue,queueCanSeat,markQueueSeated,executeQueue} from './queue'
 import {normalizeTurnPolicy,turnImpact} from './turn-policy'
 import {normalizeRules,checkBookingRules} from './booking-rules'
@@ -17,6 +18,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  if(!actor.agent&&!['owner','admin'].includes(actor.role))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
+ case 'schedule.save':case 'schedule.preview':case 'schedule.publish':{
+  result=executeSchedule(s,actor,p,command,now);break
+ }
  case 'venue.update':{
   const name=text(p.name,'Venue name',120),timezone=text(p.timezone,'Timezone',80)
   try{new Intl.DateTimeFormat('en',{timeZone:timezone}).format()}catch{fail(400,'Use an IANA timezone such as America/New_York.')}
@@ -72,7 +76,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(proposal.status!=='pending')fail(409,'This proposal has already been decided.')
   if(command==='proposal.decline'){proposal.status='declined';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break}
   const plan=proposal.plan
-  if(proposal.kind==='service.publish'){
+  if(proposal.kind==='schedule.publish'){
+   approveSchedule(s,actor,proposal,now)
+  }else if(proposal.kind==='service.publish'){
    const service=serviceBy(s,plan.serviceId)
    if(plain(service)!==plain(plan.service)||plain(s.tables)!==plain(plan.tables)||plain(s.venue)!==plain(plan.venue))fail(409,'This draft changed. Prepare and review the service again.')
    service.status='published';service.version++
