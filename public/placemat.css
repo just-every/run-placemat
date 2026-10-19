@@ -290,3 +290,24 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 @media(max-width:760px){#table-editor .form-grid{grid-template-columns:minmax(0,1fr)}}
 #services-content .columns>div{min-width:0}
 @media(max-width:1050px){#services-content .columns{grid-template-columns:minmax(0,1fr)}}
+
+/* Shift sections use the floor's existing cards, controls and summary style. */
+#floor-staffing{margin:28px 0;padding-top:24px;border-top:1px solid var(--pm-rule)}
+#floor-staffing>.split-heading{flex-wrap:wrap}
+#floor-staffing h3{margin:0}
+.staffing-servers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px}
+.staffing-servers>.card{min-width:0}
+.staffing-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rer-themed .staffing-totals button{display:block;height:auto;min-height:64px;padding:10px 12px;white-space:normal;line-height:1.4;text-align:left}
+.staffing-totals strong{display:block;font-size:23px}
+#staffing-rotation{margin:18px 0;padding:16px 20px;border:1px solid var(--pm-rule);border-radius:12px;background:var(--pm-head)}
+#staffing-rotation ol{display:flex;gap:12px 36px;flex-wrap:wrap;margin:12px 0 0;padding-left:24px}
+#floor-staffing .form-grid>label,#floor-staffing .columns>div{min-width:0}
+#staffing-parties:empty{display:none}
+.serving-history .card{padding:12px 16px}
+@media(max-width:760px){
+  .staffing-servers{grid-template-columns:minmax(0,1fr)}
+  #floor-staffing .form-grid{grid-template-columns:minmax(0,1fr)}
+  #floor-staffing .split-heading{align-items:flex-start}
+}
+#floor-staffing .card{overflow-wrap:anywhere}

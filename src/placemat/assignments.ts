@@ -1,7 +1,8 @@
-import {fail,id,text,type Actor,type Booking,type State,type AuditEntry} from './model'
+import {fail,id,text,type Actor,type Booking,type State,type AuditEntry,type ServingAssignment} from './model'
 import {serviceSnapshot} from './service-status'
 import {occupiedEndAt} from './capacity'
 import {assignmentFor} from './combinations'
+import {checkStaffing,recordServing} from './staffing-capacity'
 
 export function accessTags(value:unknown,label:string):string[]{
  if(value===undefined)return []
@@ -9,7 +10,7 @@ export function accessTags(value:unknown,label:string):string[]{
  return [...new Set((value as unknown[]).map(v=>text(v,label,80)))].sort()
 }
 export function accessibleTables(s:State,required:string[]):State{
- return {...s,tables:s.tables.filter(t=>required.every(tag=>t.accessTags?.includes(tag))),combinations:s.combinations?.filter(c=>required.every(tag=>c.accessTags.includes(tag)))}
+ return {...s,allocationTables:s.allocationTables??s.tables,tables:s.tables.filter(t=>required.every(tag=>t.accessTags?.includes(tag))),combinations:s.combinations?.filter(c=>required.every(tag=>c.accessTags.includes(tag)))}
 }
 /** Preserve the promised interval and its reset when a recorded actual turn overruns. */
 export function assignmentInterval(b:Booking,now=new Date().toISOString()){
@@ -19,7 +20,7 @@ export function assignmentInterval(b:Booking,now=new Date().toISOString()){
 }
 const overlaps=(a:{startAt:string;cleanupEndAt:string},b:{startAt:string;cleanupEndAt:string})=>a.startAt<b.cleanupEndAt&&a.cleanupEndAt>b.startAt
 const active=(b:Booking)=>!['cancelled','no-show'].includes(b.status)
-export const assignmentSnapshot=(b:Booking)=>({bookingId:b.id,tableIds:[...b.tableIds],locked:b.assignmentLocked??false,setupStartAt:b.setupStartAt??b.startAt,...b.combination?{combination:structuredClone(b.combination)}:{}})
+export const assignmentSnapshot=(b:Booking)=>({bookingId:b.id,tableIds:[...b.tableIds],locked:b.assignmentLocked??false,...b.serverId?{serverId:b.serverId,sectionId:b.sectionId,serverName:b.serverName,sectionName:b.sectionName}:{},setupStartAt:b.setupStartAt??b.startAt,...b.combination?{combination:structuredClone(b.combination)}:{}})
 function currentParty(s:State,bookingId:unknown){
  const b=s.bookings.find(b=>b.id===bookingId)??fail(404,'Booking not found.')
  if(!['booked','seated'].includes(b.status))fail(409,'Only booked, arrived or seated parties can change assignments.')
@@ -29,7 +30,8 @@ export function assignmentChange(s:State,b:Booking,tableIds:unknown,preserve=fal
  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
  return assignmentFor(s,tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,preserve?b:undefined)
 }
-export function applyAssignment(b:Booking,assignment:ReturnType<typeof assignmentFor>){
+export function applyAssignment(b:Booking,assignment:ReturnType<typeof assignmentFor>&{serving?:ServingAssignment|null},context?:{actor:string;at:string;action:string;reason?:string}){
+ if(assignment.serving!==undefined){if(context)recordServing(b,assignment.serving,context.actor,context.at,context.action,context.reason,true);else if(assignment.serving)Object.assign(b,assignment.serving);else{delete b.serverId;delete b.sectionId;delete b.serverName;delete b.sectionName}}
  b.tableIds=assignment.tables.map(t=>t.id);b.setupStartAt=assignment.setupStartAt
  if(assignment.combination)b.combination=structuredClone(assignment.combination);else delete b.combination
 }
@@ -51,7 +53,10 @@ export function validateAssignments(s:State,moves:Array<{booking:Booking;tableId
    if(active(other)&&overlaps(interval,assignmentInterval(other,now)))fail(409,'A selected table clashes with another party’s promised turn, overrun or cleanup. Choose another table.')
   }
  }
- return destinations
+ const parties=destinations.map(d=>({...d.booking,tableIds:d.tables.map(t=>t.id),setupStartAt:d.setupStartAt}))
+ const allowBreak=new Set(parties.filter(b=>preserve||b.status==='seated').filter(b=>preserve||s.services.find(v=>v.id===b.serviceId)?.staffing?.sections.some(section=>section.serverId===b.serverId&&b.tableIds.every(id=>section.tableIds.includes(id)))).map(b=>b.id))
+ const serving=checkStaffing(s,parties,now,allowBreak)
+ return destinations.map((d,i)=>({...d,serving:serving[i]}))
 }
 export function validateAssignment(s:State,b:Booking,tableIds:unknown,now:string){return validateAssignments(s,[{booking:b,tableIds}],now)[0].tables}
 
@@ -69,10 +74,10 @@ export function executeAssignment(s:State,actor:Actor,p:any,command:string,versi
  if(command==='booking.lock'&&typeof p.locked!=='boolean')fail(400,'Choose whether this assignment is locked.')
  const before=parties.map(assignmentSnapshot)
  if(command==='booking.move'){
-  applyAssignment(b,validateAssignments(s,[{booking:b,tableIds:p.tableIds}],now)[0])
+  applyAssignment(b,validateAssignments(s,[{booking:b,tableIds:p.tableIds}],now)[0],{actor:actor.id,at:now,action:command,reason})
  }else if(command==='booking.swap'){
   const destinations=validateAssignments(s,[{booking:b,tableIds:parties[1].tableIds},{booking:parties[1],tableIds:b.tableIds}],now)
-  for(const destination of destinations)applyAssignment(destination.booking,destination)
+  for(const destination of destinations)applyAssignment(destination.booking,destination,{actor:actor.id,at:now,action:command,reason})
  }else {
   if(p.locked)validateAssignments(s,[{booking:b,tableIds:b.tableIds}],now,true)
   b.assignmentLocked=p.locked

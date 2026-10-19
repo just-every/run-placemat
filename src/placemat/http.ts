@@ -1,6 +1,7 @@
 import {queuePage} from './queue-views'
 import {queueQr} from './queue-qr'
 import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait-join'
+import {sectionsDashboard} from './staffing'
 import {timeline} from './timeline'
 import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
@@ -20,7 +21,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  if(path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
@@ -48,7 +49,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)
-   return json({venue:state.venue,services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(service=>({...service,slots:slots(state,service,url.searchParams.get('partySize')??2)}))})
+   return json({venue:state.venue,services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
   }
   if(path==='/api/public/book'){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
@@ -75,6 +76,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    const {state}=await load(env.DB),service=state.services.find(s=>s.id===url.searchParams.get('serviceId'))??fail(404,'Service not found.')
    return new Response(queueQr(env.AUTH_ORIGIN,service.id),{headers:{...headers,'content-type':'image/svg+xml'}})
   }
+  if(path==='/api/sections'&&request.method==='GET'){const {state}=await load(env.DB);return json(sectionsDashboard(state,url.searchParams))}
   if(path==='/api/timeline'&&request.method==='GET'){
    const {state}=await load(env.DB)
    return json(timeline(state,await guests(env.DB),url.searchParams))

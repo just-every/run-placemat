@@ -1,4 +1,5 @@
 import {accessTags,applyAssignment,assignmentSnapshot,validateAssignments} from './assignments'
+import {checkStaffing} from './staffing-capacity'
 import {assignmentFor,sameTables,tableArea} from './combinations'
 import {Problem,fail,id,number,text,type Actor,type Booking,type Proposal,type Room,type State,type Table,type TableShape} from './model'
 import {serviceSnapshot} from './service-status'
@@ -94,6 +95,7 @@ export function prepareFloorChange(s:State,p:any,now:string):FloorPlan {
  for(const b of staged.bookings.filter(b=>live(b)&&b.tableIds.includes(table.id)&&!replacements.some(r=>r.bookingId===b.id))){
   try{const service=staged.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.');assignmentFor(staged,b.tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,b)}catch(error){if(!(error instanceof Problem))throw error;issue(b.id,error.message)}
  }
+ try{const parties=staged.bookings.filter(b=>live(b)&&affected.some(a=>a.id===b.id));checkStaffing(staged,parties,now,new Set(parties.map(b=>b.id)))}catch(error){if(!(error instanceof Problem))throw error;for(const b of affected.filter(live))issue(b.id,error.message)}
  return {tableId:table.id,changes,retire,replacements,table,impacts,conflicts,approvable:conflicts.length===0,disabledCombinationIds,snapshot:snapshot(s)}
 }
 
@@ -109,7 +111,7 @@ export function approveFloorChange(s:State,actor:Actor,proposal:Proposal,now:str
  for(const c of staged.combinations??[])if(reviewed.disabledCombinationIds.includes(c.id))c.enabled=false
  const destinations=validateAssignments(staged,reviewed.replacements.map(r=>({booking:staged.bookings.find(b=>b.id===r.bookingId)!,tableIds:r.tableIds})),now)
  const before=destinations.map(d=>assignmentSnapshot(s.bookings.find(b=>b.id===d.booking.id)!))
- for(const destination of destinations)applyAssignment(destination.booking,destination)
+ for(const destination of destinations)applyAssignment(destination.booking,destination,{actor:actor.id,at:now,action:'floor.change',reason:proposal.reason})
  // Copy the validated floor and assignments only after every check succeeds.
  s.tables=staged.tables;s.combinations=staged.combinations;s.bookings=staged.bookings
  for(const [index,destination] of destinations.entries())s.audit.push({id:id(),at:now,actor:actor.id,action:'table.assign',subject:destination.booking.id,before:[before[index]],after:[assignmentSnapshot(destination.booking)],reason:proposal.reason})

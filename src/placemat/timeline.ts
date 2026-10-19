@@ -1,3 +1,4 @@
+import {checkStaffing} from './staffing-capacity'
 import {active,overlaps} from './capacity'
 import {fail,id,number,text,type Actor,type Booking,type Guest,type State} from './model'
 import type {ServiceEvent} from './service-status'
@@ -81,7 +82,7 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
   const overdueMinutes=booking.status==='seated'?Math.max(0,(nowMs-Date.parse(expectedDepartureAt))/60000):0
   const history=(state.audit as Audit[]).filter(event=>auditFor(event,booking.id))
   return {...booking,bookingId:booking.id,serviceName:service.name,serviceDate:localDate(service.startAt,state.venue.timezone),guestName:guest?.name??'Erased guest',
-   tableNames:tables.map(table=>table.label),areas:[...new Set(tables.map(table=>table.area||'Dining room'))],serverId:booking.serverId??null,
+   tableNames:tables.map(table=>table.label),areas:[...new Set(tables.map(table=>table.area||'Dining room'))],serverId:booking.serverId??null,serverName:booking.serverName??null,sectionName:booking.sectionName??null,servingHistory:booking.servingHistory??[],
    expectedSeatAt:booking.startAt,expectedDepartureAt,expectedResetAt:new Date(Date.parse(expectedDepartureAt)+reset).toISOString(),...actual,
    lateMinutes,late:lateMinutes>0,overdueMinutes,overdue:overdueMinutes>0,
    collisionIds:active(booking)?state.bookings.filter(other=>other.id!==booking.id&&active(other)&&other.tableIds.some(tableId=>booking.tableIds.includes(tableId))&&overlaps(booking,other,now)).map(other=>other.id):[],
@@ -105,7 +106,7 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
  const ends=services.map(service=>service.endAt).concat(rows.map(row=>row.expectedResetAt)).sort()
  return {date,timezone:state.venue.timezone,serviceId,search,area,serverId,zoom,nextMinutes,now,rows,
   window:{startAt:starts[0]??null,endAt:ends.at(-1)??null},
-  filters:{areas:[...new Set(state.tables.map(table=>table.area||'Dining room'))].sort(),servers:[...new Set(state.bookings.flatMap((booking:TimedBooking)=>booking.serverId?[booking.serverId]:[]))].sort()},
+  filters:{serverNames:Object.fromEntries(state.services.flatMap(s=>(s.staffing?.servers??[]).map(server=>[server.id,server.name]))),areas:[...new Set(state.tables.map(table=>table.area||'Dining room'))].sort(),servers:[...new Set([...state.services.flatMap(s=>(s.staffing?.servers??[]).map(server=>server.id)),...state.bookings.flatMap((booking:TimedBooking)=>booking.serverId?[booking.serverId]:[])])].sort()},
   header:{seatedCovers:coverMetric(seated),dueCovers:{...coverMetric(due),fromAt:now,toAt:dueUntil},averageActualTurn:{
    minutes:completed.length?completed.reduce((sum,row)=>sum+(Date.parse(row.actualDepartureAt!)-Date.parse(row.actualSeatAt!))/60000,0)/completed.length:null,
    bookingIds:completed.map(row=>row.id)}}}
@@ -126,6 +127,7 @@ export function extendTurn(state:State,actor:Actor,p:Record<string,unknown>,now=
  const latest=(state.audit as Audit[]).findLast(event=>event.subject===booking.id&&event.action==='booking.extend')
  if(latest&&Date.parse(now)<Date.parse(latest.at)||history.at(-1)&&Date.parse(now)<Date.parse(history.at(-1)!.at))fail(409,'An extension cannot precede the latest party observation.')
  const event:Audit={id:id(),at:now,actor:actor.id,action:'booking.extend',subject:booking.id,reason,before:{expectedEndAt:before},after:{expectedEndAt}}
+ checkStaffing(state,[{...booking,expectedEndAt}],now,new Set([booking.id]))
  booking.expectedEndAt=expectedEndAt;state.audit.push(event)
  return {id:booking.id,booking,event}
 }

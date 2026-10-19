@@ -7,7 +7,7 @@ import {tableTurn} from './turn-policy'
 export function fitAt(s:State,service:Service,partySize:number,startAt:string,requested?:unknown,unavailable:string[]=[]){
  const cleanup=service.turnPolicy?.cleanupMinutes??0
  if(startAt<service.startAt||service.turnPolicy?.lastSeatingAt&&startAt>service.turnPolicy.lastSeatingAt)fail(400,'Choose an arrival within the service and its last-seating time.')
- let best:(ReturnType<typeof assignmentFor>&{startAt:string;endAt:string;cleanupEndAt:string})|undefined,turnFits=false
+ let best:(ReturnType<typeof assignmentFor>&{startAt:string;endAt:string;cleanupEndAt:string})|undefined,turnFits=false,lastConflict:Error|undefined
  const choices=requested===undefined?candidateSets(s):[requested]
  for(const ids of choices){
   try{
@@ -22,9 +22,10 @@ export function fitAt(s:State,service:Service,partySize:number,startAt:string,re
    if(!best||capacity<bestCapacity||capacity===bestCapacity&&(assignment.tables.length<best.tables.length||assignment.tables.length===best.tables.length&&endAt<best.endAt))best=candidate
   // Search may contain only the tables eligible for an area or access need.
   // A requested table outside that inventory is an unavailable fit, as before.
-  }catch(error){if(error instanceof Error&&'status' in error&&[404,409].includes(Number(error.status)))continue;throw error}
+  }catch(error){if(error instanceof Error&&'status' in error&&[404,409].includes(Number(error.status))){lastConflict=error;continue;}throw error}
  }
  if(best)return best
  if(!turnFits&&choices.length&&s.tables.every(t=>Date.parse(startAt)+tableTurn(service,t,partySize)*60000+cleanup*60000>Date.parse(service.endAt)))fail(400,'Choose a start that fits the full turn and cleanup within service hours.')
+ if(lastConflict)throw lastConflict
  return fail(409,'No approved table assignment fits this party for its full setup, turn and cleanup. Choose another available time.')
 }

@@ -1,0 +1,83 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {installation,publicGuest} from './harness.mjs'
+
+test('FLOOR-004: shift sections, breaks, concurrent server and kitchen caps, rotation and serving history guard every current assignment door',async()=>{
+ const h=await installation();try{
+  const manager=await h.signIn('shift-manager@example.test','admin'),reader=await h.signIn('shift-reader@example.test'),host=await h.signIn('shift-host@example.test')
+  const person=(await h.api('/auth/operators')).find(p=>p.email==='shift-host@example.test');await h.command('team.host',{operatorId:person.id,enabled:true})
+  const key=(await h.api('/api/agent-keys',{name:'Shift planning'})).result.key,agent={as:'',headers:{authorization:'Bearer '+key}}
+  const tables=[]
+  for(const [i,area,seats] of [[1,'Dining room',6],[2,'Dining room',4],[3,'Dining room',4],[4,'Patio',6],[5,'Patio',3],[6,'Patio',4],[7,'Patio',4]])tables.push(await h.command('table.save',{label:String(i),area,seats,accessTags:['step-free'],shape:'square',x:i*12,y:30}))
+  const day=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+  const service=await h.command('service.save',{name:'Friday sections',startAt:day+'T18:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:60,coverLimit:60})
+  const server=(name)=>h.command('server.save',{serviceId:service.id,name,coverCap:8})
+  const ana=await server('Ana'),ben=await server('Ben')
+  for(const opts of [{as:reader},{as:host},agent])await h.command('server.save',{serviceId:service.id,name:'Forbidden',coverCap:8},{...opts,status:403})
+  await h.api('/api/sections?serviceId='+service.id,undefined,{as:'',status:401})
+  const section=(name,serverId,tableIds)=>h.command('section.save',{serviceId:service.id,name,serverId,tableIds})
+  const inside=await section('Inside',ana.id,tables.slice(0,3).map(t=>t.id)),outside=await section('Outside',ben.id,tables.slice(3).map(t=>t.id))
+  await h.command('section.save',{serviceId:service.id,name:'Duplicate ownership',serverId:ben.id,tableIds:[tables[0].id]},{status:409})
+  const kitchen=(area,coverCap,opts={})=>h.command('kitchen.save',{serviceId:service.id,area,coverCap},opts)
+  await kitchen('Dining room',6);await kitchen('Patio',6)
+  const publish=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Review the shift sections and capacities'})
+  await h.command('proposal.approve',{proposalId:publish.id})
+  const book=async(i,size,area,opts={})=>(await h.api('/api/public/book',publicGuest(service,i,{partySize:size,area,requiredAccessTags:['step-free']}),{as:'',status:201,...opts})).result
+  const large=await book(0,5,'Dining room'),small=await book(1,3,undefined)
+  let state=await h.api('/api/state'),big=state.state.bookings.find(b=>b.id===large.id),little=state.state.bookings.find(b=>b.id===small.id)
+  assert.equal(big.serverId,ana.id);assert.equal(big.sectionId,inside.id);assert.equal(little.serverId,ben.id)
+  assert.equal(big.servingHistory[0].actor,'guest');assert.equal(big.servingHistory[0].to.serverName,'Ana')
+  const stage=(bookingId,stage,opts={})=>h.command('booking.stage',{bookingId,stage},{as:host,...opts})
+  await stage(large.id,'seated');await stage(small.id,'seated')
+  const dashboard=()=>h.api('/api/sections?serviceId='+service.id+'&partySize=2&startAt='+encodeURIComponent(service.startAt),undefined,{as:host})
+  let dash=await dashboard(),a=dash.servers.find(s=>s.id===ana.id),b=dash.servers.find(s=>s.id===ben.id)
+  assert.equal(a.seatedCovers,5);assert.equal(b.seatedCovers,3);assert.equal(a.expectedCovers,5);assert.deepEqual(a.seatedBookingIds,[large.id]);assert.equal(dash.rotation[0],ben.id)
+  assert.equal(dash.sections.find(s=>s.id===inside.id).seatedCovers,5)
+  const pause=(serverId,onBreak)=>h.command('server.break',{serviceId:service.id,serverId,onBreak,reason:onBreak?'Meal break':'Return to section'})
+  const move=async(bookingId,tableIds,opts={})=>h.command('booking.move',{bookingId,tableIds,version:(await h.api('/api/floor-version')).version,reason:'ShiftGuestSensitive-Elmvale workload request'},{as:host,...opts})
+  await pause(ana.id,true);dash=await dashboard();assert.ok(!dash.rotation.includes(ana.id));assert.equal(dash.servers.find(s=>s.id===ana.id).seatedCovers,5)
+  await move(small.id,[tables[1].id],{status:409})
+  await book(2,1,'Dining room',{status:409})
+  await pause(ana.id,false)
+  await move(small.id,[tables[1].id],{status:409}) // Kitchen is full despite room and server capacity.
+  await kitchen('Dining room',10)
+  await move(small.id,[tables[1].id])
+  state=await h.api('/api/state');little=state.state.bookings.find(b=>b.id===small.id)
+  assert.equal(little.serverId,ana.id);assert.equal(little.startAt,service.startAt);assert.equal(little.endAt,big.endAt)
+  const transfer=little.servingHistory.at(-1);assert.equal(transfer.actor,person.id);assert.equal(transfer.from.serverId,ben.id);assert.equal(transfer.to.serverId,ana.id);assert.equal(transfer.action,'booking.move')
+  const audit=state.state.audit.findLast(e=>e.action==='booking.move'&&e.subject===small.id);assert.equal(audit.before[0].serverId,ben.id);assert.equal(audit.after[0].serverId,ana.id)
+  const filtered=await h.api('/api/timeline?date='+day+'&serviceId='+service.id+'&serverId='+ana.id,undefined,agent)
+  assert.deepEqual(new Set(filtered.rows.map(r=>r.id)),new Set([large.id,small.id]));assert.equal(filtered.filters.serverNames[ana.id],'Ana');assert.equal(filtered.rows.find(r=>r.id===small.id).servingHistory.at(-1).to.serverName,'Ana')
+  await h.command('server.save',{serviceId:service.id,id:ana.id,name:'Ana',coverCap:7},{status:409})
+  await h.command('section.save',{...inside,serviceId:service.id,serverId:ben.id},{status:409})
+  await book(3,1,'Dining room',{status:409}) // Server cap, with kitchen room still available.
+  await h.command('booking.walkin',{serviceId:service.id,startAt:service.startAt,partySize:1,tableIds:[tables[2].id],name:'Walk in',email:'walkin@example.test',requiredAccessTags:['step-free']},{status:409})
+  const waiting=await h.command('waitlist.add',{serviceId:service.id,partySize:1,name:'Waiting guest',email:'waiting@example.test'})
+  await h.command('waitlist.seat',{waitlistId:waiting.id,startAt:service.startAt,tableIds:[tables[2].id]},{status:409})
+  const next=await book(4,4,'Patio')
+  await h.command('combination.save',{tableIds:[tables[2].id,tables[6].id],capacity:8,accessTags:['step-free'],setupMinutes:0,enabled:true,adjacent:true})
+  await book(5,7,undefined,{status:409}) // A physically fitting join crosses server sections.
+  await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:next.id,tableIds:[tables[2].id]},reason:'Must check capped destination server'},{...agent,status:409})
+  await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:small.id,tableIds:[tables[3].id]},reason:'Must check destination kitchen'},{...agent,status:409})
+  await kitchen('Patio',8)
+  let plan=await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:small.id,tableIds:[tables[3].id]},reason:'Reviewed load balance'},agent)
+  await h.command('proposal.approve',{proposalId:plan.id},{...agent,status:403})
+  await pause(ben.id,true);await h.command('proposal.approve',{proposalId:plan.id},{status:409});await pause(ben.id,false)
+  plan=await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:small.id,tableIds:[tables[3].id]},reason:'Fresh capacity review'},agent);await h.command('proposal.approve',{proposalId:plan.id},{as:manager})
+  const nextRow=(await h.api('/api/state')).state.bookings.find(b=>b.id===next.id)
+  plan=await h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:nextRow.tableIds[0],retire:true,replacements:[{bookingId:next.id,tableIds:[tables[2].id]}]},reason:'Retirement cannot exceed server capacity'})
+  await h.command('proposal.approve',{proposalId:plan.id},{status:409})
+  plan=await h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:nextRow.tableIds[0],retire:true,replacements:[{bookingId:next.id,tableIds:[tables[6].id]}]},reason:'Keep guest and server promises'})
+  await h.command('proposal.approve',{proposalId:plan.id})
+  state=await h.api('/api/state');const retiredBooking=state.state.bookings.find(b=>b.id===next.id)
+  assert.equal(retiredBooking.serverId,ben.id);assert.equal(retiredBooking.startAt,next.startAt)
+  assert.ok((await h.api('/api/sections?serviceId='+service.id,undefined,agent)).servers.length===2)
+  const archive=await h.api('/api/backup'),restored=await installation()
+  try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});const copy=(await restored.api('/api/state')).state;assert.deepEqual(copy.services,state.state.services);assert.deepEqual(copy.bookings,state.state.bookings)}finally{await restored.close()}
+  // Erasure follows transfer reasons in live history and exact pending-plan snapshots.
+  await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:small.id,tableIds:[tables[1].id]},reason:'ShiftGuestSensitive-Elmvale fresh review'},agent)
+  assert.ok(JSON.stringify((await h.api('/api/state')).state).includes('ShiftGuestSensitive-Elmvale'))
+  await h.command('guest.erase',{guestId:state.state.bookings.find(b=>b.id===small.id).guestId,confirm:'ERASE'})
+  assert.ok(!JSON.stringify((await h.api('/api/state')).state).includes('ShiftGuestSensitive-Elmvale'))
+ }finally{await h.close()}
+})

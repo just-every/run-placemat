@@ -10,6 +10,7 @@ import {createTimeline} from './placemat-timeline.js';
 import {createPublicSearch} from './placemat-search.js';
 import {renderCombinations,combinationEditor,validateCombination} from './placemat-combinations.js';
 import {activeTables,roomNames,renderRooms,roomEditor,tableEditor as physicalTableEditor,floorChangePayload,floorPlanPreview,createFloorSync} from './placemat-floor-plan.js';
+import {createStaffing,servingLabel} from './placemat-staffing.js';
 /* Live restaurant screens: transport, venue time, rendering, and form actions. */
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -22,7 +23,7 @@ const button = (text, action, id = '', secondary = true) => `<button type="butto
 const field = (label, name, type = 'text', value = '', attributes = '') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" ${attributes}></label>`;
 const select = (label, name, choices, selected = '') => `<label>${esc(label)}<select name="${name}" required>${options(choices, selected)}</select></label>`;
 const form = (command, content, submit, disabled = false, className = '') => `<form data-command="${command}"${className ? ` class="${className}"` : ''}><fieldset ${disabled ? 'disabled' : ''}><div class="form-grid">${content}<div class="wide"><button type="submit">${esc(submit)}</button></div></div></fieldset></form>`;
-let serviceStatusId='',assignmentId='',floorArea='',busyCount=0;
+let serviceStatusId='',assignmentId='',floorArea='',floorSection='',floorServer='',busyCount=0;
 const floorSync=createFloorSync({api,refresh:()=>loadStaff(true),isBusy:()=>busyCount>0});
 let data, state, actor, serviceId = '', floorTime = '', guestQuery = '', importPlan, importCsv = '';
 const isPublic = document.body.dataset.page === 'public';
@@ -38,6 +39,7 @@ const who = id => data.names?.[id] || 'Unknown person';
 const service = () => state.services.find(s => s.id === serviceId);
 const tableNames = ids => ids.map(id => state.tables.find(t => t.id === id)?.label ?? id).join(', ');
 const zone = () => state.venue.timezone;
+const staffing=createStaffing({api,esc,field,select,form,button,guest,time,who,tableNames,canEdit,canOperate:canOperateFloor});
 function notice(message, kind = '') {
   const el = $('#notice'); el.textContent = message; el.dataset.kind = kind; el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
   if (kind === 'error' && el.getBoundingClientRect().top < 0) el.scrollIntoView({block:'center'});
@@ -82,32 +84,40 @@ async function loadStaff(polling = false) {
   if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
   if (!floorTime && service()) floorTime = floorStart(service());
   $('#venue-name').textContent = state.venue.name; $('#venue-zone').textContent = `${state.venue.timezone} · ${actor.agent ? 'Agent preparation access' : actor.role === 'member' ? 'Read-only access' : 'Live operations'}`;
-  renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn(); renderReports({state,canEdit:canEdit(),api,esc,field,select,empty});
+  const floorReady=renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn(); renderReports({state,canEdit:canEdit(),api,esc,field,select,empty});
+  await floorReady;
   floorSync.synced(data.version);
 }
 // During its service the floor opens at the current quarter hour, otherwise at the service's start.
 function floorStart(s) { const now = Date.now(); return localTime(now >= Date.parse(s.startAt) && now < Date.parse(s.endAt) ? now - now % 900000 : s.startAt); }
 function renderFloor() {
   const s = service();
-  const areas=roomNames(state);
+  const areas=roomNames(state),sections=s?.staffing?.sections || [],servers=s?.staffing?.servers || [];
+  if(!sections.some(section=>section.id===floorSection))floorSection='';
+  if(!servers.some(server=>server.id===floorServer))floorServer='';
   if(!areas.includes(floorArea))floorArea='';
-  $('#floor-content').innerHTML = '<p id="floor-sync" class="help floor-sync" role="status" aria-live="polite"></p>' + (!s ? emptyRoom('Start by adding tables and creating a service below.') : `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}${select('Room','floor-area',[['','All rooms'],...areas.map(area=>[area,area])],floorArea)}</div><div id="floor-room"></div>${floorLegend()}<div id="floor-timeline"></div><div id="shift-handover"></div>`);
+  $('#floor-content').innerHTML = '<p id="floor-sync" class="help floor-sync" role="status" aria-live="polite"></p>' + (!s ? emptyRoom('Start by adding tables and creating a service below.') : `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}${select('Room','floor-area',[['','All rooms'],...areas.map(area=>[area,area])],floorArea)}${select('Section','floor-section',[['','All sections'],...sections.map(section=>[section.id,section.name])],floorSection)}${select('Server','floor-server',[['','All servers'],...servers.map(server=>[server.id,server.name])],floorServer)}</div><div id="floor-room"></div>${floorLegend()}<div id="floor-staffing"></div><div id="floor-timeline"></div><div id="shift-handover"></div>`);
   floorSync.render();
   $('#bookings').hidden = !s;
   if (!s) { $('#bookings-list').innerHTML = ''; return; }
   renderRoom(); renderBookings();
+  const staffingReady=staffing.mount($('#floor-staffing'),state,s);
   timeline.mount($('#floor-timeline'),s,serviceChoices(),zone());
   $('#shift-handover').innerHTML=shiftHandover(state,serviceId,data.serviceStages,{esc,guest,who,time,tableNames,canEdit:canOperateFloor(),button});
+  return staffingReady;
 }
 function renderRoom() {
   let at;
   try { at = Date.parse(toUtc(floorTime)); } catch (error) { $('#floor-room').innerHTML = empty(error.message); return; }
   const bookings = state.bookings.filter(b => b.needsBussing || (['booked','seated'].includes(b.status)||b.status==='completed'&&b.cleanupEndAt>b.endAt) && Date.parse(b.setupStartAt || b.startAt) <= at && Date.parse(b.cleanupEndAt||b.endAt) > at);
-  const tables=activeTables(state).filter(table=>!floorArea||(table.area||'Dining room')===floorArea);
+  const sections=service()?.staffing?.sections || [],servers=service()?.staffing?.servers || [];
+  const sectionFor=table=>sections.find(section=>section.tableIds.includes(table.id));
+  const sectionLabel=table=>{const section=sectionFor(table);return section?`${section.name} · ${servers.find(server=>server.id===section.serverId)?.name || 'Unassigned'}`:'No section assigned';};
+  const tables=activeTables(state).filter(table=>(!floorArea||(table.area||'Dining room')===floorArea)&&(!floorSection||sectionFor(table)?.id===floorSection)&&(!floorServer||sectionFor(table)?.serverId===floorServer));
   $('#floor-room').innerHTML = tables.length ? `<div class="floor-scroll"><div class="floor-map" role="group" aria-label="Floor plan at selected time">${tables.map(t => {
     const occupied = bookings.find(b => b.tableIds.includes(t.id)), g = occupied && guest(occupied.guestId),ready=state.bookings.findLast(b=>b.tableIds.includes(t.id)&&data.serviceStages?.[b.id]?.status==='ready');
-    return `<div class="floor-table" data-seats="${t.seats > 2 ? 4 : 2}" data-shape="${esc(t.shape || 'square')}" data-area="${esc(t.area || 'Dining room')}" data-occupancy="${occupied?.status || 'available'}" data-x="${t.x}" data-y="${t.y}" title="${esc(occupied ? `${g?.name || 'Erased guest'} · ${occupied.partySize} guests · ${time(occupied.startAt)} to ${time(occupied.endAt)}` : ready?'Staff recorded ready; reserved turns and resets still apply.':'Available at selected time')}"><span class="top"><strong>${esc(t.label)}</strong><small>${t.seats} seats</small><small class="floor-area-label">${esc(t.area || 'Dining room')}</small>${occupied ? `<small>${esc(g?.name || 'Erased guest')}</small>${Date.parse(occupied.startAt)>at?'<small>Setup before arrival</small>':''}` : ready?'':'<small>Available</small>'}</span>${occupied||ready?`<span class="floor-stage-caption">${stageLabel(data.serviceStages[(occupied||ready).id],{esc})}</span>`:''}</div>`;
-  }).join('')}</div></div><div class="table-scroll"><table aria-label="Floor states and timers"><thead><tr><th>Table</th><th>Floor state / timer</th></tr></thead><tbody>${tables.map(t=>{const b=bookings.find(b=>b.tableIds.includes(t.id))||state.bookings.findLast(b=>b.tableIds.includes(t.id)&&data.serviceStages?.[b.id]?.status==='ready');return `<tr><td>${esc(t.label)}<br><span class="muted">${esc(t.area || 'Dining room')}</span></td><td>${b?`${Date.parse(b.startAt)>at&&Date.parse(b.setupStartAt||b.startAt)<=at?`<span>Setup reserved until ${esc(time(b.startAt))}</span><br>`:''}${stageLabel(data.serviceStages?.[b.id],{esc})}`:'Available · no transition recorded'}</td></tr>`}).join('')}</tbody></table></div>` : empty('No tables yet. Add the tables in your room below.');
+    return `<div class="floor-table" data-seats="${t.seats > 2 ? 4 : 2}" data-shape="${esc(t.shape || 'square')}" data-area="${esc(t.area || 'Dining room')}" data-section="${esc(sectionFor(t)?.id || '')}" data-server="${esc(sectionFor(t)?.serverId || '')}" data-occupancy="${occupied?.status || 'available'}" data-x="${t.x}" data-y="${t.y}" title="${esc(`${sectionLabel(t)}. `)}${esc(occupied ? `${g?.name || 'Erased guest'} · ${occupied.partySize} guests · ${time(occupied.startAt)} to ${time(occupied.endAt)}` : ready?'Staff recorded ready; reserved turns and resets still apply.':'Available at selected time')}"><span class="top"><strong>${esc(t.label)}</strong><small>${t.seats} seats</small><small class="floor-area-label">${esc(t.area || 'Dining room')}</small>${occupied ? `<small>${esc(g?.name || 'Erased guest')}</small>${Date.parse(occupied.startAt)>at?'<small>Setup before arrival</small>':''}` : ready?'':'<small>Available</small>'}</span>${occupied||ready?`<span class="floor-stage-caption">${stageLabel(data.serviceStages[(occupied||ready).id],{esc})}</span>`:''}</div>`;
+  }).join('')}</div></div><div class="table-scroll"><table aria-label="Floor states and timers"><thead><tr><th>Table</th><th>Floor state / timer</th></tr></thead><tbody>${tables.map(t=>{const b=bookings.find(b=>b.tableIds.includes(t.id))||state.bookings.findLast(b=>b.tableIds.includes(t.id)&&data.serviceStages?.[b.id]?.status==='ready');return `<tr><td>${esc(t.label)}<br><span class="muted">${esc(t.area || 'Dining room')}<br>${esc(sectionLabel(t))}</span></td><td>${b?`${Date.parse(b.startAt)>at&&Date.parse(b.setupStartAt||b.startAt)<=at?`<span>Setup reserved until ${esc(time(b.startAt))}</span><br>`:''}${stageLabel(data.serviceStages?.[b.id],{esc})}`:'Available · no transition recorded'}</td></tr>`}).join('')}</tbody></table></div>` : empty('No tables match these room, section and server filters. Add tables or choose another filter.');
   $('#floor-room .floor-map')?.style.setProperty('--count', tables.length);
   document.querySelectorAll('.floor-table').forEach(el => { el.style.left = `${5 + Number(el.dataset.x) * .9}%`; el.style.top = `${12 + Number(el.dataset.y) * .76}%`; });
 }
@@ -115,7 +125,7 @@ function renderBookings() {
   const rows = state.bookings.filter(b => b.serviceId === serviceId).sort((a,b) => a.startAt.localeCompare(b.startAt));
   const covers = rows.filter(b => !['cancelled','no-show'].includes(b.status)).reduce((n,b) => n+b.partySize,0);
   const s = service();
-  $('#bookings-list').innerHTML = `<div class="split-heading"><h2>Bookings</h2><span class="badge">${covers} / ${s.coverLimit} covers</span></div>${rows.length ? `<div class="table-scroll"><table class="bookings-table"><thead><tr><th>Guest</th><th>Arrival / end</th><th>Party / tables</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(b => `<tr><td><strong>${esc(guest(b.guestId)?.name || 'Erased guest')}</strong><br><span class="muted">${esc(b.source)}</span>${profileSummary(guest(b.guestId),{esc,who,time})}</td><td>${esc(time(b.startAt))}<br><span class="muted">until ${esc(time(b.endAt))}${b.setupStartAt&&b.setupStartAt<b.startAt?`<br>Setup from ${esc(time(b.setupStartAt))}`:''}${b.cleanupEndAt>b.endAt?`<br>Reset until ${esc(time(b.cleanupEndAt))}`:''}</span></td><td>${b.partySize} guests<br>${esc(tableNames(b.tableIds))}</td><td>${badge((data.serviceStages?.[b.id]?.serviceStatus||b.status).replaceAll('-',' '))}</td><td><div class="actions">${canOperateFloor()?button('Update service','service-status',b.id):''}${canEdit() ? `<a href="/api/calendar/${encodeURIComponent(b.id)}">Calendar</a>` : ''}${canOperateFloor() || actor?.agent ? button(canOperateFloor()?'Change assignment':'Prepare reassignment','reassign',b.id):button('Assignment history','reassign',b.id)}${b.assignmentLocked?' <span class="badge">Locked</span>':''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('No bookings for this service yet. Share the guest booking page or add a walk-in.')}<div id="reassignment">${assignmentId&&state.bookings.find(b=>b.id===assignmentId)?renderAssignment(assignmentId):''}</div><div id="service-status-editor">${serviceStatusId&&canOperateFloor()&&state.bookings.find(b=>b.id===serviceStatusId)?statusEditor(state.bookings.find(b=>b.id===serviceStatusId),state,data.serviceStages?.[serviceStatusId],{esc,form,select,field,who,time}):''}</div>${canEdit() && s.status === 'published' && !s.closedAt ? `<details><summary>Add a walk-in</summary>${form('booking.walkin', serviceField() + personFields() + startField() + tableField() + field('Required table access tags (comma separated)','requiredAccessTags') + field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"'), 'Seat walk-in')}</details>` : ''}`;
+  $('#bookings-list').innerHTML = `<div class="split-heading"><h2>Bookings</h2><span class="badge">${covers} / ${s.coverLimit} covers</span></div>${rows.length ? `<div class="table-scroll"><table class="bookings-table"><thead><tr><th>Guest</th><th>Arrival / end</th><th>Party / tables</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(b => `<tr><td><strong>${esc(guest(b.guestId)?.name || 'Erased guest')}</strong><br><span class="muted">${esc(b.source)}</span>${profileSummary(guest(b.guestId),{esc,who,time})}</td><td>${esc(time(b.startAt))}<br><span class="muted">until ${esc(time(b.endAt))}${b.setupStartAt&&b.setupStartAt<b.startAt?`<br>Setup from ${esc(time(b.setupStartAt))}`:''}${b.cleanupEndAt>b.endAt?`<br>Reset until ${esc(time(b.cleanupEndAt))}`:''}</span></td><td>${b.partySize} guests<br>${esc(tableNames(b.tableIds))}<br><span class="muted">${esc(servingLabel(b))}</span></td><td>${badge((data.serviceStages?.[b.id]?.serviceStatus||b.status).replaceAll('-',' '))}</td><td><div class="actions">${canOperateFloor()?button('Update service','service-status',b.id):''}${canEdit() ? `<a href="/api/calendar/${encodeURIComponent(b.id)}">Calendar</a>` : ''}${canOperateFloor() || actor?.agent ? button(canOperateFloor()?'Change assignment':'Prepare reassignment','reassign',b.id):button('Assignment history','reassign',b.id)}${b.assignmentLocked?' <span class="badge">Locked</span>':''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('No bookings for this service yet. Share the guest booking page or add a walk-in.')}<div id="reassignment">${assignmentId&&state.bookings.find(b=>b.id===assignmentId)?renderAssignment(assignmentId):''}</div><div id="service-status-editor">${serviceStatusId&&canOperateFloor()&&state.bookings.find(b=>b.id===serviceStatusId)?statusEditor(state.bookings.find(b=>b.id===serviceStatusId),state,data.serviceStages?.[serviceStatusId],{esc,form,select,field,who,time}):''}</div>${canEdit() && s.status === 'published' && !s.closedAt ? `<details><summary>Add a walk-in</summary>${form('booking.walkin', serviceField() + personFields() + startField() + tableField() + field('Required table access tags (comma separated)','requiredAccessTags') + field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"'), 'Seat walk-in')}</details>` : ''}`;
 }
 function renderAssignment(id) {return assignmentEditor(state.bookings.find(b=>b.id===id),state,data.version,{esc,guest,time,form,field,select,tableField,who,tableNames,canOperate:canOperateFloor(),canPrepare:canPrepare()});}
 function renderServices() {
@@ -178,9 +188,9 @@ function payloadFrom(formEl) {
   parseSchedule(formEl,values);
   parseBookingRules(values);
   parseTurnPolicy(values,toUtc);
-  for (const name of ['partySize','seats','x','y','turnMinutes','coverLimit','capacity','setupMinutes']) if (name in values) values[name] = Number(values[name]);
+  for (const name of ['partySize','seats','x','y','turnMinutes','coverLimit','capacity','setupMinutes','coverCap']) if (name in values) values[name] = Number(values[name]);
   for(const name of ['tags','accessTags','requiredAccessTags'])if(name in values)values[name]=values[name].split(',').map(s=>s.trim()).filter(Boolean);
-  for(const name of ['locked','enabled'])if(name in values)values[name]=values[name]==='true';
+  for(const name of ['locked','enabled','onBreak'])if(name in values)values[name]=values[name]==='true';
   if(formEl.querySelector('[name=adjacent]'))values.adjacent=new FormData(formEl).has('adjacent');
   if('version' in values)values.version=Number(values.version);
   if(formEl.querySelector('[name=contactConsent]'))values.contactConsent=new FormData(formEl).has('contactConsent');
@@ -254,7 +264,9 @@ document.addEventListener('submit', event => {
 });
 document.addEventListener('change', event => {
   const el = event.target;
-  if (el.name === 'floor-service') { serviceStatusId='';assignmentId='';serviceId = el.value; floorTime = floorStart(service()); renderFloor(); renderWaitlist(); renderApprovals(); }
+  if (el.name === 'floor-service') { serviceStatusId='';assignmentId='';floorSection='';floorServer='';serviceId = el.value; floorTime = floorStart(service()); renderFloor(); renderWaitlist(); renderApprovals(); }
+  if (el.name === 'floor-section') { floorSection=el.value; renderRoom(); }
+  if (el.name === 'floor-server') { floorServer=el.value; renderRoom(); }
   if (el.name === 'floor-area') { floorArea=el.value; renderRoom(); }
   if (el.name === 'floor-time') { floorTime = el.value; renderRoom(); }
 });

@@ -36,7 +36,8 @@
         "node tests/queue-ui.mjs",
         "node tests/search-ui.mjs",
         "node tests/combinations-ui.mjs",
-        "node tests/floor-plan-ui.mjs"
+        "node tests/floor-plan-ui.mjs",
+        "node tests/staffing-ui.mjs"
       ]
     }
   ],

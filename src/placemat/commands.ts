@@ -13,6 +13,8 @@ import { load,save } from './store'
 import { updateGuestProfile } from './profiles'
 import {searchTables} from './reservation-search'
 import {saveCombination} from './combinations'
+import {executeStaffing} from './staffing'
+import {checkStaffing,recordServing,servingFor} from './staffing-capacity'
 import {approveFloorChange,prepareFloorChange,saveRoom,tableShape} from './floor-plan'
 
 /** The approved reminder text a venue exports for its own sender. */
@@ -53,6 +55,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(s.services.length&&timezone!==s.venue.timezone)fail(409,'Keep the venue timezone after creating a service; existing services retain their instants.')
   result=s.venue={name,timezone};break
  }
+ case 'server.save':case 'server.break':case 'section.save':case 'kitchen.save':{result=executeStaffing(s,actor,command,p,now);break}
  case 'room.save':{result=saveRoom(s,p);break}
  case 'combination.save':{result=saveCombination(s,p);break}
  case 'table.save':{
@@ -99,7 +102,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    if(!['booked','seated'].includes(b.status))fail(409,'Only active bookings can move tables.')
    if(b.assignmentLocked)fail(409,'Unlock this assignment before preparing a table change.')
    const tables=validateAssignment(s,b,plan.tableIds,now)
-   exact={bookingId:b.id,booking:structuredClone(b),tableIds:tables.map(t=>t.id),combinations:structuredClone(s.combinations??[])}
+   exact={bookingId:b.id,booking:structuredClone(b),tableIds:tables.map(t=>t.id),combinations:structuredClone(s.combinations??[]),assignmentInputs:structuredClone({services:s.services,bookings:s.bookings,tables:s.tables,serviceEvents:s.serviceEvents??[]})}
   }else fail(400,'Unknown proposal kind.')
   result={id:id(),kind,plan:exact,status:'pending',preparedBy:actor.id,preparedAt:now,reason:text(p.reason,'Reason',1000)}
   s.proposals.push(result);break
@@ -127,11 +130,13 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    for(const b of rows)s.reminders.push({id:id(),bookingId:b.id,guestId:b.guestId,message:reminderMessage(s,b),status:'approved',approvedBy:actor.id,approvedAt:now})
   }else{
    const b=booking(s,plan.bookingId)
+   if(plan.assignmentInputs&&plain({services:s.services,bookings:s.bookings,tables:s.tables,serviceEvents:s.serviceEvents??[]})!==plain(plan.assignmentInputs))fail(409,'Shift staffing, kitchen limits, floor or commitments changed. Prepare a new assignment.')
+   if(!plan.assignmentInputs&&s.services.find(v=>v.id===b.serviceId)?.staffing)fail(409,'Review a new assignment with the current shift staffing.')
    if(plain(s.combinations??[])!==plain(plan.combinations??[]))fail(409,'Approved combinations changed. Prepare a new table assignment.')
    if(plain(b)!==plain(plan.booking))fail(409,'This booking changed. Prepare a new table assignment.')
    if(b.assignmentLocked)fail(409,'Unlock this assignment before approving a table change.')
    const before=assignmentSnapshot(b),destination=validateAssignments(s,[{booking:b,tableIds:plan.tableIds}],now)[0]
-   applyAssignment(b,destination)
+   applyAssignment(b,destination,{actor:actor.id,at:now,action:'table.assign',reason:proposal.reason})
    s.audit.push({id:id(),at:now,actor:actor.id,action:'table.assign',subject:b.id,before:[before],after:[assignmentSnapshot(b)],reason:proposal.reason})
   }
   proposal.status='approved';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break
@@ -148,6 +153,8 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
   result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
+  checkStaffing(s,[result],now)
+  recordServing(result,servingFor(s,service.id,result.tableIds),actor.id,now,command)
   s.bookings.push(result);executeServiceStatus(s,actor,{bookingId:result.id,stage:'seated'},now);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break
  }
  case 'waitlist.add':{
@@ -189,6 +196,7 @@ export async function onlineBook(db:D1Database,p:any){
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
  const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
+ recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
  return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,area:requiredArea??null,requiredAccessTags,confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}

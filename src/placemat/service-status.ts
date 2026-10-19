@@ -1,4 +1,5 @@
 import {allocation,active,occupiedStartAt,occupiedEndAt} from './capacity'
+import {checkStaffing,recordServing,servingFor} from './staffing-capacity'
 import {assignmentFor} from './combinations'
 import {fail,id,text,type Actor,type Booking,type State} from './model'
 
@@ -59,7 +60,7 @@ export function assertTablesReady(s:State,tableIds:string[],except?:string){
 function fit(s:State,b:Booking,now:string,seating:boolean) {
  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
  if(service.status!=='published'||service.closedAt)fail(409,'Choose an open, published service before seating this party.')
- allocation(s,service,b.partySize,b,b.tableIds,b.id,[],now)
+ allocation(s,service,b.partySize,{...b,status:seating?'seated':b.status},b.tableIds,b.id,[],now)
  if(seating){
   assertTablesReady(s,b.tableIds,b.id)
   // Check the actual current instant separately from the protected reservation.
@@ -131,9 +132,14 @@ export function executeServiceStatus(s:State,actor:Actor,p:any,now:string) {
   const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
   assignmentFor(s,b.tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,b)
  }
+ const newlySeating=after.bookingStatus==='seated'&&before.bookingStatus!=='seated'
+ if((after.bookingStatus==='booked'||after.bookingStatus==='seated')&&(newlySeating||!['booked','seated'].includes(before.bookingStatus))){
+  checkStaffing(s,[{...b,status:after.bookingStatus}],now)
+ }
  const reacquiring=['booked','seated'].includes(after.bookingStatus)&&!['booked','seated'].includes(before.bookingStatus)
  if(reacquiring||after.needsBussing&&(!before.needsBussing||before.floorStatus==='ready'))fit(s,b,now,after.needsBussing||after.bookingStatus==='seated')
  // All validation completes before changing the booking or its append-only log.
+ if(newlySeating||b.status==='seated'&&!history.length)recordServing(b,servingFor(s,b.serviceId,b.tableIds),actor.id,now,'seated',reason,true)
  b.status=after.bookingStatus;b.needsBussing=after.needsBussing
  const event:ServiceEvent={id:id(),bookingId:b.id,at:now,actor:actor.id,source:'staff-recorded',reason,before,after,...correctsEventId?{correctsEventId}:{}}
  ;(s.serviceEvents??=[]).push(event)
