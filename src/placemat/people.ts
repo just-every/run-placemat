@@ -1,9 +1,9 @@
-import type { State } from './model'
+import type { State,Guest } from './model'
 
 /** Readable names for the people and preparation keys that prepared or approved
  * something, keyed by the ids stored in the floor state. Only referenced ids. */
-export async function actorNames(db:D1Database,s:State):Promise<Record<string,string>>{
- const ids=[...new Set([...s.proposals.flatMap(p=>[p.preparedBy,p.approvedBy]),...s.reminders.map(r=>r.approvedBy)].filter((id):id is string=>!!id))].slice(0,90)
+export async function actorNames(db:D1Database,s:State,guests:Guest[]=[]):Promise<Record<string,string>>{
+ const ids=[...new Set([...s.proposals.flatMap(p=>[p.preparedBy,p.approvedBy]),...s.reminders.map(r=>r.approvedBy),...guests.flatMap(g=>[...Object.values(g.provenance??{}),...Object.values(g.profile?.provenance??{}),...(g.notesHistory??[]).map(n=>n.provenance)].map(p=>p?.actor))].filter((id):id is string=>!!id))].slice(0,90)
  if(!ids.length)return {}
  const marks=ids.map(()=>'?').join(',')
  const [people,keys]=await Promise.all([

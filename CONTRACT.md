@@ -194,7 +194,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 ### Guest relationships and repeat visits
 
-- **GUEST-002 — Searchable profiles and structured preferences.** Hosts search normalized phone, email and name, maintain guest tags, VIP level, seating preferences and dated service notes, and see reservation/visit history in one profile. Imported versus guest-supplied versus staff-observed facts keep provenance and restricted notes obey role rights. **Acceptance evidence:** Find a returning guest by US phone, add a VIP tag and seating preference, then book again and view the preferences and their sources at arrival.
+- **GUEST-002 — Searchable profiles and structured preferences.** Hosts search normalized phone, email and name, maintain guest tags, VIP level, seating preferences and dated service notes, and see reservation/visit history in one profile. Imported versus guest-supplied versus staff-observed facts keep provenance and restricted notes obey role rights. Current owner/admin operations staff perform the host workflow until ROLE-003 adds the host role; current member/preparation-key readers retain ACCESS-001 guest-note visibility. Explicit facts keep guest-supplied, imported or staff-observed provenance; missing legacy source or original import date is labelled not recorded. Search normalization does not change exact-email identity matching. Every future restricted fact, role and access scope introduced by GUEST-003, ROLE-003, ROLE-004 and DATA-004 must conform in profile, search, arrival and backup doors before shipping. **Acceptance evidence:** Find a returning guest by US phone, add a VIP tag and seating preference, then book again and view the preferences and their sources at arrival.
 
 - **GUEST-003 — Allergy and accessibility handoff.** Guest-declared allergies, dietary and access needs are separate explicit fields with date/source and staff acknowledgment. Host/server handover and the connected POS show the relevant facts without an AI inventing a diagnosis or declaring food safe; stale or conflicting notes require clarification. **Acceptance evidence:** Book a nut-allergic guest requiring step-free seating, acknowledge both at check-in, send the declared facts to POS and correct an outdated note with its author/date retained.
 
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 2 | 0 | 15 |
-| Target and push further | 2 | 36 | 79 | 117 |
-| All | 15 | 38 | 79 | 132 |
+| Target and push further | 3 | 35 | 79 | 117 |
+| All | 16 | 37 | 79 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -509,7 +509,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `EXP-003` | Experience guest management | target | missing |  | No implementation of this journey exists. |
 | `EXP-004` | Experience cancellation and event settlement | target | missing |  | No implementation of this journey exists. |
 | `EXP-005` | Prepaid pickup experiences | target | missing |  | No implementation of this journey exists. |
-| `GUEST-002` | Searchable profiles and structured preferences | target | partial | `src/placemat/guests.ts`; `public/placemat.js`; `src/placemat/model.ts`; `tests/api/flows.test.mjs` | Contact records, free-text notes and client search exist; normalized search, structured tags/preferences and field provenance are absent. |
+| `GUEST-002` | Searchable profiles and structured preferences | target | done | `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs` |  |
 | `GUEST-003` | Allergy and accessibility handoff | target | missing |  | No implementation of this journey exists. |
 | `GUEST-004` | Duplicate review and household separation | target | partial | `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` | Exact email reuse and contact-collision diagnostics exist; duplicate suggestions, merge/unmerge and consent reconciliation do not. |
 | `GUEST-005` | POS-linked visit and item history | target | missing |  | No implementation of this journey exists. |

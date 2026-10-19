@@ -2,6 +2,7 @@ import { fail,id,text,number,type State,type Actor,type Booking } from './model'
 import { allocation,instant,interval,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save } from './store'
+import { updateGuestProfile } from './profiles'
 
 /** The approved reminder text a venue exports for its own sender. */
 export const reminderMessage=(s:State,b:Booking)=>`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`
@@ -87,7 +88,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   const service=serviceBy(s,waiting?.serviceId??p.serviceId)
   if(service.status!=='published')fail(409,'Publish this service first.')
   const partySize=waiting?.partySize??number(p.partySize,'Party size',1,20),slot=interval(service,p.startAt),tables=allocation(s,service,partySize,slot,p.tableIds)
-  const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p)
+  const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
   result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now} satisfies Booking
@@ -95,7 +96,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  }
  case 'waitlist.add':{
   const service=serviceBy(s,p.serviceId);if(service.status!=='published')fail(409,'Publish the service first.')
-  const partySize=number(p.partySize,'Party size',1,20),entry=await guestFor(db,p)
+  const partySize=number(p.partySize,'Party size',1,20),entry=await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest,version))
   result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,status:'waiting'};s.waitlist.push(result);break
@@ -106,13 +107,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(!allowed[b.status].includes(next))fail(409,'That status transition is not available for this booking.')
   b.status=next;result=b;break
  }
- case 'guest.update':{
-  const row=await db.prepare('SELECT version,data FROM pm_guests WHERE id=?').bind(p.guestId).first<{version:number;data:string}>()
-  if(!row)fail(404,'Guest not found.')
-  const guest=JSON.parse(row!.data);if(guest.erased)fail(409,'An erased guest cannot be edited.')
-  guest.notes=typeof p.notes==='string'&&p.notes.length<=4000?p.notes:fail(400,'Notes must be at most 4000 characters.')
-  before.push(db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END').bind(guest.id,row!.version,row!.data))
-  before.push(db.prepare('UPDATE pm_guests SET data=?,version=version+1 WHERE id=? AND version=? AND EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?)').bind(JSON.stringify(guest),guest.id,row!.version,version));result=guest;break
+ case 'guest.update':case 'guest.profile':{
+  const update=await updateGuestProfile(db,p.guestId,p,actor,version,now)
+  before.push(...update.statements);result=update.guest;break
  }
  default:fail(400,'Unknown command.')
  }
