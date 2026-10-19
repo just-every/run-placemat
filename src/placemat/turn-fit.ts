@@ -20,7 +20,9 @@ export function fitAt(s:State,service:Service,partySize:number,startAt:string,re
    allocation(s,service,partySize,candidate,assignment.tables.map(t=>t.id),undefined,unavailable)
    const capacity=assignment.combination?.capacity??assignment.tables[0].seats,bestCapacity=best?.combination?.capacity??best?.tables[0].seats??Infinity
    if(!best||capacity<bestCapacity||capacity===bestCapacity&&(assignment.tables.length<best.tables.length||assignment.tables.length===best.tables.length&&endAt<best.endAt))best=candidate
-  }catch(error){if(error instanceof Error&&'status' in error&&error.status===409)continue;throw error}
+  // Search may contain only the tables eligible for an area or access need.
+  // A requested table outside that inventory is an unavailable fit, as before.
+  }catch(error){if(error instanceof Error&&'status' in error&&[404,409].includes(Number(error.status)))continue;throw error}
  }
  if(best)return best
  if(!turnFits&&choices.length&&s.tables.every(t=>Date.parse(startAt)+tableTurn(service,t,partySize)*60000+cleanup*60000>Date.parse(service.endAt)))fail(400,'Choose a start that fits the full turn and cleanup within service hours.')
