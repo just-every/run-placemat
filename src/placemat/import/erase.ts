@@ -1,3 +1,4 @@
+import {guestStateErasure} from '../guest-state-erasure'
 import { canonicalJson,eraseD1ImportTarget,upgradeD1ImportErasureIndex, type D1Database,type D1Sql } from './kit'
 import { contextWithAuthority,requireOwner } from './context'
 import { guestIdentityHashes, importedGuestId } from './identity'
@@ -15,7 +16,7 @@ export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Acto
  context.originalErasurePolicy='withdraw-affected-artifacts'
  const erased:Guest={id:guestId,name:'Erased guest',email:'',phone:'',notes:'',history:[],erased:true}
  const guard:D1Sql={sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END',params:[guestId,native.version,native.data]}
- const statements:D1Sql[]=[guard,...hashes.map(hash=>({sql:'INSERT OR IGNORE INTO pm_erased(identity_hash,erased_at) VALUES(?,?)',params:[hash,at]})),{sql:'UPDATE pm_guests SET version=version+1,data=? WHERE id=?',params:[canonicalJson(erased),guestId]},{sql:'DELETE FROM pm_import_guest_revisions WHERE guest_id=?',params:[guestId]},...extraStatements]
+ const statements:D1Sql[]=[guard,...await guestStateErasure(db,guestId),...hashes.map(hash=>({sql:'INSERT OR IGNORE INTO pm_erased(identity_hash,erased_at) VALUES(?,?)',params:[hash,at]})),{sql:'UPDATE pm_guests SET version=version+1,data=? WHERE id=?',params:[canonicalJson(erased),guestId]},{sql:'DELETE FROM pm_import_guest_revisions WHERE guest_id=?',params:[guestId]},...extraStatements]
  const selected=new Set([guest.id,guest.email,guest.phone].filter(Boolean))
  const related={source:(record:any)=>{const payload=record.payload;return payload&&typeof payload==='object'&&(!Array.isArray(payload))&&(payload.id===guest.id||guestIdentityHashes(payload).some(hash=>hashes.includes(hash)))},original:(bytes:Uint8Array)=>{try{return parseOriginal(bytes,selected,hashes)}catch{return false}}}
  // Erasing older installations left some jobs unindexed; index them before this erasure.

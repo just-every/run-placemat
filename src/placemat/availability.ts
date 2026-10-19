@@ -1,3 +1,4 @@
+import {checkBookingRules,ruleFor} from './booking-rules'
 import { fail, number, type State, type Service, type Table, type Booking } from './model'
 // Adapted from Dial's UTC-first engine: half-open intervals and duration-fit
 // checks are pure. Placemat adds venue cover limits and table combinations.
@@ -8,9 +9,9 @@ export function instant(value:unknown,label:string) {
  return new Date(value as string).toISOString()
 }
 export function serviceBy(s:State,id:unknown):Service {return s.services.find(x=>x.id===id)??fail(404,'Service not found.')}
-export function interval(service:Service,value:unknown){
+export function interval(service:Service,value:unknown,channel:'online'|'walk-in'|'waitlist'='online'){
  const startAt=instant(value,'Start'),endAt=new Date(Date.parse(startAt)+service.turnMinutes*60000).toISOString()
- if(startAt<service.startAt||endAt>service.endAt||(Date.parse(startAt)-Date.parse(service.startAt))%900000!==0)fail(400,'Choose a 15-minute start that fits the full turn within the service.')
+ if(startAt<service.startAt||endAt>service.endAt||(Date.parse(startAt)-Date.parse(service.startAt))%(ruleFor(service,channel).slotMinutes*60000)!==0)fail(400,`Choose a ${ruleFor(service,channel).slotMinutes}-minute start that fits the full turn within the service.`)
  return {startAt,endAt}
 }
 export function allocation(s:State,service:Service,partySize:number,slot:{startAt:string;endAt:string},requested?:unknown,except?:string):Table[] {
@@ -38,11 +39,11 @@ export function allocation(s:State,service:Service,partySize:number,slot:{startA
  return fit?.[1]??fail(409,'No table combination fits this party at that time. Try another time or join the waitlist with staff.')
 }
 export function slots(s:State,service:Service,size:unknown){
- const partySize=number(size,'Party size',1,20),result:{startAt:string;endAt:string}[]=[]
- for(let t=Date.parse(service.startAt);t+service.turnMinutes*60000<=Date.parse(service.endAt);t+=900000){
+ const partySize=number(size,'Party size',1,500),result:{startAt:string;endAt:string}[]=[]
+ for(let t=Date.parse(service.startAt);t+service.turnMinutes*60000<=Date.parse(service.endAt);t+=ruleFor(service,'online').slotMinutes*60000){
   if(t<Date.now())continue
   const slot={startAt:new Date(t).toISOString(),endAt:new Date(t+service.turnMinutes*60000).toISOString()}
-  try{allocation(s,service,partySize,slot);result.push(slot)}catch(error){if(!(error instanceof Error)||!('status' in error)||error.status!==409)throw error}
+  try{checkBookingRules(s,service,partySize,slot.startAt,'online');allocation(s,service,partySize,slot);result.push(slot)}catch(error){if(!(error instanceof Error)||!('status' in error)||error.status!==409)throw error}
  }
  return result
 }

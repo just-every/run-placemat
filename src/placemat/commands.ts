@@ -1,3 +1,4 @@
+import {normalizeRules,checkBookingRules} from './booking-rules'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
 import { allocation,instant,interval,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
@@ -36,7 +37,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   const startAt=instant(p.startAt,'Service start'),endAt=instant(p.endAt,'Service end'),turnMinutes=number(p.turnMinutes,'Turn minutes',15,360)
   const duration=(Date.parse(endAt)-Date.parse(startAt))/60000
   if(duration<turnMinutes||duration>1440)fail(400,'Service duration must fit a turn and be no more than 24 hours.')
-  const service={id:current?.id??id(),name:text(p.name,'Service name',120),startAt,endAt,turnMinutes,coverLimit:number(p.coverLimit,'Cover limit',1,500),status:'draft' as const,version:(current?.version??0)+1}
+  const service={id:current?.id??id(),name:text(p.name,'Service name',120),startAt,endAt,turnMinutes,coverLimit:number(p.coverLimit,'Cover limit',1,500),bookingRules:normalizeRules(p.bookingRules),status:'draft' as const,version:(current?.version??0)+1}
   if(current)Object.assign(current,service);else s.services.push(service)
   result=service;break
  }
@@ -87,12 +88,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(waiting&&waiting.status!=='waiting')fail(409,'This party is no longer waiting.')
   const service=serviceBy(s,waiting?.serviceId??p.serviceId)
   if(service.status!=='published')fail(409,'Publish this service first.')
-  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,20),slot=interval(service,p.startAt),tables=allocation(s,service,partySize,slot,p.tableIds)
+  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),slot=interval(service,p.startAt,waiting?'waitlist':'walk-in'),ruleOverride=checkBookingRules(s,service,partySize,slot.startAt,waiting?'waitlist':'walk-in',actor,p.overrideReason),tables=allocation(s,service,partySize,slot,p.tableIds)
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
-  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now} satisfies Booking
-  s.bookings.push(result);if(waiting)waiting.status='seated';break
+  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
+  s.bookings.push(result);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)waiting.status='seated';break
  }
  case 'waitlist.add':{
   const service=serviceBy(s,p.serviceId);if(service.status!=='published')fail(409,'Publish the service first.')
@@ -120,9 +121,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
 export async function onlineBook(db:D1Database,p:any){
  const {state:s,version}=await load(db),service=serviceBy(s,p.serviceId)
  if(service.status!=='published')fail(404,'This service is not open for bookings.')
- const partySize=number(p.partySize,'Party size',1,20),slot=interval(service,p.startAt)
+ const partySize=number(p.partySize,'Party size',1,500),slot=interval(service,p.startAt)
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
+ checkBookingRules(s,service,partySize,slot.startAt,'online')
  const tables=allocation(s,service,partySize,slot),entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
  const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
