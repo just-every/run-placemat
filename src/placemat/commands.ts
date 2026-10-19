@@ -1,3 +1,4 @@
+import {initializeQueue,queueCanSeat,markQueueSeated,executeQueue} from './queue'
 import {normalizeTurnPolicy,turnImpact} from './turn-policy'
 import {normalizeRules,checkBookingRules} from './booking-rules'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
@@ -93,22 +94,26 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  }
  case 'booking.walkin':case 'waitlist.seat':{
   const waiting=command==='waitlist.seat'?(s.waitlist.find(w=>w.id===p.waitlistId)??fail(404,'Waitlist entry not found.')):null
-  if(waiting&&waiting.status!=='waiting')fail(409,'This party is no longer waiting.')
+  if(waiting)queueCanSeat(waiting)
   const service=serviceBy(s,waiting?.serviceId??p.serviceId)
   if(service.status!=='published')fail(409,'Publish this service first.')
+  if(service.closedAt)fail(409,'This service is closed. Choose an open service.')
   const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(s,service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
   result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
-  s.bookings.push(result);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)waiting.status='seated';break
+  s.bookings.push(result);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break
  }
  case 'waitlist.add':{
-  const service=serviceBy(s,p.serviceId);if(service.status!=='published')fail(409,'Publish the service first.')
-  const partySize=number(p.partySize,'Party size',1,20),entry=await guestFor(db,p,actor)
+  const service=serviceBy(s,p.serviceId);if(service.status!=='published')fail(409,'Publish the service first.');if(service.closedAt)fail(409,'This service is closed. Choose an open service.')
+  const partySize=number(p.partySize,'Party size',1,500),entry=await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest,version))
-  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,status:'waiting'};s.waitlist.push(result);break
+  result=initializeQueue({id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,status:'queued'},actor,{...p,phone:entry.guest.phone},now);s.waitlist.push(result);break
+ }
+ case 'waitlist.status':case 'waitlist.priority':case 'waitlist.quote':case 'waitlist.followup':case 'service.close':{
+  result=executeQueue(s,actor,p,command,now);break
  }
  case 'booking.status':{
   const b=booking(s,p.bookingId),next=p.status
@@ -129,6 +134,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
 export async function onlineBook(db:D1Database,p:any){
  const {state:s,version}=await load(db),service=serviceBy(s,p.serviceId)
  if(service.status!=='published')fail(404,'This service is not open for bookings.')
+ if(service.closedAt)fail(409,'This service is closed. Choose an open service; no booking has been made.')
  const partySize=number(p.partySize,'Party size',1,500)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
  const fit=bookingFit(s,service,partySize,p.startAt),{tables,...slot}=fit

@@ -12,7 +12,7 @@ test('Friday service: three online bookings, walk-in floor, waitlist, no-show, a
   await h.api('/api/public/book',publicGuest(s,4),{as:'',status:409})
   const waiting=await h.command('waitlist.add',publicGuest(s,4))
   let {state,guests}=await h.api('/api/state')
-  assert.equal(state.bookings.length,4);assert.equal(new Set(state.bookings.flatMap(b=>b.tableIds)).size,4);assert.equal(walkin.status,'seated');assert.equal(state.waitlist[0].status,'waiting')
+  assert.equal(state.bookings.length,4);assert.equal(new Set(state.bookings.flatMap(b=>b.tableIds)).size,4);assert.equal(walkin.status,'seated');assert.equal(state.waitlist[0].status,'queued')
   assert.equal(guests.find(g=>g.email==='guest0@example.test').name,'Alex Rowan')
   await h.command('booking.status',{bookingId:bookings[0].id,status:'no-show'})
   await h.command('waitlist.seat',{waitlistId:waiting.id,startAt:s.startAt})

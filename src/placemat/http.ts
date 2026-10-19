@@ -23,7 +23,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)
-   return json({venue:state.venue,services:state.services.filter(s=>s.status==='published').map(service=>({...service,slots:slots(state,service,url.searchParams.get('partySize')??2)}))})
+   return json({venue:state.venue,services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(service=>({...service,slots:slots(state,service,url.searchParams.get('partySize')??2)}))})
   }
   if(path==='/api/public/book'){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)

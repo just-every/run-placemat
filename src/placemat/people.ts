@@ -3,7 +3,7 @@ import type { State,Guest } from './model'
 /** Readable names for the people and preparation keys that prepared or approved
  * something, keyed by the ids stored in the floor state. Only referenced ids. */
 export async function actorNames(db:D1Database,s:State,guests:Guest[]=[]):Promise<Record<string,string>>{
- const ids=[...new Set([...s.proposals.flatMap(p=>[p.preparedBy,p.approvedBy]),...s.reminders.map(r=>r.approvedBy),...guests.flatMap(g=>[...Object.values(g.provenance??{}),...Object.values(g.profile?.provenance??{}),...(g.notesHistory??[]).map(n=>n.provenance)].map(p=>p?.actor))].filter((id):id is string=>!!id))].slice(0,90)
+ const ids=[...new Set([...s.proposals.flatMap(p=>[p.preparedBy,p.approvedBy]),...s.reminders.map(r=>r.approvedBy),...s.waitlist.flatMap(w=>[w.owner,w.quote?.actor,...(w.history??[]).flatMap(h=>[h.actor,h.owner]),...(w.followUps??[]).flatMap(t=>[t.owner,t.completedBy])]),...guests.flatMap(g=>[...Object.values(g.provenance??{}),...Object.values(g.profile?.provenance??{}),...(g.notesHistory??[]).map(n=>n.provenance)].map(p=>p?.actor))].filter((id):id is string=>!!id))].slice(0,90)
  if(!ids.length)return {}
  const marks=ids.map(()=>'?').join(',')
  const [people,keys]=await Promise.all([

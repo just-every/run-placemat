@@ -15,6 +15,7 @@ export function bookingFit(s:State,service:Service,partySize:number,value:unknow
  return fitAt(s,service,partySize,startAt,requested)
 }
 export function slots(s:State,service:Service,size:unknown){
+ if(service.closedAt)return []
  const partySize=number(size,'Party size',1,500),result:{startAt:string;endAt:string;cleanupEndAt:string}[]=[]
  for(let t=Date.parse(service.startAt);t<Date.parse(service.endAt);t+=ruleFor(service,'online').slotMinutes*60000){
   if(t<Date.now())continue

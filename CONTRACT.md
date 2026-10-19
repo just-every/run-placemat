@@ -134,7 +134,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 - **WAIT-005 — Future cancellation notifications.** Guests request alerts for sold-out dates, party sizes and experiences separately from the live queue. Managers control offer priority, eligible inventory and response windows; notify requests expire or stop on opt-out and fulfilled requests close automatically. **Acceptance evidence:** Request Saturday experience availability, cancel one ticket, notify eligible guests in the configured order and turn the accepted offer into one paid reservation. Cancel a same-day table and verify the freed table is offered to fitting waiting parties and notify requests in the configured order, and the book shows how many tables were offered and how many were filled.
 
-- **WAIT-006 — Waitlist accountability.** Hosts see queued, offered, accepted, arrived, seated, declined, expired and abandoned states with wait quoted versus realized. Manual priority changes, no-contact parties and missed offers have reasons and owners; service close resolves every remaining entry. **Acceptance evidence:** Close a shift containing an unanswered offer, a no-phone party and a seated party; inspect dispositions, actual waits and assigned follow-up with no unresolved ghost offers.
+- **WAIT-006 — Waitlist accountability.** Hosts see queued, offered, accepted, arrived, seated, declined, expired and abandoned states with wait quoted versus realized. Manual priority changes, no-contact parties and missed offers have reasons and owners; service close resolves every remaining entry. Current owner/admin operations staff perform the host workflow under ACCESS-001 until ROLE-003 adds hosts. Offers and replies here are explicitly staff-recorded observations, never claimed provider sends or table holds; WAIT-004 inherits actual delivery and expiring inventory holds before shipping. New entries record intake time; quoted ranges retain basis and observation time. Actual wait is elapsed intake-to-seat or intake-to-terminal-disposition minutes (shown rounded to the nearest tenth); legacy missing intake times remain unknown. Higher numeric priority sorts first and changes keep the acting manager, reason and prior value. Closing the service expires offered/accepted entries and abandons other unresolved parties, retaining seated history and assigning follow-up; new booking/intake doors refuse the closed service. Queue text follows DATA-002 erasure. **Acceptance evidence:** Close a shift containing an unanswered offer, a no-phone party and a seated party; inspect dispositions, actual waits and assigned follow-up with no unresolved ghost offers.
 
 ### Delivered communications and follow-up
 
@@ -373,10 +373,10 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 5 | Hero · "…and waitlist" | `WAIT-001` | done |
 | 6 | Hero · "remembers every guest" | `GUEST-001` | done |
 | 7 | Hero · "100% free, open source alternative to OpenTable, Resy and SevenRooms" | `OSS-001`, `COST-001` | partial |
-| 8 | Hero · "Run Placemat →" opens /run; "Read the docs" opens /docs | `SITE-001` | partial |
+| 8 | Hero · "Run Placemat →" opens /run; "Read the docs" opens /docs | `SITE-001` | done |
 | 9 | Hero · "Try the demo" | `SITE-002` | partial |
 | 10 | Hero tags · "Table 12 · Priya +3 · 7:30 · anniversary" | `BOOK-001`, `BOOK-007`, `GUEST-002` | partial |
-| 11 | Hero tags · "Regular · 15th visit · likes the window" | `GUEST-001`, `GUEST-002` | partial |
+| 11 | Hero tags · "Regular · 15th visit · likes the window" | `GUEST-001`, `GUEST-002` | done |
 | 12 | Hero tags · "Waitlist · Marco, 2 · 15 min · text sent" | `WAIT-003`, `WAIT-004` | missing |
 | 13 | Hero tags · "Deposit $50 · held" | `PAY-002`, `PAY-003` | missing |
 | 14 | Hero tags · "Cancellation · 8:00 → filled from waitlist" | `WAIT-005`, `AGENT-002` | partial |
@@ -384,7 +384,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 16 | Day one · "Bring your book from OpenTable." Guests 18,402, future reservations 2,113, tags and notes 41,960 | `MIG-002`, `MIG-001` | partial |
 | 17 | Day one · "Resy and SevenRooms too" | `MIG-003`, `MIG-004` | missing |
 | 18 | Day one · "Reserve with Google switched" | `DIST-001`, `MIG-008` | partial |
-| 19 | Day one · "Run it yourself": `npx -y @runeditrun/rer dev just-every/run-placemat` | `SITE-001` | partial |
+| 19 | Day one · "Run it yourself": `npx -y @runeditrun/rer dev just-every/run-placemat` | `SITE-001` | done |
 | 20 | Day one · "Not in Placemat: online ordering, gift cards or the POS itself" | `BOUND-001` | partial |
 | 21 | 3:05 PM · The book · "Guests book on Google, Instagram and your site" | `BOOK-001`, `DIST-001`, `DIST-002` | partial |
 | 22 | 3:05 PM · The book · "Pacing keeps the kitchen even" (covers per half-hour slot, 16/16 full) | `SERVICE-005` | partial |
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 2 | 0 | 15 |
-| Target and push further | 5 | 33 | 79 | 117 |
-| All | 18 | 35 | 79 | 132 |
+| Target and push further | 6 | 32 | 79 | 117 |
+| All | 19 | 34 | 79 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -483,7 +483,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `WAIT-003` | Quoted waits and queue updates | target | missing |  | No implementation of this journey exists. |
 | `WAIT-004` | Table-ready conversations and offer expiry | target | missing |  | No implementation of this journey exists. |
 | `WAIT-005` | Future cancellation notifications | target | missing |  | No implementation of this journey exists. |
-| `WAIT-006` | Waitlist accountability | target | partial | `src/placemat/model.ts`; `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Waiting/seated states exist; offers, abandoned/expired disposition, reasons and wait history do not. |
+| `WAIT-006` | Waitlist accountability | target | done | `src/placemat/queue.ts`; `src/placemat/commands.ts`; `src/placemat/people.ts`; `public/placemat-queue.js`; `tests/api/queue.test.mjs` |  |
 | `MSG-002` | Twilio SMS and WhatsApp connection | target | missing |  | No implementation of this journey exists. |
 | `MSG-003` | Resend email connection | target | missing |  | No implementation of this journey exists. |
 | `MSG-004` | Booking and cancellation delivery | target | missing |  | No implementation of this journey exists. |

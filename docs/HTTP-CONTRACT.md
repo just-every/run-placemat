@@ -37,3 +37,15 @@ Guest-supplied contacts, staff-observed fields and Tablein-shaped imports have s
 `service.save.turnPolicy` has `cleanupMinutes`, optional offset `lastSeatingAt`, `partyTurns: [{minSize,maxSize,minutes}]`, `tableTurns: {tableId:minutes}` and `areaTurns: {area:minutes}`. Party ranges do not overlap. Table overrides area, then party range, then service duration; a combination uses the longest constituent turn. Confirmations separate guest `endAt` from table `cleanupEndAt`. Full turn and cleanup must fit service hours and last seating is inclusive. A completed booking with a reset still protects that original reset interval.
 
 To change future rules, prepare `service.turns` through `proposal.prepare` with `{serviceId,turnPolicy}`. The exact proposal includes per-reservation current/proposed times and whether the new policy would exclude it; existing bookings are explicitly preserved. A person approves through `proposal.approve`; any intervening service/floor/booking edit requires renewed review. Experience-specific rules are owed by EXP-001/002 before those capabilities ship.
+
+### WAIT-006 accountable queue
+
+`waitlist.add` returns `queued` with intake time, actor history and an owner. Optional `quoteMin`, `quoteMax`, `basis` record a quoted range; a missing phone creates an owned no-contact follow-up with optional `contactReason`. Current owner/admin staff use these additional commands:
+
+- `waitlist.status` `{waitlistId,status,reason}` records offered, accepted, arrived, declined, expired or abandoned transitions; only `waitlist.seat` creates a capacity-checked booking. Offers/replies are staff observations, not provider sends or inventory holds.
+- `waitlist.quote` `{waitlistId,quoteMin,quoteMax,basis}` retains quote history.
+- `waitlist.priority` `{waitlistId,priority,reason}` records a higher-first numeric priority and current acting owner.
+- `waitlist.followup` `{waitlistId,followUpId,outcome}` completes an owned follow-up with actor and time, including after closure.
+- `service.close` `{serviceId,reason}` resolves every remaining queue entry, preserves seated history and disables new public bookings, walk-ins and queue intake for that service. Offered/accepted become expired; other active entries become abandoned, with assigned follow-up. Existing reservations remain.
+
+Actual wait is intake-to-seat or terminal disposition in elapsed minutes; UI rounds to a tenth, and missing legacy observations are labelled not recorded. Legacy waiting/cancelled rows display as queued/declined without inventing dates. Erasure removes linked operational free text and copied service-close instructions while retaining anonymous timings and accountability.
