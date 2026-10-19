@@ -6,7 +6,7 @@ Each person signs in with their own account and sees what their role allows. The
 | --- | --- | --- |
 | Owner | Owner | Everything, including move-in, erasing guests, backups and agent keys |
 | Manager | Manager | Run the floor, set up tables and services, approve plans, keep notes, invite read-only staff |
-| Host | Host (owner-granted capability) | Directly move, swap and lock assignments and record service observations; no plan approval, administration or bulk export |
+| Host | Host (owner-granted capability) | Directly move, swap and lock assignments, record service observations, add waiting parties and update their party preferences; no plan approval, administration or bulk export |
 | Read-only staff | Read-only staff | See the floor, bookings, waitlist and guests; change nothing |
 
 ## Invite people

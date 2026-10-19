@@ -1,3 +1,4 @@
+import {normalizeIntake,assertNoActiveDuplicate,issueQueueToken,executeIntake} from './wait-join'
 import {extendTurn} from './timeline'
 import {executeAssignment,validateAssignment,accessTags,accessibleTables} from './assignments'
 import {executeServiceStatus} from './service-status'
@@ -18,12 +19,15 @@ const plain=(v:any)=>JSON.stringify(v)
 export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  const {state:s,version}=await load(db),now=new Date().toISOString(),before:D1PreparedStatement[]=[]
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
- const hostCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend']
+ const hostCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&hostCommands.includes(command)))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
  case 'booking.move':case 'booking.swap':case 'booking.lock':{
   result=executeAssignment(s,actor,p,command,version,now);break
+ }
+ case 'waitlist.intake-pause':case 'waitlist.party':{
+  result=executeIntake(s,actor,p,command,now);break
  }
  case 'booking.extend':{
   result=extendTurn(s,actor,p,now);break
@@ -125,7 +129,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   const service=serviceBy(s,waiting?.serviceId??p.serviceId)
   if(service.status!=='published')fail(409,'Publish this service first.')
   if(service.closedAt)fail(409,'This service is closed. Choose an open service.')
-  const requiredAccessTags=accessTags(p.requiredAccessTags,'Required access tags')
+  const requiredAccessTags=accessTags(waiting?.requiredAccessTags??p.requiredAccessTags,'Required access tags')
   const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(accessibleTables(s,requiredAccessTags),service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
@@ -138,7 +142,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   const partySize=number(p.partySize,'Party size',1,500),entry=await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest,version))
-  result=initializeQueue({id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,status:'queued'},actor,{...p,phone:entry.guest.phone},now);s.waitlist.push(result);break
+  assertNoActiveDuplicate(s,entry.guest.id,service.id)
+  const row=initializeQueue({id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,status:'queued'},actor,{...p,phone:entry.guest.phone},now)
+  Object.assign(row,normalizeIntake(s,p),{source:'staff'})
+  const token=await issueQueueToken(row);s.waitlist.push(row);result={...row,token};break
  }
  case 'waitlist.status':case 'waitlist.priority':case 'waitlist.quote':case 'waitlist.followup':case 'service.close':{
   result=executeQueue(s,actor,p,command,now);break

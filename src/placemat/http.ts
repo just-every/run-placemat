@@ -1,3 +1,6 @@
+import {queuePage} from './queue-views'
+import {queueQr} from './queue-qr'
+import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait-join'
 import {timeline} from './timeline'
 import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
@@ -16,11 +19,25 @@ import { searchGuests } from './guests'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
- if(path!=='/app'&&path!=='/book'&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
+  if(path==='/queue'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return queuePage(request)}
+  if(path.startsWith('/api/public/queue/')){
+   if(path==='/api/public/queue/services'&&request.method==='GET'){
+    const {state}=await load(env.DB)
+    return json({venue:state.venue,services:state.services.filter(s=>s.status==='published'&&!s.closedAt&&Date.parse(s.endAt)>Date.now()).map(s=>({id:s.id,name:s.name,startAt:s.startAt,endAt:s.endAt,publicQueuePaused:s.publicQueuePaused===true,areas:[...new Set(state.tables.map(t=>t.area??'Dining room'))]}))})
+   }
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env);const p=await jsonBody(request)
+   if(path==='/api/public/queue/join')return json(await publicJoin(env.DB,p),201)
+   if(path==='/api/public/queue/status')return json(await publicQueue(env.DB,p.token))
+   if(path==='/api/public/queue/update')return json(await publicQueueUpdate(env.DB,p))
+   if(path==='/api/public/queue/rotate')return json(await publicQueueRotate(env.DB,p))
+   return json({error:'Not found'},404)
+  }
   if(path==='/book'){if(request.method!=='GET')return json({error:'Method not allowed'},405);return productPage(request,env)}
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
@@ -48,6 +65,10 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    return json(report)
   }
   if(path==='/api/guests'&&request.method==='GET')return json({guests:searchGuests(await guests(env.DB),url.searchParams.get('search')??'')})
+  if(path==='/api/queue-qr'&&request.method==='GET'){
+   const {state}=await load(env.DB),service=state.services.find(s=>s.id===url.searchParams.get('serviceId'))??fail(404,'Service not found.')
+   return new Response(queueQr(env.AUTH_ORIGIN,service.id),{headers:{...headers,'content-type':'image/svg+xml'}})
+  }
   if(path==='/api/timeline'&&request.method==='GET'){
    const {state}=await load(env.DB)
    return json(timeline(state,await guests(env.DB),url.searchParams))

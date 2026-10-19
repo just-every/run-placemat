@@ -4,7 +4,7 @@ import type {QueueEntry} from './queue'
 import type {TurnPolicy} from './turn-policy'
 import type { BookingRules } from './booking-rules'
 export type Table = { id:string; label:string; seats:number; area?:string; accessTags?:string[]; x:number; y:number }
-export type Service = { id:string; name:string; startAt:string; endAt:string; turnMinutes:number; coverLimit:number; status:'draft'|'published'; version:number; scheduleSource?:{scheduleId:string;scheduleVersion:number;localDate:string}; bookingRules?:BookingRules; turnPolicy?:TurnPolicy; closedAt?:string; closedBy?:string; closeReason?:string }
+export type Service = { id:string; name:string; startAt:string; endAt:string; turnMinutes:number; coverLimit:number; status:'draft'|'published'; version:number; scheduleSource?:{scheduleId:string;scheduleVersion:number;localDate:string}; bookingRules?:BookingRules; turnPolicy?:TurnPolicy; publicQueuePaused?:boolean; closedAt?:string; closedBy?:string; closeReason?:string }
 export type GuestFieldProvenance = { source:'guest-supplied'|'staff-observed'|'imported'; actor:string|null; at:string|null; reference?:string }
 export type GuestProfile = { tags:string[]; vipLevel:'none'|'regular'|'vip'; seatingPreference:string; provenance:Partial<Record<'tags'|'vipLevel'|'seatingPreference',GuestFieldProvenance>> }
 export type Guest = { id:string; name:string; email:string; phone:string; notes:string; profile?:GuestProfile; provenance?:Partial<Record<'name'|'email'|'phone'|'notes',GuestFieldProvenance>>; notesHistory?:Array<{notes:string;provenance:GuestFieldProvenance}>; history?:Array<{date:string;partySize:number;status:string}>; erased?:boolean }

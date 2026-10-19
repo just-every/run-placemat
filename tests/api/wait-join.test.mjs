@@ -1,0 +1,52 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {createHash} from 'node:crypto'
+import {installation,publicGuest} from './harness.mjs'
+
+test('WAIT-002: remote and host intake, private scoped links, exact-identity duplicate refusal, party updates, independent pause, rotation and erasure',async()=>{
+ const h=await installation();try{
+  const accessible=await h.command('table.save',{label:'Accessible 4',seats:4,area:'Dining',accessTags:['step-free'],x:20,y:30})
+  const terrace=await h.command('table.save',{label:'Terrace 4',seats:4,area:'Terrace',x:70,y:30})
+  const day=new Date(Date.now()+86400000).toISOString().slice(0,10),service=await h.command('service.save',{name:'Dinner',startAt:day+'T17:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:90,coverLimit:80})
+  const plan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Dinner ready'});await h.command('proposal.approve',{proposalId:plan.id})
+  const join=p=>h.api('/api/public/queue/join',{...publicGuest(service,0,{phone:'+1 212 555 0123'}),contactConsent:false,...p},{as:'',status:201})
+  const publicServices=await h.api('/api/public/queue/services',undefined,{as:''});assert.equal(publicServices.services.length,1);assert.ok(!JSON.stringify(publicServices).includes('guest'))
+  const first=await join({preferredAt:service.startAt,preferredArea:'Dining',requiredAccessTags:['step-free']})
+  assert.equal(first.entry.status,'queued');assert.equal(first.entry.contactConsent,false);assert.equal(first.entry.preferredAt,service.startAt);assert.equal(first.entry.preferredArea,'Dining');assert.deepEqual(first.entry.requiredAccessTags,['step-free'])
+  assert.equal(Buffer.from(first.token,'hex').length,32)
+  let state=await h.api('/api/state'),row=state.state.waitlist.find(w=>w.id===first.entry.id)
+  assert.equal(row.managementTokenHash,createHash('sha256').update(first.token).digest('hex'));assert.ok(!JSON.stringify(state).includes(first.token));assert.equal(row.owner,state.actor.id);assert.equal(row.history[0].actor,'guest')
+  const duplicate=await h.api('/api/public/queue/join',{...publicGuest(service,0),email:' GUEST0@example.test ',contactConsent:false},{as:'',status:409});assert.match(duplicate.error,/private link|host/);assert.ok(!duplicate.error.includes('guest0@example.test'))
+  await h.command('waitlist.add',publicGuest(service,0),{status:409})
+  const distinct=await join({name:'Alex Rowan',email:'another@example.test',phone:'+1 212 555 0123'})
+  state=await h.api('/api/state');assert.notEqual(state.state.waitlist.find(w=>w.id===distinct.entry.id).guestId,row.guestId,'Shared name/phone never merges identities')
+  const linkRead=await h.api('/api/public/queue/status',{token:first.token},{as:''})
+  assert.equal(linkRead.entry.id,first.entry.id);assert.ok(!JSON.stringify(linkRead).includes('another@example.test'));assert.ok(!JSON.stringify(linkRead).includes('managementTokenHash'));assert.ok(!JSON.stringify(linkRead).includes('guestId'));assert.ok(!JSON.stringify(linkRead).includes('history'))
+  const changed=await h.api('/api/public/queue/update',{token:first.token,partySize:4,preferredAt:'',preferredArea:'',requiredAccessTags:['step-free'],contactConsent:true,waitlistId:distinct.entry.id},{as:''})
+  assert.equal(changed.entry.partySize,4);assert.equal(changed.entry.preferredArea,null);assert.equal(changed.entry.contactConsent,true);assert.equal((await h.api('/api/public/queue/status',{token:distinct.token},{as:''})).entry.partySize,2)
+  const rotated=await h.api('/api/public/queue/rotate',{token:first.token},{as:''});assert.notEqual(rotated.token,first.token)
+  await h.api('/api/public/queue/status',{token:first.token},{as:'',status:404});await h.api('/api/public/queue/status',{token:'f'.repeat(64)},{as:'',status:404})
+  await h.api('/api/public/queue/update',{token:rotated.token,partySize:3},{as:'',headers:{origin:'https://elsewhere.example'},status:403})
+  const reader=await h.signIn('host@example.test'),operator=(await h.api('/auth/operators')).find(o=>o.email==='host@example.test')
+  await h.command('waitlist.add',publicGuest(service,20),{as:reader,status:403});await h.command('team.host',{operatorId:operator.id,enabled:true})
+  await h.command('waitlist.intake-pause',{serviceId:service.id,paused:true})
+  assert.equal((await h.api('/api/public/queue/services',undefined,{as:''})).services[0].publicQueuePaused,true)
+  await h.api('/api/public/queue/join',{...publicGuest(service,21),contactConsent:false},{as:'',status:409})
+  const staff=await h.command('waitlist.add',publicGuest(service,22,{contactConsent:false,preferredArea:'Terrace'}),{as:reader})
+  assert.ok(staff.token);assert.equal(staff.preferredArea,'Terrace');assert.equal((await h.api('/api/public/queue/status',{token:staff.token},{as:''})).entry.id,staff.id)
+  await h.command('waitlist.party',{waitlistId:staff.id,partySize:3},{as:reader});assert.equal((await h.api('/api/public/queue/status',{token:staff.token},{as:''})).entry.partySize,3)
+  await h.command('waitlist.intake-pause',{serviceId:service.id,paused:false},{as:reader,status:403})
+  await h.api('/api/public/queue/update',{token:rotated.token,partySize:4},{as:''})
+  await h.command('waitlist.seat',{waitlistId:first.entry.id,startAt:service.startAt,tableIds:[terrace.id],requiredAccessTags:[]},{status:409})
+  const seated=await h.command('waitlist.seat',{waitlistId:first.entry.id,startAt:service.startAt,tableIds:[accessible.id]});assert.deepEqual(seated.requiredAccessTags,['step-free'])
+  await h.api('/api/public/queue/update',{token:rotated.token,partySize:3},{as:'',status:409})
+  const left=await h.api('/api/public/queue/update',{token:distinct.token,leave:true},{as:''});assert.equal(left.entry.status,'declined');await h.api('/api/public/queue/update',{token:distinct.token,partySize:3},{as:'',status:409})
+  const backup=JSON.stringify(await h.api('/api/backup'));assert.ok(!backup.includes(rotated.token));assert.ok(!backup.includes(staff.token))
+  const guestId=(await h.api('/api/state')).state.waitlist.find(w=>w.id===staff.id).guestId
+  await h.command('guest.erase',{guestId,confirm:'ERASE'})
+  await h.api('/api/public/queue/status',{token:staff.token},{as:'',status:404})
+  await h.command('waitlist.intake-pause',{serviceId:service.id,paused:false})
+  const race=await Promise.all([0,1].map(()=>h.request('/api/public/queue/join',{method:'POST',as:'',body:{...publicGuest(service,30),contactConsent:false}})))
+  assert.equal(race.filter(r=>r.status===201).length,1);assert.equal(race.filter(r=>r.status===409).length,1)
+ }finally{await h.close()}
+})

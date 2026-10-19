@@ -20,6 +20,8 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  }
  for(const row of state.waitlist){
   if(row.guestId===guestId){
+   delete row.managementTokenHash;row.requiredAccessTags=[];row.contactConsent=false;delete row.preferredArea;delete row.preferredAt
+   for(const event of row.history??[])if(event.action==='party-updated'||event.action==='joined')event.details=undefined
    if(row.quote)row.quote.basis=''
    for(const event of row.history??[]){event.reason='';if(event.details&&typeof event.details==='object'&&'basis' in event.details)(event.details as {basis:string}).basis='';const quote=(event.details as any)?.quote;if(quote&&typeof quote==='object')quote.basis=''}
    for(const task of row.followUps??[]){task.reason='';if(task.outcome)task.outcome=''}

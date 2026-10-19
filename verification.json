@@ -32,7 +32,8 @@
         "pnpm run build",
         "pnpm run typecheck",
         "pnpm run test:runtime",
-        "node tests/floor-ui.mjs"
+        "node tests/floor-ui.mjs",
+        "node tests/queue-ui.mjs"
       ]
     }
   ],

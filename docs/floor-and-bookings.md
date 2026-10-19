@@ -48,3 +48,9 @@ The service timeline shows original commitments beside expected times and actual
 For a seated party, expand **Extend turn**, record a later expected departure and a reason. The original booking and reset stay in history; no other party moves. Open **Change assignment** for the next arrival to move it directly to a fitting replacement, then read both assignment/turn histories. Cleanup follows the extended forecast; an ongoing seated party keeps its physical table occupied even after the forecast.
 
 The header opens the parties behind seated covers now, covers due in the configurable inclusive next window, and average actual turn today. The average uses actual corrected seating-to-completed observations in venue time; missing times are not invented. Labels round elapsed minutes to the nearest minute. Use **Update service** for the full append-only observation history and corrections.
+
+## Guests joining the queue
+
+Under Waitlist, expand **Public queue joining** for the service’s website link and QR. Guests use `/queue`, state their party/preferences and optional queue contact permission, then save the private status link. The link permits updates or leaving that party; **Replace private link** invalidates the old link. No table or message delivery is promised. Shared names/phones never merge people; an active exact-guest/service duplicate directs the guest to their link or the host.
+
+A manager can **Pause online joining** while staff continue **Add a waiting party**. An owner-granted host can add a party or update party size, but cannot pause public joining or approve plans. Staff intake shows a private link once to hand to the guest; Refresh removes that one-time display. Preferred time/area are preferences. Declared required access tags are preserved when seating and moving tables. Guest erasure invalidates the link and clears guest-linked queue preferences/permission/history values.

@@ -8,6 +8,7 @@ export type QueueEntry = {
  id:string; serviceId:string; guestId:string; partySize:number; status:QueueStatus|'waiting'|'cancelled';
  createdAt?:string|null; seatedAt?:string; resolvedAt?:string; bookingId?:string; priority?:number;
  quote?:{minMinutes:number;maxMinutes:number;at:string;actor:string;basis:string};
+ source?:'staff'|'public'; preferredAt?:string; preferredArea?:string; requiredAccessTags?:string[]; contactConsent?:boolean; managementTokenHash?:string;
  actualWaitMinutes?:number|null; owner?:string; history?:Event[]; followUps?:FollowUp[]
 }
 const currentStatus = (row:QueueEntry):string => row.status==='waiting'?'queued':row.status==='cancelled'?'declined':row.status

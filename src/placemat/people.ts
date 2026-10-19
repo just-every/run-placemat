@@ -10,5 +10,5 @@ export async function actorNames(db:D1Database,s:State,guests:Guest[]=[]):Promis
   db.prepare(`SELECT id,display_name AS name FROM oa_operators WHERE id IN (${marks})`).bind(...ids).all<{id:string;name:string}>(),
   db.prepare(`SELECT id,name FROM pm_agent_keys WHERE id IN (${marks})`).bind(...ids).all<{id:string;name:string}>(),
  ])
- return {...Object.fromEntries(people.results.map(r=>[r.id,r.name])),...Object.fromEntries(keys.results.map(r=>[r.id,`${r.name} (preparation key)`]))}
+ return {guest:'Guest (queue link or public booking)',...Object.fromEntries(people.results.map(r=>[r.id,r.name])),...Object.fromEntries(keys.results.map(r=>[r.id,`${r.name} (preparation key)`]))}
 }

@@ -1,6 +1,6 @@
 import {floorLegend,stageLabel,statusEditor,shiftHandover} from './placemat-service-status.js';
 import {renderSchedules,scheduleEditor,parseSchedule,schedulePlan} from './placemat-schedules.js';
-import {renderQueue,queueIntakeFields,queueCloseForm} from './placemat-queue.js';
+import {renderQueue,queueIntakeFields,queueCloseForm,intakeSettings,queueManagementLink} from './placemat-queue.js';
 import {turnPolicyFields,parseTurnPolicy} from './placemat-turns.js';
 import {bookingRuleFields,parseBookingRules} from './placemat-rules.js';
 import { guestProfile,profileSummary } from './placemat-profiles.js';
@@ -25,6 +25,7 @@ const isPublic = document.body.dataset.page === 'public';
 const canEdit = () => actor && !actor.agent && ['owner', 'admin'].includes(actor.role);
 const canOperateFloor = () => canEdit() || actor && !actor.agent && actor.role === 'host';
 const isOwner = () => canEdit() && actor.role === 'owner';
+const canIntake = () => canEdit() || actor && !actor.agent && actor.role === 'host';
 const canPrepare = () => canEdit() || actor?.agent;
 const timeline=createTimeline({api,esc,field,select,form,button,time,localTime,canOperate:canOperateFloor});
 const guest = id => data.guests.find(g => g.id === id);
@@ -118,7 +119,7 @@ function tableEditor(t) {
 }
 function renderWaitlist() {
   const rows = state.waitlist.filter(w => w.serviceId === serviceId),s=service();
-  $('#waitlist-content').innerHTML = `<p class="help">${esc(s?.name || 'Choose or create a service first.')} · arrival times use ${esc(zone())}</p>${renderQueue(rows,{esc,who,time,guest,canEdit:canEdit(),form,field,select,seatFields:()=>startField()+tableField()+field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"')})}${canEdit() && s?.status === 'published' && !s.closedAt ? `<details><summary>Add a waiting party</summary>${form('waitlist.add',serviceField()+personFields()+queueIntakeFields({field}),'Add to waitlist')}</details>` : ''}${canEdit()&&s?.status==='published'?queueCloseForm(s,{esc,form,field,time}):''}`;
+  $('#waitlist-content').innerHTML = `<p class="help">${esc(s?.name || 'Choose or create a service first.')} · arrival times use ${esc(zone())}</p>${renderQueue(rows,{esc,who,time,guest,canEdit:canEdit(),canIntake:canIntake(),form,field,select,seatFields:()=>startField()+tableField()+field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"')})}${canIntake() && s?.status === 'published' && !s.closedAt ? `<details><summary>Add a waiting party</summary>${form('waitlist.add',serviceField()+personFields()+queueIntakeFields({field,timezone:zone()}),'Add to waitlist')}</details>` : ''}<div id="queue-management-link"></div>${canEdit()?intakeSettings(s,{esc,form}):''}${canEdit()&&s?.status==='published'?queueCloseForm(s,{esc,form,field,time}):''}`;
 }
 
 function renderGuests() {
@@ -184,6 +185,8 @@ function payloadFrom(formEl) {
   for(const name of ['tags','accessTags','requiredAccessTags'])if(name in values)values[name]=values[name].split(',').map(s=>s.trim()).filter(Boolean);
   for(const name of ['locked','enabled'])if(name in values)values[name]=values[name]==='true';
   if('version' in values)values.version=Number(values.version);
+  if(formEl.querySelector('[name=contactConsent]'))values.contactConsent=new FormData(formEl).has('contactConsent');
+  if('paused' in values)values.paused=values.paused==='true';
   if ('tableIds' in values) values.tableIds = new FormData(formEl).getAll('tableIds');
   if (values.tableIds?.length === 0) delete values.tableIds;
   if (values.id === '') delete values.id;
@@ -245,9 +248,9 @@ async function submitForm(el) {
   if (command === 'table.assign') {
     await prepare(command,{bookingId:payload.bookingId,tableIds:payload.tableIds},payload.reason); return;
   }
-  for (const name of ['startAt','endAt','expectedEndAt']) if (payload[name]) payload[name] = toUtc(payload[name]);
+  for (const name of ['startAt','endAt','expectedEndAt','preferredAt']) if (payload[name]) payload[name] = toUtc(payload[name]);
   if (command === 'service.save' && Date.parse(payload.endAt) <= Date.parse(payload.startAt)) throw new Error('Service end must be after its start.');
-  await execute(command,payload); await loadStaff(); notice('Saved successfully.', 'success');
+  const saved=await execute(command,payload); await loadStaff(); if(command==='waitlist.add'&&saved.token)$('#queue-management-link').innerHTML=queueManagementLink(saved.token,{esc,origin:location.origin}); notice('Saved successfully.', 'success');
 }
 document.addEventListener('submit', event => {
   const el = event.target.closest('form[data-command]'); if (!el) return;

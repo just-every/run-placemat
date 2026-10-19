@@ -35,6 +35,7 @@
     "@tanstack/react-router": "1.170.33",
     "@tanstack/react-start": "1.168.50",
     "hono": "4.13.7",
+    "qrcode-generator": "2.0.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -48,6 +49,7 @@
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
     "esbuild": "0.28.1",
+    "jsqr": "1.4.0",
     "marked": "18.0.14",
     "miniflare": "5.20260907.0-alpha",
     "typescript": "5.9.3",
