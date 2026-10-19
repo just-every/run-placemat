@@ -1,7 +1,7 @@
 /* Direct human assignment commands and their durable before/after history. */
 export function assignmentHistory(booking,state,{esc,time,who,tableNames}) {
  const snapshots=value=>Array.isArray(value)?value:[];
- const rows=state.audit.filter(event=>['booking.move','booking.swap','booking.lock','booking.extend','table.assign'].includes(event.action)&&(event.subject===booking.id||snapshots(event.before).some(row=>row.bookingId===booking.id)||snapshots(event.after).some(row=>row.bookingId===booking.id)));
+ const rows=state.audit.filter(event=>['booking.move','booking.swap','booking.lock','booking.extend','table.assign','floor.change'].includes(event.action)&&(event.subject===booking.id||snapshots(event.before).some(row=>row.bookingId===booking.id)||snapshots(event.after).some(row=>row.bookingId===booking.id)));
  return `<details class="assignment-history"><summary>Assignment and turn history (${rows.length})</summary>${rows.map(event=>{
   const before=snapshots(event.before).find(row=>row.bookingId===booking.id),after=snapshots(event.after).find(row=>row.bookingId===booking.id);
   const snapshot=row=>`${tableNames(row.tableIds||[])} · ${row.locked?'locked':'unlocked'}${row.setupStartAt?` · setup from ${time(row.setupStartAt)}`:''}${row.combination?` · approved capacity ${row.combination.capacity}`:''}${row.expectedEndAt?` · expected departure ${time(row.expectedEndAt)}`:''}`;

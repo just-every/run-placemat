@@ -74,3 +74,49 @@ test('FLOOR-003: only exact manager-approved adjacent joins allocate, preserve a
 
  }finally{await h.close()}
 })
+
+test('FLOOR-002: rooms, shapes, reviewed edits and retirement preserve promised fit, history, reports and portable records',async()=>{
+ const h=await installation();try{
+  const dining=await h.command('room.save',{name:'Dining room',kind:'indoor'}),patio=await h.command('room.save',{name:'Patio',kind:'outdoor'}),bar=await h.command('room.save',{name:'Bar',kind:'bar'})
+  const manager=await h.signIn('floor-manager@example.test','admin'),reader=await h.signIn('floor-reader@example.test'),host=await h.signIn('floor-host@example.test')
+  const operator=(await h.api('/auth/operators')).find(p=>p.email==='floor-host@example.test');await h.command('team.host',{operatorId:operator.id,enabled:true})
+  const key=(await h.api('/api/agent-keys',{name:'Floor planning'})).result.key,agent={as:'',headers:{authorization:'Bearer '+key}}
+  for(const opts of [{as:reader},{as:host},agent])await h.command('room.save',{name:'Forbidden',kind:'indoor'},{...opts,status:403})
+  await h.api('/api/floor-version',undefined,{as:'',status:401})
+  const create=(label,area,shape,x)=>h.command('table.save',{label,seats:4,area,shape,accessTags:['step-free'],x,y:30},{as:manager})
+  const source=await create('12',dining.name,'round',15),replacement=await create('14',dining.name,'rectangle',50),garden=await create('21',patio.name,'square',30),counter=await create('B1',bar.name,'bar',75)
+  let state=await h.api('/api/state');assert.deepEqual(state.state.rooms.map(r=>r.kind),['indoor','outdoor','bar']);assert.deepEqual(state.state.tables.map(t=>t.shape),['round','rectangle','square','bar'])
+  assert.equal((await h.api('/api/floor-version',undefined,{as:host})).version,state.version)
+  const day=new Date(Date.now()+7*86400000).toISOString().slice(0,10),draft=await h.command('service.save',{name:'US Friday dinner',startAt:day+'T21:00:00Z',endAt:day+'T23:59:00Z',turnMinutes:60,coverLimit:40})
+  let plan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:draft.id},reason:'Review room layout'});await h.command('proposal.approve',{proposalId:plan.id})
+  const book=async(i,area)=>(await h.api('/api/public/book',publicGuest(draft,i,{partySize:4,area,requiredAccessTags:['step-free']}),{as:'',status:201})).result
+  const historical=await book(8,dining.name);await h.command('booking.status',{bookingId:historical.id,status:'no-show'})
+  const first=await book(0,dining.name),outdoor=await book(1,patio.name)
+  state=await h.api('/api/state');const original=state.state.bookings.find(b=>b.id===first.id);assert.deepEqual(original.tableIds,[source.id]);assert.deepEqual(state.state.bookings.find(b=>b.id===outdoor.id).tableIds,[garden.id])
+  const proposal=(p,opts={})=>h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:source.id,...p},reason:'Replace worn table 12 without changing guest promises'},opts)
+  plan=await proposal({changes:{seats:2}});assert.ok(plan.plan.impacts.some(i=>i.bookingId===first.id));await h.command('proposal.approve',{proposalId:plan.id},{status:409})
+  plan=await proposal({changes:{shape:'square',x:25}});await h.command('proposal.approve',{proposalId:plan.id});assert.equal((await h.api('/api/state')).state.tables.find(t=>t.id===source.id).shape,'square')
+  plan=await proposal({retire:true});await h.command('proposal.approve',{proposalId:plan.id},{status:409})
+  plan=await proposal({retire:true,replacements:[{bookingId:first.id,tableIds:[garden.id]}]});await h.command('proposal.approve',{proposalId:plan.id},{status:409})
+  await h.command('booking.lock',{bookingId:first.id,locked:true,version:(await h.api('/api/state')).version},{as:host})
+  plan=await proposal({retire:true,replacements:[{bookingId:first.id,tableIds:[replacement.id]}]});await h.command('proposal.approve',{proposalId:plan.id},{status:409})
+  await h.command('booking.lock',{bookingId:first.id,locked:false,version:(await h.api('/api/state')).version},{as:host})
+  plan=await proposal({retire:true,replacements:[{bookingId:first.id,tableIds:[replacement.id]}]},agent)
+  await h.command('proposal.approve',{proposalId:plan.id},{...agent,status:403})
+  await h.command('table.save',{...counter,x:70})
+  await h.command('proposal.approve',{proposalId:plan.id},{status:409})
+  plan=await proposal({retire:true,replacements:[{bookingId:first.id,tableIds:[replacement.id]}]},{as:manager})
+  const beforeVersion=(await h.api('/api/floor-version')).version
+  await h.command('proposal.approve',{proposalId:plan.id},{as:manager})
+  state=await h.api('/api/state');assert.ok((await h.api('/api/floor-version')).version>beforeVersion)
+  const retired=state.state.tables.find(t=>t.id===source.id),moved=state.state.bookings.find(b=>b.id===first.id)
+  assert.deepEqual(state.state.bookings.find(b=>b.id===historical.id).tableIds,[source.id]);assert.equal(state.state.bookings.find(b=>b.id===historical.id).status,'no-show')
+  assert.ok(retired.retiredAt);assert.equal(retired.label,'12');assert.deepEqual(moved.tableIds,[replacement.id]);for(const field of ['startAt','endAt','cleanupEndAt','requiredArea','requiredAccessTags'])assert.deepEqual(moved[field],original[field])
+  const history=state.state.audit.findLast(e=>e.action==='table.assign'&&e.subject===first.id&&e.before?.some(b=>b.bookingId===first.id&&b.tableIds.includes(source.id)));assert.ok(history);assert.deepEqual(history.after[0].tableIds,[replacement.id])
+  await h.command('booking.move',{bookingId:first.id,tableIds:[source.id],version:state.version},{as:host,status:409})
+  const report=await h.api('/api/reports/reservations?area=Patio');assert.ok(JSON.stringify(report).includes(outdoor.id));assert.ok(!JSON.stringify(report).includes(first.id))
+  await h.api('/api/public/book',publicGuest(draft,2,{partySize:4,area:dining.name}),{as:'',status:409})
+  const archive=await h.api('/api/backup'),restored=await installation()
+  try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});const copy=(await restored.api('/api/state')).state;assert.deepEqual(copy.rooms,state.state.rooms);assert.deepEqual(copy.tables,state.state.tables);assert.deepEqual(copy.bookings,state.state.bookings)}finally{await restored.close()}
+ }finally{await h.close()}
+})

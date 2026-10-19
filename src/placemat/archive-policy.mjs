@@ -11,6 +11,8 @@ export default {
   if(!rows.length)return
   const s=JSON.parse(rows[0].data)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
+  if(s.rooms!==undefined&&(!Array.isArray(s.rooms)||s.rooms.some(r=>!r||typeof r.id!=='string'||typeof r.name!=='string'||!r.name.trim()||!['indoor','outdoor','bar'].includes(r.kind))||new Set(s.rooms.map(r=>r.id)).size!==s.rooms.length||new Set(s.rooms.map(r=>r.name.toLowerCase())).size!==s.rooms.length))throw Error('Invalid rooms')
+  if(s.tables.some(t=>!t||t.shape!==undefined&&!['round','square','rectangle','bar'].includes(t.shape)||t.retiredAt!==undefined&&(typeof t.retiredAt!=='string'||!Number.isFinite(Date.parse(t.retiredAt)))))throw Error('Invalid table shape or retirement')
   const tables=new Set(s.tables.map(t=>t.id)),services=new Set(s.services.map(t=>t.id))
   if(s.bookings.some(b=>!ids.has(b.guestId)||!services.has(b.serviceId)||!b.tableIds.every(id=>tables.has(id))))throw Error('Broken booking relationships')
   const bookingIds=new Set(s.bookings.map(b=>b.id))

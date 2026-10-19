@@ -100,7 +100,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 ### The host stand and floor
 
-- **FLOOR-002 — Rooms and editable floor plans.** Managers arrange rooms, indoor/outdoor areas, bars and numbered tables with shapes, seats, accessibility and joinable combinations. Changes are previewed against future commitments; retired tables retain history and live occupancy is visible without manual page reload. Before richer table attributes ship, preserve FLOOR-009 direct move/swap/lock fit, access and history obligations. **Acceptance evidence:** Draw dining room and patio, retire a booked table with an approved replacement, book both areas and watch occupancy update on a second host device.
+- **FLOOR-002 — Rooms and editable floor plans.** Managers arrange rooms, indoor/outdoor areas, bars and numbered tables with shapes, seats, accessibility and joinable combinations. Changes are previewed against future commitments; retired tables retain history and live occupancy is visible without manual page reload. Before richer table attributes ship, preserve FLOOR-009 direct move/swap/lock fit, access and history obligations. Rooms have indoor, outdoor or bar types; numbered tables use round, square, rectangle or bar shapes, exact access tags and percentage positions within a room. A floor-change preview lists every affected commitment, replacement, conflict and disabled combination; a manager approves the exact venue, rooms, floor, services, observations and bookings snapshot. Active commitments retain their room, confirmed times, fit and access needs. Locked assignments must be unlocked explicitly; arrived, seated or unbussed parties must be resolved before retirement. Retirement removes a table from new availability and selection, disables its joins and keeps the table plus historical bookings and attributed replacement history. Open host devices check the authorized floor version every three seconds and update without a page reload; focused or unsaved forms defer replacement and show the pending change, and failed checks show an unavailable warning. FLOOR-008 inherits offline reconciliation and richer synchronization; FLOOR-004 inherits sections, server capacity and serving history. Current and future allocation doors inherit retirement, fit and access guards before shipping (BOOK-002, BOOK-005, DIST-001–DIST-004, VOICE-001, AGENT-001). **Acceptance evidence:** Draw dining room and patio, retire a booked table with an approved replacement, book both areas and watch occupancy update on a second host device.
 
 - **FLOOR-003 — Approved table combinations.** Managers explicitly permit which adjacent tables can join, their combined capacity, accessible fit and setup buffer. Allocation cannot combine distant or incompatible tables merely because their seats sum to the party size. Before explicit join definitions ship, enforce FLOOR-009 permitted combinations on direct and prepared moves as well as all booking doors. Managers confirm adjacency explicitly for an exact set; joins can cross named areas only when explicitly approved, while a booking’s required area must match every constituent. Approved capacity is an integer no greater than the constituent seats, and every approved access tag must exist on every constituent. Setup is 0–120 whole elapsed minutes immediately before arrival, within the service, with half-open occupancy from setup start through the preserved turn/reset and any ongoing overrun; single tables need no setup. Current public search/booking, staff walk-ins, waitlist seating, direct move/swap/lock and prepared assignments all enforce these definitions. Active booked/seated commitments freeze join settings and setup; disabling prevents new assignments while preserving those commitments, and structural edits wait until they finish. Changes to join configuration invalidate prepared publication or reassignment review. Future booking doors (BOOK-002, BOOK-005, DIST-001–DIST-004, VOICE-001, AGENT-001) inherit exact joins and full setup before shipping. **Acceptance evidence:** Permit T1+T2 but prohibit T1+T8; request six guests, verify the permitted join is used and reject a host attempting the prohibited join.
 
@@ -369,7 +369,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 1 | Hero · "Placemat takes reservations from your site" | `BOOK-001`, `BOOK-002` | partial |
 | 2 | Hero · "…Google…" (reservations from Google) | `DIST-001` | missing |
 | 3 | Hero · "…and Instagram" | `DIST-002` | missing |
-| 4 | Hero · "runs the host stand" | `FLOOR-002`, `FLOOR-006`, `WAIT-001` | partial |
+| 4 | Hero · "runs the host stand" | `FLOOR-002`, `FLOOR-006`, `WAIT-001` | done |
 | 5 | Hero · "…and waitlist" | `WAIT-001` | done |
 | 6 | Hero · "remembers every guest" | `GUEST-001` | done |
 | 7 | Hero · "100% free, open source alternative to OpenTable, Resy and SevenRooms" | `OSS-001`, `COST-001` | partial |
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 2 | 0 | 15 |
-| Target and push further | 13 | 27 | 77 | 117 |
-| All | 26 | 29 | 77 | 132 |
+| Target and push further | 14 | 26 | 77 | 117 |
+| All | 27 | 28 | 77 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -467,7 +467,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `DIST-004` | Channel inventory and attribution | target | missing |  | No implementation of this journey exists. |
 | `DIST-005` | Guest accounts and repeat booking | target | missing |  | No implementation of this journey exists. |
 | `DIST-006` | Verified diner reviews and restaurant replies | target | missing |  | No diner reviews, ratings, replies or moderation exist. |
-| `FLOOR-002` | Rooms and editable floor plans | target | partial | `src/placemat/commands.ts`; `src/placemat/views.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Positioned tables and manual refreshed occupancy exist; rooms, table attributes, editable combinations and live synchronization do not. |
+| `FLOOR-002` | Rooms and editable floor plans | target | done | `src/placemat/floor-plan.ts`; `src/placemat/combinations.ts`; `public/placemat-floor-plan.js`; `tests/api/combinations.test.mjs`; `tests/floor-plan-ui.mjs` |  |
 | `FLOOR-003` | Approved table combinations | target | done | `src/placemat/combinations.ts`; `src/placemat/capacity.ts`; `src/placemat/assignments.ts`; `public/placemat-combinations.js`; `tests/api/combinations.test.mjs`; `tests/combinations-ui.mjs` |  |
 | `FLOOR-004` | Server sections and fair covers | target | missing |  | No implementation of this journey exists. |
 | `FLOOR-005` | Timeline and overdue turns | target | done | `src/placemat/timeline.ts`; `src/placemat/capacity.ts`; `public/placemat-timeline.js`; `tests/api/timeline.test.mjs`; `tests/floor-ui.mjs` |  |

@@ -18,6 +18,7 @@ function assertFit(tables:Table[],c:Pick<Combination,'capacity'|'accessTags'>,si
 /** A new assignment may use only a single table or an explicitly approved exact set. */
 export function assignmentFor(s:State,tableIds:unknown,size:number,startAt:string,serviceStartAt:string,requiredTags:string[]=[],requiredArea?:string,frozen?:Booking){
  const tables=chosenTables(s,tableIds)
+ if(tables.some(t=>t.retiredAt)&&(!frozen||!['booked','seated'].includes(frozen.status)||!sameTables(frozen.tableIds,tables.map(t=>t.id))))fail(409,'Retired tables cannot receive new assignments.')
  let combination:CombinationSnapshot|undefined
  if(tables.length>1){
   const saved=frozen?.combination
@@ -38,7 +39,7 @@ export function assignmentFor(s:State,tableIds:unknown,size:number,startAt:strin
  return {tables,setupStartAt,...combination?{combination}:{}}
 }
 export function candidateSets(s:State):string[][]{
- return [...s.tables.map(t=>[t.id]),...(s.combinations??[]).filter(c=>c.enabled&&c.adjacent===true&&c.tableIds.every(id=>s.tables.some(t=>t.id===id))).map(c=>c.tableIds)]
+ return [...s.tables.filter(t=>!t.retiredAt).map(t=>[t.id]),...(s.combinations??[]).filter(c=>c.enabled&&c.adjacent===true&&c.tableIds.every(id=>s.tables.some(t=>t.id===id&&!t.retiredAt))).map(c=>c.tableIds)]
 }
 /** Existing commitments freeze their terms; disabling affects only new assignments. */
 export function saveCombination(s:State,p:any){
@@ -47,6 +48,7 @@ export function saveCombination(s:State,p:any){
  if(p.adjacent!==true)fail(400,'A manager must explicitly confirm that these tables are adjacent.')
  if(typeof p.enabled!=='boolean')fail(400,'Choose whether this combination is enabled.')
  const tables=chosenTables(s,p.tableIds)
+ if(tables.some(t=>t.retiredAt))fail(409,'Retired tables cannot belong to a new or edited combination.')
  if(tables.length<2)fail(400,'An approved combination needs at least two tables.')
  const combination:Combination={id:current?.id??id(),tableIds:tables.map(t=>t.id).sort(),capacity:number(p.capacity,'Combined seats',1,tables.reduce((n,t)=>n+t.seats,0)),accessTags:tags(p.accessTags),setupMinutes:number(p.setupMinutes,'Setup minutes',0,120),enabled:p.enabled,adjacent:true}
  if(combination.accessTags.some(tag=>tables.some(t=>!t.accessTags?.includes(tag))))fail(400,'Combination access tags must be supported by every constituent table.')

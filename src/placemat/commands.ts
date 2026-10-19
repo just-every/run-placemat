@@ -13,6 +13,7 @@ import { load,save } from './store'
 import { updateGuestProfile } from './profiles'
 import {searchTables} from './reservation-search'
 import {saveCombination} from './combinations'
+import {approveFloorChange,prepareFloorChange,saveRoom,tableShape} from './floor-plan'
 
 /** The approved reminder text a venue exports for its own sender. */
 export const reminderMessage=(s:State,b:Booking)=>`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`
@@ -52,14 +53,16 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(s.services.length&&timezone!==s.venue.timezone)fail(409,'Keep the venue timezone after creating a service; existing services retain their instants.')
   result=s.venue={name,timezone};break
  }
+ case 'room.save':{result=saveRoom(s,p);break}
  case 'combination.save':{result=saveCombination(s,p);break}
  case 'table.save':{
   const current=p.id?s.tables.find(t=>t.id===p.id):null
   if(p.id&&!current)fail(404,'Table not found.')
+  if(current?.retiredAt)fail(409,'A retired table is retained unchanged for history.')
   if(current&&s.combinations?.some(c=>c.tableIds.includes(current.id)))fail(409,'Remove this table from approved combinations before changing its settings.')
   if(current&&s.bookings.some(b=>b.tableIds.includes(current.id)))fail(409,'A table with booking history is kept unchanged. Add a new table instead.')
-  if(!current&&s.tables.length>=40)fail(400,'This release supports up to 40 tables.')
-  const table={id:current?.id??id(),label:text(p.label,'Table label',40),area:p.area===undefined?(current?.area??'Dining room'):text(p.area,'Area',80),seats:number(p.seats,'Seats',1,20),accessTags:accessTags(p.accessTags??current?.accessTags,'Table access tags'),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
+  if(!current&&s.tables.filter(t=>!t.retiredAt).length>=40)fail(400,'This release supports up to 40 tables.')
+  const table={id:current?.id??id(),shape:tableShape(p.shape??current?.shape??'rectangle'),label:text(p.label,'Table label',40),area:p.area===undefined?(current?.area??'Dining room'):text(p.area,'Area',80),seats:number(p.seats,'Seats',1,20),accessTags:accessTags(p.accessTags??current?.accessTags,'Table access tags'),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
   if(s.tables.some(t=>t.id!==table.id&&t.label===table.label))fail(409,'Table labels must be distinct.')
   if(current)Object.assign(current,table);else s.tables.push(table)
   result=table;break
@@ -76,7 +79,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  }
  case 'proposal.prepare':{
   const kind=p.kind,plan=p.plan??{};let exact:any
-  if(kind==='service.publish'){
+  if(kind==='floor.change'){
+   exact=prepareFloorChange(s,plan,now)
+  }else if(kind==='service.publish'){
    const service=serviceBy(s,plan.serviceId)
    if(service.status!=='draft'||!s.tables.length)fail(409,'Create tables and a draft service first.')
    exact={serviceId:service.id,service:structuredClone(service),tables:structuredClone(s.tables),combinations:structuredClone(s.combinations??[]),venue:structuredClone(s.venue)}
@@ -104,7 +109,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(proposal.status!=='pending')fail(409,'This proposal has already been decided.')
   if(command==='proposal.decline'){proposal.status='declined';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break}
   const plan=proposal.plan
-  if(proposal.kind==='schedule.publish'){
+  if(proposal.kind==='floor.change'){
+   approveFloorChange(s,actor,proposal,now)
+  }else if(proposal.kind==='schedule.publish'){
    approveSchedule(s,actor,proposal,now)
   }else if(proposal.kind==='service.publish'){
    const service=serviceBy(s,plan.serviceId)
