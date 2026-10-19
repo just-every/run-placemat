@@ -1,10 +1,11 @@
-import {executeServiceStatus,assertTablesReady} from './service-status'
+import {executeAssignment,validateAssignment,accessTags,accessibleTables} from './assignments'
+import {executeServiceStatus} from './service-status'
 import {executeSchedule,approveSchedule} from './schedules'
 import {initializeQueue,queueCanSeat,markQueueSeated,executeQueue} from './queue'
 import {normalizeTurnPolicy,turnImpact} from './turn-policy'
 import {normalizeRules,checkBookingRules} from './booking-rules'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
-import { allocation,instant,bookingFit,serviceBy } from './availability'
+import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save } from './store'
 import { updateGuestProfile } from './profiles'
@@ -16,9 +17,22 @@ const plain=(v:any)=>JSON.stringify(v)
 export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  const {state:s,version}=await load(db),now=new Date().toISOString(),before:D1PreparedStatement[]=[]
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
- if(!actor.agent&&!['owner','admin'].includes(actor.role))fail(403,'A venue manager is required.')
+ const hostCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend']
+ if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&hostCommands.includes(command)))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
+ case 'booking.move':case 'booking.swap':case 'booking.lock':{
+  result=executeAssignment(s,actor,p,command,version,now);break
+ }
+ case 'team.host':{
+  if(actor.agent||actor.role!=='owner')fail(403,'The venue owner must grant host access.')
+  if(typeof p.enabled!=='boolean')fail(400,'Choose whether host access is enabled.')
+  const operatorId=text(p.operatorId,'Team member',100)
+  const operator=await db.prepare("SELECT id,role,status FROM oa_operators WHERE id=?").bind(operatorId).first<{id:string;role:string;status:string}>()
+  if(!operator||operator.role!=='member'||operator.status!=='active')fail(409,'Choose an active native team member for host access.')
+  s.hostIds=[...new Set([...(s.hostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
+  result={id:operatorId,operatorId,enabled:p.enabled};break
+ }
  case 'schedule.save':case 'schedule.preview':case 'schedule.publish':{
   result=executeSchedule(s,actor,p,command,now);break
  }
@@ -33,7 +47,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(p.id&&!current)fail(404,'Table not found.')
   if(current&&s.bookings.some(b=>b.tableIds.includes(current.id)))fail(409,'A table with booking history is kept unchanged. Add a new table instead.')
   if(!current&&s.tables.length>=40)fail(400,'This release supports up to 40 tables.')
-  const table={id:current?.id??id(),label:text(p.label,'Table label',40),area:p.area===undefined?(current?.area??'Dining room'):text(p.area,'Area',80),seats:number(p.seats,'Seats',1,20),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
+  const table={id:current?.id??id(),label:text(p.label,'Table label',40),area:p.area===undefined?(current?.area??'Dining room'):text(p.area,'Area',80),seats:number(p.seats,'Seats',1,20),accessTags:accessTags(p.accessTags??current?.accessTags,'Table access tags'),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
   if(s.tables.some(t=>t.id!==table.id&&t.label===table.label))fail(409,'Table labels must be distinct.')
   if(current)Object.assign(current,table);else s.tables.push(table)
   result=table;break
@@ -63,11 +77,11 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    if(!rows.length)fail(409,'There are no new booked guests to remind.')
    exact={serviceId:service.id,bookings:structuredClone(rows),venue:structuredClone(s.venue)}
   }else if(kind==='table.assign'){
+   if(!actor.agent)fail(403,'Use Change assignment for a direct human move. Preparation keys prepare table proposals.')
    const b=booking(s,plan.bookingId)
    if(!['booked','seated'].includes(b.status))fail(409,'Only active bookings can move tables.')
-   const service=serviceBy(s,b.serviceId)
-   const tables=allocation(s,service,b.partySize,b,plan.tableIds,b.id)
-   if(b.status==='seated')assertTablesReady(s,tables.map(t=>t.id),b.id)
+   if(b.assignmentLocked)fail(409,'Unlock this assignment before preparing a table change.')
+   const tables=validateAssignment(s,b,plan.tableIds,now)
    exact={bookingId:b.id,booking:structuredClone(b),tableIds:tables.map(t=>t.id)}
   }else fail(400,'Unknown proposal kind.')
   result={id:id(),kind,plan:exact,status:'pending',preparedBy:actor.id,preparedAt:now,reason:text(p.reason,'Reason',1000)}
@@ -95,8 +109,8 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   }else{
    const b=booking(s,plan.bookingId)
    if(plain(b)!==plain(plan.booking))fail(409,'This booking changed. Prepare a new table assignment.')
-   const tables=allocation(s,serviceBy(s,b.serviceId),b.partySize,b,plan.tableIds,b.id)
-   if(b.status==='seated')assertTablesReady(s,tables.map(t=>t.id),b.id)
+   if(b.assignmentLocked)fail(409,'Unlock this assignment before approving a table change.')
+   const tables=validateAssignment(s,b,plan.tableIds,now)
    b.tableIds=tables.map(t=>t.id)
   }
   proposal.status='approved';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break
@@ -107,11 +121,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   const service=serviceBy(s,waiting?.serviceId??p.serviceId)
   if(service.status!=='published')fail(409,'Publish this service first.')
   if(service.closedAt)fail(409,'This service is closed. Choose an open service.')
-  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(s,service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
+  const requiredAccessTags=accessTags(p.requiredAccessTags,'Required access tags')
+  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(accessibleTables(s,requiredAccessTags),service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
-  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
+  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
   s.bookings.push(result);executeServiceStatus(s,actor,{bookingId:result.id,stage:'seated'},now);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break
  }
  case 'waitlist.add':{
@@ -133,7 +148,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  }
  default:fail(400,'Unknown command.')
  }
- s.audit.push({id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
+ s.audit.push(['booking.move','booking.swap','booking.lock'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
  await save(db,s,version,before)
  return result
 }
@@ -143,12 +158,13 @@ export async function onlineBook(db:D1Database,p:any){
  if(service.closedAt)fail(409,'This service is closed. Choose an open service; no booking has been made.')
  const partySize=number(p.partySize,'Party size',1,500)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
- const fit=bookingFit(s,service,partySize,p.startAt),{tables,...slot}=fit
+ const requiredAccessTags=accessTags(p.requiredAccessTags,'Required access tags')
+ const fit=bookingFit(accessibleTables(s,requiredAccessTags),service,partySize,p.startAt),{tables,...slot}=fit
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
+ const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
  return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}

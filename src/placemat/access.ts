@@ -1,6 +1,6 @@
 import { operatorAuth,type Bindings } from '../auth.server'
 import { fail,type Actor } from './model'
-import { hash } from './store'
+import { hash,load } from './store'
 export async function actorFor(request:Request,env:Bindings):Promise<Actor|null>{
  const bearer=request.headers.get('authorization')
  if(bearer?.startsWith('Bearer ')){
@@ -9,7 +9,8 @@ export async function actorFor(request:Request,env:Bindings):Promise<Actor|null>
  }
  const session=await operatorAuth(env).getSession(request)
  if(!session||session.operator.status!=='active')return null
- return {id:session.operator.id,name:session.operator.displayName,role:session.operator.role}
+ const role=session.operator.role==='member'&&(await load(env.DB)).state.hostIds?.includes(session.operator.id)?'host':session.operator.role
+ return {id:session.operator.id,name:session.operator.displayName,role}
 }
 export function person(actor:Actor,owner=false){if(actor.agent||!(owner?['owner']:['owner','admin']).includes(actor.role))fail(403,owner?'The venue owner must do this.':'A venue manager must do this.')}
 export function originCheck(request:Request,env:Bindings){if(request.headers.get('origin')!==env.AUTH_ORIGIN)fail(403,'Use the venue page on its own origin.')}

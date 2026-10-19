@@ -6,11 +6,14 @@ Each person signs in with their own account and sees what their role allows. The
 | --- | --- | --- |
 | Owner | Owner | Everything, including move-in, erasing guests, backups and agent keys |
 | Manager | Manager | Run the floor, set up tables and services, approve plans, keep notes, invite read-only staff |
+| Host | Host (owner-granted capability) | Directly move, swap and lock assignments and record service observations; no plan approval, administration or bulk export |
 | Read-only staff | Read-only staff | See the floor, bookings, waitlist and guests; change nothing |
 
 ## Invite people
 
 Open **Settings** and expand **People & invitations**. Enter the **Person name**, **Email** and **Role**, and press **Invite person**. The person receives a sign-in email from your installation's mail provider; a local Placemat sends no email. Everyone invited is listed with their role and status.
+
+The owner can grant or remove host access beside an active read-only member under **People & invitations**. This is a venue capability; the underlying native member role stays unchanged. Removing the capability takes effect on the next request.
 
 ## Agent preparation keys
 

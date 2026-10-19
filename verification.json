@@ -31,7 +31,8 @@
       "commands": [
         "pnpm run build",
         "pnpm run typecheck",
-        "pnpm run test:runtime"
+        "pnpm run test:runtime",
+        "node tests/floor-ui.mjs"
       ]
     }
   ],

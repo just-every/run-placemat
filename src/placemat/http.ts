@@ -37,7 +37,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
   }
   const actor=await actorFor(request,env)
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
-  if(!['owner','admin','member','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(!['owner','admin','member','host','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
   if(path==='/app'){if(actor!.agent)fail(403,'Agent keys use the API.');return productPage(request,env,actor!)}
   if(request.method!=='GET')originCheck(request,env)
   if(path.startsWith('/api/import/')){person(actor!,true);return await importResponse(request,env,actor!)??json({error:'Not found'},404)}

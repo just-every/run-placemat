@@ -27,7 +27,7 @@ Change a booking's status from its **Status** menu:
 - booked → **seated** when the party arrives, then **completed** when they leave.
 - booked → **cancelled**, or **no-show** when they do not come.
 
-Cancelled and no-show bookings stay in the guest's history and free their tables and covers for the rest of the service. **Calendar** downloads the booking as a calendar file. **Reassign** prepares a move to other tables, which a person approves under **Approvals & reminders**.
+Cancelled and no-show bookings stay in the guest's history and free their tables and covers for the rest of the service. **Calendar** downloads the booking as a calendar file. **Change assignment** lets a host or manager move, swap or lock an assignment directly. Choose the exact tables and submit once; the live floor, fit, access needs and overlapping turns are checked before the move. A stale floor requires Refresh. Unlock before moving a locked party. Assignment history records each actor, time, before/after tables and optional reason. Preparation keys still prepare exact proposals for a manager to approve.
 
 ## Seat a walk-in
 
@@ -39,4 +39,4 @@ When the room is full, add the party under **Waitlist**: expand **Add a waiting 
 
 ## Who can do what
 
-Owners and managers run the floor. Read-only staff see the same floor and bookings but cannot change them. See [People and agent keys](people-and-access.md).
+Owners and managers run the floor. An owner can grant or remove host access for an active member under Settings → People & invitations. Hosts can change assignments and record service observations; they cannot approve plans, administer the venue or export guests. Read-only staff see the same floor and bookings but cannot change them. See [People and agent keys](people-and-access.md).
