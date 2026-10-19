@@ -50,7 +50,9 @@ export function createFloorSync({api,refresh,isBusy}) {
   const dirty = new Set();
   function editing() {
     for (const form of dirty) if (!form.isConnected) dirty.delete(form);
-    return dirty.size > 0 || !!document.activeElement?.matches('input,select,textarea,[contenteditable="true"]');
+    const focused=document.activeElement;
+    const openForm=focused?.tagName==='SUMMARY' && focused.parentElement?.open && focused.parentElement.querySelector('form');
+    return dirty.size > 0 || !!focused?.matches('input,select,textarea,[contenteditable="true"]') || !!focused?.closest('form') || !!openForm;
   }
   function render() {
     const target = document.querySelector('#floor-sync');
