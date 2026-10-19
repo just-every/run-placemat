@@ -93,7 +93,7 @@ test('FLOOR-002: rooms, shapes, reviewed edits and retirement preserve promised 
   const historical=await book(8,dining.name);await h.command('booking.status',{bookingId:historical.id,status:'no-show'})
   const first=await book(0,dining.name),outdoor=await book(1,patio.name)
   state=await h.api('/api/state');const original=state.state.bookings.find(b=>b.id===first.id);assert.deepEqual(original.tableIds,[source.id]);assert.deepEqual(state.state.bookings.find(b=>b.id===outdoor.id).tableIds,[garden.id])
-  const proposal=(p,opts={})=>h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:source.id,...p},reason:'Replace worn table 12 without changing guest promises'},opts)
+  const proposal=(p,opts={})=>h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:source.id,...p},reason:'Replace worn table 12 for guest0@example.test without changing guest promises'},opts)
   plan=await proposal({changes:{seats:2}});assert.ok(plan.plan.impacts.some(i=>i.bookingId===first.id));await h.command('proposal.approve',{proposalId:plan.id},{status:409})
   plan=await proposal({changes:{shape:'square',x:25}});await h.command('proposal.approve',{proposalId:plan.id});assert.equal((await h.api('/api/state')).state.tables.find(t=>t.id===source.id).shape,'square')
   plan=await proposal({retire:true});await h.command('proposal.approve',{proposalId:plan.id},{status:409})
@@ -118,5 +118,6 @@ test('FLOOR-002: rooms, shapes, reviewed edits and retirement preserve promised 
   await h.api('/api/public/book',publicGuest(draft,2,{partySize:4,area:dining.name}),{as:'',status:409})
   const archive=await h.api('/api/backup'),restored=await installation()
   try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});const copy=(await restored.api('/api/state')).state;assert.deepEqual(copy.rooms,state.state.rooms);assert.deepEqual(copy.tables,state.state.tables);assert.deepEqual(copy.bookings,state.state.bookings)}finally{await restored.close()}
+  await h.command('guest.erase',{guestId:moved.guestId,confirm:'ERASE'});assert.ok(!JSON.stringify(await h.api('/api/state')).includes('guest0@example.test'),'Erasure redacts guest-linked floor proposal and replacement reasons')
  }finally{await h.close()}
 })

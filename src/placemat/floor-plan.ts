@@ -103,6 +103,7 @@ export function approveFloorChange(s:State,actor:Actor,proposal:Proposal,now:str
  if(plain(snapshot(s))!==plain(plan.snapshot))fail(409,'The floor, rooms, combinations or commitments changed. Prepare and review the floor change again.')
  const reviewed=prepareFloorChange(s,plan,now)
  if(!reviewed.approvable)fail(409,reviewed.conflicts.map(c=>c.message).join(' '))
+ const affectedIds=new Set(reviewed.impacts.map(impact=>impact.bookingId)),floorBefore=s.bookings.filter(b=>affectedIds.has(b.id)).map(assignmentSnapshot)
  const staged=structuredClone(s)
  Object.assign(staged.tables.find(t=>t.id===plan.tableId)!,reviewed.table)
  for(const c of staged.combinations??[])if(reviewed.disabledCombinationIds.includes(c.id))c.enabled=false
@@ -112,5 +113,5 @@ export function approveFloorChange(s:State,actor:Actor,proposal:Proposal,now:str
  // Copy the validated floor and assignments only after every check succeeds.
  s.tables=staged.tables;s.combinations=staged.combinations;s.bookings=staged.bookings
  for(const [index,destination] of destinations.entries())s.audit.push({id:id(),at:now,actor:actor.id,action:'table.assign',subject:destination.booking.id,before:[before[index]],after:[assignmentSnapshot(destination.booking)],reason:proposal.reason})
- s.audit.push({id:id(),at:now,actor:actor.id,action:'floor.change',subject:plan.tableId,reason:proposal.reason})
+ s.audit.push({id:id(),at:now,actor:actor.id,action:'floor.change',subject:plan.tableId,before:floorBefore,after:s.bookings.filter(b=>affectedIds.has(b.id)).map(assignmentSnapshot),reason:proposal.reason})
 }
