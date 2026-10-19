@@ -22,10 +22,10 @@ export function fitAt(s:State,service:Service,partySize:number,startAt:string,re
    if(!best||capacity<bestCapacity||capacity===bestCapacity&&(assignment.tables.length<best.tables.length||assignment.tables.length===best.tables.length&&endAt<best.endAt))best=candidate
   // Search may contain only the tables eligible for an area or access need.
   // A requested table outside that inventory is an unavailable fit, as before.
-  }catch(error){if(error instanceof Error&&'status' in error&&[404,409].includes(Number(error.status))){lastConflict=error;continue;}throw error}
+  }catch(error){if(error instanceof Error&&'status' in error&&[404,409].includes(Number(error.status))){if(Number(error.status)===409)lastConflict=error;continue;}throw error}
  }
  if(best)return best
  if(!turnFits&&choices.length&&s.tables.every(t=>Date.parse(startAt)+tableTurn(service,t,partySize)*60000+cleanup*60000>Date.parse(service.endAt)))fail(400,'Choose a start that fits the full turn and cleanup within service hours.')
- if(lastConflict)throw lastConflict
+ if(lastConflict)fail(409,`${lastConflict.message} Choose another available time or assignment.`)
  return fail(409,'No approved table assignment fits this party for its full setup, turn and cleanup. Choose another available time.')
 }
