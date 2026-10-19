@@ -427,9 +427,9 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 12 | 3 | 0 | 15 |
+| Published | 13 | 2 | 0 | 15 |
 | Target and push further | 2 | 36 | 79 | 117 |
-| All | 14 | 39 | 79 | 132 |
+| All | 15 | 38 | 79 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -445,7 +445,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `MIG-001` | Reviewed Tablein-shaped move-in | published | done | `src/placemat/import/index.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` |  |
 | `DATA-001` | Validated empty-destination backups | published | done | `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs` |  |
 | `DATA-002` | Guest erasure and restore fences | published | done | `src/placemat/import/erase.ts`; `src/placemat/backup.ts`; `tests/api/flows.test.mjs` |  |
-| `SITE-001` | Runnable product and owner guides | published | partial | `tests/site.mjs`; `tests/runtime.mjs`; `src/placemat/model.ts` | Site links and the native runtime are exercised separately; the combined fresh-installed empty-product browser journey is not covered. |
+| `SITE-001` | Runnable product and owner guides | published | done | `tests/site.mjs`; `tests/install.mjs`; `src/placemat/model.ts` |  |
 | `OSS-001` | Free and open source, MIT licensed | published | partial | `LICENSE`; `src/site/run.json` | `LICENSE` is MIT and no charge exists anywhere in the product; no test asserts the licence lines or the absence of a paywall, and COST-001 provider-cost disclosure is not built. |
 | `BOUND-001` | Stated boundary: online ordering, gift cards and the POS | published | partial | `src/placemat/http.ts` | Nothing in the product sells gift cards or takes orders, so the boundary holds in code; the homepage line and docs statement are not on main and no test compares the page, docs and product. |
 | `SETUP-001` | US restaurant onboarding | target | partial | `src/placemat/commands.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Name/timezone and offset instants exist; US defaults, business/contact fields, policy setup and US DST browser evidence are absent. |
