@@ -24,7 +24,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(p.id&&!current)fail(404,'Table not found.')
   if(current&&s.bookings.some(b=>b.tableIds.includes(current.id)))fail(409,'A table with booking history is kept unchanged. Add a new table instead.')
   if(!current&&s.tables.length>=40)fail(400,'This release supports up to 40 tables.')
-  const table={id:current?.id??id(),label:text(p.label,'Table label',40),seats:number(p.seats,'Seats',1,20),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
+  const table={id:current?.id??id(),label:text(p.label,'Table label',40),area:p.area===undefined?(current?.area??'Dining room'):text(p.area,'Area',80),seats:number(p.seats,'Seats',1,20),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
   if(s.tables.some(t=>t.id!==table.id&&t.label===table.label))fail(409,'Table labels must be distinct.')
   if(current)Object.assign(current,table);else s.tables.push(table)
   result=table;break

@@ -1,3 +1,4 @@
+import { renderReports } from './placemat-reports.js';
 /* Live restaurant screens: transport, venue time, rendering, and form actions. */
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -64,7 +65,7 @@ async function loadStaff() {
   if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
   if (!floorTime && service()) floorTime = floorStart(service());
   $('#venue-name').textContent = state.venue.name; $('#venue-zone').textContent = `${state.venue.timezone} · ${actor.agent ? 'Agent preparation access' : actor.role === 'member' ? 'Read-only access' : 'Live operations'}`;
-  renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn();
+  renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn(); renderReports({state,canEdit:canEdit(),api,esc,field,select,empty});
 }
 // During its service the floor opens at the current quarter hour, otherwise at the service's start.
 function floorStart(s) { const now = Date.now(); return localTime(now >= Date.parse(s.startAt) && now < Date.parse(s.endAt) ? now - now % 900000 : s.startAt); }
@@ -100,7 +101,7 @@ function serviceEditor(s) {
   return `<details ${s || !state.services.length ? 'open' : ''}><summary>${s ? `Edit ${esc(s.name)}` : 'Create service'}</summary>${form('service.save', `<input type="hidden" name="id" value="${esc(s?.id || '')}">` + field('Service name','name','text',s?.name || '', 'required maxlength="120"') + field('Turn duration (minutes)','turnMinutes','number',s?.turnMinutes || 90,'required min="15" max="360"') + field(`Starts (${zone()})`,'startAt','datetime-local',s ? localTime(s.startAt) : '', 'required') + field(`Ends (${zone()})`,'endAt','datetime-local',s ? localTime(s.endAt) : '', 'required') + field('Cover limit','coverLimit','number',s?.coverLimit || '', 'required min="1" max="500"'), 'Save service')}</details>`;
 }
 function tableEditor(t) {
-  return `<details ${t || !state.tables.length ? 'open' : ''}><summary>${t ? `Edit ${esc(t.label)}` : 'Add table'}</summary><p class="help">Position runs from 0% (left / top) to 100% (right / bottom).</p>${form('table.save', `<input type="hidden" name="id" value="${esc(t?.id || '')}">` + field('Table label','label','text',t?.label || '', 'required maxlength="40"') + field('Seats','seats','number',t?.seats || 2,'required min="1" max="20"') + field('Across the room (%)','x','number',t?.x ?? 20,'required min="0" max="100"') + field('Down the room (%)','y','number',t?.y ?? 20,'required min="0" max="100"'), 'Save table')}</details>`;
+  return `<details ${t || !state.tables.length ? 'open' : ''}><summary>${t ? `Edit ${esc(t.label)}` : 'Add table'}</summary><p class="help">Position runs from 0% (left / top) to 100% (right / bottom).</p>${form('table.save', `<input type="hidden" name="id" value="${esc(t?.id || '')}">` + field('Table label','label','text',t?.label || '', 'required maxlength="40"') + field('Seats','seats','number',t?.seats || 2,'required min="1" max="20"') + field('Area','area','text',t?.area || 'Dining room','required maxlength="80"') + field('Across the room (%)','x','number',t?.x ?? 20,'required min="0" max="100"') + field('Down the room (%)','y','number',t?.y ?? 20,'required min="0" max="100"'), 'Save table')}</details>`;
 }
 function renderWaitlist() {
   const rows = state.waitlist.filter(w => w.serviceId === serviceId);

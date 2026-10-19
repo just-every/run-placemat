@@ -1,4 +1,4 @@
-export type Table = { id:string; label:string; seats:number; x:number; y:number }
+export type Table = { id:string; label:string; seats:number; area?:string; x:number; y:number }
 export type Service = { id:string; name:string; startAt:string; endAt:string; turnMinutes:number; coverLimit:number; status:'draft'|'published'; version:number }
 export type Guest = { id:string; name:string; email:string; phone:string; notes:string; history?:Array<{date:string;partySize:number;status:string}>; erased?:boolean }
 export type Booking = { id:string; serviceId:string; guestId:string; partySize:number; startAt:string; endAt:string; tableIds:string[]; status:'booked'|'seated'|'completed'|'cancelled'|'no-show'; source:'online'|'walk-in'|'waitlist'; createdAt:string }

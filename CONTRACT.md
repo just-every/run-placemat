@@ -234,7 +234,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 ### Service and commercial reporting
 
-- **REPORT-001 — Covers cancellations and no-shows.** Managers filter historical/current/future reservations by venue, local service date, shift, area, source, status and party size; reports distinguish booked, attended, cancelled and no-show covers and rates with visible denominators and downloadable row drilldown. **Acceptance evidence:** Run two shifts with cancellations and no-shows, filter one local date, drill a total to its bookings and reconcile its CSV to attended versus booked covers.
+- **REPORT-001 — Covers cancellations and no-shows.** Managers filter historical/current/future reservations by venue, local service date, shift, area, source, status and party size; reports distinguish booked, attended, cancelled and no-show covers and rates with visible denominators and downloadable row drilldown. Dates are inclusive venue-local service-start dates; period uses the service interval, with end ≤ now past and start ≤ now < end current. Booked covers include every reservation status, attended means seated/completed, and cancelled/no-show/attended rates use all filtered booked covers as denominator (zero gives no rate). A combined-table booking counts once. Every existing venue, area and source is included; additional venues (ROLE-001), floor areas (FLOOR-002) and channels (DIST-001–DIST-004, BOOK-005, VOICE-001, AGENT-001) inherit these filters and reports before shipping. **Acceptance evidence:** Run two shifts with cancellations and no-shows, filter one local date, drill a total to its bookings and reconcile its CSV to attended versus booked covers.
 
 - **REPORT-002 — Turns waits and server performance.** Reports compare expected/actual turns, arrival lateness, quoted/actual waits, abandoned queues, seating utilization, interval pacing, staff pacing overrides and server/section covers, with sample sizes and missing observations shown. Staff corrections remain traceable rather than rewriting prior published results. **Acceptance evidence:** Complete a service with two overruns and a waitlist abandonment, inspect turn/wait distributions and server totals and trace an outlier back to its status history.
 
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 12 | 3 | 0 | 15 |
-| Target and push further | 1 | 37 | 79 | 117 |
-| All | 13 | 40 | 79 | 132 |
+| Target and push further | 2 | 36 | 79 | 117 |
+| All | 14 | 39 | 79 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -527,7 +527,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `POS-005` | NCR Aloha connection | target | missing |  | No implementation of this journey exists. |
 | `POS-006` | Guest and check matching controls | target | missing |  | No implementation of this journey exists. |
 | `POS-007` | Live check and kitchen pace | target | missing |  | No implementation of this journey exists. |
-| `REPORT-001` | Covers cancellations and no-shows | target | partial | `src/placemat/model.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Current-service totals/statuses exist; historical filtered reports, denominators and row-level downloads do not. |
+| `REPORT-001` | Covers cancellations and no-shows | target | done | `src/placemat/reports.ts`; `src/placemat/http.ts`; `public/placemat-reports.js`; `tests/api/reports.test.mjs` |  |
 | `REPORT-002` | Turns waits and server performance | target | missing |  | No implementation of this journey exists. |
 | `REPORT-003` | Channels spend and repeat business | target | partial | `src/placemat/model.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Online/walk-in/waitlist source labels exist; marketing attribution, POS revenue, source fees and retention/cohorts do not. |
 | `REPORT-004` | Experience and payment performance | target | missing |  | No implementation of this journey exists. |
