@@ -241,3 +241,26 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 .assignment-diff dt{font-weight:600}
 .assignment-diff dd{margin:0;overflow-wrap:anywhere}
 .assignment-history .card{padding:12px 16px}
+
+/* Timeline uses the floor's existing cards, type and controls. */
+#floor-timeline{margin:28px 0}
+.timeline-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0 12px}
+.rer-themed .timeline-summary button{white-space:normal;display:block;text-align:left;height:auto;padding:14px 16px;line-height:1.4}
+.timeline-summary strong{display:block;font-size:23px}
+.timeline-table td{vertical-align:top;min-width:160px}
+.timeline-table td:first-child{min-width:190px}
+.timeline-table td:last-child{min-width:230px}
+.timeline-table details{margin-top:12px}
+.timeline-table .form-grid{grid-template-columns:1fr}
+.timeline-alert{font-weight:600;margin:0 0 8px}
+.timeline-chart-scroll{max-width:100%;overflow:auto;border:1px solid var(--pm-rule);border-radius:12px;margin:16px 0}
+.timeline-chart{width:max-content;min-width:100%;padding:12px}
+.timeline-bar-row{display:flex;align-items:center;min-height:46px;border-bottom:1px solid var(--pm-rule)}
+.timeline-bar-row:last-child{border-bottom:0}
+.timeline-bar-name{position:sticky;left:0;z-index:2;display:block;flex:0 0 180px;width:180px;padding:8px;background:var(--pm-surface);font-size:14px;overflow-wrap:anywhere}
+.timeline-track,.timeline-axis{position:relative;flex:none;height:44px}
+.timeline-axis span{position:absolute;top:10px;font-size:12px;white-space:nowrap;transform:translateX(-10%)}
+.rer-themed .timeline-turn{position:absolute;top:7px;min-height:30px;height:30px;min-width:4px;padding:0 8px;border-radius:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.rer-themed .timeline-collision{border:2px dashed var(--pm-ink)}
+@media(max-width:760px){.timeline-summary{grid-template-columns:1fr}.timeline-summary strong{display:inline;margin-right:6px}.timeline-bar-name{flex-basis:125px;width:125px}.timeline-table td{min-width:150px}}
+.timeline-axis span:first-child{transform:none}

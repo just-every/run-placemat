@@ -1,3 +1,4 @@
+import {timeline} from './timeline'
 import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
 import { Problem,fail,id,text,type Actor } from './model'
@@ -15,7 +16,7 @@ import { searchGuests } from './guests'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  if(path!=='/app'&&path!=='/book'&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
@@ -47,6 +48,10 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    return json(report)
   }
   if(path==='/api/guests'&&request.method==='GET')return json({guests:searchGuests(await guests(env.DB),url.searchParams.get('search')??'')})
+  if(path==='/api/timeline'&&request.method==='GET'){
+   const {state}=await load(env.DB)
+   return json(timeline(state,await guests(env.DB),url.searchParams))
+  }
   if(path==='/api/state'&&request.method==='GET'){
    const {state,version}=await load(env.DB)
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]

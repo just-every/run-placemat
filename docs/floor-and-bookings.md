@@ -40,3 +40,11 @@ When the room is full, add the party under **Waitlist**: expand **Add a waiting 
 ## Who can do what
 
 Owners and managers run the floor. An owner can grant or remove host access for an active member under Settings → People & invitations. Hosts can change assignments and record service observations; they cannot approve plans, administer the venue or export guests. Read-only staff see the same floor and bookings but cannot change them. See [People and agent keys](people-and-access.md).
+
+## Timeline and an overdue turn
+
+The service timeline shows original commitments beside expected times and actual staff observations. Search a party/contact/table, select a venue day/service or room, and change the time division to zoom. Late arrivals, overdue seated parties and collisions name the affected reservations. Server filters gain populated assignments with FLOOR-004 sections.
+
+For a seated party, expand **Extend turn**, record a later expected departure and a reason. The original booking and reset stay in history; no other party moves. Open **Change assignment** for the next arrival to move it directly to a fitting replacement, then read both assignment/turn histories. Cleanup follows the extended forecast; an ongoing seated party keeps its physical table occupied even after the forecast.
+
+The header opens the parties behind seated covers now, covers due in the configurable inclusive next window, and average actual turn today. The average uses actual corrected seating-to-completed observations in venue time; missing times are not invented. Labels round elapsed minutes to the nearest minute. Use **Update service** for the full append-only observation history and corrections.

@@ -6,6 +6,7 @@ import {bookingRuleFields,parseBookingRules} from './placemat-rules.js';
 import { guestProfile,profileSummary } from './placemat-profiles.js';
 import { renderReports } from './placemat-reports.js';
 import {assignmentEditor,hostGrant} from './placemat-assignments.js';
+import {createTimeline} from './placemat-timeline.js';
 /* Live restaurant screens: transport, venue time, rendering, and form actions. */
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -25,6 +26,7 @@ const canEdit = () => actor && !actor.agent && ['owner', 'admin'].includes(actor
 const canOperateFloor = () => canEdit() || actor && !actor.agent && actor.role === 'host';
 const isOwner = () => canEdit() && actor.role === 'owner';
 const canPrepare = () => canEdit() || actor?.agent;
+const timeline=createTimeline({api,esc,field,select,form,button,time,localTime,canOperate:canOperateFloor});
 const guest = id => data.guests.find(g => g.id === id);
 const who = id => data.names?.[id] || 'Unknown person';
 const service = () => state.services.find(s => s.id === serviceId);
@@ -79,10 +81,11 @@ async function loadStaff() {
 function floorStart(s) { const now = Date.now(); return localTime(now >= Date.parse(s.startAt) && now < Date.parse(s.endAt) ? now - now % 900000 : s.startAt); }
 function renderFloor() {
   const s = service();
-  $('#floor-content').innerHTML = !s ? emptyRoom('Start by adding tables and creating a service below.') : `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}</div><div id="floor-room"></div>${floorLegend()}<div id="shift-handover"></div>`;
+  $('#floor-content').innerHTML = !s ? emptyRoom('Start by adding tables and creating a service below.') : `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}</div><div id="floor-room"></div>${floorLegend()}<div id="floor-timeline"></div><div id="shift-handover"></div>`;
   $('#bookings').hidden = !s;
   if (!s) { $('#bookings-list').innerHTML = ''; return; }
   renderRoom(); renderBookings();
+  timeline.mount($('#floor-timeline'),s,serviceChoices(),zone());
   $('#shift-handover').innerHTML=shiftHandover(state,serviceId,data.serviceStages,{esc,guest,who,time,tableNames,canEdit:canOperateFloor(),button});
 }
 function renderRoom() {
@@ -242,7 +245,7 @@ async function submitForm(el) {
   if (command === 'table.assign') {
     await prepare(command,{bookingId:payload.bookingId,tableIds:payload.tableIds},payload.reason); return;
   }
-  for (const name of ['startAt','endAt']) if (payload[name]) payload[name] = toUtc(payload[name]);
+  for (const name of ['startAt','endAt','expectedEndAt']) if (payload[name]) payload[name] = toUtc(payload[name]);
   if (command === 'service.save' && Date.parse(payload.endAt) <= Date.parse(payload.startAt)) throw new Error('Service end must be after its start.');
   await execute(command,payload); await loadStaff(); notice('Saved successfully.', 'success');
 }

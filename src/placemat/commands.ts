@@ -1,3 +1,4 @@
+import {extendTurn} from './timeline'
 import {executeAssignment,validateAssignment,accessTags,accessibleTables} from './assignments'
 import {executeServiceStatus} from './service-status'
 import {executeSchedule,approveSchedule} from './schedules'
@@ -23,6 +24,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  switch(command){
  case 'booking.move':case 'booking.swap':case 'booking.lock':{
   result=executeAssignment(s,actor,p,command,version,now);break
+ }
+ case 'booking.extend':{
+  result=extendTurn(s,actor,p,now);break
  }
  case 'team.host':{
   if(actor.agent||actor.role!=='owner')fail(403,'The venue owner must grant host access.')
@@ -148,7 +152,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  }
  default:fail(400,'Unknown command.')
  }
- s.audit.push(['booking.move','booking.swap','booking.lock'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
+ if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
  await save(db,s,version,before)
  return result
 }
