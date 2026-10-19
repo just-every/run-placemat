@@ -29,6 +29,7 @@ function selectedTables(s:State,b:Booking,tableIds:unknown):Table[]{
  const tables=(tableIds as string[]).map(id=>s.tables.find(t=>t.id===id)??fail(404,'Table not found.'))
  if(tables.reduce((n,t)=>n+t.seats,0)<b.partySize)fail(409,'The selected tables do not have enough seats.')
  if(new Set(tables.map(t=>t.area??'Dining room')).size>1)fail(409,'A table combination must be in the same dining area.')
+ if(b.requiredArea&&tables.some(t=>(t.area??'Dining room')!==b.requiredArea))fail(409,'The selected tables do not meet this booking’s required dining area.')
  if(tables.some(t=>(b.requiredAccessTags??[]).some(tag=>!t.accessTags?.includes(tag))))fail(409,'The selected tables do not meet this party’s required access needs.')
  return tables
 }

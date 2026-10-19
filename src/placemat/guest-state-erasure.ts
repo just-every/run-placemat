@@ -7,7 +7,7 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  if(!row)return []
  const state=JSON.parse(row.data) as State
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>[...(p.plan?.bookings??[]),...(p.plan?.snapshot?.bookings??[]),...(p.plan?.booking?[p.plan.booking]:[])])]
- for(const b of bookings)if(b.guestId===guestId){if(b.ruleOverride)b.ruleOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[]}
+ for(const b of bookings)if(b.guestId===guestId){if(b.ruleOverride)b.ruleOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea}
  const bookingIds=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id))
  for(const event of state.serviceEvents??[])if(bookingIds.has(event.bookingId))event.reason=''
  for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId))))event.reason=''

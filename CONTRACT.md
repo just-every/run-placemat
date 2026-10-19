@@ -76,7 +76,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 - **BOOK-002 — Branded website booking widget.** Restaurants embed a responsive, accessible booking widget on their own WordPress, Squarespace, Wix or custom website with venue branding, locale, party/date/time search and policy disclosure. The standalone booking page and embed share inventory and preserve source attribution. Owners can switch on consent-aware Google Analytics 4 and Meta Pixel/Conversions API events for search, checkout start and completed booking (with party size and source, never guest contact data). **Acceptance evidence:** Embed on an allowed test website, search and book at 1440 and 390 widths, navigate by keyboard and verify the same slot disappears on the standalone page; observe the GA4 and Meta test events for the completed booking with no guest contact data, then decline analytics consent and observe none.
 
-- **BOOK-003 — Reservation search and availability alternatives.** Guests search by date, party size, area and experience and see honest nearby times or approved sister-venue alternatives when full, including accessible seating constraints. Empty and stale results explain the next available action without collecting a false booking. **Acceptance evidence:** Search a full Friday for an accessible four-top, select a Saturday alternative and complete it; race a stale result and receive a clear reselect path.
+- **BOOK-003 — Reservation search and availability alternatives.** Guests search by date, party size, area and experience and see honest nearby times or approved sister-venue alternatives when full, including accessible seating constraints. Empty and stale results explain the next available action without collecting a false booking. Current search covers every published open service and existing dining area with exact required access tags. Dates are venue-local arrival dates; nearby alternatives include the requested date through seven later calendar days, inclusive, ordered by actual arrival instant. A selected area and every access tag are required fit constraints at search, booking and later reassignment; availability is not a hold, and a failed commit preserves contact inputs but requires an explicit new selection. Empty results ask the guest to change date or filters or contact the venue, without making a booking. EXP-001 inherits experience filtering and ROLE-001 inherits approved sister-venue alternatives in these same search and commit doors before those capabilities ship. **Acceptance evidence:** Search a full Friday for an accessible four-top, select a Saturday alternative and complete it; race a stale result and receive a clear reselect path.
 
 - **BOOK-004 — Secure guest modification and cancellation.** A scoped expiring manage-booking link lets a guest change time, size or contact details, reconfirm or cancel only their reservation. Show fee/refund consequences before consent and replace inventory atomically; changed links and replays cannot expose other guests. **Acceptance evidence:** Use a delivered link to move a two-top to four, fail an unavailable move without losing the old booking, cancel with policy acknowledgment and refuse an expired or foreign token.
 
@@ -182,7 +182,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 ### Experiences and ticketed dining
 
-- **EXP-001 — Experience catalog and event inventory.** Restaurants publish free, deposit-backed or fully prepaid dining experiences, tasting menus and one-off events with images, menu, dates, seating areas, ticket classes, quantity limits and cancellation rules. Experience inventory shares physical tables and pacing with ordinary reservations. Experience-specific turn duration, cleanup and last seating conform to SERVICE-006 before publication. **Acceptance evidence:** Publish a tasting dinner and a free patio event, book both beside normal reservations and prove the same table cannot be sold through two catalogs and that its experience-specific turn and reset fit SERVICE-006.
+- **EXP-001 — Experience catalog and event inventory.** Restaurants publish free, deposit-backed or fully prepaid dining experiences, tasting menus and one-off events with images, menu, dates, seating areas, ticket classes, quantity limits and cancellation rules. Experience inventory shares physical tables and pacing with ordinary reservations. Experience-specific turn duration, cleanup and last seating conform to SERVICE-006 before publication. Before this capability ships, its experience filter inherits BOOK-003 search, exact fit and stale-result reselect. **Acceptance evidence:** Publish a tasting dinner and a free patio event, book both beside normal reservations and prove the same table cannot be sold through two catalogs and that its experience-specific turn and reset fit SERVICE-006.
 
 - **EXP-002 — Ticketed checkout and add-ons.** Guests select ticket quantities and per-person dietary choices, wine pairings or other prepaid add-ons, see availability and an itemized USD checkout, pay through Stripe and receive a scoped ticket/receipt. Limited add-ons have their own inventory and cannot be oversold. Ticket checkout fits its experience-specific SERVICE-006 turn and cleanup in the shared physical inventory. **Acceptance evidence:** Buy four tasting tickets with two pairings and one limited supplement, race the last supplement from another checkout and verify one sale plus accurate remaining capacity and an experience-specific SERVICE-006 turn and reset.
 
@@ -270,7 +270,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 ### Rights, APIs and daily operation
 
-- **ROLE-001 — Owner and group-administrator rights.** Owners control restaurant/group configuration, billing/provider connections, people and capability grants, exports, erasure and backup/restore. Group admins get explicit per-venue rights without becoming owner; sensitive access and financial changes require recorded personal authority. **Acceptance evidence:** As owner connect two venues, grant a scoped group admin, revoke it and prove direct API access stops; deny a venue manager an owner export, erasure and provider credential change.
+- **ROLE-001 — Owner and group-administrator rights.** Owners control restaurant/group configuration, billing/provider connections, people and capability grants, exports, erasure and backup/restore. Group admins get explicit per-venue rights without becoming owner; sensitive access and financial changes require recorded personal authority. Before additional venues ship, approved sister-venue alternatives inherit BOOK-003 search, exact fit and stale-result reselect. **Acceptance evidence:** As owner connect two venues, grant a scoped group admin, revoke it and prove direct API access stops; deny a venue manager an owner export, erasure and provider credential change.
 
 - **ROLE-002 — Manager and shift-lead rights.** Managers configure approved shifts, publish services, assign sections, resolve guest recovery, approve policy exceptions and refunds within limits, and see allowed reports. Shift leads may resolve operational exceptions without changing payment credentials, owners or guest export rights. **Acceptance evidence:** Give a manager a $100 refund limit and a lead seating-only override; test each direct operation, refuse the excess refund and provider change, and record a permitted decision.
 
@@ -388,7 +388,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 20 | Day one · "Not in Placemat: online ordering, gift cards or the POS itself" | `BOUND-001` | partial |
 | 21 | 3:05 PM · The book · "Guests book on Google, Instagram and your site" | `BOOK-001`, `DIST-001`, `DIST-002` | partial |
 | 22 | 3:05 PM · The book · "Pacing keeps the kitchen even" (covers per half-hour slot, 16/16 full) | `SERVICE-005` | partial |
-| 23 | 3:05 PM · The book · A full slot offers nearby times ("offered 6:45 or 8:30") | `BOOK-003` | missing |
+| 23 | 3:05 PM · The book · A full slot offers nearby times ("offered 6:45 or 8:30") | `BOOK-003` | done |
 | 24 | 3:05 PM · The book · Channel per party and totals (Website 44, Google 38, Instagram 21, Phone 9) | `DIST-004`, `REPORT-003` | partial |
 | 25 | 3:05 PM · The book · "3 new since 3:00 PM" (new bookings arrive in the open book) | `FLOOR-008` | partial |
 | 26 | 4:10 PM · Confirmations · "Reminders go out by text" | `MSG-005`, `MSG-002` | partial |
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 2 | 0 | 15 |
-| Target and push further | 11 | 28 | 78 | 117 |
-| All | 24 | 30 | 78 | 132 |
+| Target and push further | 12 | 28 | 77 | 117 |
+| All | 25 | 30 | 77 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -456,7 +456,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `SERVICE-006` | Turn and cleanup rules | target | done | `src/placemat/turn-policy.ts`; `src/placemat/turn-fit.ts`; `src/placemat/capacity.ts`; `src/placemat/commands.ts`; `public/placemat-turns.js`; `tests/api/turns.test.mjs` |  |
 | `SERVICE-007` | Staff pacing overrides with warnings | target | missing |  | The service cover limit refuses every channel, staff included; there is no override, warning, reason or override reporting. |
 | `BOOK-002` | Branded website booking widget | target | partial | `src/placemat/views.ts`; `public/placemat.js`; `public/placemat.css`; `tests/api/flows.test.mjs` | Standalone branded booking exists; embed SDK, host-site installation and browser booking evidence are absent. |
-| `BOOK-003` | Reservation search and availability alternatives | target | missing |  | No implementation of this journey exists. |
+| `BOOK-003` | Reservation search and availability alternatives | target | done | `src/placemat/reservation-search.ts`; `src/placemat/http.ts`; `src/placemat/commands.ts`; `public/placemat-search.js`; `tests/api/booking-rules.test.mjs`; `tests/search-ui.mjs` |  |
 | `BOOK-004` | Secure guest modification and cancellation | target | missing |  | No implementation of this journey exists. |
 | `BOOK-005` | Staff telephone and concierge reservations | target | partial | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Staff walk-ins and guest matching exist; future staff reservations, concierge source and delivered confirmation are absent. |
 | `BOOK-006` | Booking holds and duplicate submissions | target | partial | `src/placemat/commands.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` | Floor-version race guards and same-guest/time duplicate refusal exist; temporary holds and idempotent checkout recovery do not. |

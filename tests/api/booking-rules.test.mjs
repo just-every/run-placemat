@@ -60,3 +60,53 @@ test('SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and 
   assert.ok(!JSON.stringify(await h.api('/api/backup')).includes('Caller already at the host stand'))
  }finally{await h.close()}
 })
+
+test('BOOK-003: accessible Friday search offers a real Saturday alternative, commits exact area/access and reselects stale inventory without a false booking',async()=>{
+ const h=await installation();try{
+  await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
+  const accessible=await h.command('table.save',{label:'Window four',seats:4,area:'Dining',accessTags:['wheelchair','step-free'],x:20,y:30})
+  const patio=await h.command('table.save',{label:'Patio four',seats:4,area:'Patio',accessTags:['step-free'],x:60,y:30})
+  const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7))
+  const friday=date.toISOString().slice(0,10),saturday=new Date(date.getTime()+86400000).toISOString().slice(0,10),sunday=new Date(date.getTime()+2*86400000).toISOString().slice(0,10)
+  const publish=async(name,day)=>{const s=await h.command('service.save',{name,startAt:day+'T23:00:00Z',endAt:new Date(Date.parse(day+'T23:00:00Z')+90*60000).toISOString(),turnMinutes:90,coverLimit:40});const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:s.id},reason:'Review public search service'});await h.command('proposal.approve',{proposalId:p.id});return s}
+  const fri=await publish('Friday dinner',friday),sat=await publish('Saturday dinner',saturday),sun=await publish('Sunday dinner',sunday)
+  await h.api('/api/public/book',publicGuest(fri,0,{partySize:4,area:'Dining',requiredAccessTags:['wheelchair']}),{as:'',status:201})
+  const search=async(extra={})=>{const p=new URLSearchParams({date:friday,partySize:'4',area:'Dining',requiredAccessTags:'wheelchair',...extra});return h.api('/api/public/search?'+p,undefined,{as:''})}
+  const found=await search()
+  assert.ok(found.results.length);assert.ok(found.results.every(r=>r.date!==friday&&r.alternative))
+  assert.equal(found.results[0].serviceId,sat.id);assert.equal(found.results[0].date,saturday)
+  assert.ok(!JSON.stringify(found).includes('guest0@example.test'))
+  assert.deepEqual(found.query.requiredAccessTags,['wheelchair']);assert.ok(found.accessTags.includes('step-free'))
+  const patioSearch=await search({area:'Patio',requiredAccessTags:'step-free'})
+  assert.equal(patioSearch.results[0].serviceId,fri.id);assert.equal(patioSearch.results[0].alternative,false)
+  const empty=await search({area:'Patio'})
+  assert.equal(empty.results.length,0);assert.match(empty.message,/Change.*date.*contact.*No booking/i)
+  assert.equal((await search({partySize:'5'})).results.length,0)
+  const pick=found.results[0]
+  const confirmed=(await h.api('/api/public/book',publicGuest(sat,1,{partySize:4,startAt:pick.startAt,area:'Dining',requiredAccessTags:['wheelchair']}),{as:'',status:201})).result
+  assert.equal(confirmed.startAt,pick.startAt);assert.equal(confirmed.area,'Dining');assert.deepEqual(confirmed.requiredAccessTags,['wheelchair'])
+  let state=await h.api('/api/state'),booking=state.state.bookings.find(b=>b.id===confirmed.id)
+  assert.deepEqual(booking.tableIds,[accessible.id]);assert.equal(booking.requiredArea,'Dining')
+  await h.command('booking.move',{bookingId:booking.id,tableIds:[patio.id],version:state.version},{status:409})
+  const stale=await h.api('/api/public/book',publicGuest(sat,2,{partySize:4,startAt:pick.startAt,area:'Dining',requiredAccessTags:['wheelchair']}),{as:'',status:409})
+  assert.match(stale.error,/another available time|another time/)
+  assert.ok(!(await search()).results.some(r=>r.serviceId===sat.id))
+  // Two guests act on the same real Sunday result; the public transaction door admits one.
+  const responses=await Promise.all([3,4].map(i=>h.request('/api/public/book',{method:'POST',as:'',body:publicGuest(sun,i,{partySize:4,area:'Dining',requiredAccessTags:['wheelchair']})})))
+  assert.deepEqual(responses.map(r=>r.status).sort(),[201,409])
+  state=await h.api('/api/state');assert.equal(state.state.bookings.filter(b=>b.serviceId===sat.id).length,1);assert.equal(state.state.bookings.filter(b=>b.serviceId===sun.id).length,1)
+  assert.equal((await search()).results.length,0)
+  for(const suffix of ['date=2026-02-30','date=2026-13-01','date=2026-01-01&date=2026-01-02','partySize=0'])await h.api('/api/public/search?'+suffix,undefined,{as:'',status:400})
+  await h.api('/api/public/search',{}, {as:'',status:405})
+  // An arrival after local midnight belongs to the arrival day, even when its service began yesterday.
+  const lateDate=new Date(date.getTime()+3*86400000).toISOString().slice(0,10)
+  const late=await h.command('service.save',{name:'Late dining',startAt:lateDate+'T03:30:00Z',endAt:lateDate+'T09:00:00Z',turnMinutes:90,coverLimit:40})
+  const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:late.id},reason:'Late arrival date search'});await h.command('proposal.approve',{proposalId:p.id})
+  const localSearch=await search({date:lateDate})
+  const lateResults=localSearch.results.filter(r=>r.serviceId===late.id)
+  assert.ok(lateResults.length);assert.ok(lateResults.every(r=>r.date===lateDate));assert.ok(!lateResults.some(r=>r.startAt===late.startAt),'Local arrival day excludes the prior evening')
+  await h.command('guest.erase',{guestId:booking.guestId,confirm:'ERASE'})
+  booking=(await h.api('/api/state')).state.bookings.find(b=>b.id===confirmed.id)
+  assert.equal(booking.requiredArea,undefined);assert.deepEqual(booking.requiredAccessTags,[])
+ }finally{await h.close()}
+})

@@ -16,10 +16,11 @@ import { backup,restore,erasureCheckpoint } from './backup'
 import { reminderCsv,calendar } from './downloads'
 import { reservationReport,reportCsv } from './reports'
 import { searchGuests } from './guests'
+import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  if(path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
@@ -39,6 +40,11 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    return json({error:'Not found'},404)
   }
   if(path==='/book'){if(request.method!=='GET')return json({error:'Method not allowed'},405);return productPage(request,env)}
+  if(path==='/api/public/search'){
+   if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   const {state}=await load(env.DB)
+   return json(reservationSearch(state,url.searchParams))
+  }
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)

@@ -11,6 +11,7 @@ import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save } from './store'
 import { updateGuestProfile } from './profiles'
+import {searchTables} from './reservation-search'
 
 /** The approved reminder text a venue exports for its own sender. */
 export const reminderMessage=(s:State,b:Booking)=>`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`
@@ -169,14 +170,14 @@ export async function onlineBook(db:D1Database,p:any){
  if(service.closedAt)fail(409,'This service is closed. Choose an open service; no booking has been made.')
  const partySize=number(p.partySize,'Party size',1,500)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
- const requiredAccessTags=accessTags(p.requiredAccessTags,'Required access tags')
- const fit=bookingFit(accessibleTables(s,requiredAccessTags),service,partySize,p.startAt),{tables,...slot}=fit
+ const {state:filtered,requiredArea,requiredAccessTags}=searchTables(s,p.area,p.requiredAccessTags)
+ const fit=bookingFit(filtered,service,partySize,p.startAt),{tables,...slot}=fit
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
+ const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
- return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,area:requiredArea??null,requiredAccessTags,confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
 }

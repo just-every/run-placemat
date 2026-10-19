@@ -7,6 +7,7 @@ import { guestProfile,profileSummary } from './placemat-profiles.js';
 import { renderReports } from './placemat-reports.js';
 import {assignmentEditor,hostGrant} from './placemat-assignments.js';
 import {createTimeline} from './placemat-timeline.js';
+import {createPublicSearch} from './placemat-search.js';
 /* Live restaurant screens: transport, venue time, rendering, and form actions. */
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -20,8 +21,9 @@ const field = (label, name, type = 'text', value = '', attributes = '') => `<lab
 const select = (label, name, choices, selected = '') => `<label>${esc(label)}<select name="${name}" required>${options(choices, selected)}</select></label>`;
 const form = (command, content, submit, disabled = false, className = '') => `<form data-command="${command}"${className ? ` class="${className}"` : ''}><fieldset ${disabled ? 'disabled' : ''}><div class="form-grid">${content}<div class="wide"><button type="submit">${esc(submit)}</button></div></div></fieldset></form>`;
 let serviceStatusId='',assignmentId='';
-let data, state, actor, serviceId = '', floorTime = '', guestQuery = '', publicData, publicParty = 2, importPlan, importCsv = '';
+let data, state, actor, serviceId = '', floorTime = '', guestQuery = '', importPlan, importCsv = '';
 const isPublic = document.body.dataset.page === 'public';
+const publicSearch = isPublic ? createPublicSearch({api,esc,field,select,notice}) : null;
 const canEdit = () => actor && !actor.agent && ['owner', 'admin'].includes(actor.role);
 const canOperateFloor = () => canEdit() || actor && !actor.agent && actor.role === 'host';
 const isOwner = () => canEdit() && actor.role === 'owner';
@@ -32,7 +34,7 @@ const guest = id => data.guests.find(g => g.id === id);
 const who = id => data.names?.[id] || 'Unknown person';
 const service = () => state.services.find(s => s.id === serviceId);
 const tableNames = ids => ids.map(id => state.tables.find(t => t.id === id)?.label ?? id).join(', ');
-const zone = () => (isPublic ? publicData.venue : state.venue).timezone;
+const zone = () => state.venue.timezone;
 function notice(message, kind = '') {
   const el = $('#notice'); el.textContent = message; el.dataset.kind = kind; el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
   if (kind === 'error' && el.getBoundingClientRect().top < 0) el.scrollIntoView({block:'center'});
@@ -162,20 +164,6 @@ async function loadJournal() {
   const result = (await api('/api/import/journal')).result;
   $('#import-journal').innerHTML = result.jobs.map(job => `<article class="card"><h4>Import ${esc(job.id)}</h4><p>State: ${esc(job.state)} · ${esc(job.checkpoint)} / ${esc(job.total)}</p><p class="help">Fingerprint: ${esc(job.fingerprint)}</p><div class="actions">${button('View journal','import-job',job.id)}${job.state !== 'undone' ? button('Review undo','import-review-undo',job.id) : ''}</div><div data-job-detail="${esc(job.id)}"></div></article>`).join('') || empty('No imports have been applied.');
 }
-async function loadPublic(preserve = {}) {
-  publicData = await api(`/api/public/services?partySize=${publicParty}`);
-  $('#venue-line').textContent = `${publicData.venue.name} · All times in ${publicData.venue.timezone}`;
-  const services = publicData.services;
-  $('#public-content').innerHTML = `<form data-command="public.book"><div class="form-grid">${field('Party size','partySize','number',publicParty,'required min="1" max="500"')}${select('Service','serviceId',services.map(s => [s.id,`${s.name} · ${time(s.startAt)}`]),preserve.serviceId)}<div class="wide" id="public-times"></div>${field('Your name','name','text',preserve.name || '', 'required maxlength="200" autocomplete="name"')}${field('Email','email','email',preserve.email || '', 'required autocomplete="email"')}${field('Phone (optional)','phone','tel',preserve.phone || '', 'autocomplete="tel"')}<div class="wide"><button type="submit" ${!services.length ? 'disabled' : ''}>Confirm booking</button></div></div></form>${!services.length ? empty(`No services with available times for ${publicParty} guests. Try another party size or contact the venue.`) : ''}`;
-  renderPublicTimes(preserve.startAt);
-}
-function renderPublicTimes(selected) {
-  const id = $('#public-content select[name=serviceId]')?.value;
-  const selectedService = publicData.services.find(s => s.id === id), slots = selectedService?.slots || [];
-  const inquiry = publicParty > (selectedService?.bookingRules?.online?.inquiryAbove ?? 20);
-  $('#public-times').innerHTML = slots.length ? select('Available arrival time', 'startAt', slots.map(s => [s.startAt,time(s.startAt)]), selected) : empty(inquiry ? 'This party needs a large-party inquiry. Contact the venue; no booking has been made.' : 'No available times for this service and party size. Please choose another service.');
-  $('#public-content button[type=submit]').disabled = !slots.length;
-}
 function payloadFrom(formEl) {
   const values = Object.fromEntries(new FormData(formEl));
   parseSchedule(formEl,values);
@@ -209,13 +197,6 @@ async function prepare(kind, plan, reason) {
 }
 async function submitForm(el) {
   const command = el.dataset.command, payload = payloadFrom(el);
-  if (command === 'public.book') {
-    let result;
-    try { result = (await api('/api/public/book',payload)).result; }
-    catch (error) { if (error.status === 409) await loadPublic(payload); throw error; }
-    $('#public-content').innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(payload.name)}, your table for ${payload.partySize} guests is booked at ${esc(time(result.startAt))}, until ${esc(time(result.endAt))}.</p><p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${button('Make another booking','book-another')}</article>`;
-    notice('Your booking is confirmed.', 'success'); return;
-  }
   if (command === 'import.preview') {
     importCsv = await payload.csvFile.text();
     importPlan = (await api('/api/import/dry-run',{csv:importCsv})).result;
@@ -260,12 +241,6 @@ document.addEventListener('change', event => {
   const el = event.target;
   if (el.name === 'floor-service') { serviceStatusId='';assignmentId='';serviceId = el.value; floorTime = floorStart(service()); renderFloor(); renderWaitlist(); renderApprovals(); }
   if (el.name === 'floor-time') { floorTime = el.value; renderRoom(); }
-  if (isPublic && el.name === 'serviceId') renderPublicTimes();
-  if (isPublic && el.name === 'partySize') {
-    if (!el.checkValidity()) { el.reportValidity(); return; }
-    const preserve = payloadFrom(el.closest('form')); publicParty = Number(el.value);
-    busy(async () => { await loadPublic(preserve); notice('Availability updated.'); },'Checking availability…');
-  }
 });
 document.addEventListener('input', event => {
   if (event.target.id === 'guest-search') { guestQuery = event.target.value; renderGuestResults().catch(error=>notice(error.message,'error')); }
@@ -288,7 +263,6 @@ document.addEventListener('click', event => {
   }
   busy(async () => {
     if (action === 'refresh') { await loadStaff(); notice('Venue refreshed.', 'success'); }
-    if (action === 'book-another') { await loadPublic(); notice('Choose your next booking.'); }
     if (action === 'publish') await prepare('service.publish',{serviceId:id},'Publish the reviewed service hours, capacity and table plan.');
     if (action === 'reminders') await prepare('reminders',{serviceId:id},'Prepare a reminder batch for this service for export to the venue’s own sender.');
     if (['approve','decline'].includes(action)) { await execute(`proposal.${action}`,{proposalId:id}); await loadStaff(); notice(action === 'approve' ? 'Plan approved and applied.' : 'Plan declined.', 'success'); }
@@ -317,7 +291,8 @@ if (!isPublic) {
   const spy = new IntersectionObserver(entries => { for (const entry of entries) if (entry.isIntersecting) markNav(entry.target.id === 'bookings' ? 'floor' : entry.target.id); }, {rootMargin:'-20% 0px -70% 0px'});
   document.querySelectorAll('.app-main > section').forEach(section => spy.observe(section));
 }
-busy(async () => { if (isPublic) await loadPublic(); else await loadStaff(); notice(''); },'Loading…');
+if (isPublic) publicSearch.load();
+else busy(async () => { await loadStaff(); notice(''); },'Loading…');
 
 // Keep course timers advancing without replacing a host's open form.
 if(!isPublic)setInterval(()=>document.querySelectorAll('[data-stage-since]').forEach(el=>{el.textContent=`${Math.max(0,Math.floor((Date.now()-Date.parse(el.dataset.stageSince))/60000))}m`;}),30000);

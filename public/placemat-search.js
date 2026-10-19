@@ -1,0 +1,171 @@
+/* Guest availability and booking. Events stay inside the existing booking shell. */
+export function createPublicSearch({api, esc, field, select, notice}) {
+  const root = document.querySelector('#public-content');
+  const pageSize = 40;
+  let venue, response, query, selected, page = 0, working = false;
+  let areas = [], accessTags = [];
+  let contact = {name: '', email: '', phone: ''};
+  const find = selector => root.querySelector(selector);
+  const action = (label, value, disabled = false) => `<button type="button" class="secondary" data-public-action="${value}"${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
+  const fullTime = value => new Intl.DateTimeFormat('en-US', {
+    timeZone: venue.timezone, dateStyle: 'full', timeStyle: 'short',
+  }).format(new Date(value));
+  function today() {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+      timeZone: venue.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date()).map(part => [part.type, part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  }
+  function rememberContact() {
+    const form = find('[data-public-command="book"]');
+    if (!form) return;
+    const values = new FormData(form);
+    contact = Object.fromEntries(['name', 'email', 'phone'].map(name => [name, String(values.get(name) || '')]));
+  }
+  function preferences(form) {
+    const values = new FormData(form);
+    return {date: String(values.get('date')), partySize: Number(values.get('partySize')),
+      area: String(values.get('area') || ''), requiredAccessTags: values.getAll('requiredAccessTags').map(String)};
+  }
+  function constraints() {
+    return `${query.partySize} guests · ${query.area ? `Area guaranteed: ${query.area}` : 'Any available area'} · ${query.requiredAccessTags.length ? `Required access guaranteed: ${query.requiredAccessTags.join(', ')}` : 'No access requirements selected'}`;
+  }
+  function slotLabel(slot) {
+    return `${slot.alternative ? 'Nearby date alternative' : 'Requested date'} · ${fullTime(slot.startAt)} · ${slot.serviceName} · until ${fullTime(slot.endAt)}`;
+  }
+  function renderSearch() {
+    // Keep unavailable submitted constraints visible so guests can change them explicitly.
+    const availableAreas = [...new Set([...areas, ...(query.area ? [query.area] : [])])];
+    const tags = [...new Set([...accessTags, ...query.requiredAccessTags])];
+    root.innerHTML = `<form data-public-command="search"><fieldset><div class="form-grid">${field('Arrival date', 'date', 'date', query.date, 'required')}${field('Party size', 'partySize', 'number', query.partySize, 'required min="1" max="500"')}${select('Required area', 'area', [['', 'Any available area'], ...availableAreas.map(area => [area, area])], query.area)}<fieldset class="wide"><legend>Required table access</legend>${tags.length ? tags.map(tag => `<label><input type="checkbox" name="requiredAccessTags" value="${esc(tag)}"${query.requiredAccessTags.includes(tag) ? ' checked' : ''}>${esc(tag)}</label>`).join('') : '<p class="help">No table access features are listed. Contact the venue if you need an access feature.</p>'}<p class="help">Choose every feature your party needs. Results must meet all selected requirements.</p></fieldset><div class="wide"><button type="submit">Find available times</button></div></div></fieldset></form><div id="public-search-results" aria-live="polite"></div><div id="public-booking-form"></div>`;
+    // An empty area means no constraint; this selector must permit that value.
+    find('[name="area"]').required = false;
+  }
+  function renderResults() {
+    const target = find('#public-search-results');
+    if (!response) {
+      target.innerHTML = '<p class="help">Choose your visit details and find available times.</p>';
+      return;
+    }
+    const rows = response.results;
+    if (!rows.length) {
+      target.innerHTML = `<p class="empty">${esc(response.message || 'No available times match your visit.')}</p><p>Change the date, party size, area or access requirements and search again, or contact the venue. No booking has been made.</p>`;
+      return;
+    }
+    const offset = page * pageSize, visible = rows.slice(offset, offset + pageSize);
+    target.innerHTML = `<article class="card"><h2>Available arrival times</h2><p>${esc(constraints())}</p><p class="help">${esc(response.message || 'Choose an arrival time. Nearby date alternatives are labelled below.')} All times in ${esc(venue.timezone)}.</p><label>Choose an available time<select name="public-result"><option value="">Choose a time</option>${visible.map((slot, index) => `<option value="${offset + index}"${selected === slot ? ' selected' : ''}>${esc(slotLabel(slot))}</option>`).join('')}</select></label>${rows.length > pageSize ? `<p class="help">Times ${offset + 1}–${offset + visible.length} of ${rows.length}, in arrival order.</p><div class="actions">${action('Earlier times', 'previous', page === 0)}${action('Later times', 'next', offset + pageSize >= rows.length)}</div>` : ''}</article>`;
+  }
+  function renderBooking() {
+    const target = find('#public-booking-form');
+    if (!selected) { target.innerHTML = ''; return; }
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
+  }
+  async function search(nextQuery) {
+    query = nextQuery;
+    selected = undefined;
+    response = undefined;
+    page = 0;
+    renderSearch();
+    renderResults();
+    const params = new URLSearchParams({date: query.date, partySize: String(query.partySize), area: query.area});
+    query.requiredAccessTags.forEach(tag => params.append('requiredAccessTags', tag));
+    response = await api(`/api/public/search?${params}`);
+    venue = response.venue;
+    areas = response.areas;
+    accessTags = response.accessTags;
+    document.querySelector('#venue-line').textContent = `${venue.name} · All times in ${venue.timezone}`;
+    query = response.query;
+    renderSearch();
+    renderResults();
+  }
+  async function book() {
+    if (!selected) throw new Error('Choose an available arrival time before confirming.');
+    const payload = {...contact, partySize: query.partySize, area: query.area,
+      requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
+    let result;
+    try { result = (await api('/api/public/book', payload)).result; }
+    catch (error) {
+      if ([400, 409].includes(error.status)) {
+        selected = undefined;
+        renderBooking();
+        try { await search(query); }
+        catch { throw new Error('No booking has been made. Availability could not be refreshed. Search again, then choose a new time. Your contact details are kept for your next selection.'); }
+        throw new Error(`No booking has been made. ${error.message} Review the refreshed availability and choose a time again. Your contact details are kept for your next selection.`);
+      }
+      throw error;
+    }
+    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(contact.name)}, your table for ${query.partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(constraints())}</p><p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${action('Make another booking', 'another')}</article>`;
+    notice('Your booking is confirmed.', 'success');
+  }
+  async function run(work, message) {
+    if (working) return;
+    working = true;
+    const controls = [...root.querySelectorAll('fieldset, button')].map(element => [element, element.disabled]);
+    controls.forEach(([element]) => { element.disabled = true; });
+    root.inert = true;
+    root.setAttribute('aria-busy', 'true');
+    notice(message);
+    try { await work(); }
+    catch (error) { notice(error.message, 'error'); }
+    finally {
+      controls.forEach(([element, disabled]) => { if (element.isConnected) element.disabled = disabled; });
+      root.removeAttribute('aria-busy');
+      root.inert = false;
+      working = false;
+    }
+  }
+  async function load() {
+    root.innerHTML = action('Try loading availability again', 'retry');
+    // This endpoint also serves existing clients; only venue metadata bootstraps the search.
+    const bootstrap = await api('/api/public/services?partySize=2');
+    venue = bootstrap.venue;
+    contact = {name: '', email: '', phone: ''};
+    await search({date: today(), partySize: 2, area: '', requiredAccessTags: []});
+  }
+  root.addEventListener('submit', event => {
+    const form = event.target.closest('form[data-public-command]');
+    if (!form) return;
+    event.preventDefault();
+    if (working || !form.reportValidity()) return;
+    rememberContact();
+    const nextQuery = form.dataset.publicCommand === 'search' ? preferences(form) : null;
+    run(async () => {
+      if (nextQuery) { await search(nextQuery); notice('Availability updated. Choose an arrival time.'); }
+      else await book();
+    }, nextQuery ? 'Checking availability…' : 'Confirming booking…');
+  });
+  root.addEventListener('change', event => {
+    if (working) return;
+    if (event.target.closest('[data-public-command="search"]')) {
+      rememberContact();
+      selected = undefined;
+      response = undefined;
+      renderResults();
+      renderBooking();
+      notice('Visit details changed. Find available times before choosing a visit.');
+    }
+    if (event.target.name === 'public-result') {
+      rememberContact();
+      const value = event.target.value;
+      selected = value === '' ? undefined : response?.results[Number(value)];
+      renderBooking();
+      notice(selected ? 'Review the selected date and time, then enter your contact details.' : 'Choose an available arrival time.');
+    }
+  });
+  root.addEventListener('click', event => {
+    const button = event.target.closest('[data-public-action]');
+    if (!button || working) return;
+    const value = button.dataset.publicAction;
+    if (value === 'next' || value === 'previous') {
+      rememberContact();
+      page += value === 'next' ? 1 : -1;
+      selected = undefined;
+      renderResults();
+      renderBooking();
+      find('[name="public-result"]').focus();
+      return;
+    }
+    run(async () => { await load(); notice('Choose your next visit.'); }, 'Loading availability…');
+  });
+  return {load: () => run(async () => { await load(); notice('Choose an available arrival time.'); }, 'Loading availability…')};
+}
