@@ -1,3 +1,4 @@
+import {executeServiceStatus,assertTablesReady} from './service-status'
 import {executeSchedule,approveSchedule} from './schedules'
 import {initializeQueue,queueCanSeat,markQueueSeated,executeQueue} from './queue'
 import {normalizeTurnPolicy,turnImpact} from './turn-policy'
@@ -66,6 +67,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    if(!['booked','seated'].includes(b.status))fail(409,'Only active bookings can move tables.')
    const service=serviceBy(s,b.serviceId)
    const tables=allocation(s,service,b.partySize,b,plan.tableIds,b.id)
+   if(b.status==='seated')assertTablesReady(s,tables.map(t=>t.id),b.id)
    exact={bookingId:b.id,booking:structuredClone(b),tableIds:tables.map(t=>t.id)}
   }else fail(400,'Unknown proposal kind.')
   result={id:id(),kind,plan:exact,status:'pending',preparedBy:actor.id,preparedAt:now,reason:text(p.reason,'Reason',1000)}
@@ -94,6 +96,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    const b=booking(s,plan.bookingId)
    if(plain(b)!==plain(plan.booking))fail(409,'This booking changed. Prepare a new table assignment.')
    const tables=allocation(s,serviceBy(s,b.serviceId),b.partySize,b,plan.tableIds,b.id)
+   if(b.status==='seated')assertTablesReady(s,tables.map(t=>t.id),b.id)
    b.tableIds=tables.map(t=>t.id)
   }
   proposal.status='approved';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break
@@ -109,7 +112,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
   result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
-  s.bookings.push(result);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break
+  s.bookings.push(result);executeServiceStatus(s,actor,{bookingId:result.id,stage:'seated'},now);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break
  }
  case 'waitlist.add':{
   const service=serviceBy(s,p.serviceId);if(service.status!=='published')fail(409,'Publish the service first.');if(service.closedAt)fail(409,'This service is closed. Choose an open service.')
@@ -121,11 +124,8 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  case 'waitlist.status':case 'waitlist.priority':case 'waitlist.quote':case 'waitlist.followup':case 'service.close':{
   result=executeQueue(s,actor,p,command,now);break
  }
- case 'booking.status':{
-  const b=booking(s,p.bookingId),next=p.status
-  const allowed:Record<string,string[]>={booked:['seated','cancelled','no-show'],seated:['completed'],completed:[],cancelled:[],'no-show':[]}
-  if(!allowed[b.status].includes(next))fail(409,'That status transition is not available for this booking.')
-  b.status=next;result=b;break
+ case 'booking.stage':case 'booking.status':{
+  const changed=executeServiceStatus(s,actor,{...p,stage:p.stage??p.status},now);result=command==='booking.status'?changed.booking:changed;break
  }
  case 'guest.update':case 'guest.profile':{
   const update=await updateGuestProfile(db,p.guestId,p,actor,version,now)

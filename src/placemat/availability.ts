@@ -12,7 +12,8 @@ export function serviceBy(s:State,id:unknown):Service {return s.services.find(x=
 export function bookingFit(s:State,service:Service,partySize:number,value:unknown,channel:'online'|'walk-in'|'waitlist'='online',requested?:unknown){
  const startAt=instant(value,'Start')
  if((Date.parse(startAt)-Date.parse(service.startAt))%(ruleFor(service,channel).slotMinutes*60000)!==0)fail(400,`Choose a ${ruleFor(service,channel).slotMinutes}-minute start that fits the full turn within the service.`)
- return fitAt(s,service,partySize,startAt,requested)
+ const unavailable=channel==='online'?[]:s.bookings.filter(b=>b.needsBussing).flatMap(b=>b.tableIds)
+ return fitAt(s,service,partySize,startAt,requested,unavailable)
 }
 export function slots(s:State,service:Service,size:unknown){
  if(service.closedAt)return []

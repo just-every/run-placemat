@@ -17,6 +17,7 @@ test('GUEST-002: normalized search, explicit profile facts, dated sources and re
   const first=(await h.api('/api/public/book',publicGuest(s,0,{name:'Álex Rivera',email:'alex.rivera@example.test',phone:'4155550123'}),{as:'',status:201})).result
   await h.command('booking.status',{bookingId:first.id,status:'seated'})
   await h.command('booking.status',{bookingId:first.id,status:'completed'})
+  await h.command('booking.stage',{bookingId:first.id,stage:'ready'})
   const profile={guestId:imported.id,tags:['VIP','Anniversary patio'],vipLevel:'vip',seatingPreference:'Window by the cedar planter',notes:'Staff observed: celebrating a tenth anniversary'}
   await h.api('/api/guests?search=Alex',undefined,{as:'',status:401})
   await h.command('guest.profile',profile,{as:'',status:401})

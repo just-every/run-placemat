@@ -1,11 +1,11 @@
 import {fail,type State,type Service,type Table,type Booking} from './model'
 export const overlaps=(a:{startAt:string;endAt:string;cleanupEndAt?:string},b:{startAt:string;endAt:string;cleanupEndAt?:string})=>a.startAt<(b.cleanupEndAt??b.endAt)&&(a.cleanupEndAt??a.endAt)>b.startAt
-export const active=(b:Booking)=>b.status==='booked'||b.status==='seated'||b.status==='completed'&&!!b.cleanupEndAt&&b.cleanupEndAt>b.endAt
-export function allocation(s:State,service:Service,partySize:number,slot:{startAt:string;endAt:string;cleanupEndAt?:string},requested?:unknown,except?:string):Table[] {
+export const active=(b:Booking)=>b.status==='booked'||b.status==='seated'||b.status==='completed'
+export function allocation(s:State,service:Service,partySize:number,slot:{startAt:string;endAt:string;cleanupEndAt?:string},requested?:unknown,except?:string,unavailable:string[]=[]):Table[] {
  const bookings=s.bookings.filter(b=>b.id!==except&&b.serviceId===service.id)
  const covers=bookings.filter(b=>!['cancelled','no-show'].includes(b.status)).reduce((n,b)=>n+b.partySize,0)
  if(covers+partySize>service.coverLimit)fail(409,'This service has reached its cover limit.')
- const occupied=new Set(bookings.filter(b=>active(b)&&overlaps(b,slot)).flatMap(b=>b.tableIds))
+ const occupied=new Set([...unavailable,...bookings.filter(b=>active(b)&&overlaps(b,slot)).flatMap(b=>b.tableIds)])
  // A physical table is shared by overlapping services, too.
  for(const b of s.bookings.filter(b=>b.id!==except&&active(b)&&overlaps(b,slot)))for(const id of b.tableIds)occupied.add(id)
  const free=s.tables.filter(t=>!occupied.has(t.id))

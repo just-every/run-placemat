@@ -110,10 +110,6 @@ html{scroll-behavior:smooth;scroll-padding-top:24px}
 .rer-themed th+th,.rer-themed td+td{border-left:1px solid var(--pm-rule)}
 .rer-themed tbody tr:last-child td{border-bottom:0}
 .bookings-table td:first-child strong{font-weight:600}
-.status-select{max-width:150px;min-height:34px!important;padding:4px 34px 4px 14px!important;border-radius:999px!important;font-size:14px!important}
-.status-select[data-value=booked]{border-color:var(--pm-sea-soft)!important;background-color:var(--pm-sea-soft)!important}
-.status-select[data-value=seated]{border-color:var(--pm-sea-deep)!important;background-color:var(--pm-sea-deep)!important}
-.status-select:not([data-value=booked],[data-value=seated]){border-color:var(--pm-ink)!important}
 .actions{display:flex;align-items:center;gap:10px 22px;flex-wrap:wrap}
 .card{margin:12px 0;padding:18px 20px;border:1px solid var(--pm-rule);border-radius:12px;background:var(--pm-surface)}
 .card p:last-child{margin-bottom:0}
@@ -236,3 +232,6 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
   .staff-link{display:block;text-align:center}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.rer-themed summary::before,.rer-themed details.guest>summary::after{transition:none}}
+
+/* Course labels stay readable beside small table drawings on host phones. */
+#floor .floor-stage-caption{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);width:116px;padding:2px 4px;border-radius:4px;background:var(--pm-surface);font:400 12px/1.3 var(--pm-ui);white-space:normal}

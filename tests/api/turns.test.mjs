@@ -23,6 +23,7 @@ test('SERVICE-006: party, table and area turns fit last seating and cleanup; exa
   assert.equal(b6.endAt,at('19:00'));assert.equal(b6.cleanupEndAt,at('19:15'))
   await h.command('booking.walkin',publicGuest(draft,2,{startAt:at('18:30'),tableIds:[two.id]}),{status:409})
   await h.command('booking.status',{bookingId:b2.id,status:'seated'});await h.command('booking.status',{bookingId:b2.id,status:'completed'})
+  await h.command('booking.stage',{bookingId:b2.id,stage:'ready'})
   await h.command('booking.walkin',publicGuest(draft,2,{startAt:at('18:30'),tableIds:[two.id]}),{status:409})
   const nextTwo=await h.command('booking.walkin',publicGuest(draft,2,{startAt:at('18:45'),tableIds:[two.id]}))
   assert.equal(nextTwo.startAt,b2.cleanupEndAt);assert.equal(nextTwo.endAt,at('20:15'))
@@ -47,6 +48,7 @@ test('SERVICE-006: party, table and area turns fit last seating and cleanup; exa
   assert.ok(after.some(s=>s.startAt===at('20:00')))
   assert.ok(after.every(s=>s.startAt<=at('20:00')),'last seating is inclusive and new bookings use it')
   await h.api('/api/public/book',publicGuest(draft,9,{startAt:at('20:15')}),{as:'',status:400})
+  await h.command('booking.status',{bookingId:p4.id,status:'completed'});await h.command('booking.stage',{bookingId:p4.id,stage:'ready'})
   const tableRule=await h.command('booking.walkin',publicGuest(draft,8,{partySize:4,startAt:at('19:00'),tableIds:[patio.id]}))
   assert.equal(tableRule.endAt,at('20:15'));assert.equal(tableRule.cleanupEndAt,at('20:45'),'table rule overrides area and party rules')
   const newPolicyBooking=(await h.api('/api/public/book',publicGuest(draft,12,{partySize:2,startAt:at('20:00')}),{as:'',status:201})).result
@@ -55,12 +57,14 @@ test('SERVICE-006: party, table and area turns fit last seating and cleanup; exa
   const other=await h.command('service.save',{name:'Patio overlap',startAt:at('20:15'),endAt:at('23:00'),turnMinutes:60,coverLimit:20})
   const otherPlan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:other.id},reason:'Review overlapping sitting'})
   await h.command('proposal.approve',{proposalId:otherPlan.id})
+  await h.command('booking.status',{bookingId:tableRule.id,status:'completed'});await h.command('booking.stage',{bookingId:tableRule.id,stage:'ready'})
   await h.command('booking.walkin',publicGuest(other,10,{startAt:at('20:15'),tableIds:[patio.id]}),{status:409})
   const adjacent=await h.command('booking.walkin',publicGuest(other,10,{startAt:at('20:45'),tableIds:[patio.id]}))
   assert.equal(adjacent.startAt,tableRule.cleanupEndAt)
   // Service defaults still apply when no party/table/area rule matches.
   const defaultTurn=await h.command('booking.walkin',publicGuest(other,11,{partySize:2,startAt:at('21:30'),tableIds:[six.id]}))
   assert.equal(defaultTurn.endAt,at('22:30'))
+  for(const b of [nextTwo,defaultTurn]){await h.command('booking.status',{bookingId:b.id,status:'completed'});await h.command('booking.stage',{bookingId:b.id,stage:'ready'})}
   const comboDay=new Date(Date.parse(at('17:00'))+86400000).toISOString().slice(0,10)
   const combo=await h.command('service.save',{name:'Combined turn',startAt:comboDay+'T17:00:00Z',endAt:comboDay+'T23:00:00Z',turnMinutes:60,coverLimit:30,turnPolicy:{cleanupMinutes:15,partyTurns:[],tableTurns:{[two.id]:90,[six.id]:120},areaTurns:{}}})
   const comboPlan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:combo.id},reason:'Review longest joined-table turn'})

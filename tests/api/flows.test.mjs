@@ -76,6 +76,7 @@ test('FLOOR-001: combinations, UTC turn bounds, service-wide table conflicts, co
   await h.command('booking.status',{bookingId:b.id,status:'seated'})
   await h.command('proposal.approve',{proposalId:stale.id},{status:409})
   await h.command('booking.status',{bookingId:b.id,status:'completed'})
+  await h.command('booking.stage',{bookingId:b.id,stage:'ready'})
   const next=(await h.api('/api/public/book',publicGuest(s,2,{partySize:4,startAt:later}),{as:'',status:201})).result
   await h.command('booking.status',{bookingId:next.id,status:'seated'});await h.command('booking.status',{bookingId:next.id,status:'completed'})
   await h.api('/api/public/book',publicGuest(s,3,{startAt:new Date(Date.parse(s.startAt)+150*60000).toISOString()}),{as:'',status:409})

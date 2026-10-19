@@ -25,6 +25,7 @@ test('REPORT-001: venue-local shift filters, cover denominators, drilldowns and 
   }
   await h.command('booking.status',{bookingId:booked[0].id,status:'seated'})
   await h.command('booking.status',{bookingId:booked[0].id,status:'completed'})
+  await h.command('booking.stage',{bookingId:booked[0].id,stage:'ready'})
   await h.command('booking.status',{bookingId:booked[1].id,status:'cancelled'})
   await h.command('booking.status',{bookingId:booked[2].id,status:'no-show'})
   const walkin=await h.command('booking.walkin',publicGuest(late,4,{startAt:late.startAt,partySize:4,tableIds:[patio.id]}))
@@ -74,10 +75,12 @@ test('REPORT-001: venue-local shift filters, cover denominators, drilldowns and 
   // Historical and currently running services use the same report, without pretending they are online bookings.
   const now=Date.now(),historical=await publish('Yesterday',new Date(now-86400000).toISOString(),new Date(now-80000000).toISOString())
   const past=await h.command('booking.walkin',publicGuest(historical,7,{tableIds:[dining.id]}))
+  await h.command('booking.status',{bookingId:past.id,status:'completed'});await h.command('booking.stage',{bookingId:past.id,stage:'ready'})
   const current=await publish('Now',new Date(now-1800000).toISOString(),new Date(now+5400000).toISOString())
   const present=await h.command('booking.walkin',publicGuest(current,8,{tableIds:[dining.id]}))
   assert.deepEqual((await h.api('/api/reports/reservations?period=past')).rows.map(r=>r.bookingId),[past.id])
   assert.deepEqual((await h.api('/api/reports/reservations?period=current')).rows.map(r=>r.bookingId),[present.id])
+  for(const b of [walkin,present]){await h.command('booking.status',{bookingId:b.id,status:'completed'});await h.command('booking.stage',{bookingId:b.id,stage:'ready'})}
   const joined=await publish('Combined areas',`${year}-12-04T01:00:00Z`,`${year}-12-04T04:00:00Z`)
   const combinedBooking=(await h.api('/api/public/book',publicGuest(joined,9,{partySize:6}),{as:'',status:201})).result
   const combinedReport=await h.api('/api/reports/reservations?serviceId='+joined.id)

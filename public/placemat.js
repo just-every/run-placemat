@@ -1,3 +1,4 @@
+import {floorLegend,stageLabel,statusEditor,shiftHandover} from './placemat-service-status.js';
 import {renderSchedules,scheduleEditor,parseSchedule,schedulePlan} from './placemat-schedules.js';
 import {renderQueue,queueIntakeFields,queueCloseForm} from './placemat-queue.js';
 import {turnPolicyFields,parseTurnPolicy} from './placemat-turns.js';
@@ -16,8 +17,8 @@ const button = (text, action, id = '', secondary = true) => `<button type="butto
 const field = (label, name, type = 'text', value = '', attributes = '') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" ${attributes}></label>`;
 const select = (label, name, choices, selected = '') => `<label>${esc(label)}<select name="${name}" required>${options(choices, selected)}</select></label>`;
 const form = (command, content, submit, disabled = false, className = '') => `<form data-command="${command}"${className ? ` class="${className}"` : ''}><fieldset ${disabled ? 'disabled' : ''}><div class="form-grid">${content}<div class="wide"><button type="submit">${esc(submit)}</button></div></div></fieldset></form>`;
+let serviceStatusId='';
 let data, state, actor, serviceId = '', floorTime = '', guestQuery = '', publicData, publicParty = 2, importPlan, importCsv = '';
-const transitions = {booked:['seated','cancelled','no-show'],seated:['completed'],completed:[],cancelled:[],'no-show':[]};
 const isPublic = document.body.dataset.page === 'public';
 const canEdit = () => actor && !actor.agent && ['owner', 'admin'].includes(actor.role);
 const isOwner = () => canEdit() && actor.role === 'owner';
@@ -76,19 +77,20 @@ async function loadStaff() {
 function floorStart(s) { const now = Date.now(); return localTime(now >= Date.parse(s.startAt) && now < Date.parse(s.endAt) ? now - now % 900000 : s.startAt); }
 function renderFloor() {
   const s = service();
-  $('#floor-content').innerHTML = !s ? emptyRoom('Start by adding tables and creating a service below.') : `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}</div><div id="floor-room"></div><div class="legend"><span>Available</span><span class="booked">Booked</span><span class="seated">Seated</span></div>`;
+  $('#floor-content').innerHTML = !s ? emptyRoom('Start by adding tables and creating a service below.') : `<div class="toolbar">${select('Service', 'floor-service', serviceChoices(), serviceId)}${field(`View at (${zone()})`, 'floor-time', 'datetime-local', floorTime)}</div><div id="floor-room"></div>${floorLegend()}<div id="shift-handover"></div>`;
   $('#bookings').hidden = !s;
   if (!s) { $('#bookings-list').innerHTML = ''; return; }
   renderRoom(); renderBookings();
+  $('#shift-handover').innerHTML=shiftHandover(state,serviceId,data.serviceStages,{esc,guest,who,time,tableNames,canEdit:canEdit(),button});
 }
 function renderRoom() {
   let at;
   try { at = Date.parse(toUtc(floorTime)); } catch (error) { $('#floor-room').innerHTML = empty(error.message); return; }
-  const bookings = state.bookings.filter(b => (['booked','seated'].includes(b.status)||b.status==='completed'&&b.cleanupEndAt>b.endAt) && Date.parse(b.startAt) <= at && Date.parse(b.cleanupEndAt||b.endAt) > at);
+  const bookings = state.bookings.filter(b => b.needsBussing || (['booked','seated'].includes(b.status)||b.status==='completed'&&b.cleanupEndAt>b.endAt) && Date.parse(b.startAt) <= at && Date.parse(b.cleanupEndAt||b.endAt) > at);
   $('#floor-room').innerHTML = state.tables.length ? `<div class="floor-scroll"><div class="floor-map" role="group" aria-label="Floor plan at selected time">${state.tables.map(t => {
-    const occupied = bookings.find(b => b.tableIds.includes(t.id)), g = occupied && guest(occupied.guestId);
-    return `<div class="floor-table" data-seats="${t.seats > 2 ? 4 : 2}"${t.seats > 2 ? ' data-shape="round"' : ''} data-occupancy="${occupied?.status || 'available'}" data-x="${t.x}" data-y="${t.y}" title="${esc(occupied ? `${g?.name || 'Erased guest'} · ${occupied.partySize} guests · ${time(occupied.startAt)} to ${time(occupied.endAt)}` : 'Available at selected time')}"><span class="top"><strong>${esc(t.label)}</strong><small>${t.seats} seats</small>${occupied ? `<small>${esc(g?.name || 'Erased guest')}</small><small>${esc(at>=Date.parse(occupied.endAt)?'Reset reserved':occupied.status)}</small>` : '<small>Available</small>'}</span></div>`;
-  }).join('')}</div></div>` : empty('No tables yet. Add the tables in your room below.');
+    const occupied = bookings.find(b => b.tableIds.includes(t.id)), g = occupied && guest(occupied.guestId),ready=state.bookings.findLast(b=>b.tableIds.includes(t.id)&&data.serviceStages?.[b.id]?.status==='ready');
+    return `<div class="floor-table" data-seats="${t.seats > 2 ? 4 : 2}"${t.seats > 2 ? ' data-shape="round"' : ''} data-occupancy="${occupied?.status || 'available'}" data-x="${t.x}" data-y="${t.y}" title="${esc(occupied ? `${g?.name || 'Erased guest'} · ${occupied.partySize} guests · ${time(occupied.startAt)} to ${time(occupied.endAt)}` : ready?'Staff recorded ready; reserved turns and resets still apply.':'Available at selected time')}"><span class="top"><strong>${esc(t.label)}</strong><small>${t.seats} seats</small>${occupied ? `<small>${esc(g?.name || 'Erased guest')}</small>` : ready?'':'<small>Available</small>'}</span>${occupied||ready?`<span class="floor-stage-caption">${stageLabel(data.serviceStages[(occupied||ready).id],{esc})}</span>`:''}</div>`;
+  }).join('')}</div></div><div class="table-scroll"><table aria-label="Floor states and timers"><thead><tr><th>Table</th><th>Floor state / timer</th></tr></thead><tbody>${state.tables.map(t=>{const b=bookings.find(b=>b.tableIds.includes(t.id))||state.bookings.findLast(b=>b.tableIds.includes(t.id)&&data.serviceStages?.[b.id]?.status==='ready');return `<tr><td>${esc(t.label)}</td><td>${b?stageLabel(data.serviceStages?.[b.id],{esc}):'Available · no transition recorded'}</td></tr>`}).join('')}</tbody></table></div>` : empty('No tables yet. Add the tables in your room below.');
   $('#floor-room .floor-map')?.style.setProperty('--count', state.tables.length);
   document.querySelectorAll('.floor-table').forEach(el => { el.style.left = `${5 + Number(el.dataset.x) * .9}%`; el.style.top = `${12 + Number(el.dataset.y) * .76}%`; });
 }
@@ -96,7 +98,7 @@ function renderBookings() {
   const rows = state.bookings.filter(b => b.serviceId === serviceId).sort((a,b) => a.startAt.localeCompare(b.startAt));
   const covers = rows.filter(b => !['cancelled','no-show'].includes(b.status)).reduce((n,b) => n+b.partySize,0);
   const s = service();
-  $('#bookings-list').innerHTML = `<div class="split-heading"><h2>Bookings</h2><span class="badge">${covers} / ${s.coverLimit} covers</span></div>${rows.length ? `<div class="table-scroll"><table class="bookings-table"><thead><tr><th>Guest</th><th>Arrival / end</th><th>Party / tables</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(b => `<tr><td><strong>${esc(guest(b.guestId)?.name || 'Erased guest')}</strong><br><span class="muted">${esc(b.source)}</span>${profileSummary(guest(b.guestId),{esc,who,time})}</td><td>${esc(time(b.startAt))}<br><span class="muted">until ${esc(time(b.endAt))}${b.cleanupEndAt>b.endAt?`<br>Reset until ${esc(time(b.cleanupEndAt))}`:''}</span></td><td>${b.partySize} guests<br>${esc(tableNames(b.tableIds))}</td><td>${canEdit() ? `<select class="status-select" data-value="${esc(b.status)}" aria-label="Status for ${esc(guest(b.guestId)?.name || 'booking')}" data-status="${esc(b.id)}">${options([b.status,...transitions[b.status]].map(v => [v,v]), b.status)}</select>` : badge(b.status)}</td><td><div class="actions">${canEdit() ? `<a href="/api/calendar/${encodeURIComponent(b.id)}">Calendar</a>` : ''}${canPrepare() && ['booked','seated'].includes(b.status) ? `<button type="button" class="link-button" data-action="reassign" data-id="${esc(b.id)}">Reassign</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('No bookings for this service yet. Share the guest booking page or add a walk-in.')}<div id="reassignment"></div>${canEdit() && s.status === 'published' && !s.closedAt ? `<details><summary>Add a walk-in</summary>${form('booking.walkin', serviceField() + personFields() + startField() + tableField() + field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"'), 'Seat walk-in')}</details>` : ''}`;
+  $('#bookings-list').innerHTML = `<div class="split-heading"><h2>Bookings</h2><span class="badge">${covers} / ${s.coverLimit} covers</span></div>${rows.length ? `<div class="table-scroll"><table class="bookings-table"><thead><tr><th>Guest</th><th>Arrival / end</th><th>Party / tables</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(b => `<tr><td><strong>${esc(guest(b.guestId)?.name || 'Erased guest')}</strong><br><span class="muted">${esc(b.source)}</span>${profileSummary(guest(b.guestId),{esc,who,time})}</td><td>${esc(time(b.startAt))}<br><span class="muted">until ${esc(time(b.endAt))}${b.cleanupEndAt>b.endAt?`<br>Reset until ${esc(time(b.cleanupEndAt))}`:''}</span></td><td>${b.partySize} guests<br>${esc(tableNames(b.tableIds))}</td><td>${badge((data.serviceStages?.[b.id]?.serviceStatus||b.status).replaceAll('-',' '))}</td><td><div class="actions">${canEdit()?button('Update service','service-status',b.id):''}${canEdit() ? `<a href="/api/calendar/${encodeURIComponent(b.id)}">Calendar</a>` : ''}${canPrepare() && ['booked','seated'].includes(b.status) ? `<button type="button" class="link-button" data-action="reassign" data-id="${esc(b.id)}">Reassign</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>` : empty('No bookings for this service yet. Share the guest booking page or add a walk-in.')}<div id="reassignment"></div><div id="service-status-editor">${serviceStatusId&&canEdit()&&state.bookings.find(b=>b.id===serviceStatusId)?statusEditor(state.bookings.find(b=>b.id===serviceStatusId),state,data.serviceStages?.[serviceStatusId],{esc,form,select,field,who,time}):''}</div>${canEdit() && s.status === 'published' && !s.closedAt ? `<details><summary>Add a walk-in</summary>${form('booking.walkin', serviceField() + personFields() + startField() + tableField() + field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"'), 'Seat walk-in')}</details>` : ''}`;
 }
 function renderServices() {
   const editable = canEdit();
@@ -245,9 +247,8 @@ document.addEventListener('submit', event => {
 });
 document.addEventListener('change', event => {
   const el = event.target;
-  if (el.name === 'floor-service') { serviceId = el.value; floorTime = floorStart(service()); renderFloor(); renderWaitlist(); renderApprovals(); }
+  if (el.name === 'floor-service') { serviceStatusId='';serviceId = el.value; floorTime = floorStart(service()); renderFloor(); renderWaitlist(); renderApprovals(); }
   if (el.name === 'floor-time') { floorTime = el.value; renderRoom(); }
-  if (el.dataset.status) busy(async () => { try { await execute('booking.status',{bookingId:el.dataset.status,status:el.value}); } finally { await loadStaff(); } notice('Booking status saved.', 'success'); });
   if (isPublic && el.name === 'serviceId') renderPublicTimes();
   if (isPublic && el.name === 'partySize') {
     if (!el.checkValidity()) { el.reportValidity(); return; }
@@ -261,6 +262,7 @@ document.addEventListener('input', event => {
 document.addEventListener('click', event => {
   const el = event.target.closest('[data-action]'); if (!el) return;
   const action = el.dataset.action, id = el.dataset.id;
+  if(action==='service-status'){serviceStatusId=id;const b=state.bookings.find(b=>b.id===id);$('#service-status-editor').innerHTML=statusEditor(b,state,data.serviceStages?.[id],{esc,form,select,field,who,time});$('#service-status-editor').scrollIntoView({block:'center'});return;}
   if(action==='edit-schedule'){$('#schedule-editor').innerHTML=scheduleEditor(state.schedules.find(s=>s.id===id),{form,field,select,esc});$('#schedule-editor').scrollIntoView({block:'center'});return;}
   if (action === 'edit-service') { $('#service-editor').innerHTML = serviceEditor(state.services.find(s => s.id === id)); $('#service-editor').scrollIntoView({block:'center'}); return; }
   if (action === 'edit-turns') {
@@ -305,3 +307,6 @@ if (!isPublic) {
   document.querySelectorAll('.app-main > section').forEach(section => spy.observe(section));
 }
 busy(async () => { if (isPublic) await loadPublic(); else await loadStaff(); notice(''); },'Loading…');
+
+// Keep course timers advancing without replacing a host's open form.
+if(!isPublic)setInterval(()=>document.querySelectorAll('[data-stage-since]').forEach(el=>{el.textContent=`${Math.max(0,Math.floor((Date.now()-Date.parse(el.dataset.stageSince))/60000))}m`;}),30000);

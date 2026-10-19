@@ -46,9 +46,11 @@ test('SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and 
   const state=(await h.api('/api/state')).state
   assert.ok(state.audit.some(a=>a.action==='booking.rule-override'&&a.subject===seated.id&&a.actor===seated.ruleOverride.actor))
   await h.command('booking.walkin',publicGuest(lunch,4,{partySize:6,tableIds:[table.id],overrideReason:'Cannot create seats'}),{as:manager,status:409})
+  await h.command('booking.status',{bookingId:seated.id,status:'completed'});await h.command('booking.stage',{bookingId:seated.id,stage:'ready'})
   const exception=await h.command('booking.walkin',publicGuest(beyond,5,{overrideReason:'Manager accepted advance two-top'}),{as:manager})
   assert.equal(exception.ruleOverride.violations.length,2)
   assert.match(exception.ruleOverride.violations.join(' '),/Party size.*open 1/)
+  await h.command('booking.status',{bookingId:exception.id,status:'completed'});await h.command('booking.stage',{bookingId:exception.id,stage:'ready'})
   const waiting=await h.command('waitlist.add',publicGuest(dinner,2))
   const waitSeated=await h.command('waitlist.seat',{waitlistId:waiting.id,startAt:dinner.startAt})
   assert.equal(waitSeated.ruleOverride,undefined,'separate waitlist lead rule applies')

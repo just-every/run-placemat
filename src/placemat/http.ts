@@ -1,3 +1,4 @@
+import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
 import { Problem,fail,id,text,type Actor } from './model'
 import { actorFor,person,originCheck,jsonBody } from './access'
@@ -50,7 +51,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    const {state,version}=await load(env.DB)
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]
    const people=await guests(env.DB)
-   return json({state,version,guests:people,actor,keys,names:await actorNames(env.DB,state,people)})
+   return json({state,version,guests:people,actor,keys,serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/commands'&&request.method==='POST'){
    const p=await jsonBody(request)
