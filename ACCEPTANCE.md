@@ -10,7 +10,7 @@ Statuses below match the contract at code commit `d1ee743104d2256f1a3211a958f7b5
 
 - **ACCESS-001 — Native sessions and preparation authority.** **Status: done.** Call state, commands, downloads, import and backup directly while signed out, as member, admin and preparation key; refuse unauthorized writes and cross-origin requests; revoke a key and refuse its next read. **Current evidence:** `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs`.
 
-- **PRIVACY-001 — Public guest isolation.** **Status: partial.** Create two guests through the public booking door; inspect availability and both confirmations while signed out and prove neither response contains the other guest’s details. **Current evidence:** `src/placemat/http.ts`; `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Remaining:** Responses are deliberately restricted; an explicit cross-guest response-isolation assertion is absent.
+- **PRIVACY-001 — Public guest isolation.** **Status: done.** Create two guests through the public booking door; inspect availability and both confirmations while signed out and prove neither response contains the other guest’s details. **Current evidence:** `src/placemat/http.ts`; `src/placemat/commands.ts`; `tests/api/privacy.test.mjs`.
 
 - **BOOK-001 — Live assigned reservations.** **Status: done.** Publish a service, make three public reservations and race the final fitting combination from two guest requests; exactly one succeeds and the next availability read reflects it. **Current evidence:** `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs`.
 
