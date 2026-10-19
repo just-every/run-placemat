@@ -1,12 +1,13 @@
+import type {TurnPolicy} from './turn-policy'
 import type { BookingRules } from './booking-rules'
 export type Table = { id:string; label:string; seats:number; area?:string; x:number; y:number }
-export type Service = { id:string; name:string; startAt:string; endAt:string; turnMinutes:number; coverLimit:number; status:'draft'|'published'; version:number; bookingRules?:BookingRules }
+export type Service = { id:string; name:string; startAt:string; endAt:string; turnMinutes:number; coverLimit:number; status:'draft'|'published'; version:number; bookingRules?:BookingRules; turnPolicy?:TurnPolicy }
 export type GuestFieldProvenance = { source:'guest-supplied'|'staff-observed'|'imported'; actor:string|null; at:string|null; reference?:string }
 export type GuestProfile = { tags:string[]; vipLevel:'none'|'regular'|'vip'; seatingPreference:string; provenance:Partial<Record<'tags'|'vipLevel'|'seatingPreference',GuestFieldProvenance>> }
 export type Guest = { id:string; name:string; email:string; phone:string; notes:string; profile?:GuestProfile; provenance?:Partial<Record<'name'|'email'|'phone'|'notes',GuestFieldProvenance>>; notesHistory?:Array<{notes:string;provenance:GuestFieldProvenance}>; history?:Array<{date:string;partySize:number;status:string}>; erased?:boolean }
-export type Booking = { id:string; serviceId:string; guestId:string; partySize:number; startAt:string; endAt:string; tableIds:string[]; status:'booked'|'seated'|'completed'|'cancelled'|'no-show'; source:'online'|'walk-in'|'waitlist'; createdAt:string; ruleOverride?:{actor:string;at:string;channel:string;violations:string[];reason:string} }
+export type Booking = { id:string; serviceId:string; guestId:string; partySize:number; startAt:string; endAt:string; cleanupEndAt?:string; tableIds:string[]; status:'booked'|'seated'|'completed'|'cancelled'|'no-show'; source:'online'|'walk-in'|'waitlist'; createdAt:string; ruleOverride?:{actor:string;at:string;channel:string;violations:string[];reason:string} }
 export type Waiting = { id:string; serviceId:string; guestId:string; partySize:number; status:'waiting'|'seated'|'cancelled' }
-export type Proposal = { id:string; kind:'service.publish'|'reminders'|'table.assign'; plan:any; status:'pending'|'approved'|'declined'; preparedBy:string; preparedAt:string; approvedBy?:string; approvedAt?:string; reason:string }
+export type Proposal = { id:string; kind:'service.publish'|'service.turns'|'reminders'|'table.assign'; plan:any; status:'pending'|'approved'|'declined'; preparedBy:string; preparedAt:string; approvedBy?:string; approvedAt?:string; reason:string }
 export type Reminder = { id:string; bookingId:string; guestId:string; message:string; status:'approved'|'exported'; approvedBy:string; approvedAt:string }
 export type State = { venue:{name:string;timezone:string}; tables:Table[]; services:Service[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:Array<{id:string;at:string;actor:string;action:string;subject:string}> }
 export type Actor = {id:string;name:string;role:string;agent?:boolean}

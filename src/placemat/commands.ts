@@ -1,6 +1,7 @@
+import {normalizeTurnPolicy,turnImpact} from './turn-policy'
 import {normalizeRules,checkBookingRules} from './booking-rules'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
-import { allocation,instant,interval,serviceBy } from './availability'
+import { allocation,instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save } from './store'
 import { updateGuestProfile } from './profiles'
@@ -37,7 +38,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   const startAt=instant(p.startAt,'Service start'),endAt=instant(p.endAt,'Service end'),turnMinutes=number(p.turnMinutes,'Turn minutes',15,360)
   const duration=(Date.parse(endAt)-Date.parse(startAt))/60000
   if(duration<turnMinutes||duration>1440)fail(400,'Service duration must fit a turn and be no more than 24 hours.')
-  const service={id:current?.id??id(),name:text(p.name,'Service name',120),startAt,endAt,turnMinutes,coverLimit:number(p.coverLimit,'Cover limit',1,500),bookingRules:normalizeRules(p.bookingRules),status:'draft' as const,version:(current?.version??0)+1}
+  const service={id:current?.id??id(),name:text(p.name,'Service name',120),startAt,endAt,turnMinutes,coverLimit:number(p.coverLimit,'Cover limit',1,500),bookingRules:normalizeRules(p.bookingRules??current?.bookingRules),turnPolicy:normalizeTurnPolicy(p.turnPolicy??current?.turnPolicy,s,{startAt,endAt}),status:'draft' as const,version:(current?.version??0)+1}
   if(current)Object.assign(current,service);else s.services.push(service)
   result=service;break
  }
@@ -47,6 +48,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    const service=serviceBy(s,plan.serviceId)
    if(service.status!=='draft'||!s.tables.length)fail(409,'Create tables and a draft service first.')
    exact={serviceId:service.id,service:structuredClone(service),tables:structuredClone(s.tables),venue:structuredClone(s.venue)}
+  }else if(kind==='service.turns'){
+   const service=serviceBy(s,plan.serviceId),policy=normalizeTurnPolicy(plan.turnPolicy,s,service)
+   exact={serviceId:service.id,service:structuredClone(service),turnPolicy:policy,bookings:structuredClone(s.bookings),tables:structuredClone(s.tables),impacts:turnImpact(s,service,policy)}
   }else if(kind==='reminders'){
    const service=serviceBy(s,plan.serviceId)
    const rows=s.bookings.filter(b=>b.serviceId===service.id&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
@@ -71,6 +75,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    const service=serviceBy(s,plan.serviceId)
    if(plain(service)!==plain(plan.service)||plain(s.tables)!==plain(plan.tables)||plain(s.venue)!==plain(plan.venue))fail(409,'This draft changed. Prepare and review the service again.')
    service.status='published';service.version++
+  }else if(proposal.kind==='service.turns'){
+   const service=serviceBy(s,plan.serviceId)
+   if(plain(service)!==plain(plan.service)||plain(s.bookings)!==plain(plan.bookings)||plain(s.tables)!==plain(plan.tables))fail(409,'The service or bookings changed. Review the turn policy again.')
+   service.turnPolicy=plan.turnPolicy;service.version++
   }else if(proposal.kind==='reminders'){
    const rows=s.bookings.filter(b=>b.serviceId===plan.serviceId&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
    if(plain(rows)!==plain(plan.bookings)||plain(s.venue)!==plain(plan.venue))fail(409,'Bookings changed. Prepare and review the reminders again.')
@@ -88,7 +96,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(waiting&&waiting.status!=='waiting')fail(409,'This party is no longer waiting.')
   const service=serviceBy(s,waiting?.serviceId??p.serviceId)
   if(service.status!=='published')fail(409,'Publish this service first.')
-  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),slot=interval(service,p.startAt,waiting?'waitlist':'walk-in'),ruleOverride=checkBookingRules(s,service,partySize,slot.startAt,waiting?'waitlist':'walk-in',actor,p.overrideReason),tables=allocation(s,service,partySize,slot,p.tableIds)
+  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(s,service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
@@ -121,14 +129,15 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
 export async function onlineBook(db:D1Database,p:any){
  const {state:s,version}=await load(db),service=serviceBy(s,p.serviceId)
  if(service.status!=='published')fail(404,'This service is not open for bookings.')
- const partySize=number(p.partySize,'Party size',1,500),slot=interval(service,p.startAt)
+ const partySize=number(p.partySize,'Party size',1,500)
+ checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
+ const fit=bookingFit(s,service,partySize,p.startAt),{tables,...slot}=fit
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
- checkBookingRules(s,service,partySize,slot.startAt,'online')
- const tables=allocation(s,service,partySize,slot),entry=await guestFor(db,p)
+ const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
  const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
- return {id:b.id,startAt:b.startAt,endAt:b.endAt,partySize,confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
 }

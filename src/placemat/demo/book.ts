@@ -3,7 +3,7 @@
 // turn inside the service, cover limits, no table clashes, smallest table fit)
 // and moved through the same status transitions staff use.
 import type { Booking, Service, State, Waiting } from '../model'
-import { allocation, interval } from '../availability'
+import { bookingFit } from '../availability'
 import { fixedId, type Clock, random } from './clock'
 import { table, tables, type Guests } from './venue'
 
@@ -34,9 +34,8 @@ export function book(clock: Clock, people: Guests, venue: State['venue']): Book 
     state.services.push(s); return s
   }
   const place = (s: Service, guestId: string, partySize: number, start: string, source: Booking['source'], requested?: string[]) => {
-    const slot = interval(s, start)
     try {
-      const fit = allocation(state, s, partySize, slot, requested?.map(label => table(label).id))
+      const {tables:fit,...slot} = bookingFit(state, s, partySize, start, 'online', requested?.map(label => table(label).id))
       const createdAt = source === 'online' ? new Date(Date.parse(slot.startAt) - (2 + Math.floor(rng.next() * 12)) * 86400000 - Math.floor(rng.next() * 600) * 60000).toISOString() : slot.startAt
       const b: Booking = { id: fixedId(3, ++bookingN), serviceId: s.id, guestId, partySize, ...slot, tableIds: fit.map(t => t.id), status: 'booked', source, createdAt: [createdAt, slot.startAt, new Date(clock.now - Math.floor(rng.next() * 900) * 60000).toISOString()].sort()[0] }
       state.bookings.push(b); return b
