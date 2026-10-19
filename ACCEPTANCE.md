@@ -20,7 +20,7 @@ Statuses below match the contract at code commit `d1ee743104d2256f1a3211a958f7b5
 
 - **PLAN-001 — Exact plans and accountable decisions.** **Status: done.** Prepare with an owner-issued key, refuse key approval, change a draft, refuse stale approval, then approve a fresh plan as manager and read its identities; prepare and approve a valid table move. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs`.
 
-- **MSG-001 — Approved reminder CSV custody.** **Status: partial.** Book guests, mark one no-show, approve remaining reminders and download CSV with US-formatted local times; erase a booked guest and download again, proving the guest’s personal values are absent. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs`. **Remaining:** Approval, export attribution, no-show and erasure exclusion work; reminder text is rendered with an `en-AU` date format, not US format.
+- **MSG-001 — Approved reminder CSV custody.** **Status: done.** Book guests, mark one no-show, approve remaining reminders and download CSV with US-formatted local times; erase a booked guest and download again, proving the guest’s personal values are absent. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/reminders.test.mjs`.
 
 - **WAIT-001 — Staff walk-ins and waiting parties.** **Status: done.** Run the Friday HTTP journey with online bookings, a walk-in, a waiting party and a no-show; seat the waiting party and refuse completion before seating. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`.
 

@@ -427,9 +427,9 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 11 | 4 | 0 | 15 |
+| Published | 12 | 3 | 0 | 15 |
 | Target and push further | 1 | 37 | 79 | 117 |
-| All | 12 | 41 | 79 | 132 |
+| All | 13 | 40 | 79 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -439,7 +439,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `FLOOR-001` | Conflict-safe physical capacity | published | done | `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` |  |
 | `SERVICE-001` | Reviewed dated service publication | published | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` |  |
 | `PLAN-001` | Exact plans and accountable decisions | published | done | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs` |  |
-| `MSG-001` | Approved reminder CSV custody | published | partial | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs` | Approval, export attribution, no-show and erasure exclusion work; reminder text is rendered with an `en-AU` date format, not US format. |
+| `MSG-001` | Approved reminder CSV custody | published | done | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/reminders.test.mjs` |  |
 | `WAIT-001` | Staff walk-ins and waiting parties | published | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` |  |
 | `GUEST-001` | Guest visit history | published | done | `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` |  |
 | `MIG-001` | Reviewed Tablein-shaped move-in | published | done | `src/placemat/import/index.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` |  |
