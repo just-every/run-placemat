@@ -16,6 +16,7 @@ try{
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    const tables=[];for(let i=0;i<4;i++)tables.push(await h.command('table.save',{label:['Window 4','Dining 4','Garden 4','Booth 4'][i],seats:4,area:'Dining',x:20+i%2*50,y:20+Math.floor(i/2)*50}))
+   for(const pair of [[0,1],[2,3]])await h.command('combination.save',{tableIds:pair.map(i=>tables[i].id),capacity:8,accessTags:[],setupMinutes:0,enabled:true,adjacent:true})
    const tomorrow=new Date(Date.now()+86400000).toISOString().slice(0,10)
    const publish=async(name,startAt,turnMinutes=90)=>{const service=await h.command('service.save',{name,startAt,endAt:add(startAt,300),turnMinutes,coverLimit:80});const plan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Host stand ready'});await h.command('proposal.approve',{proposalId:plan.id});return service}
    const dinner=await publish('Friday dinner',tomorrow+'T21:00:00Z'),book=async(service,i,extra={})=>(await h.api('/api/public/book',publicGuest(service,i,{partySize:4,...extra}),{as:'',status:201})).result

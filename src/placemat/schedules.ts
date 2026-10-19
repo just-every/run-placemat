@@ -17,7 +17,7 @@ type Renewal={serviceId:string;scheduleId:string;localDate:string;reason:string;
 type Conflict={candidateId:string;serviceId?:string;otherCandidateId?:string;message:string}
 type SchedulePlan={
  fromDate:string;toDate:string;timezone:string;scheduleIds:string[];renewServiceIds:string[];
- snapshot:{venue:State['venue'];tables:State['tables'];services:State['services'];bookings:State['bookings'];schedules:ScheduleTemplate[]};
+ snapshot:{venue:State['venue'];tables:State['tables'];combinations:State['combinations'];services:State['services'];bookings:State['bookings'];schedules:ScheduleTemplate[]};
  candidates:Candidate[];requiresRenewedApproval:Renewal[];conflicts:Conflict[]
 }
 const plain=(value:unknown)=>JSON.stringify(value)
@@ -154,7 +154,7 @@ function preview(s:ScheduleState,actor:Actor,p:any,now:string):Proposal{
   candidates.push({id:id(),scheduleId:template.id,scheduleVersion:template.version,localDate,action,service,capacity:{seats,coverLimit:service.coverLimit},requiresRenewedApproval:renewal,preserved,...(current?{existingServiceId:current.id}:{}),...(startOffset?{startOffset,endOffset}:{})})
  }
  for(const serviceId of renewServiceIds)if(!requiresRenewedApproval.some(row=>row.serviceId===serviceId))fail(400,'Renewed approval IDs must identify changed future services in this preview.')
- const plan:SchedulePlan={fromDate,toDate,timezone:s.venue.timezone,scheduleIds:[...scheduleIds],renewServiceIds:[...renewServiceIds],snapshot:structuredClone({venue:s.venue,tables:s.tables,services:s.services,bookings:s.bookings,schedules}),candidates,requiresRenewedApproval,conflicts:conflictsFor(s,candidates)}
+ const plan:SchedulePlan={fromDate,toDate,timezone:s.venue.timezone,scheduleIds:[...scheduleIds],renewServiceIds:[...renewServiceIds],snapshot:structuredClone({venue:s.venue,tables:s.tables,combinations:s.combinations??[],services:s.services,bookings:s.bookings,schedules}),candidates,requiresRenewedApproval,conflicts:conflictsFor(s,candidates)}
  const proposal:Proposal={id:id(),kind:'schedule.publish',plan,status:'pending',preparedBy:actor.id,preparedAt:now,reason:text(p.reason,'Schedule publication reason',1000)}
  s.proposals.push(proposal)
  return proposal
@@ -166,7 +166,7 @@ export function approveSchedule(s:State,actor:Actor,proposal:Proposal,now:string
  if(proposal.kind!=='schedule.publish')fail(400,'Choose a schedule publication proposal.')
  if(proposal.status!=='pending')fail(409,'This schedule proposal has already been decided.')
  const plan=proposal.plan as SchedulePlan,snapshot=plan.snapshot
- const current={venue:s.venue,tables:s.tables,services:s.services,bookings:s.bookings,schedules:(s as ScheduleState).schedules??[]}
+ const current={venue:s.venue,tables:s.tables,combinations:s.combinations??[],services:s.services,bookings:s.bookings,schedules:(s as ScheduleState).schedules??[]}
  if(!snapshot||plain(current)!==plain(snapshot))fail(409,'The schedules, venue, floor, services or bookings changed. Preview and review the schedule again.')
  if(!s.tables.length)fail(409,'Create the real floor tables before publishing a schedule.')
  if(plan.conflicts.length)fail(409,'Resolve the overlapping services shown in the preview before publishing.')

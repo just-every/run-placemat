@@ -65,6 +65,7 @@ test('SERVICE-006: party, table and area turns fit last seating and cleanup; exa
   const defaultTurn=await h.command('booking.walkin',publicGuest(other,11,{partySize:2,startAt:at('21:30'),tableIds:[six.id]}))
   assert.equal(defaultTurn.endAt,at('22:30'))
   for(const b of [nextTwo,defaultTurn]){await h.command('booking.status',{bookingId:b.id,status:'completed'});await h.command('booking.stage',{bookingId:b.id,stage:'ready'})}
+  await h.command('combination.save',{tableIds:[two.id,six.id],capacity:8,accessTags:[],setupMinutes:0,enabled:true,adjacent:true})
   const comboDay=new Date(Date.parse(at('17:00'))+86400000).toISOString().slice(0,10)
   const combo=await h.command('service.save',{name:'Combined turn',startAt:comboDay+'T17:00:00Z',endAt:comboDay+'T23:00:00Z',turnMinutes:60,coverLimit:30,turnPolicy:{cleanupMinutes:15,partyTurns:[],tableTurns:{[two.id]:90,[six.id]:120},areaTurns:{}}})
   const comboPlan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:combo.id},reason:'Review longest joined-table turn'})

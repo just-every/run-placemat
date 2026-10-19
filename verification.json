@@ -34,7 +34,8 @@
         "pnpm run test:runtime",
         "node tests/floor-ui.mjs",
         "node tests/queue-ui.mjs",
-        "node tests/search-ui.mjs"
+        "node tests/search-ui.mjs",
+        "node tests/combinations-ui.mjs"
       ]
     }
   ],

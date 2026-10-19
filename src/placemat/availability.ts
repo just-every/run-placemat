@@ -21,7 +21,7 @@ export function slots(s:State,service:Service,size:unknown){
  for(let t=Date.parse(service.startAt);t<Date.parse(service.endAt);t+=ruleFor(service,'online').slotMinutes*60000){
   if(t<Date.now())continue
   const startAt=new Date(t).toISOString()
-  try{checkBookingRules(s,service,partySize,startAt,'online');const {tables,...slot}=fitAt(s,service,partySize,startAt);result.push(slot)}catch(error){if(!(error instanceof Error)||!('status' in error)||![400,409].includes(Number(error.status)))throw error}
+  try{checkBookingRules(s,service,partySize,startAt,'online');const {startAt:arrival,endAt,cleanupEndAt}=fitAt(s,service,partySize,startAt);result.push({startAt:arrival,endAt,cleanupEndAt})}catch(error){if(!(error instanceof Error)||!('status' in error)||![400,409].includes(Number(error.status)))throw error}
  }
  return result
 }

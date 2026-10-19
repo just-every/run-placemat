@@ -2,7 +2,9 @@ import { emptyState, fail, type State, type Guest } from './model'
 export async function load(db:D1Database):Promise<{state:State;version:number}> {
  await db.prepare('INSERT OR IGNORE INTO pm_state(id,version,data) VALUES(1,0,?)').bind(JSON.stringify(emptyState())).run()
  const row=await db.prepare('SELECT version,data FROM pm_state WHERE id=1').first<{version:number;data:string}>()
- return {state:JSON.parse(row!.data),version:row!.version}
+ const state:State=JSON.parse(row!.data)
+ state.combinations??=[]
+ return {state,version:row!.version}
 }
 export async function guests(db:D1Database):Promise<Guest[]> {return (await db.prepare('SELECT data FROM pm_guests ORDER BY id').all<{data:string}>()).results.map(r=>JSON.parse(r.data))}
 export async function save(db:D1Database,state:State,version:number,before:D1PreparedStatement[]=[]) {

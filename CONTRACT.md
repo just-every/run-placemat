@@ -102,7 +102,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 - **FLOOR-002 — Rooms and editable floor plans.** Managers arrange rooms, indoor/outdoor areas, bars and numbered tables with shapes, seats, accessibility and joinable combinations. Changes are previewed against future commitments; retired tables retain history and live occupancy is visible without manual page reload. Before richer table attributes ship, preserve FLOOR-009 direct move/swap/lock fit, access and history obligations. **Acceptance evidence:** Draw dining room and patio, retire a booked table with an approved replacement, book both areas and watch occupancy update on a second host device.
 
-- **FLOOR-003 — Approved table combinations.** Managers explicitly permit which adjacent tables can join, their combined capacity, accessible fit and setup buffer. Allocation cannot combine distant or incompatible tables merely because their seats sum to the party size. Before explicit join definitions ship, enforce FLOOR-009 permitted combinations on direct and prepared moves as well as all booking doors. **Acceptance evidence:** Permit T1+T2 but prohibit T1+T8; request six guests, verify the permitted join is used and reject a host attempting the prohibited join.
+- **FLOOR-003 — Approved table combinations.** Managers explicitly permit which adjacent tables can join, their combined capacity, accessible fit and setup buffer. Allocation cannot combine distant or incompatible tables merely because their seats sum to the party size. Before explicit join definitions ship, enforce FLOOR-009 permitted combinations on direct and prepared moves as well as all booking doors. Managers confirm adjacency explicitly for an exact set; joins can cross named areas only when explicitly approved, while a booking’s required area must match every constituent. Approved capacity is an integer no greater than the constituent seats, and every approved access tag must exist on every constituent. Setup is 0–120 whole elapsed minutes immediately before arrival, within the service, with half-open occupancy from setup start through the preserved turn/reset and any ongoing overrun; single tables need no setup. Current public search/booking, staff walk-ins, waitlist seating, direct move/swap/lock and prepared assignments all enforce these definitions. Active booked/seated commitments freeze join settings and setup; disabling prevents new assignments while preserving those commitments, and structural edits wait until they finish. Changes to join configuration invalidate prepared publication or reassignment review. Future booking doors (BOOK-002, BOOK-005, DIST-001–DIST-004, VOICE-001, AGENT-001) inherit exact joins and full setup before shipping. **Acceptance evidence:** Permit T1+T2 but prohibit T1+T8; request six guests, verify the permitted join is used and reject a host attempting the prohibited join.
 
 - **FLOOR-004 — Server sections and fair covers.** Managers create shift-specific sections, assign servers and tables, record breaks and cap covers per server. Hosts see seated/expected covers and rotation, while reassignment preserves the serving history and checks kitchen and server capacity. Before server sections ship, expose assigned server filtering in the FLOOR-005 timeline and enforce FLOOR-009 server capacity and serving history on moves. **Acceptance evidence:** Assign two sections and servers, seat uneven parties, put one server on break and move a table; verify cover totals, suggested rotation and attributed service history.
 
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 13 | 2 | 0 | 15 |
-| Target and push further | 12 | 28 | 77 | 117 |
-| All | 25 | 30 | 77 | 132 |
+| Target and push further | 13 | 27 | 77 | 117 |
+| All | 26 | 29 | 77 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -468,7 +468,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `DIST-005` | Guest accounts and repeat booking | target | missing |  | No implementation of this journey exists. |
 | `DIST-006` | Verified diner reviews and restaurant replies | target | missing |  | No diner reviews, ratings, replies or moderation exist. |
 | `FLOOR-002` | Rooms and editable floor plans | target | partial | `src/placemat/commands.ts`; `src/placemat/views.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Positioned tables and manual refreshed occupancy exist; rooms, table attributes, editable combinations and live synchronization do not. |
-| `FLOOR-003` | Approved table combinations | target | partial | `src/placemat/availability.ts`; `tests/api/flows.test.mjs` | Distinct-table subset allocation exists; adjacency, allowed combination definitions and setup buffers are absent. |
+| `FLOOR-003` | Approved table combinations | target | done | `src/placemat/combinations.ts`; `src/placemat/capacity.ts`; `src/placemat/assignments.ts`; `public/placemat-combinations.js`; `tests/api/combinations.test.mjs`; `tests/combinations-ui.mjs` |  |
 | `FLOOR-004` | Server sections and fair covers | target | missing |  | No implementation of this journey exists. |
 | `FLOOR-005` | Timeline and overdue turns | target | done | `src/placemat/timeline.ts`; `src/placemat/capacity.ts`; `public/placemat-timeline.js`; `tests/api/timeline.test.mjs`; `tests/floor-ui.mjs` |  |
 | `FLOOR-006` | Service statuses and handover | target | done | `src/placemat/service-status.ts`; `public/placemat-service-status.js`; `tests/api/service-status.test.mjs` |  |

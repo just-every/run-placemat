@@ -1,6 +1,6 @@
 import {normalizeIntake,assertNoActiveDuplicate,issueQueueToken,executeIntake} from './wait-join'
 import {extendTurn} from './timeline'
-import {executeAssignment,validateAssignment,accessTags,accessibleTables} from './assignments'
+import {executeAssignment,validateAssignment,validateAssignments,applyAssignment,assignmentSnapshot,accessTags} from './assignments'
 import {executeServiceStatus} from './service-status'
 import {executeSchedule,approveSchedule} from './schedules'
 import {initializeQueue,queueCanSeat,markQueueSeated,executeQueue} from './queue'
@@ -12,6 +12,7 @@ import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save } from './store'
 import { updateGuestProfile } from './profiles'
 import {searchTables} from './reservation-search'
+import {saveCombination} from './combinations'
 
 /** The approved reminder text a venue exports for its own sender. */
 export const reminderMessage=(s:State,b:Booking)=>`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`
@@ -51,9 +52,11 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(s.services.length&&timezone!==s.venue.timezone)fail(409,'Keep the venue timezone after creating a service; existing services retain their instants.')
   result=s.venue={name,timezone};break
  }
+ case 'combination.save':{result=saveCombination(s,p);break}
  case 'table.save':{
   const current=p.id?s.tables.find(t=>t.id===p.id):null
   if(p.id&&!current)fail(404,'Table not found.')
+  if(current&&s.combinations?.some(c=>c.tableIds.includes(current.id)))fail(409,'Remove this table from approved combinations before changing its settings.')
   if(current&&s.bookings.some(b=>b.tableIds.includes(current.id)))fail(409,'A table with booking history is kept unchanged. Add a new table instead.')
   if(!current&&s.tables.length>=40)fail(400,'This release supports up to 40 tables.')
   const table={id:current?.id??id(),label:text(p.label,'Table label',40),area:p.area===undefined?(current?.area??'Dining room'):text(p.area,'Area',80),seats:number(p.seats,'Seats',1,20),accessTags:accessTags(p.accessTags??current?.accessTags,'Table access tags'),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
@@ -76,10 +79,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(kind==='service.publish'){
    const service=serviceBy(s,plan.serviceId)
    if(service.status!=='draft'||!s.tables.length)fail(409,'Create tables and a draft service first.')
-   exact={serviceId:service.id,service:structuredClone(service),tables:structuredClone(s.tables),venue:structuredClone(s.venue)}
+   exact={serviceId:service.id,service:structuredClone(service),tables:structuredClone(s.tables),combinations:structuredClone(s.combinations??[]),venue:structuredClone(s.venue)}
   }else if(kind==='service.turns'){
    const service=serviceBy(s,plan.serviceId),policy=normalizeTurnPolicy(plan.turnPolicy,s,service)
-   exact={serviceId:service.id,service:structuredClone(service),turnPolicy:policy,bookings:structuredClone(s.bookings),tables:structuredClone(s.tables),impacts:turnImpact(s,service,policy)}
+   exact={serviceId:service.id,service:structuredClone(service),turnPolicy:policy,bookings:structuredClone(s.bookings),tables:structuredClone(s.tables),combinations:structuredClone(s.combinations??[]),impacts:turnImpact(s,service,policy)}
   }else if(kind==='reminders'){
    const service=serviceBy(s,plan.serviceId)
    const rows=s.bookings.filter(b=>b.serviceId===service.id&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
@@ -91,7 +94,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    if(!['booked','seated'].includes(b.status))fail(409,'Only active bookings can move tables.')
    if(b.assignmentLocked)fail(409,'Unlock this assignment before preparing a table change.')
    const tables=validateAssignment(s,b,plan.tableIds,now)
-   exact={bookingId:b.id,booking:structuredClone(b),tableIds:tables.map(t=>t.id)}
+   exact={bookingId:b.id,booking:structuredClone(b),tableIds:tables.map(t=>t.id),combinations:structuredClone(s.combinations??[])}
   }else fail(400,'Unknown proposal kind.')
   result={id:id(),kind,plan:exact,status:'pending',preparedBy:actor.id,preparedAt:now,reason:text(p.reason,'Reason',1000)}
   s.proposals.push(result);break
@@ -105,11 +108,11 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    approveSchedule(s,actor,proposal,now)
   }else if(proposal.kind==='service.publish'){
    const service=serviceBy(s,plan.serviceId)
-   if(plain(service)!==plain(plan.service)||plain(s.tables)!==plain(plan.tables)||plain(s.venue)!==plain(plan.venue))fail(409,'This draft changed. Prepare and review the service again.')
+   if(plain(service)!==plain(plan.service)||plain(s.tables)!==plain(plan.tables)||plain(s.combinations??[])!==plain(plan.combinations??[])||plain(s.venue)!==plain(plan.venue))fail(409,'This draft changed. Prepare and review the service again.')
    service.status='published';service.version++
   }else if(proposal.kind==='service.turns'){
    const service=serviceBy(s,plan.serviceId)
-   if(plain(service)!==plain(plan.service)||plain(s.bookings)!==plain(plan.bookings)||plain(s.tables)!==plain(plan.tables))fail(409,'The service or bookings changed. Review the turn policy again.')
+   if(plain(service)!==plain(plan.service)||plain(s.bookings)!==plain(plan.bookings)||plain(s.tables)!==plain(plan.tables)||plain(s.combinations??[])!==plain(plan.combinations??[]))fail(409,'The service or bookings changed. Review the turn policy again.')
    service.turnPolicy=plan.turnPolicy;service.version++
   }else if(proposal.kind==='reminders'){
    const rows=s.bookings.filter(b=>b.serviceId===plan.serviceId&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
@@ -117,10 +120,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
    for(const b of rows)s.reminders.push({id:id(),bookingId:b.id,guestId:b.guestId,message:reminderMessage(s,b),status:'approved',approvedBy:actor.id,approvedAt:now})
   }else{
    const b=booking(s,plan.bookingId)
+   if(plain(s.combinations??[])!==plain(plan.combinations??[]))fail(409,'Approved combinations changed. Prepare a new table assignment.')
    if(plain(b)!==plain(plan.booking))fail(409,'This booking changed. Prepare a new table assignment.')
    if(b.assignmentLocked)fail(409,'Unlock this assignment before approving a table change.')
-   const tables=validateAssignment(s,b,plan.tableIds,now)
-   b.tableIds=tables.map(t=>t.id)
+   const before=assignmentSnapshot(b),destination=validateAssignments(s,[{booking:b,tableIds:plan.tableIds}],now)[0]
+   applyAssignment(b,destination)
+   s.audit.push({id:id(),at:now,actor:actor.id,action:'table.assign',subject:b.id,before:[before],after:[assignmentSnapshot(b)],reason:proposal.reason})
   }
   proposal.status='approved';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break
  }
@@ -130,12 +135,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   const service=serviceBy(s,waiting?.serviceId??p.serviceId)
   if(service.status!=='published')fail(409,'Publish this service first.')
   if(service.closedAt)fail(409,'This service is closed. Choose an open service.')
-  const requiredAccessTags=accessTags(waiting?.requiredAccessTags??p.requiredAccessTags,'Required access tags')
-  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(accessibleTables(s,requiredAccessTags),service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
+  const {state:filtered,requiredArea,requiredAccessTags}=searchTables(s,p.area??p.requiredArea,waiting?.requiredAccessTags??p.requiredAccessTags)
+  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(filtered,service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
-  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
+  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
   s.bookings.push(result);executeServiceStatus(s,actor,{bookingId:result.id,stage:'seated'},now);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break
  }
  case 'waitlist.add':{

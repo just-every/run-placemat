@@ -1,4 +1,5 @@
-import {allocation,active} from './capacity'
+import {allocation,active,occupiedStartAt,occupiedEndAt} from './capacity'
+import {assignmentFor} from './combinations'
 import {fail,id,text,type Actor,type Booking,type State} from './model'
 
 export const serviceStatuses = ['confirmed','reconfirmed','arrived','partially-arrived','seated','ordering','check-open','paid','clearing','completed','late','cancelled','no-show'] as const
@@ -58,12 +59,12 @@ export function assertTablesReady(s:State,tableIds:string[],except?:string){
 function fit(s:State,b:Booking,now:string,seating:boolean) {
  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
  if(service.status!=='published'||service.closedAt)fail(409,'Choose an open, published service before seating this party.')
- allocation(s,service,b.partySize,b,b.tableIds,b.id)
+ allocation(s,service,b.partySize,b,b.tableIds,b.id,[],now)
  if(seating){
   assertTablesReady(s,b.tableIds,b.id)
   // Check the actual current instant separately from the protected reservation.
   // This does not invent an occupied interval between now and a future booking.
-  if(s.bookings.some(other=>other.id!==b.id&&active(other)&&other.startAt<=now&&(other.cleanupEndAt??other.endAt)>now&&other.tableIds.some(id=>b.tableIds.includes(id))))fail(409,'A selected table is occupied now. Review the current floor before seating or correcting this party.')
+  if(s.bookings.some(other=>other.id!==b.id&&active(other)&&occupiedStartAt(other)<=now&&occupiedEndAt(other,now)>now&&other.tableIds.some(id=>b.tableIds.includes(id))))fail(409,'A selected table is occupied now. Review the current floor before seating or correcting this party.')
  }
 }
 
@@ -125,6 +126,10 @@ export function executeServiceStatus(s:State,actor:Actor,p:any,now:string) {
    after.floorStatus=explicitFloor;after.needsBussing=explicitFloor==='ready'?false:after.needsBussing||explicitFloor!=='reserved'
   }
   if(after.status===before.status&&after.floorStatus===before.floorStatus&&history.length)fail(409,'That service state is already recorded.')
+ }
+ if(['booked','seated'].includes(after.bookingStatus)){
+  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
+  assignmentFor(s,b.tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,b)
  }
  const reacquiring=['booked','seated'].includes(after.bookingStatus)&&!['booked','seated'].includes(before.bookingStatus)
  if(reacquiring||after.needsBussing&&(!before.needsBussing||before.floorStatus==='ready'))fit(s,b,now,after.needsBussing||after.bookingStatus==='seated')

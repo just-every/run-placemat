@@ -53,6 +53,7 @@ test('Direct transport roles, CSRF, agent preparation and exact-draft person app
 test('FLOOR-001: combinations, UTC turn bounds, service-wide table conflicts, cover cap and stale review protect capacity',async()=>{
  const h=await installation();try{
   const {service:s,floor}=await service(h,{tables:2,seats:2,covers:8})
+  await h.command('combination.save',{tableIds:floor.map(t=>t.id),capacity:4,accessTags:[],setupMinutes:0,enabled:true,adjacent:true})
   const results=await Promise.all([0,1].map(i=>h.request('/api/public/book',{method:'POST',as:'',body:publicGuest(s,i,{partySize:4})})))
   assert.equal(results.filter(r=>r.status===201).length,1);assert.equal(results.filter(r=>r.status===409).length,1)
   let state=(await h.api('/api/state')).state;assert.equal(state.bookings[0].tableIds.length,2)

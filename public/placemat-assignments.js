@@ -1,10 +1,10 @@
 /* Direct human assignment commands and their durable before/after history. */
 export function assignmentHistory(booking,state,{esc,time,who,tableNames}) {
  const snapshots=value=>Array.isArray(value)?value:[];
- const rows=state.audit.filter(event=>['booking.move','booking.swap','booking.lock','booking.extend'].includes(event.action)&&(event.subject===booking.id||snapshots(event.before).some(row=>row.bookingId===booking.id)||snapshots(event.after).some(row=>row.bookingId===booking.id)));
+ const rows=state.audit.filter(event=>['booking.move','booking.swap','booking.lock','booking.extend','table.assign'].includes(event.action)&&(event.subject===booking.id||snapshots(event.before).some(row=>row.bookingId===booking.id)||snapshots(event.after).some(row=>row.bookingId===booking.id)));
  return `<details class="assignment-history"><summary>Assignment and turn history (${rows.length})</summary>${rows.map(event=>{
   const before=snapshots(event.before).find(row=>row.bookingId===booking.id),after=snapshots(event.after).find(row=>row.bookingId===booking.id);
-  const snapshot=row=>`${tableNames(row.tableIds||[])} · ${row.locked?'locked':'unlocked'}${row.expectedEndAt?` · expected departure ${time(row.expectedEndAt)}`:''}`;
+  const snapshot=row=>`${tableNames(row.tableIds||[])} · ${row.locked?'locked':'unlocked'}${row.setupStartAt?` · setup from ${time(row.setupStartAt)}`:''}${row.combination?` · approved capacity ${row.combination.capacity}`:''}${row.expectedEndAt?` · expected departure ${time(row.expectedEndAt)}`:''}`;
   return `<article class="card"><strong>${esc(event.action.replace('booking.',''))}</strong><p>${esc(who(event.actor))} · ${esc(time(event.at))}${event.reason?`<br>${esc(event.reason)}`:''}</p>${event.action==='booking.extend'?`<p>Expected departure: ${esc(time(event.before.expectedEndAt))} → ${esc(time(event.after.expectedEndAt))}</p>`:''}${before&&after?`<dl class="assignment-diff"><dt>Before</dt><dd>${esc(snapshot(before))}</dd><dt>After</dt><dd>${esc(snapshot(after))}</dd></dl>`:''}</article>`;
  }).join('')||'<p>No direct assignment or turn changes recorded.</p>'}</details>`;
 }

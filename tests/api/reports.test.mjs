@@ -81,6 +81,7 @@ test('REPORT-001: venue-local shift filters, cover denominators, drilldowns and 
   assert.deepEqual((await h.api('/api/reports/reservations?period=past')).rows.map(r=>r.bookingId),[past.id])
   assert.deepEqual((await h.api('/api/reports/reservations?period=current')).rows.map(r=>r.bookingId),[present.id])
   for(const b of [walkin,present]){await h.command('booking.status',{bookingId:b.id,status:'completed'});await h.command('booking.stage',{bookingId:b.id,stage:'ready'})}
+  await h.command('combination.save',{tableIds:[dining.id,patio.id],capacity:8,accessTags:[],setupMinutes:0,enabled:true,adjacent:true})
   const joined=await publish('Combined areas',`${year}-12-04T01:00:00Z`,`${year}-12-04T04:00:00Z`)
   const combinedBooking=(await h.api('/api/public/book',publicGuest(joined,9,{partySize:6}),{as:'',status:201})).result
   const combinedReport=await h.api('/api/reports/reservations?serviceId='+joined.id)
