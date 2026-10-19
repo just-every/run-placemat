@@ -13,7 +13,7 @@ try{
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    const tables=[];for(const [i,label] of ['12','14','21','22'].entries())tables.push(await h.command('table.save',{label,seats:4,shape:i%2?'rectangle':'round',area:'Dining room',accessTags:['step-free'],x:20+i%2*45,y:20+Math.floor(i/2)*45}))
-   const day=new Date(Date.now()+7*86400000).toISOString().slice(0,10),service=await h.command('service.save',{name:'Friday dinner',startAt:day+'T21:00:00Z',endAt:day+'T23:59:00Z',turnMinutes:60,coverLimit:30})
+   const startAt=new Date(Math.ceil((Date.now()+60000)/900000)*900000).toISOString(),service=await h.command('service.save',{name:'Afternoon service',startAt,endAt:new Date(Date.parse(startAt)+3*3600000).toISOString(),turnMinutes:60,coverLimit:30})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Host stand ready'});await h.command('proposal.approve',{proposalId:p.id})
    const cookies=value=>value.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:h.origin,secure:true,sameSite:'Lax'}})
    await context.addCookies(cookies(h.cookie))
