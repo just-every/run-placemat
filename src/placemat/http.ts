@@ -74,7 +74,8 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    person(actor!)
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)
-   return json(noShowReport(state,await guests(env.DB),text(url.searchParams.get('serviceId'),'Service')))
+   const people=await guests(env.DB)
+   return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/reports/performance'){
    person(actor!)

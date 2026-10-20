@@ -34,9 +34,9 @@ try{
    await card().getByText('Review contact or policy suggestion',{exact:true}).click()
    let form=card().locator('form[data-risk-decide]')
    await form.locator('[name=reason]').fill('Confirm plans personally; table and terms stay unchanged')
-   await form.locator('[name=dueAt]').fill(new Date(Date.now()+3600000).toISOString().slice(0,16))
+   await form.locator('[name=dueAt]').fill(await page.evaluate(()=>{const d=new Date(Date.now()+3600000);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}))
    let response=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command==='risk.decide')
-   await form.getByRole('button',{name:'Record manager decision'}).click();const accepted=(await (await response).json()).result
+   await form.getByRole('button',{name:'Record manager decision'}).click();const acceptedResponse=await response;assert.ok(acceptedResponse.ok(),await acceptedResponse.text());const accepted=(await acceptedResponse.json()).result
    await page.locator('[data-risk-message]').filter({hasText:'Manager decision recorded'}).waitFor()
    await page.locator(`[data-risk-decision="${accepted.id}"] form[data-risk-complete]`).waitFor()
    await shot('owned-task')
