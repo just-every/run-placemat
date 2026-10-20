@@ -39,7 +39,7 @@ export function executeStaffing(s:State,actor:Actor,command:string,p:any,now:str
   staffing.kitchenAreaCaps[area]=coverCap;result={id:service.id,area,coverCap}
  }else fail(400,'Unknown staffing command.')
  const preview={...s,services:s.services.map(v=>v.id===service.id?proposed:v)}
- assertStaffingEdit(preview,proposed,now)
+ assertStaffingEdit(preview,proposed,now,command!=='kitchen.save')
  service.staffing=staffing;service.version++
  if(command==='server.break')s.audit.push({id:id(),at:now,actor:actor.id,action:command,subject:result.id,reason:text(p.reason,'Break reason',1000)})
  return result

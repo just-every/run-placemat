@@ -6,7 +6,7 @@ async function prepare(h,extra={}){
  await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
  const tables=[];for(let i=0;i<15;i++)tables.push(await h.command('table.save',{label:String(12+i),seats:4,area:'Dining',x:10+(i%5)*18,y:15+Math.floor(i/5)*30}))
  const day=new Date(Date.now()+7*86400000).toISOString().slice(0,10),startAt=day+'T23:30:00.000Z'
- const service=await h.command('service.save',{name:'Dinner at Cedar & Salt',startAt,endAt:new Date(Date.parse(startAt)+5*3600000).toISOString(),turnMinutes:120,coverLimit:80,pacing:policy,...extra})
+ const service=await h.command('service.save',{name:'Dinner at Cedar & Salt',startAt,endAt:new Date(Date.parse(startAt)+5*3600000).toISOString(),turnMinutes:120,coverLimit:80,pacing:policy,...(typeof extra==='function'?extra(startAt):extra)})
  const proposal=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Review dining pacing and physical inventory'});await h.command('proposal.approve',{proposalId:proposal.id})
  return {tables,service,at:minutes=>new Date(Date.parse(startAt)+minutes*60000).toISOString()}
 }
@@ -77,6 +77,36 @@ test('SERVICE-007: owner grants hosts explicit pacing authority; signed exact re
   const covers=await h.api('/api/reports/reservations?serviceId='+service.id);assert.equal(covers.summary.pacingOverrides.bookings,1);assert.deepEqual(covers.summary.pacingOverrides.bookingIds,[saved.id]);
   const csv=await (await h.request('/api/reports/reservations.csv?serviceId='+service.id)).text();assert.ok(csv.includes('pacingOverrideCount'));assert.ok(csv.includes(saved.id));
   const denied=await h.api('/api/public/book',{...publicGuest(service,11,{partySize:4}),pacingReview:fresh.review,pacingReason:'cannot bypass',pacingConfirm:'yes'},{as:'',status:409});assert.match(denied.error,/Arrival interval/)
+  const waiting=await h.command('waitlist.add',publicGuest(service,12,{partySize:2})),waitPayload={waitlistId:waiting.id,startAt:service.startAt},waitReview=await review(h,'waitlist.seat',waitPayload,{as:host});const hostSeat=await h.command('waitlist.seat',confirmation(waitPayload,waitReview),{as:host});assert.equal(hostSeat.source,'waitlist');assert.equal(hostSeat.pacingOverride.actor,operator.id);
   await h.command('guest.erase',{guestId:saved.guestId,confirm:'ERASE'});assert.ok(!JSON.stringify(await h.api('/api/state')).includes('Priya asked'));assert.ok(!JSON.stringify(await h.api('/api/backup')).includes('Priya asked'))
  }finally{await h.close()}
+})
+
+test('SERVICE-007: blocked slots and total service covers need explicit exact manager review; public and occupied tables stay refused and portable overrides retain their facts',async()=>{
+ const h=await installation();let destination
+ try{
+  const {service}=await prepare(h,startAt=>({coverLimit:4,bookingRules:{'walk-in':{minParty:1,maxParty:20,horizonDays:3650,leadMinutes:0,sameDayCutoff:'23:59',slotMinutes:15,inquiryAbove:20,blockedStarts:[startAt]}}}))
+  await h.command('kitchen.save',{serviceId:service.id,area:'Dining',coverCap:4})
+  const first=(await h.api('/api/public/book',publicGuest(service,0,{partySize:4}),{as:'',status:201})).result
+  const payload=publicGuest(service,1,{partySize:4}),before=await h.api('/api/state'),r=await review(h,'booking.walkin',payload)
+  assert.deepEqual(r.violations.map(v=>v.kind).sort(),['area-concurrent-covers','blocked-start','service-covers'].sort());assert.ok(r.violations.some(v=>v.kind==='service-covers'&&v.limit===4&&v.current===4&&v.projected===8&&v.excess===4));assert.ok(r.violations.some(v=>v.kind==='blocked-start'&&v.limit===0&&v.projected===1&&v.excess===1))
+  const after=await h.api('/api/state');assert.equal(after.version,before.version);assert.deepEqual(after.state,before.state);assert.deepEqual(after.guests,before.guests)
+  const refused=await h.api('/api/public/book',{...payload,...confirmation({},r)},{as:'',status:409});assert.match(refused.error,/Total service covers/)
+  const manager=await h.signIn('blocked-manager@example.test','admin');await h.command('booking.walkin',confirmation(payload,r),{as:manager,status:409})
+  const expired={...r,review:String(Date.now()-1)+'.'+r.review.split('.')[1]};await h.command('booking.walkin',confirmation(payload,expired),{status:409})
+  const original=before.state.bookings.find(b=>b.id===first.id);await review(h,'booking.walkin',{...payload,tableIds:original.tableIds},{status:409})
+  const current=await review(h,'booking.walkin',payload,{as:manager}),saved=await h.command('booking.walkin',confirmation(payload,current,'Manager accepted blocked slot and four extra service covers'),{as:manager})
+  assert.equal(saved.pacingOverride.violations.length,3);assert.equal((await h.api('/api/pacing?serviceId='+service.id)).totalCovers,8)
+  const covers=await h.api('/api/reports/reservations?serviceId='+service.id),csv=await (await h.request('/api/reports/reservations.csv?serviceId='+service.id)).text()
+  const cells=line=>[...line.matchAll(/"((?:[^"]|"")*)"(?:,|$)/g)].map(m=>m[1].replaceAll('""','"'))
+  const [columns,...rows]=csv.trim().split('\r\n').map(cells);assert.equal(rows.reduce((n,row)=>n+Number(row[columns.indexOf('pacingOverrideCount')]),0),covers.summary.pacingOverrides.bookings)
+  const serverStart=new Date(Date.parse(service.startAt)+86400000).toISOString(),serverService=await h.command('service.save',{name:'Hard server capacity',startAt:serverStart,endAt:new Date(Date.parse(serverStart)+4*3600000).toISOString(),turnMinutes:120,coverLimit:100,pacing:policy})
+  const server=await h.command('server.save',{serviceId:serverService.id,name:'Ana Torres',coverCap:4});await h.command('section.save',{serviceId:serverService.id,name:'Ana section',serverId:server.id,tableIds:before.state.tables.map(t=>t.id)})
+  const plan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:serverService.id},reason:'Review a hard server cap'});await h.command('proposal.approve',{proposalId:plan.id});await h.api('/api/public/book',publicGuest(serverService,3,{partySize:4}),{as:'',status:201})
+  const hard=await review(h,'booking.walkin',publicGuest(serverService,4,{partySize:4}),{as:manager,status:409});assert.match(hard.error,/Ana Torres.*cap of 4/)
+  const archive=await h.api('/api/backup');assert.ok(!JSON.stringify(archive).includes(current.review),'review token never enters portable records')
+  destination=await installation();await destination.api('/api/restore',{archive,confirm:'RESTORE'})
+  const restored=await destination.api('/api/state'),booking=restored.state.bookings.find(b=>b.id===saved.id)
+  assert.deepEqual(booking.pacingOverride,saved.pacingOverride);assert.deepEqual(restored.state.services.find(s=>s.id===service.id).pacing,service.pacing)
+ }finally{await destination?.close();await h.close()}
 })

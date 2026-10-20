@@ -49,6 +49,12 @@ export function pacingViolations(s:State,service:Service,candidate:Candidate,now
  }
  const total=covers(bookings)
  check('service-covers','Total service covers',service.coverLimit,total,total+party.partySize)
+ for(const area of areasFor(s,party)){
+  const cap=service.staffing?.kitchenAreaCaps[area]
+  if(cap===undefined||!['booked','seated'].includes(party.status))continue
+  const window=diningInterval(party,now),inArea=bookings.filter(b=>areasFor(s,b).includes(area)),current=concurrentCovers(inArea,now,window)
+  check('area-concurrent-covers',`${area} kitchen concurrent cover cap`,cap,current,concurrentCovers([...inArea,party],now,window))
+ }
  const policy=policyFor(service)
  if(!policy)return violations
  const window=arrivalWindow(service,policy,party.startAt),arrivals=bookings.filter(b=>inWindow(b,window)),arrivalCovers=covers(arrivals)
@@ -83,7 +89,7 @@ export function pacingReport(s:State,serviceId:string,now:string){
   intervals.push({startAt:new Date(start).toISOString(),endAt:new Date(window.end).toISOString(),covers:arrivalCovers,parties:arrivals.length,limit:policy.arrivalCovers,partyLimit:policy.arrivalParties,full:arrivalCovers>=policy.arrivalCovers||arrivals.length>=policy.arrivalParties||Object.values(areas).some(area=>area.full),bookingIds:arrivals.map(b=>b.id),areas})
  }
  const overrideBookingIds=serviceBookings.filter(b=>Boolean((b as OverrideBooking).pacingOverride)).map(b=>b.id)
- return {generatedAt:now,policy,totalCovers:covers(bookings),limit:service.coverLimit,intervals,overrideCount:overrideBookingIds.length,overrideBookingIds}
+ return {generatedAt:now,policy,kitchenConcurrentCaps:service.staffing?.kitchenAreaCaps??{},totalCovers:covers(bookings),limit:service.coverLimit,intervals,overrideCount:overrideBookingIds.length,overrideBookingIds}
 }
 
 /** An existing authorized exception may move without increasing any exceeded limit. */

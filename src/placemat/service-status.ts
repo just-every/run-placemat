@@ -134,7 +134,7 @@ export function executeServiceStatus(s:State,actor:Actor,p:any,now:string) {
  }
  const newlySeating=after.bookingStatus==='seated'&&before.bookingStatus!=='seated'
  if((after.bookingStatus==='booked'||after.bookingStatus==='seated')&&(newlySeating||!['booked','seated'].includes(before.bookingStatus))){
-  checkStaffing(s,[{...b,status:after.bookingStatus}],now)
+  checkStaffing(s,[{...b,status:after.bookingStatus}],now,new Set(),true)
  }
  const reacquiring=['booked','seated'].includes(after.bookingStatus)&&!['booked','seated'].includes(before.bookingStatus)
  if(reacquiring||after.needsBussing&&(!before.needsBussing||before.floorStatus==='ready'))fit(s,{...b,status:after.bookingStatus},now,after.needsBussing||after.bookingStatus==='seated')
