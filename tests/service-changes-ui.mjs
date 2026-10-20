@@ -12,7 +12,8 @@ try {
  for(const width of [1440,390]) {
   const h=await installation(),transport=await browserServer(h),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
   try {
-   const fixture=await service(h,{tables:3,covers:20})
+   const fixture=await service(h,{tables:4,covers:20})
+   await h.command('table.save',{...fixture.floor[3],area:'Patio'})
    for(let i=0;i<3;i++)await h.api('/api/public/book',publicGuest(fixture.service,i),{as:'',status:201})
    const original=(await h.api('/api/state')).state.bookings,errors=[],sentBefore=h.messages.length
    await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
@@ -63,9 +64,19 @@ try {
    assert.deepEqual(data.state.bookings,original,'Failed contact preserves commitments')
    assert.equal(h.messages.length,sentBefore,'The closure UI sends no guest messages')
    // The later arrival was free before closure; the approved room hold now prevents a new allocation.
-   const denied=await h.request('/api/public/book',{method:'POST',as:'',body:publicGuest(fixture.service,3,{startAt:new Date(Date.parse(fixture.service.startAt)+2*3600000).toISOString()})})
+   const denied=await h.request('/api/public/book',{method:'POST',as:'',body:publicGuest(fixture.service,3,{area:'Dining room',startAt:new Date(Date.parse(fixture.service.startAt)+2*3600000).toISOString()})})
    assert.equal(denied.status,409,await denied.text())
    await shot('failed-contact-retained-booking')
+   await page.getByRole('link',{name:'Floor & bookings',exact:true}).click()
+   await page.locator(`#bookings-list [data-action="reassign"][data-id="${original[0].id}"]`).click()
+   await page.locator('#reassignment select[name=tableIds]').selectOption([fixture.floor[3].id])
+   pending=nextCommand('booking.move')
+   await page.locator('#reassignment form[data-command="booking.move"] button[type=submit]').click()
+   response=await pending;assert.equal(response.status(),409)
+   await page.getByRole('alert').filter({hasText:'Guest acceptance is required'}).waitFor()
+   assert.deepEqual((await h.api('/api/state')).state.bookings,original,'An existing direct move cannot bypass guest acceptance')
+   if(shots){await page.locator('#reassignment').screenshot({path:resolve(shots,`SERVICE-003-blocked-assignment-${width}.png`)});await page.locator('#notice').screenshot({path:resolve(shots,`SERVICE-003-acceptance-required-${width}.png`)})}
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
    assert.deepEqual(errors,[])
    console.log(`SERVICE-003 exact room closure, three manager-owned impacts, failed contact and unchanged bookings passed at ${width}`)
   }finally{await context.close();await transport.close();await h.close()}
