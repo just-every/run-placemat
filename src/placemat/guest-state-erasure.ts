@@ -1,3 +1,4 @@
+import {normalizeBookingRequests} from './booking-requests'
 import type {State} from './model'
 import type {D1Database,D1Sql} from './import/kit'
 
@@ -9,7 +10,12 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  if(!row)return []
  const state=JSON.parse(row.data) as State
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan))]
- for(const b of bookings)if(b.guestId===guestId){if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
+ for(const b of bookings)if(b.guestId===guestId){if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
+ for(const inquiry of state.inquiries??[])if(inquiry.guestId===guestId){
+  delete inquiry.tokenHash;delete inquiry.requiredArea;inquiry.requiredAccessTags=[];inquiry.requests=normalizeBookingRequests({});inquiry.messages=[]
+  if(inquiry.offer){delete inquiry.offer.requiredArea;inquiry.offer.requiredAccessTags=[];inquiry.offer.guarantees=[]}
+  if(inquiry.status!=='converted')inquiry.status='closed'
+ }
  const bookingIds=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id))
  for(const event of state.serviceEvents??[])if(bookingIds.has(event.bookingId))event.reason=''
  for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId)))){event.reason='';if(event.pacing)event.pacing.reason=''}

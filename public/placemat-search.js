@@ -1,10 +1,11 @@
+import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
 /* Guest availability and booking. Events stay inside the existing booking shell. */
 export function createPublicSearch({api, esc, field, select, notice}) {
   const root = document.querySelector('#public-content');
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
   let areas = [], accessTags = [];
-  let contact = {name: '', email: '', phone: ''};
+  let contact = {name: '', email: '', phone: ''}, requests;
   const find = selector => root.querySelector(selector);
   const action = (label, value, disabled = false) => `<button type="button" class="secondary" data-public-action="${value}"${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
   const fullTime = value => new Intl.DateTimeFormat('en-US', {
@@ -58,7 +59,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
   function renderBooking() {
     const target = find('#public-booking-form');
     if (!selected) { target.innerHTML = ''; return; }
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${requestFields(field)}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
   }
   async function search(nextQuery) {
     query = nextQuery;
@@ -80,7 +81,8 @@ export function createPublicSearch({api, esc, field, select, notice}) {
   }
   async function book() {
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
-    const payload = {...contact, partySize: query.partySize, area: query.area,
+    requests=readRequests(find('[data-public-command="book"]'));
+    const payload = {...contact,...requests, partySize: query.partySize, area: query.area,
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
     let result;
     try { result = (await api('/api/public/book', payload)).result; }
@@ -94,7 +96,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
       }
       throw error;
     }
-    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(contact.name)}, your table for ${query.partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(constraints())}</p><p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${action('Make another booking', 'another')}</article>`;
+    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(contact.name)}, your table for ${query.partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(constraints())}</p>${requestSummary(requests?.requests,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${action('Make another booking', 'another')}</article>`;
     notice('Your booking is confirmed.', 'success');
   }
   async function run(work, message) {

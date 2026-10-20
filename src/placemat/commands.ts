@@ -1,3 +1,5 @@
+import {normalizeBookingRequests,requestTerms} from './booking-requests'
+import {executeInquiry} from './inquiries'
 import {prepareInventory,approveInventory} from './inventory-advisor'
 import {prepareShiftAdjustment,approveShiftAdjustment} from './shift-advisor'
 import {prepareAllocation,approveAllocation} from './allocation-advisor'
@@ -34,6 +36,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
+ case 'inquiry.assign':case 'inquiry.reply':case 'inquiry.convert':case 'inquiry.close':{
+  result=await executeInquiry(s,actor,command,p,now,db);if(result.before){before.push(...result.before);delete result.before}break
+ }
  case 'risk.decide':case 'risk.complete':{result=decideRisk(s,await guests(db),actor,command,p,now);break}
  case 'booking.move':case 'booking.swap':case 'booking.lock':{
   result=executeAssignment(s,actor,p,command,version,now);break
@@ -219,11 +224,13 @@ export async function onlineBook(db:D1Database,p:any){
  const fit=bookingFit(filtered,service,partySize,p.startAt),{tables,...slot}=fit
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
+ if(p.requests!==undefined&&p.requestsAcknowledged!==true)fail(400,'Acknowledge required guarantees and requested preferences before booking.')
+ const requests=p.requests===undefined?undefined:normalizeBookingRequests(p)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
+ const b:Booking={...requests?{requests}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
- return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,area:requiredArea??null,requiredAccessTags,confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
 }

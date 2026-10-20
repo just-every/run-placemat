@@ -1,3 +1,5 @@
+import {inquiryPage} from './inquiry-views'
+import {publicCreateInquiry,publicReadInquiry,publicReplyInquiry} from './inquiries'
 import {adviseInventory} from './inventory-advisor'
 import {adviseShiftAdjustments} from './shift-advisor'
 import {adviseAllocations} from './allocation-advisor'
@@ -31,8 +33,22 @@ const json=(data:any,status=200)=>Response.json(data,{status,headers})
 const paths=new Set(['/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
- if(path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
+  if(path==='/inquiry'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return inquiryPage(request)}
+  if(path.startsWith('/api/public/inquiries/')){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env);const p=await jsonBody(request)
+   if(path==='/api/public/inquiries/create'){
+    const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':inquiry:'+Math.floor(Date.now()/60000))
+    const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
+    if((count?.count??0)>20)fail(429,'Too many inquiry requests. Please wait a minute.')
+    return json(await publicCreateInquiry(env.DB,p),201)
+   }
+   if(path==='/api/public/inquiries/status')return json(await publicReadInquiry(env.DB,p.token))
+   if(path==='/api/public/inquiries/reply')return json(await publicReplyInquiry(env.DB,p))
+   return json({error:'Not found'},404)
+  }
   if(path==='/queue'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return queuePage(request)}
   if(path.startsWith('/api/public/queue/')){
    if(path==='/api/public/queue/services'&&request.method==='GET'){

@@ -1,0 +1,26 @@
+import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
+const root=document.querySelector('#inquiry-content'),notice=document.querySelector('#notice');
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const field=(label,name,type='text',value='',attributes='')=>`<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" ${attributes}></label>`;
+let token=new URLSearchParams(location.hash.slice(1)).get('token'),services=[],current;
+if(token)history.replaceState(null,'',location.pathname);
+async function api(path,p){const r=await fetch(path,{method:p?'POST':'GET',headers:{'content-type':'application/json'},...(p?{body:JSON.stringify(p)}:{})}),v=await r.json();if(!r.ok)throw Error(v.error||'The request could not finish.');return v}
+const time=value=>new Intl.DateTimeFormat('en-US',{timeZone:current?.timezone||'UTC',dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
+function render(){const i=current.inquiry;
+ root.innerHTML=`<article class="card"><h2>Inquiry ${esc(i.status)}</h2><p>Reference ${esc(i.id)} · ${esc(i.partySize)} guests<br>Venue reply due ${esc(time(i.replyDueAt))}</p><p>Required area: ${esc(i.requiredArea||'Any available area')}<br>Required access: ${esc(i.requiredAccessTags.join(', ')||'None selected')}</p>${requestSummary(i.requests,esc)}<h3>Conversation on this page</h3>${i.messages.map(m=>`<p><strong>${m.author==='venue'?'Venue reply':'Your message'}</strong> · ${esc(time(m.at))}<br>${esc(m.message)}</p>`).join('')}${i.offer?`<section class="card"><h3>Exact reservation offer</h3><p>${esc(time(i.offer.startAt))} until ${esc(time(i.offer.endAt))}</p><ul>${i.offer.guarantees.map(t=>`<li>${esc(t)}</li>`).join('')}</ul><p>Requested preferences above remain requests. A reservation is created only after the venue converts your accepted offer and checks current availability.</p>${i.acceptedOfferVersion===i.offer.version?'<p>Offer accepted. Awaiting venue conversion; no reservation yet.</p>':`<form data-inquiry="accept"><label><input type="checkbox" name="accept" required> I accept this exact arrival, departure and required guarantees; requested preferences are not guaranteed.</label><button>Accept exact offer</button></form>`}</section>`:''}<form data-inquiry="reply">${field('Message to the venue','message','text','','required maxlength="2000"')}<button>Post reply on this page</button></form><button type="button" data-refresh>Refresh conversation</button></article>`;
+}
+async function load(){if(token){current=await api('/api/public/inquiries/status',{token});render();return}
+ const bootstrap=await api('/api/public/services?partySize=2');services=bootstrap.services;
+ root.innerHTML=`<form data-inquiry="create"><div class="form-grid">${field('Your name','name','text','','required maxlength="200"')}${field('Email','email','email','','required')}${field('Phone (optional)','phone','tel')}${field('Party size','partySize','number',16,'required min="1" max="500"')}<label>Preferred service<select name="serviceId"><option value="">Discuss with the venue</option>${services.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label>${field('Required dining area (leave empty for any)','requiredArea')}${field('Required table access tags (comma separated)','requiredAccessTags')}${requestFields(field)}<div class="wide"><button>Submit inquiry</button></div></div></form>`;
+}
+root.addEventListener('submit',async event=>{const form=event.target.closest('[data-inquiry]');if(!form)return;event.preventDefault();if(!form.reportValidity())return;root.inert=true;notice.textContent='Saving…';try{
+ const data=Object.fromEntries(new FormData(form)),kind=form.dataset.inquiry;
+ if(kind==='create'){
+  const service=services.find(s=>s.id===data.serviceId),p={...data,...readRequests(form),partySize:Number(data.partySize),requiredArea:data.requiredArea||undefined,requiredAccessTags:data.requiredAccessTags.split(',').map(s=>s.trim()).filter(Boolean),serviceId:service?.id,requestedStartAt:service?.startAt};
+  current=await api('/api/public/inquiries/create',p);token=current.token;render();
+  const link=document.createElement('article');link.className='card';link.innerHTML='<h2>Save your private inquiry link now</h2><p>This link is shown once. Anyone with it can read and reply to this inquiry. No email or text was sent.</p><a>Open this inquiry later</a>';link.querySelector('a').href=location.pathname+'#token='+encodeURIComponent(token);root.prepend(link);
+ }else{current=await api('/api/public/inquiries/reply',{token,...kind==='accept'?{acceptOfferVersion:current.inquiry.offer.version}:{message:data.message}});render()}
+ notice.textContent=kind==='create'?'Inquiry saved; no reservation has been made.':kind==='accept'?'Exact offer accepted; awaiting capacity-checked venue conversion.':'Reply posted on this page.';
+ }catch(error){notice.textContent=error.message;notice.setAttribute('role','alert')}finally{root.inert=false}});
+root.addEventListener('click',event=>{if(event.target.closest('[data-refresh]'))load().catch(error=>{root.innerHTML='';notice.textContent=error.message;notice.setAttribute('role','alert')})});
+load().catch(error=>{notice.textContent=error.message;notice.setAttribute('role','alert')});
