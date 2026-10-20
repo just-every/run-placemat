@@ -1,4 +1,4 @@
-import {assertServiceBlocks} from './service-blocks'
+import {assertServiceBlocks,assertClosureAssignment} from './service-blocks'
 import {assertInventory} from './direct-inventory'
 import {assertPacing} from './pacing'
 import {fail,id,text,type Actor,type Booking,type State,type AuditEntry,type ServingAssignment} from './model'
@@ -30,6 +30,7 @@ function currentParty(s:State,bookingId:unknown){
  return b
 }
 export function assignmentChange(s:State,b:Booking,tableIds:unknown,preserve=false){
+ assertClosureAssignment(s,b,tableIds)
  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
  assertInventory(s,Array.isArray(tableIds)?tableIds:[],b.setupStartAt??b.startAt,b.cleanupEndAt??b.endAt,b.source)
  return assignmentFor(s,tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,preserve?b:undefined)

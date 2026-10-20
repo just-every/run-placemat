@@ -6,7 +6,7 @@ export async function closureService(h){
  const setup=await service(h,{tables:4,covers:40})
  await h.command('table.save',{...setup.floor[3],area:'Patio'})
  const bookings=[]
- for(let i=0;i<3;i++)bookings.push((await h.api('/api/public/book',publicGuest(setup.service,i,{area:'Dining room'}),{as:'',status:201})).result)
+ for(let i=0;i<3;i++)bookings.push((await h.api('/api/public/book',publicGuest(setup.service,i),{as:'',status:201})).result)
  return {...setup,bookings}
 }
 const prepare=(h,s,scope='room',extra={})=>h.command('proposal.prepare',{kind:'service.closure',plan:{serviceId:s.id,scope,area:'Dining room',...extra},reason:'Water leak; arrange personal follow-up'})
@@ -24,6 +24,7 @@ test('SERVICE-003 exact reviewed room closure keeps three bookings and accountab
   await h.command('proposal.approve',{proposalId:stale.id},{status:409})
   await h.command('booking.lock',{bookingId:bookings[0].id,locked:false,version:(await h.api('/api/state')).version})
   const before=(await h.api('/api/state')).state.bookings
+  const preparedMove=await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:bookings[0].id,tableIds:[floor[3].id]},reason:'Existing assignment proposal'},{headers})
   const proposal=await prepare(h,s)
   await h.command('proposal.approve',{proposalId:proposal.id},{headers,status:403})
   await h.command('proposal.approve',{proposalId:proposal.id},{as:manager})
@@ -31,6 +32,8 @@ test('SERVICE-003 exact reviewed room closure keeps three bookings and accountab
   assert.equal(change.tasks.length,3);assert.equal(change.approvedBy,current.state.proposals.find(p=>p.id===proposal.id).approvedBy)
   assert.ok(change.tasks.every(t=>t.ownerId===change.approvedBy&&t.status==='open'&&t.updatedAt===change.approvedAt))
   assert.deepEqual(current.state.bookings,before)
+  await h.command('booking.move',{bookingId:bookings[0].id,tableIds:[floor[3].id],version:current.version},{status:409})
+  await h.command('proposal.approve',{proposalId:preparedMove.id},{status:409})
   await h.api('/api/public/book',publicGuest(s,3,{area:'Dining room',startAt:new Date(Date.parse(s.startAt)+2*3600000).toISOString()}),{as:'',status:409})
   await h.command('booking.walkin',{...publicGuest(s,4),tableIds:[floor[0].id]},{status:409})
   const patio=(await h.api('/api/public/book',publicGuest(s,3,{area:'Patio'}),{as:'',status:201})).result
