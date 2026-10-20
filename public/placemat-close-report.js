@@ -1,0 +1,18 @@
+/* REPORT-007 partial: the original close snapshot and later attributed observations. */
+export function renderCloseReport({root,state,api,esc,select,empty,who}) {
+ const closed=state.services.filter(s=>s.closedAt);
+ root.innerHTML=`<h3>End-of-service report</h3><p class="help">Closing a service fixes its operational report. Later staff observations appear beside the original. Fees, refunds and recovered-cover attribution are not available yet.</p>${closed.length?`<form data-close-report>${select('Closed service','serviceId',closed.map(s=>[s.id,s.name]))}<button>Open close report</button></form><div data-close-result aria-live="polite"></div>`:empty('Close a service from the waitlist to produce its report.')}`;
+ if(!closed.length)return;
+ const form=root.querySelector('form'),result=root.querySelector('[data-close-result]');
+ const amount=n=>n===null||n===undefined?'Not recorded':Number(n).toFixed(2);
+ async function refresh(){
+  result.textContent='Loading close report…';
+  try{
+   const data=await api('/api/reports/closed?'+new URLSearchParams({serviceId:form.elements.serviceId.value})),r=data.original.coverReport,p=data.original.performance;
+   const rowList=ids=>r.rows.filter(b=>ids.includes(b.bookingId)).map(b=>`<p>${esc(b.tables.join(' + '))} · ${b.partySize} guests · ${esc(b.source)} · ${esc(b.status)} · ${esc(b.startAt)}</p>`).join('');
+   const metrics=[['booked','All reservations'],['attended','Attended'],['cancelled','Cancelled'],['noShow','No-show'],['pacingOverrides','Pacing overrides']];
+   result.innerHTML=`<article data-original-close class="card"><h4>${esc(p.serviceName)} · original close report</h4><p>Closed ${esc(data.original.closedAt)} by ${esc(who(data.original.closedBy))}</p><p><a class="button-link" href="/api/reports/closed.csv?${esc(new URLSearchParams({serviceId:r.filters.serviceId}))}" download>Download original close rows CSV</a></p>${metrics.map(([key,label])=>`<details><summary>${label}: ${r.summary[key].covers} covers / ${r.summary.booked.covers} total covers · ${r.summary[key].bookings} parties</summary>${rowList(r.summary[key].bookingIds)}</details>`).join('')}<details><summary>Walk-in and waitlist seating</summary>${['online','walk-in','waitlist'].map(source=>{const rows=r.rows.filter(b=>b.source===source);return `<p>${esc(source)}: ${rows.reduce((n,b)=>n+b.partySize,0)} reservation covers; ${rows.filter(b=>['seated','completed'].includes(b.status)).reduce((n,b)=>n+b.partySize,0)} attended covers</p>${rowList(rows.map(b=>b.bookingId))}`}).join('')}</details><details><summary>Turn and wait observations</summary>${[['Expected turn','expectedTurns'],['Actual turn','actualTurns'],['Quoted minimum wait','quotedWaitMin'],['Quoted maximum wait','quotedWaitMax'],['Actual wait','actualWait']].map(([label,key])=>{const d=p.distributions[key];return `<p>${label}: ${amount(d.mean)} minutes · ${d.sampleSize} recorded / ${d.sampleSize+d.missing} possible observations</p>`}).join('')}</details></article><section data-close-adjustments><h4>Observations after close (${data.adjustments.length})</h4>${data.adjustments.map(a=>`<article class="card"><p>${esc(a.at)} · ${esc(who(a.actor))}</p><p>${esc(a.before.status)} → ${esc(a.after.status)} · reservation ${esc(a.before.bookingStatus)} → ${esc(a.after.bookingStatus)}</p><p class="help">Booking reference ${esc(a.bookingId)}. The original close report is unchanged.</p></article>`).join('')||empty('No later service observations.')}<p class="help">This comparison records observed changes; it does not attribute recovered covers or claim payment outcomes.</p></section>`;
+  }catch(error){result.textContent=error.message;result.setAttribute('role','alert');}
+ }
+ form.addEventListener('submit',event=>{event.preventDefault();refresh();});
+}

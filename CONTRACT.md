@@ -246,7 +246,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 - **REPORT-006 — Local performance benchmarking.** Restaurants optionally contribute de-identified aggregates to comparable-market benchmarks for covers, demand, no-shows and turns, with cohort size/date freshness shown and small cohorts suppressed. A venue can opt out without losing its own history. **Acceptance evidence:** Opt in a controlled cohort, view a sufficiently sized comparison, shrink its cohort below privacy rules and verify suppression, then opt out and retain internal reporting.
 
-- **REPORT-007 — End-of-service report.** Closing a service produces a report fixed at close and never rewritten by later edits: covers booked, walk-in and waitlist-seated, attended, canceled and no-show covers with visible denominators, fees charged, waived and refunded (PAY-004, PAY-005), average actual turn against expected, quoted versus actual waits (WAIT-003), covers recovered from cancellations and no-shows (counted only once the replacement party is seated, whether by the agent or by staff), and pacing-override counts (SERVICE-007). Each figure drills to its reservations and the report prints and downloads as PDF and CSV. A correction after close is a new traceable adjustment beside the original. **Acceptance evidence:** Run a service with two no-shows, two refills from the waitlist, a walk-in and a no-show fee; close it; reconcile every figure to its bookings and the CSV; verify a refilled table counts as recovered only after its party is seated; correct one status after close and see the original report unchanged with a dated adjustment beside it.
+- **REPORT-007 — End-of-service report.** Closing a service produces a report fixed at close and never rewritten by later edits: covers booked, walk-in and waitlist-seated, attended, canceled and no-show covers with visible denominators, fees charged, waived and refunded (PAY-004, PAY-005), average actual turn against expected, quoted versus actual waits (WAIT-003), covers recovered from cancellations and no-shows (counted only once the replacement party is seated, whether by the agent or by staff), and pacing-override counts (SERVICE-007). Each figure drills to its reservations and the report prints and downloads as PDF and CSV. A correction after close is a new traceable adjustment beside the original. Current operational snapshots commit atomically with service.close in the existing performance archive. The original CSV keeps its exact close-time population and statuses; later service observations are identified by event IDs, retaining actor, time and before/after facts without rewriting the snapshot. Missing financial and recovery facts are never inferred from attendance. **Acceptance evidence:** Run a service with two no-shows, two refills from the waitlist, a walk-in and a no-show fee; close it; reconcile every figure to its bookings and the CSV; verify a refilled table counts as recovered only after its party is seated; correct one status after close and see the original report unchanged with a dated adjustment beside it.
 
 - **COST-001 — Predictable operating costs.** Owners see USD subscription/hosting, per-cover distribution, messaging, voice, payment and optional provider costs with actual usage, budget alerts and forecasts before enabling a channel or campaign. Direct guest records remain exportable regardless of channel pricing. **Acceptance evidence:** Preview 1,000 reminders and a promoted event, inspect projected provider/cover cost, set a budget alert and reconcile the bill to usage and processor fees.
 
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 15 | 0 | 0 | 15 |
-| Target and push further | 22 | 24 | 71 | 117 |
-| All | 37 | 24 | 71 | 132 |
+| Target and push further | 22 | 25 | 70 | 117 |
+| All | 37 | 25 | 70 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -533,7 +533,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `REPORT-004` | Experience and payment performance | target | missing |  | No implementation of this journey exists. |
 | `REPORT-005` | Scheduled exports and group reporting | target | partial | `src/placemat/downloads.ts`; `src/placemat/backup.ts`; `tests/api/flows.test.mjs` | Owner archives and per-booking ICS exist; business CSV reports, schedules and group comparisons are absent. |
 | `REPORT-006` | Local performance benchmarking | target | missing |  | No implementation of this journey exists. |
-| `REPORT-007` | End-of-service report | target | missing |  | No closed-service report exists; the bookings screen shows one covers-against-limit badge for the open service. |
+| `REPORT-007` | End-of-service report | target | partial | `src/placemat/service-close-report.ts`; `public/placemat-close-report.js`; `tests/api/service-close-report.test.mjs`; `tests/service-close-report-ui.mjs` | Service closure atomically fixes operational cover/source/turn/wait/pacing facts, exact original CSV and later actor/time observations beside the original. Charged/waived/refunded fees, explicit seated-only recovered-cover attribution and print/PDF remain missing. |
 | `COST-001` | Predictable operating costs | target | missing |  | No implementation of this journey exists. |
 | `MIG-002` | OpenTable migration | target | missing |  | No implementation of this journey exists. |
 | `MIG-003` | Resy migration | target | missing |  | No implementation of this journey exists. |

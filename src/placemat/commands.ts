@@ -1,3 +1,4 @@
+import {prepareCloseReport} from './service-close-report'
 import {prepareClosure,approveClosure,followupChange} from './service-changes'
 import {normalizeBookingRequests,requestTerms} from './booking-requests'
 import {executeInquiry} from './inquiries'
@@ -205,7 +206,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   const token=await issueQueueToken(row);s.waitlist.push(row);result={...row,token};break
  }
  case 'waitlist.status':case 'waitlist.priority':case 'waitlist.quote':case 'waitlist.followup':case 'service.close':{
-  result=executeQueue(s,actor,p,command,now);break
+  result=executeQueue(s,actor,p,command,now);
+  if(command==='service.close'){const report=prepareCloseReport(db,s,actor,result.id,version,now);before.push(report.statement);result={...result,closeSnapshotId:report.snapshotId}}
+  break
  }
  case 'booking.stage':case 'booking.status':{
   const changed=executeServiceStatus(s,actor,{...p,stage:p.stage??p.status},now);result=command==='booking.status'?changed.booking:changed;break

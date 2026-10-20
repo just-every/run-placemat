@@ -1,3 +1,4 @@
+import {readCloseReport,closeReportCsv} from './service-close-report'
 import {businessExportKinds} from './business-export'
 import {readBusinessCsv} from './business-export-store'
 import {inquiryPage} from './inquiry-views'
@@ -32,7 +33,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/reports/closed','/api/reports/closed.csv','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  if(!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
@@ -105,6 +106,13 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    const bookings=state.bookings.filter(b=>b.serviceId===serviceId)
    const now=new Date().toISOString()
    return json({...adviseAllocations(state,serviceId,now),inventory:adviseInventory(state,serviceId,now),shifts:adviseShiftAdjustments(state,serviceId,now),current:{bookedCovers:bookings.filter(b=>b.status==='booked').reduce((n,b)=>n+b.partySize,0),seatedCovers:bookings.filter(b=>b.status==='seated').reduce((n,b)=>n+b.partySize,0),physicalSeats:state.tables.filter(t=>!t.retiredAt).reduce((n,t)=>n+t.seats,0)}})
+  }
+  if(path==='/api/reports/closed'||path==='/api/reports/closed.csv'){
+   person(actor!)
+   if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   const report=await readCloseReport(env.DB,text(url.searchParams.get('serviceId'),'Service'))
+   if(path.endsWith('.csv'))return new Response(closeReportCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-service-close.csv"'}})
+   return json(report)
   }
   if(path==='/api/reports/no-show'){
    person(actor!)
