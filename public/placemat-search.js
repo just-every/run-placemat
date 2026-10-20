@@ -21,6 +21,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
     const form = find('[data-public-command="book"]');
     if (!form) return;
     const values = new FormData(form);
+    requests=readRequests(form);
     contact = Object.fromEntries(['name', 'email', 'phone'].map(name => [name, String(values.get(name) || '')]));
   }
   function preferences(form) {
@@ -81,7 +82,6 @@ export function createPublicSearch({api, esc, field, select, notice}) {
   }
   async function book() {
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
-    requests=readRequests(find('[data-public-command="book"]'));
     const payload = {...contact,...requests, partySize: query.partySize, area: query.area,
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
     let result;
