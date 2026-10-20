@@ -1,3 +1,4 @@
+import {assertInventory} from './direct-inventory'
 import {allocation,active,occupiedStartAt,occupiedEndAt} from './capacity'
 import {checkStaffing,recordServing,servingFor} from './staffing-capacity'
 import {assignmentFor} from './combinations'
@@ -60,6 +61,7 @@ export function assertTablesReady(s:State,tableIds:string[],except?:string){
 function fit(s:State,b:Booking,now:string,seating:boolean) {
  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
  if(service.status!=='published'||service.closedAt)fail(409,'Choose an open, published service before seating this party.')
+ assertInventory(s,b.tableIds,b.setupStartAt??b.startAt,occupiedEndAt(b,now),b.source)
  allocation(s,service,b.partySize,{...b,status:seating?'seated':b.status},b.tableIds,b.id,[],now)
  if(seating){
   assertTablesReady(s,b.tableIds,b.id)

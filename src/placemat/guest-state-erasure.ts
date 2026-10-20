@@ -1,7 +1,7 @@
 import type {State} from './model'
 import type {D1Database,D1Sql} from './import/kit'
 
-const proposalBookings=(plan:any)=>[...(plan?.bookings??[]),...(plan?.snapshot?.bookings??[]),...(plan?.assignmentInputs?.bookings??[]),...(plan?.inputs?.bookings??[]),...(plan?.booking?[plan.booking]:[])]
+const proposalBookings=(plan:any)=>[...(plan?.preview?.unchangedBookings??[]),...(plan?.bookings??[]),...(plan?.snapshot?.bookings??[]),...(plan?.assignmentInputs?.bookings??[]),...(plan?.inputs?.bookings??[]),...(plan?.booking?[plan.booking]:[])]
 
 /** Guest-linked operational free text follows the existing DATA-002 erasure. */
 export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1Sql[]>{
