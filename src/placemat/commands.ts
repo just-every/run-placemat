@@ -1,3 +1,4 @@
+import {prepareAllocation,approveAllocation} from './allocation-advisor'
 import {decideRisk} from './no-show'
 import {normalizePacing} from './pacing'
 import {seatingPreview,approvePacing,mayPace} from './pacing-review'
@@ -97,7 +98,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  case 'proposal.prepare':{
   const kind=p.kind,plan=p.plan??{};let exact:any
-  if(kind==='floor.change'){
+  if(kind==='allocation.improve'){
+   exact=prepareAllocation(s,plan,now)
+  }else if(kind==='floor.change'){
    exact=prepareFloorChange(s,plan,now)
   }else if(kind==='service.publish'){
    const service=serviceBy(s,plan.serviceId)
@@ -127,7 +130,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   if(proposal.status!=='pending')fail(409,'This proposal has already been decided.')
   if(command==='proposal.decline'){proposal.status='declined';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break}
   const plan=proposal.plan
-  if(proposal.kind==='floor.change'){
+  if(proposal.kind==='allocation.improve'){
+   approveAllocation(s,actor,proposal,now)
+  }else if(proposal.kind==='floor.change'){
    approveFloorChange(s,actor,proposal,now)
   }else if(proposal.kind==='schedule.publish'){
    approveSchedule(s,actor,proposal,now)

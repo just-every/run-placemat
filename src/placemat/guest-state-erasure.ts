@@ -1,7 +1,7 @@
 import type {State} from './model'
 import type {D1Database,D1Sql} from './import/kit'
 
-const proposalBookings=(plan:any)=>[...(plan?.bookings??[]),...(plan?.snapshot?.bookings??[]),...(plan?.assignmentInputs?.bookings??[]),...(plan?.booking?[plan.booking]:[])]
+const proposalBookings=(plan:any)=>[...(plan?.bookings??[]),...(plan?.snapshot?.bookings??[]),...(plan?.assignmentInputs?.bookings??[]),...(plan?.inputs?.bookings??[]),...(plan?.booking?[plan.booking]:[])]
 
 /** Guest-linked operational free text follows the existing DATA-002 erasure. */
 export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1Sql[]>{
@@ -19,11 +19,15 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  for(const service of state.services)if(relatedServices.has(service.id))service.closeReason=''
  for(const proposal of state.proposals){
   if(proposalBookings(proposal.plan).some(b=>b.guestId===guestId)||bookingIds.has(proposal.plan?.bookingId))proposal.reason=''
-  for(const event of [...(proposal.plan?.snapshot?.serviceEvents??[]),...(proposal.plan?.assignmentInputs?.serviceEvents??[])])if(bookingIds.has(event.bookingId))event.reason=''
+  for(const event of [...(proposal.plan?.snapshot?.serviceEvents??[]),...(proposal.plan?.assignmentInputs?.serviceEvents??[]),...(proposal.plan?.inputs?.serviceEvents??[])])if(bookingIds.has(event.bookingId))event.reason=''
   if(relatedServices.has(proposal.plan?.service?.id))proposal.plan.service.closeReason=''
-  for(const service of [...(proposal.plan?.snapshot?.services??[]),...(proposal.plan?.assignmentInputs?.services??[]),...(proposal.plan?.candidates??[]).map((c:any)=>c.service)])if(relatedServices.has(service?.id))service.closeReason=''
+  for(const service of [...(proposal.plan?.snapshot?.services??[]),...(proposal.plan?.assignmentInputs?.services??[]),...(proposal.plan?.inputs?.services??[]),...(proposal.plan?.candidates??[]).map((c:any)=>c.service)])if(relatedServices.has(service?.id))service.closeReason=''
  }
- for(const row of state.waitlist){
+ for(const proposal of state.proposals){
+  for(const row of proposal.plan?.preview?.affectedBookings??[])if(row.guestId===guestId){row.original.requiredAccessTags=[];delete row.original.requiredArea}
+ }
+ const queues=[...state.waitlist,...state.proposals.flatMap(p=>p.plan?.inputs?.waitlist??[])]
+ for(const row of queues){
   if(row.guestId===guestId){
    delete row.managementTokenHash;row.requiredAccessTags=[];row.contactConsent=false;delete row.preferredArea;delete row.preferredAt
    for(const event of row.history??[])if(event.action==='party-updated'||event.action==='joined')event.details=undefined
