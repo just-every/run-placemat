@@ -266,7 +266,7 @@ These clauses extend the published foundations to the complete category job. Eac
 
 - **MIG-008 — Cutover rehearsal and change catch-up.** Migration is a reviewed plan with source fingerprints, row-level errors, service/table/guest identity mappings, count/spend/consent reconciliation and a no-write rehearsal. A timed cutover captures changes after the snapshot, switches channels without duplicate reminders/fees, and supports safe rollback while preserving post-import staff edits. **Acceptance evidence:** Rehearse a Friday cutover, change two bookings in the old system, catch up those deltas, approve switch and undo an unchanged batch while refusing rollback over a staff-edited guest.
 
-- **DATA-003 — Complete portable business records.** Owners export documented CSV and versioned structured archives of guests, consent, notes, reservations, waitlists, experiences, payments/references, messages/outcomes, policies and audit, with field definitions and attachments where retained. Secrets and nonportable card details are excluded and named; exits never depend on keeping a subscription. **Acceptance evidence:** Export a complete multi-channel paid service, restore supported records into an empty installation and open the CSVs; reconcile counts and references, inspect exclusions and prove erased personal data stays absent.
+- **DATA-003 — Complete portable business records.** Owners export documented CSV and versioned structured archives of guests, consent, notes, reservations, waitlists, experiences, payments/references, messages/outcomes, policies and audit, with field definitions and attachments where retained. Secrets and nonportable card details are excluded and named; exits never depend on keeping a subscription. **Acceptance evidence:** Export a complete multi-channel paid service, restore supported records into an empty installation and open the CSVs; reconcile counts and references, inspect exclusions and prove erased personal data stays absent. Today DATA-003 is done when every existing supported record kind exports with documented fields and restores with its references and erasure fences. The current CSV and archive doors cover all existing venues, floor inventory, service/channel policies, reservations and requests, queue contact permission/history, guest profiles/notes/history, inquiries, no-show review tasks, proposals, reminder preparation, audit/service observations and published performance reports. Before new record kinds ship, PAY-001–PAY-010, EXP-001–EXP-005, MSG-002–MSG-011, CRM-001–CRM-006, DIST-001–DIST-006, POS-001–POS-007, ROLE-001 and VOICE-001 inherit complete documented CSV and structured-archive coverage, relationship validation, declared exclusions and erasure-safe restore. Their missing paid-service/provider acceptance remains in those introducing clauses; exports never fabricate it.
 
 ### Rights, APIs and daily operation
 
@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 15 | 0 | 0 | 15 |
-| Target and push further | 21 | 24 | 72 | 117 |
-| All | 36 | 24 | 72 | 132 |
+| Target and push further | 22 | 23 | 72 | 117 |
+| All | 37 | 23 | 72 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -542,7 +542,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `MIG-006` | Eat App migration | target | missing |  | No implementation of this journey exists. |
 | `MIG-007` | Loman AI handover | target | missing |  | No implementation of this journey exists. |
 | `MIG-008` | Cutover rehearsal and change catch-up | target | partial | `src/placemat/import/plan.ts`; `src/placemat/import/index.ts`; `tests/api/flows.test.mjs` | Exact dry-run/apply/journal/conflict-safe undo exists for the Tablein shape; multi-source mappings, reconciliation, deltas and channel cutover do not. |
-| `DATA-003` | Complete portable business records | target | partial | `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs` | Existing domain archive integrity and empty restore exist; new target records and documented business CSV exports are absent. |
+| `DATA-003` | Complete portable business records | target | done | `src/placemat/business-export.ts`; `src/placemat/business-export-store.ts`; `src/placemat/backup.ts`; `docs/data-portability.md`; `tests/api/business-export.test.mjs`; `tests/business-export-ui.mjs` | Every current supported record kind covered; new domain clauses inherit export/restore obligations before shipping. |
 | `ROLE-001` | Owner and group-administrator rights | target | partial | `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` | Owner-only keys/import/erase/backups and admin role exist; venue/group scoping, granular grants and provider finance rights do not. |
 | `ROLE-002` | Manager and shift-lead rights | target | partial | `src/placemat/access.ts`; `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Admin can operate and approve; distinct lead capability, financial limits and scoped reporting do not exist. |
 | `ROLE-003` | Host server and read-only rights | target | partial | `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` | Owner-granted host assignment/status rights and member read-only enforcement exist; broader host/queue/conversation rights, servers, section visibility and granular field/export permissions remain absent. |

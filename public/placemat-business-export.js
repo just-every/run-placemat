@@ -1,0 +1,3 @@
+export function businessExports(kinds,esc){
+ return `<details id="business-exports"><summary>Business CSV exports</summary><p>Download current business records for your own spreadsheets. The structured backup restores records; CSV files are for reading and reconciliation. <a href="https://github.com/just-every/run-placemat/blob/main/docs/data-portability.md" target="_blank" rel="noreferrer">Field definitions and exclusions</a></p><ul>${kinds.map(kind=>`<li><a href="/api/business-export/${encodeURIComponent(kind)}.csv" download>${esc(kind.replaceAll('-',' '))} CSV</a></li>`).join('')}</ul></details>`
+}

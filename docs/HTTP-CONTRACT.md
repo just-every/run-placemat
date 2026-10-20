@@ -9,6 +9,7 @@ All private GETs require a native active owner/admin/member session (or read-onl
 - GET `/api/reminders.csv` person owner/admin: approved reminders exported for venue's own sender. No provider calls.
 - GET `/api/calendar/:bookingId` private: calendar download.
 - POST `/api/agent-keys` {name}: owner-only one-time secret. DELETE `/api/agent-keys/:id`: revoke.
+- GET `/api/business-export/<kind>.csv`: owner only, CSV attachment from one consistent current snapshot. Settings lists supported kinds; [field definitions and exclusions](data-portability.md) describe every column. CSV reads never mark a reminder delivered or change records.
 - GET `/api/backup`; POST `/api/restore` {archive,confirm:"RESTORE"}: owner, empty product destination, integrity and erasure fences. A refusal's `error` explains the cause and next step in plain language.
 - Move-in endpoints are documented by the importer author in docs/MOVE-IN.md. UI sends CSV text; importer returns dry-run plan then explicit apply, journal and undo.
 

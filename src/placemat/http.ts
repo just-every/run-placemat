@@ -1,3 +1,5 @@
+import {businessExportKinds} from './business-export'
+import {readBusinessCsv} from './business-export-store'
 import {inquiryPage} from './inquiry-views'
 import {publicCreateInquiry,publicReadInquiry,publicReplyInquiry} from './inquiries'
 import {adviseInventory} from './inventory-advisor'
@@ -33,7 +35,7 @@ const json=(data:any,status=200)=>Response.json(data,{status,headers})
 const paths=new Set(['/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
- if(path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   if(path==='/inquiry'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return inquiryPage(request)}
   if(path.startsWith('/api/public/inquiries/')){
@@ -88,6 +90,13 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
   if(!['owner','admin','member','host','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
   if(path==='/app'){if(actor!.agent)fail(403,'Agent keys use the API.');return productPage(request,env,actor!)}
   if(request.method!=='GET')originCheck(request,env)
+  if(path.startsWith('/api/business-export/')){
+   person(actor!,true)
+   if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   const kind=path.slice('/api/business-export/'.length).replace(/\.csv$/,'')
+   if(!path.endsWith('.csv')||!businessExportKinds.includes(kind as any))fail(404,'Unknown business export.')
+   return new Response(await readBusinessCsv(env.DB,kind),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="placemat-${kind}.csv"`}})
+  }
   if(path.startsWith('/api/import/')){person(actor!,true);return await importResponse(request,env,actor!)??json({error:'Not found'},404)}
   if(path==='/api/allocation-advice'){
    if(!actor!.agent)person(actor!)
@@ -132,7 +141,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    const {state,version}=await load(env.DB)
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]
    const people=await guests(env.DB)
-   return json({state,version,guests:people,actor,keys,serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({state,version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){
