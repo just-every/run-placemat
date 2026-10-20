@@ -1,3 +1,5 @@
+import {normalizePacing} from './pacing'
+import {seatingPreview,approvePacing,mayPace} from './pacing-review'
 import {normalizeIntake,assertNoActiveDuplicate,issueQueueToken,executeIntake} from './wait-join'
 import {extendTurn} from './timeline'
 import {executeAssignment,validateAssignment,validateAssignments,applyAssignment,assignmentSnapshot,accessTags} from './assignments'
@@ -21,11 +23,11 @@ import {approveFloorChange,prepareFloorChange,saveRoom,tableShape} from './floor
 export const reminderMessage=(s:State,b:Booking)=>`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`
 function booking(s:State,bookingId:unknown){return s.bookings.find(b=>b.id===bookingId)??fail(404,'Booking not found.')}
 const plain=(v:any)=>JSON.stringify(v)
-export async function execute(db:D1Database,actor:Actor,command:string,p:any){
+export async function execute(db:D1Database,actor:Actor,command:string,p:any,pacingSecret?:string){
  const {state:s,version}=await load(db),now=new Date().toISOString(),before:D1PreparedStatement[]=[]
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
  const hostCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
- if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&hostCommands.includes(command)))fail(403,'A venue manager is required.')
+ if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
  case 'booking.move':case 'booking.swap':case 'booking.lock':{
@@ -37,13 +39,19 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
  case 'booking.extend':{
   result=extendTurn(s,actor,p,now);break
  }
- case 'team.host':{
+ case 'team.pacing':case 'team.host':{
   if(actor.agent||actor.role!=='owner')fail(403,'The venue owner must grant host access.')
   if(typeof p.enabled!=='boolean')fail(400,'Choose whether host access is enabled.')
   const operatorId=text(p.operatorId,'Team member',100)
   const operator=await db.prepare("SELECT id,role,status FROM oa_operators WHERE id=?").bind(operatorId).first<{id:string;role:string;status:string}>()
   if(!operator||operator.role!=='member'||operator.status!=='active')fail(409,'Choose an active native team member for host access.')
-  s.hostIds=[...new Set([...(s.hostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
+  if(command==='team.pacing'){
+   if(!s.hostIds?.includes(operatorId))fail(409,'Grant host access before granting pacing overrides.')
+   s.pacingHostIds=[...new Set([...(s.pacingHostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
+  }else{
+   s.hostIds=[...new Set([...(s.hostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
+   if(!p.enabled)s.pacingHostIds=s.pacingHostIds?.filter(id=>id!==operatorId)
+  }
   result={id:operatorId,operatorId,enabled:p.enabled};break
  }
  case 'schedule.save':case 'schedule.preview':case 'schedule.publish':{
@@ -70,13 +78,18 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   if(current)Object.assign(current,table);else s.tables.push(table)
   result=table;break
  }
+ case 'service.pacing':{
+  const service=serviceBy(s,p.serviceId)
+  if(service.closedAt)fail(409,'A closed service keeps its pacing policy.')
+  service.pacing=normalizePacing(p.pacing);service.version++;result=service;break
+ }
  case 'service.save':{
   const current=p.id?serviceBy(s,p.id):null
   if(current?.status==='published')fail(409,'Published services keep their exact settings. Create another service for a different sitting.')
   const startAt=instant(p.startAt,'Service start'),endAt=instant(p.endAt,'Service end'),turnMinutes=number(p.turnMinutes,'Turn minutes',15,360)
   const duration=(Date.parse(endAt)-Date.parse(startAt))/60000
   if(duration<turnMinutes||duration>1440)fail(400,'Service duration must fit a turn and be no more than 24 hours.')
-  const service={id:current?.id??id(),name:text(p.name,'Service name',120),startAt,endAt,turnMinutes,coverLimit:number(p.coverLimit,'Cover limit',1,500),bookingRules:normalizeRules(p.bookingRules??current?.bookingRules),turnPolicy:normalizeTurnPolicy(p.turnPolicy??current?.turnPolicy,s,{startAt,endAt}),status:'draft' as const,version:(current?.version??0)+1}
+  const service={id:current?.id??id(),name:text(p.name,'Service name',120),startAt,endAt,turnMinutes,coverLimit:number(p.coverLimit,'Cover limit',1,500),pacing:normalizePacing(p.pacing??current?.pacing),bookingRules:normalizeRules(p.bookingRules??current?.bookingRules),turnPolicy:normalizeTurnPolicy(p.turnPolicy??current?.turnPolicy,s,{startAt,endAt}),status:'draft' as const,version:(current?.version??0)+1}
   if(current)Object.assign(current,service);else s.services.push(service)
   result=service;break
  }
@@ -142,19 +155,15 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any){
   proposal.status='approved';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break
  }
  case 'booking.walkin':case 'waitlist.seat':{
-  const waiting=command==='waitlist.seat'?(s.waitlist.find(w=>w.id===p.waitlistId)??fail(404,'Waitlist entry not found.')):null
-  if(waiting)queueCanSeat(waiting)
-  const service=serviceBy(s,waiting?.serviceId??p.serviceId)
-  if(service.status!=='published')fail(409,'Publish this service first.')
-  if(service.closedAt)fail(409,'This service is closed. Choose an open service.')
-  const {state:filtered,requiredArea,requiredAccessTags}=searchTables(s,p.area??p.requiredArea,waiting?.requiredAccessTags??p.requiredAccessTags)
-  const partySize=waiting?.partySize??number(p.partySize,'Party size',1,500),ruleOverride=checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),waiting?'waitlist':'walk-in',actor,p.overrideReason),fit=bookingFit(filtered,service,partySize,p.startAt,waiting?'waitlist':'walk-in',p.tableIds),{tables,...slot}=fit
+  const preview=seatingPreview(s,actor,command,p,now),{waiting,service,partySize,requiredArea,requiredAccessTags,ruleOverride,violations,fit}=preview
+  const pacingOverride=await approvePacing(pacingSecret,actor,command,p,version,now,violations),{tables,...slot}=fit
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
-  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(ruleOverride?{ruleOverride}:{})} satisfies Booking
+  result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(pacingOverride?{pacingOverride}:{}),...(ruleOverride?{ruleOverride}:{})} satisfies Booking
   checkStaffing(s,[result],now)
   recordServing(result,servingFor(s,service.id,result.tableIds),actor.id,now,command)
+  if(pacingOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.pacing-override',subject:result.id,pacing:pacingOverride})
   s.bookings.push(result);executeServiceStatus(s,actor,{bookingId:result.id,stage:'seated'},now);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break
  }
  case 'waitlist.add':{

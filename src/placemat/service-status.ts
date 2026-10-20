@@ -137,7 +137,7 @@ export function executeServiceStatus(s:State,actor:Actor,p:any,now:string) {
   checkStaffing(s,[{...b,status:after.bookingStatus}],now)
  }
  const reacquiring=['booked','seated'].includes(after.bookingStatus)&&!['booked','seated'].includes(before.bookingStatus)
- if(reacquiring||after.needsBussing&&(!before.needsBussing||before.floorStatus==='ready'))fit(s,b,now,after.needsBussing||after.bookingStatus==='seated')
+ if(reacquiring||after.needsBussing&&(!before.needsBussing||before.floorStatus==='ready'))fit(s,{...b,status:after.bookingStatus},now,after.needsBussing||after.bookingStatus==='seated')
  // All validation completes before changing the booking or its append-only log.
  if(newlySeating||b.status==='seated'&&!history.length)recordServing(b,servingFor(s,b.serviceId,b.tableIds),actor.id,now,'seated',reason,true)
  b.status=after.bookingStatus;b.needsBussing=after.needsBussing

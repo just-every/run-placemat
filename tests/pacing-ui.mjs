@@ -1,0 +1,49 @@
+// SERVICE-005 / SERVICE-007: real native manager/host forms, booking page, warnings and report drilldowns.
+import assert from 'node:assert/strict'
+import {readFile,mkdir} from 'node:fs/promises'
+import {extname,resolve} from 'node:path'
+import {chromium,expect} from '@playwright/test'
+import {installation,publicGuest} from './api/harness.mjs'
+const shots=process.env.PLACEMAT_SCREENSHOTS
+if(shots)await mkdir(shots,{recursive:true})
+const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+try{
+ for(const width of [1440,390]){
+  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000}})
+  try{
+   await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
+   for(let i=0;i<18;i++)await h.command('table.save',{label:String(12+i),seats:4,area:'Dining',x:10+i%6*16,y:15+Math.floor(i/6)*30})
+   const cookies=value=>value.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:h.origin,secure:true,sameSite:'Lax'}})
+   await context.addCookies(cookies(h.cookie))
+   await context.route('**/*',async route=>{
+    const req=route.request(),url=new URL(req.url());if(url.origin!==h.origin){await route.abort();return}
+    const file=resolve('public','.'+url.pathname)
+    if(file.startsWith(resolve('public')+'/')&&extname(file)){try{const body=await readFile(file);await route.fulfill({status:200,contentType:{'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream',body});return}catch{}}
+    const response=await h.mf.dispatchFetch(req.url(),{method:req.method(),headers:{...req.headers(),host:url.host},...(req.postDataBuffer()?{body:req.postDataBuffer()}:{})});await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
+   })
+   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
+   const shot=async(name,locator)=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'SERVICE-005: screen fits viewport');if(shots)await locator.screenshot({path:resolve(shots,`SERVICE-005-${name}-${width}.png`)})}
+   const saved=()=>page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
+   const submit=async(command,label)=>{const response=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command===command);await page.locator(`form[data-command="${command}"]`).getByRole('button',{name:label,exact:true}).click();const r=await response;assert.ok(r.ok(),await r.text());await saved();return r}
+   await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+   const serviceForm=page.locator('form[data-command="service.save"]'),day=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+   await serviceForm.locator('[name=name]').fill('Friday dinner');await serviceForm.locator('[name=startAt]').fill(day+'T19:30');await serviceForm.locator('[name=endAt]').fill(day+'T23:30');await serviceForm.locator('[name=turnMinutes]').fill('120');await serviceForm.locator('[name=coverLimit]').fill('80');await serviceForm.locator('details').filter({has:page.locator('[name=pacingInterval]')}).evaluate(el=>el.open=true)
+   for(const [name,value] of [['pacingInterval','15'],['pacingCovers','12'],['pacingParties','3'],['pacingConcurrent','48'],['pacingArea:Dining','12']])await serviceForm.locator(`[name="${name}"]`).fill(value)
+   await shot('configure',serviceForm);const result=await (await submit('service.save','Save service')).json(),service=result.result
+   await page.locator(`[data-action=publish][data-id="${service.id}"]`).click();await page.getByRole('status').filter({hasText:'Plan prepared'}).waitFor();await page.locator('[data-action=approve]').click();await page.getByRole('status').filter({hasText:'Plan approved'}).waitFor()
+   // Fill one arrival interval using the public HTTP door; inspect its honest alternatives in the real booking page.
+   for(const [i,name] of ['Priya Shah','Marco Rivera','Alex Chen'].entries())await h.api('/api/public/book',publicGuest(service,i,{name,partySize:4}),{as:'',status:201})
+   await page.goto(h.origin+'/book');await page.locator('form[data-public-command=search]').waitFor();
+   const date=page.locator('[name=date]').first();await date.fill(day);await page.locator('[name=partySize]').first().fill('4');const found=page.waitForResponse(r=>r.url().includes('/api/public/search?'));await page.getByRole('button',{name:'Find available times',exact:true}).click();const alternatives=await (await found).json();assert.ok(alternatives.results.length);assert.ok(!alternatives.results.some(r=>r.startAt===service.startAt));await page.locator('[name=public-result] option').nth(1).waitFor({state:'attached'});await shot('public-alternatives',page.locator('#public-content'))
+   const host=await h.signIn('pacing-host@example.test'),operator=(await h.api('/auth/operators')).find(p=>p.email==='pacing-host@example.test');await h.command('team.host',{operatorId:operator.id,enabled:true})
+   await page.goto(h.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('#bookings-pacing table').waitFor();assert.match(await page.locator('#bookings-pacing').innerText(),/12 \/ 12 covers/);assert.match(await page.locator('#bookings-pacing').innerText(),/Full/);await shot('full-interval',page.locator('#bookings-pacing'))
+   const grantForm=page.locator('form[data-command="team.pacing"]');await page.locator('#settings-content details').filter({has:grantForm}).evaluate(el=>el.open=true);await shot('host-grant',grantForm);await submit('team.pacing','Grant pacing overrides')
+   await context.clearCookies();await context.addCookies(cookies(host));await page.goto(h.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+   const walk=page.locator('form[data-command="booking.walkin"]');await walk.locator('xpath=..').evaluate(el=>el.open=true);await walk.locator('[name=name]').fill('Jordan Ellis');await walk.locator('[name=email]').fill('jordan@example.test');await walk.locator('[name=partySize]').fill('4')
+   await walk.getByRole('button',{name:'Seat walk-in',exact:true}).click();await walk.getByRole('heading',{name:'Pacing limits exceeded'}).waitFor();assert.match(await walk.innerText(),/Arrival interval covers/);assert.match(await walk.innerText(),/limit 12 · current 12 · projected 16 · excess 4/);assert.match(await walk.innerText(),/Dining arrival covers/);await shot('warning',walk)
+   await walk.locator('[name=pacingReason]').fill('Host accepted four additional covers after kitchen discussion');await walk.locator('[name=pacingConfirm]').check();await submit('booking.walkin','Seat walk-in');await page.locator('#bookings-pacing table').waitFor();assert.match(await page.locator('#bookings-list').innerText(),/Pacing override/);await page.locator('#bookings-pacing summary').filter({hasText:'Pacing overrides (1)'}).click();assert.match(await page.locator('#bookings-pacing').innerText(),/Host accepted four additional covers/);await shot('override-report',page.locator('#bookings-pacing'));await expect(page.locator('.timeline-table')).toContainText('Pacing override');await shot('timeline',page.locator('#floor-timeline'))
+   await context.clearCookies();await context.addCookies(cookies(h.cookie));await page.goto(h.origin+'/app');await page.locator('#reservation-result').getByText(/Pacing overrides: 4 covers · 1 reservations/).waitFor();await page.locator('#reservation-result summary').filter({hasText:'Pacing overrides:'}).click();await shot('cover-report',page.locator('#reservation-result'));assert.deepEqual(errors,[])
+   console.log(`SERVICE-005 / SERVICE-007 configured pacing, alternatives, full interval, granted host warning, exact override, timeline and report passed at ${width}`)
+  }finally{await context.unrouteAll({behavior:'wait'});await context.close();await h.close()}
+ }
+}finally{await browser.close()}

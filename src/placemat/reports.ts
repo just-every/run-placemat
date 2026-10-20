@@ -13,7 +13,7 @@ export type ReportFilters = {
 export type ReservationReportRow = {
   bookingId: string; serviceId: string; service: string; venue: string; serviceDate: string
   startAt: string; endAt: string; areas: string[]; tables: string[]; partySize: number
-  source: Booking['source']; status: Booking['status']
+  source: Booking['source']; status: Booking['status']; pacingOverride:boolean
 }
 export type CoverMetric = { covers: number; bookings: number; bookingIds: string[]; definition: string }
 export type CoverRate = {
@@ -103,7 +103,7 @@ export function reservationReport(state: State, search: URLSearchParams, now: Da
     rows.push({
       bookingId: booking.id, serviceId: service.id, service: service.name, venue: state.venue.name, serviceDate: day,
       startAt: booking.startAt, endAt: booking.endAt, areas,
-      tables: assignedTables.flatMap(table => table ? [table.label] : []), partySize: booking.partySize, source: booking.source, status: booking.status,
+      tables: assignedTables.flatMap(table => table ? [table.label] : []), partySize: booking.partySize, source: booking.source, status: booking.status, pacingOverride:Boolean(booking.pacingOverride),
     })
   }
   rows.sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.startAt.localeCompare(b.startAt) || a.bookingId.localeCompare(b.bookingId))
@@ -119,7 +119,7 @@ export function reservationReport(state: State, search: URLSearchParams, now: Da
       areas: [...new Set(state.tables.map(tableArea))].sort(), sources: [...sources], statuses: [...statuses], periods: [...periods],
     },
     summary: {
-      booked, attended, cancelled, noShow, activeBooked,
+      booked, attended, cancelled, noShow, activeBooked, pacingOverrides:metric(rows.filter(row=>row.pacingOverride),'Reservations with a staff pacing override, including later cancellations; each reservation counts once.'),
       rates: {
         attended: rate(attended, booked, 'Attended covers / all filtered booked covers × 100. Null when booked covers are zero.'),
         cancelled: rate(cancelled, booked, 'Cancelled covers / all filtered booked covers × 100. Null when booked covers are zero.'),
@@ -151,7 +151,7 @@ export function reportCsv(report: ReservationReport): string {
   const header = ['generatedAt', 'timezone', ...filterKeys.map(key => `filter_${key}`),
     'bookingId', 'serviceId', 'service', 'venue', 'serviceDate', 'startAt', 'endAt', 'areas', 'tables', 'partySize', 'source', 'status',
     'bookedCount', 'attendedCount', 'cancelledCount', 'noShowCount', 'activeBookedCount',
-    'bookedCovers', 'attendedCovers', 'cancelledCovers', 'noShowCovers', 'activeBookedCovers']
+    'bookedCovers', 'attendedCovers', 'cancelledCovers', 'noShowCovers', 'activeBookedCovers', 'pacingOverrideCount']
   const lines: unknown[][] = [header]
   for (const row of report.rows) {
     const attended = Number(row.status === 'seated' || row.status === 'completed')
@@ -161,7 +161,7 @@ export function reportCsv(report: ReservationReport): string {
     lines.push([report.generatedAt, report.timezone, ...filterKeys.map(key => report.filters[key]),
       row.bookingId, row.serviceId, row.service, row.venue, row.serviceDate, row.startAt, row.endAt, JSON.stringify(row.areas), JSON.stringify(row.tables), row.partySize, row.source, row.status,
       1, attended, cancelled, noShow, activeBooked,
-      row.partySize, attended * row.partySize, cancelled * row.partySize, noShow * row.partySize, activeBooked * row.partySize])
+      row.partySize, attended * row.partySize, cancelled * row.partySize, noShow * row.partySize, activeBooked * row.partySize, Number(row.pacingOverride)])
   }
   return lines.map(line => line.map(csvCell).join(',')).join('\r\n') + '\r\n'
 }

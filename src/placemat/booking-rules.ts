@@ -20,10 +20,10 @@ function local(instant:string,zone:string){
  const get=(type:string)=>parts.find(p=>p.type===type)!.value
  return {day:`${get('year')}-${get('month')}-${get('day')}`,clock:`${get('hour')}:${get('minute')}`}
 }
-export function checkBookingRules(s:State,service:Service,partySize:number,startAt:string,channel:keyof BookingRules,actor?:Actor,overrideReason?:unknown){
+export function checkBookingRules(s:State,service:Service,partySize:number,startAt:string,channel:keyof BookingRules,actor?:Actor,overrideReason?:unknown,allowBlocked=false){
  const rule=ruleFor(service,channel),now=new Date().toISOString(),today=local(now,s.venue.timezone),arrival=local(startAt,s.venue.timezone),violations:string[]=[]
  if(partySize>rule.inquiryAbove)fail(409,'This party needs a large-party inquiry. Contact the venue to discuss availability; no booking has been made.')
- if(rule.blockedStarts.includes(startAt))fail(409,'This arrival time is blocked. Choose another available time.')
+ if(!allowBlocked&&rule.blockedStarts.includes(startAt))fail(409,'This arrival time is blocked. Choose another available time.')
  if(arrival.day===today.day&&today.clock>rule.sameDayCutoff)fail(409,'The same-day booking cutoff has passed. Choose another date.')
  if(partySize<rule.minParty||partySize>rule.maxParty)violations.push(`Party size must be ${rule.minParty}–${rule.maxParty}.`)
  const days=(Date.parse(arrival.day)-Date.parse(today.day))/86400000

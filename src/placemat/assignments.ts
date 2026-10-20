@@ -1,3 +1,4 @@
+import {assertPacing} from './pacing'
 import {fail,id,text,type Actor,type Booking,type State,type AuditEntry,type ServingAssignment} from './model'
 import {serviceSnapshot} from './service-status'
 import {occupiedEndAt} from './capacity'
@@ -41,8 +42,6 @@ export function validateAssignments(s:State,moves:Array<{booking:Booking;tableId
  const destinations=moves.map(m=>({booking:m.booking,...assignmentChange(s,m.booking,m.tableIds,preserve)}))
  for(const {booking:b,tables,setupStartAt} of destinations){
   const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
-  const covers=[...others,...moves.map(m=>m.booking)].filter(v=>v.serviceId===service.id&&active(v)).reduce((n,v)=>n+v.partySize,0)
-  if(covers>service.coverLimit)fail(409,'This service has reached its cover limit.')
   const ids=tables.map(t=>t.id),interval=assignmentInterval({...b,setupStartAt},now)
   const stage=serviceSnapshot(s,b).status,physical=b.status==='seated'||['arrived','partially-arrived'].includes(stage)
   const occupiesNow=physical||interval.startAt<=now&&interval.cleanupEndAt>now
@@ -54,6 +53,7 @@ export function validateAssignments(s:State,moves:Array<{booking:Booking;tableId
   }
  }
  const parties=destinations.map(d=>({...d.booking,tableIds:d.tables.map(t=>t.id),setupStartAt:d.setupStartAt}))
+ for(const party of parties)assertPacing({...s,bookings:[...others,...parties]},s.services.find(v=>v.id===party.serviceId)!,party,now,s)
  const allowBreak=new Set(parties.filter(b=>preserve||b.status==='seated').filter(b=>preserve||s.services.find(v=>v.id===b.serviceId)?.staffing?.sections.some(section=>section.serverId===b.serverId&&b.tableIds.every(id=>section.tableIds.includes(id)))).map(b=>b.id))
  const serving=checkStaffing(s,parties,now,allowBreak)
  return destinations.map((d,i)=>({...d,serving:serving[i]}))

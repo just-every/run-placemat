@@ -9,10 +9,10 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  if(!row)return []
  const state=JSON.parse(row.data) as State
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan))]
- for(const b of bookings)if(b.guestId===guestId){if(b.ruleOverride)b.ruleOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
+ for(const b of bookings)if(b.guestId===guestId){if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
  const bookingIds=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id))
  for(const event of state.serviceEvents??[])if(bookingIds.has(event.bookingId))event.reason=''
- for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId))))event.reason=''
+ for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId)))){event.reason='';if(event.pacing)event.pacing.reason=''}
  const relatedServices=new Set(state.waitlist.filter(w=>w.guestId===guestId).map(w=>w.serviceId))
  const closeReasons=new Set(state.services.filter(s=>relatedServices.has(s.id)).map(s=>s.closeReason).filter(Boolean))
  for(const service of state.services)if(relatedServices.has(service.id))service.closeReason=''

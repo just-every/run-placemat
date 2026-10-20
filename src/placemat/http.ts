@@ -1,3 +1,5 @@
+import {pacingReport} from './pacing'
+import {seatingPreview,issuePacingReview} from './pacing-review'
 import {queuePage} from './queue-views'
 import {queueQr} from './queue-qr'
 import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait-join'
@@ -21,7 +23,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  if(path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
@@ -90,6 +92,12 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    const people=await guests(env.DB)
    return json({state,version,guests:people,actor,keys,serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
+  if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
+  if(path==='/api/pacing/preview'&&request.method==='POST'){
+   const {state,version}=await load(env.DB),p=await jsonBody(request),now=new Date().toISOString()
+   const preview=seatingPreview(state,actor!,p.command,p.payload,now)
+   return json({violations:preview.violations,version,review:await issuePacingReview(env.SESSION_SECRET,actor!,p.command,p.payload,version,now)})
+  }
   if(path==='/api/commands'&&request.method==='POST'){
    const p=await jsonBody(request)
    if(p.command==='guest.erase'){
@@ -99,7 +107,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
     await erasureCheckpoint(env.DB)
     return json({result})
    }
-   return json({result:await execute(env.DB,actor!,text(p.command,'Command'),p.payload??{})})
+   return json({result:await execute(env.DB,actor!,text(p.command,'Command'),p.payload??{},env.SESSION_SECRET)})
   }
   if(path==='/api/reminders.csv'&&request.method==='GET'){
    person(actor!);const {state,version}=await load(env.DB)

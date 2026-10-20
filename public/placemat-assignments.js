@@ -19,5 +19,5 @@ export function assignmentEditor(booking,state,version,{esc,guest,time,form,fiel
 export function hostGrant(person,state,{esc,form}) {
  if(person.role!=='member'||person.status!=='active')return '';
  const enabled=!(state.hostIds||[]).includes(person.id);
- return form('team.host',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${enabled}">`,enabled?'Grant host access':'Remove host access',false,'inline');
+ return (!enabled?form('team.pacing',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${!(state.pacingHostIds||[]).includes(person.id)}">`,(state.pacingHostIds||[]).includes(person.id)?'Remove pacing override grant':'Grant pacing overrides',false,'inline'):'')+form('team.host',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${enabled}">`,enabled?'Grant host access':'Remove host access',false,'inline');
 }

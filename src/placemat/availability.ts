@@ -9,11 +9,11 @@ export function instant(value:unknown,label:string) {
  return new Date(value as string).toISOString()
 }
 export function serviceBy(s:State,id:unknown):Service {return s.services.find(x=>x.id===id)??fail(404,'Service not found.')}
-export function bookingFit(s:State,service:Service,partySize:number,value:unknown,channel:'online'|'walk-in'|'waitlist'='online',requested?:unknown){
+export function bookingFit(s:State,service:Service,partySize:number,value:unknown,channel:'online'|'walk-in'|'waitlist'='online',requested?:unknown,allowPacing=false){
  const startAt=instant(value,'Start')
  if((Date.parse(startAt)-Date.parse(service.startAt))%(ruleFor(service,channel).slotMinutes*60000)!==0)fail(400,`Choose a ${ruleFor(service,channel).slotMinutes}-minute start that fits the full turn within the service.`)
  const unavailable=channel==='online'?[]:s.bookings.filter(b=>b.needsBussing).flatMap(b=>b.tableIds)
- return fitAt(s,service,partySize,startAt,requested,unavailable)
+ return fitAt(s,service,partySize,startAt,requested,unavailable,allowPacing)
 }
 export function slots(s:State,service:Service,size:unknown){
  if(service.closedAt)return []
