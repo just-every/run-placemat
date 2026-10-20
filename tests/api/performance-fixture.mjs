@@ -1,4 +1,5 @@
 import {publicGuest} from './harness.mjs'
+import assert from 'node:assert/strict'
 
 // Real staff operations and receipt timestamps, shared by HTTP and browser journeys.
 export async function performanceService(h) {
@@ -15,10 +16,15 @@ export async function performanceService(h) {
  const overruns=[]
  for(let i=0;i<2;i++){
   const booking=await h.command('booking.walkin',publicGuest(service,i,{name:i?'Marco Rivera':'Priya Shah',phone:i?'2025550102':'2025550101',tableIds:[tables[i].id]}))
+  overruns.push(booking)
+ }
+ const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(startAt))
+ const observed=await h.api('/api/timeline?'+new URLSearchParams({serviceId:service.id,date}))
+ assert.equal(observed.rows.filter(row=>overruns.some(b=>b.id===row.id)&&row.overdue).length,2,'REPORT-002: two parties are observed still occupying tables past their forecast departures')
+ for(const [i,booking] of overruns.entries()){
   await h.command('booking.extend',{bookingId:booking.id,expectedEndAt:new Date(Date.now()+30*60000).toISOString(),reason:'Party is finishing dessert'})
   if(i===0)await h.command('booking.move',{bookingId:booking.id,tableIds:[tables[2].id],version:(await h.api('/api/state')).version,reason:'Finish dessert in the garden'})
   await h.command('booking.stage',{bookingId:booking.id,stage:'completed'})
-  overruns.push(booking)
  }
  const waiting=await h.command('waitlist.add',publicGuest(service,2,{name:'Dee Morgan',phone:'2025550103',quoteMin:5,quoteMax:10,basis:'Host observation of tables finishing'}))
  const seated=await h.command('waitlist.seat',{waitlistId:waiting.id,startAt:new Date(Date.parse(startAt)+60*60000).toISOString(),tableIds:[tables[3].id]})
