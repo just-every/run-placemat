@@ -19,6 +19,7 @@ try{
    const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message))
    await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
    const open=async()=>{await page.getByRole('link',{name:'Settings',exact:true}).click();await page.locator('#business-exports > summary').click();await page.locator('#business-exports[open]').waitFor()}
+   const reopen=async()=>{await page.reload();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await open()}
    const shot=async name=>{await page.getByRole('link',{name:'Settings',exact:true}).click();await page.locator('#settings').scrollIntoViewIfNeeded();await page.locator('#settings h2').waitFor({state:'visible'});if(shots)await page.locator('#settings').screenshot({path:resolve(shots,`DATA-003-${name}-${width}.png`)});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'DATA-003: Settings fits viewport')}
    await open();await shot('owner-downloads')
    const download=async kind=>{
@@ -32,8 +33,10 @@ try{
    const reports=await download('performance-reports');assert.equal(reports[0].id,fixture.publication.publication.id)
    const queue=await download('waitlist');assert.equal(queue[0].contactConsent,'true');assert.ok(!queue[0].data_json.includes('managementTokenHash'))
    await h.command('guest.update',{guestId:fixture.guest,notes:'Staff corrected the seating note'})
+   await reopen()
    const updated=await download('guests');assert.equal(updated.find(row=>row.id===fixture.guest).notes,'Staff corrected the seating note','DATA-003: reopening download reflects latest change')
    await h.command('guest.erase',{guestId:fixture.guest,confirm:'ERASE'})
+   await reopen()
    const redacted=await download('guests');assert.ok(!JSON.stringify(redacted).includes('Alex'));assert.ok(!JSON.stringify(redacted).includes('guest0@example.test'))
    assert.equal(redacted.find(row=>row.id===fixture.guest).erased,'true');await shot('erasure-complete')
    const member=await h.signIn('read-only@example.test');await context.clearCookies();await context.addCookies(cookies(member));await page.goto(transport.origin+'/app');await page.getByRole('link',{name:'Settings',exact:true}).click()
