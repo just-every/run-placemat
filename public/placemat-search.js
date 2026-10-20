@@ -82,7 +82,8 @@ export function createPublicSearch({api, esc, field, select, notice}) {
   }
   async function book() {
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
-    const payload = {...contact,...requests, partySize: query.partySize, area: query.area,
+    const embedOrigin = document.body.dataset.embedOrigin;
+    const payload = {...contact,...requests, ...(embedOrigin ? {embedOrigin} : {}), partySize: query.partySize, area: query.area,
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
     let result;
     try { result = (await api('/api/public/book', payload)).result; }

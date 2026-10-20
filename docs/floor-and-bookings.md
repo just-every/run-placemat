@@ -8,6 +8,12 @@ A guest chooses a **Party size**, a **Service** and an **Available arrival time*
 
 The page lists only 15-minute starts where a whole turn fits. Placemat picks the tables itself, combining tables when one cannot fit the party. A full service, a table clash or the service's cover limit cannot be overridden: when a slot is gone, the guest is asked to choose another time.
 
+## Put booking on your own website
+
+The venue owner chooses which websites may show the booking widget. In **Settings → Website booking widget**, list each website origin on its own line, such as `https://www.example.com`, and press **Save allowed websites**. Only exact `https://` origins are accepted: no `http://`, wildcards, paths or local addresses such as `localhost`. If your site builder places custom code inside its own frame, the browser checks that frame’s origin too, so add it as well. Every change is recorded with who made it and when.
+
+Paste the snippet shown there into a custom HTML or code block on the page (for example a WordPress Custom HTML block, a Squarespace Code block, Wix Embed HTML or your own site). The widget is the booking page itself: the same tables, rules, pacing and times, so a time booked in the widget disappears from `/book` and the other way round. Guests choose a time and press **Confirm booking** themselves; nothing is booked before that. The bookings list shows where each online booking came from: “website widget on https://…” or “booking page”. The widget shows no staff links, and staff pages refuse to open inside another website.
+
 ## Read the floor
 
 Choose the **Service** and a time in **View at**. While a service is running, **View at** starts at the current time; otherwise it starts when the service opens. The floor plan shows every table with its label and seats, marked:

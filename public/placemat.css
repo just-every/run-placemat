@@ -328,3 +328,7 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
  .bookings-table tr:has(.booking-requests) td:nth-child(4){grid-area:4/1}
  .bookings-table tr:has(.booking-requests) td:nth-child(5){grid-area:4/2}
 }
+/* BOOK-002 website widget: the same booking flow, sized for a host page's frame. */
+.rer-themed main.booking-shell.widget-shell{padding:20px 16px 28px}
+.rer-themed .widget-shell h1{margin:14px 0 8px;font-size:40px}
+.widget-changes{padding-left:18px;font-size:14px}

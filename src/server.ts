@@ -10,6 +10,7 @@ import { setupStateResponse } from './base/setup-state'
 import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
 import { placematResponse } from './placemat/http'
+import { unframeable } from './placemat/embed'
 import { seedDemo } from './demo'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -26,18 +27,23 @@ function noTransform(response: Response): Response {
 
 export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async fetch(request, env, execution) {
-    const asset = await staticAssetResponse(request, env)
-    if (asset) return asset
-    const auth = await authResponse(request, env)
-    if (auth) return auth
-    const product = await placematResponse(request, runtimeBindings(env))
-    if (product) return product
-    // The installed variant: the Lobby at / and the public claim state it reads.
-    // Local dev serves the saved origin's data at its own port (RER_DEV_ORIGIN).
-    const state = await setupStateResponse(request, runtimeBindings(env))
-    if (state) return state
-    const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
-    if (lobby) return lobby
-    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+    return unframeable(request, await respond(request, env, execution))
   },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })
+
+// BOOK-002: only the allowlisted /book?embed=1 widget may be framed; unframeable() guards every other response.
+async function respond(request: Request, env: Bindings, execution: ExecutionContext): Promise<Response> {
+  const asset = await staticAssetResponse(request, env)
+  if (asset) return asset
+  const auth = await authResponse(request, env)
+  if (auth) return auth
+  const product = await placematResponse(request, runtimeBindings(env))
+  if (product) return product
+  // The installed variant: the Lobby at / and the public claim state it reads.
+  // Local dev serves the saved origin's data at its own port (RER_DEV_ORIGIN).
+  const state = await setupStateResponse(request, runtimeBindings(env))
+  if (state) return state
+  const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
+  if (lobby) return lobby
+  return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+}

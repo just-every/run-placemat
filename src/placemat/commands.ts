@@ -16,6 +16,7 @@ import {executeSchedule,approveSchedule} from './schedules'
 import {initializeQueue,queueCanSeat,markQueueSeated,executeQueue} from './queue'
 import {normalizeTurnPolicy,turnImpact} from './turn-policy'
 import {normalizeRules,checkBookingRules} from './booking-rules'
+import {setEmbedOrigins,bookingAttribution} from './embed'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
 import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
@@ -38,6 +39,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
+ case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
  case 'service.followup':{result=followupChange(s,actor,p,now);break}
  case 'inquiry.assign':case 'inquiry.reply':case 'inquiry.convert':case 'inquiry.close':{
   result=await executeInquiry(s,actor,command,p,now,db);if(result.before){before.push(...result.before);delete result.before}break
@@ -219,7 +221,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  default:fail(400,'Unknown command.')
  }
- if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
+ if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
  await save(db,s,version,before)
  return result
 }
@@ -227,7 +229,7 @@ export async function onlineBook(db:D1Database,p:any){
  const {state:s,version}=await load(db),service=serviceBy(s,p.serviceId)
  if(service.status!=='published')fail(404,'This service is not open for bookings.')
  if(service.closedAt)fail(409,'This service is closed. Choose an open service; no booking has been made.')
- const partySize=number(p.partySize,'Party size',1,500)
+ const partySize=number(p.partySize,'Party size',1,500),attribution=bookingAttribution(s,p.embedOrigin)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
  const {state:filtered,requiredArea,requiredAccessTags}=searchTables(s,p.area,p.requiredAccessTags)
  const fit=bookingFit(filtered,service,partySize,p.startAt),{tables,...slot}=fit
@@ -237,7 +239,7 @@ export async function onlineBook(db:D1Database,p:any){
  const requests=p.requests===undefined?undefined:normalizeBookingRequests(p)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:new Date().toISOString()}
+ const b:Booking={...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])

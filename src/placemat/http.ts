@@ -22,6 +22,7 @@ import { load,guests,hash,save } from './store'
 import { slots } from './availability'
 import { execute,onlineBook } from './commands'
 import { productPage } from './views'
+import {embedOrigins} from './embed'
 import { actorNames } from './people'
 import { importResponse,eraseImportedGuest } from './import/index'
 import { backup,restore,erasureCheckpoint } from './backup'
@@ -66,7 +67,7 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    if(path==='/api/public/queue/rotate')return json(await publicQueueRotate(env.DB,p))
    return json({error:'Not found'},404)
   }
-  if(path==='/book'){if(request.method!=='GET')return json({error:'Method not allowed'},405);return productPage(request,env)}
+  if(path==='/book'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return productPage(request,env,undefined,embedOrigins((await load(env.DB)).state))}
   if(path==='/api/public/search'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)

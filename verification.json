@@ -45,7 +45,8 @@
         "node tests/inquiries-ui.mjs",
         "node tests/business-export-ui.mjs",
         "node tests/service-changes-ui.mjs",
-        "node tests/service-close-report-ui.mjs"
+        "node tests/service-close-report-ui.mjs",
+        "node tests/embed-ui.mjs"
       ]
     }
   ],

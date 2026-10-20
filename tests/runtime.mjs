@@ -40,7 +40,13 @@ try {
   for (const path of ['/missing', '/health/extra', '/api', '/api/missing']) {
     assert.equal((await fetch(`${origin}${path}`)).status, 404, path)
   }
-  console.log('HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s')
+  // BOOK-002: the emitted Worker keeps every document unframeable until the owner lists a website for the /book widget.
+  for (const path of ['/', '/health', '/missing', '/book', '/book?embed=1&origin=https%3A%2F%2Fbistro.example']) {
+    const response = await fetch(`${origin}${path}`, { redirect: 'manual' })
+    assert.equal(response.headers.get('x-frame-options'), 'DENY', path)
+    assert.match(response.headers.get('content-security-policy') ?? '', /frame-ancestors 'none'/, path)
+  }
+  console.log('HTTP-001 / BOOK-002 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s, unframeable responses')
 } finally {
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))

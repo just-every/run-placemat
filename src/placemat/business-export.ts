@@ -35,7 +35,7 @@ function cell(value:unknown):string {
 
 function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[]):Dataset {
  switch(kind) {
-  case 'venue':return {fields:['name','timezone','hostIds_json','pacingHostIds_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds}]}
+  case 'venue':return {fields:['name','timezone','hostIds_json','pacingHostIds_json','embedOrigins_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,embedOrigins:state.embed?.origins??[]}]}
   case 'rooms':return {fields:['id','name','kind'],rows:state.rooms??[]}
   case 'tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.tables}
   case 'allocation-tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.allocationTables??[]}
@@ -43,7 +43,7 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'services':return {fields:['id','name','startAt','endAt','status','version','turnMinutes','coverLimit','publicQueuePaused','closedAt','closedBy','closeReason','scheduleSource_json','bookingRules_json','turnPolicy_json','pacing_json','staffing_json','directInventory_json'],rows:state.services}
   case 'schedules':return {fields:['id','name','shift','seasonStart','seasonEnd','startTime','endTime','startOffset','endOffset','turnMinutes','coverLimit','weekdays_json','exceptions_json','version','updatedAt','updatedBy'],rows:state.schedules??[]}
   case 'service-changes':return {fields:['id','serviceId','scope','tableIds_json','startAt','endAt','reason','approvedBy','approvedAt','tasks_json'],rows:state.serviceChanges??[]}
-  case 'bookings':return {fields:['id','serviceId','guestId','partySize','startAt','endAt','status','source','createdAt','setupStartAt','cleanupEndAt','expectedEndAt','needsBussing','assignmentLocked','tableIds_json','combination_json','requiredArea','requiredAccessTags_json','requests_json','requestsAcknowledgedAt','ruleOverride_json','pacingOverride_json','serverId','sectionId','serverName','sectionName','servingHistory_json'],rows:state.bookings}
+  case 'bookings':return {fields:['id','serviceId','guestId','partySize','startAt','endAt','status','source','attribution_json','createdAt','setupStartAt','cleanupEndAt','expectedEndAt','needsBussing','assignmentLocked','tableIds_json','combination_json','requiredArea','requiredAccessTags_json','requests_json','requestsAcknowledgedAt','ruleOverride_json','pacingOverride_json','serverId','sectionId','serverName','sectionName','servingHistory_json'],rows:state.bookings}
   case 'waitlist':return {fields:['id','serviceId','guestId','bookingId','partySize','status','source','createdAt','seatedAt','resolvedAt','priority','owner','preferredAt','preferredArea','requiredAccessTags_json','contactConsent','actualWaitMinutes','quote_json','history_json','followUps_json'],rows:state.waitlist}
   case 'guests':return {fields:['id','name','email','phone','notes','erased','profile_json','provenance_json','notesHistory_json','history_json'],rows:people}
   case 'inquiries':return {fields:['id','guestId','ownerId','status','partySize','serviceId','requestedStartAt','requiredArea','requiredAccessTags_json','requests_json','replyDueAt','createdAt','updatedAt','closedAt','bookingId','acceptedOfferVersion','acceptedAt','offer_json','messages_json'],rows:state.inquiries??[]}
