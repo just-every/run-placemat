@@ -28,12 +28,12 @@ try{
    await page.getByRole('link',{name:'Approvals & reminders',exact:true}).click()
    const root=page.locator('#allocation-content')
    await root.locator('[data-allocation-prepare]').nth(1).waitFor()
-   const shot=async(name,locator=root)=>{if(shots)await locator.screenshot({path:resolve(shots,`AGENT-004-${name}-${width}.png`)});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Allocation screen fits the viewport')}
+   const shot=async(name,locator=root)=>{await page.locator('#allocation-content[aria-busy="false"]').waitFor();if(shots)await locator.screenshot({path:resolve(shots,`AGENT-004-${name}-${width}.png`)});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Allocation screen fits the viewport')}
    assert.match(await root.innerText(),/0 → 4/);assert.match(await root.innerText(),/step-free/);assert.match(await root.innerText(),/not confirmed seats/)
    await shot('alternatives')
    const prepare=async index=>{
     const form=root.locator('[data-allocation-prepare]').nth(index)
-    await form.locator('[name=reason]').fill('Keep step-free access and free Window 6 for the waiting four-top')
+    await form.locator('[name=reason]').fill('Keep step-free access and free Window 4 for the waiting four-top')
     const response=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command==='proposal.prepare')
     await form.getByRole('button',{name:'Prepare allocation',exact:true}).click()
     const result=await response;assert.ok(result.ok(),await result.text());const proposal=(await result.json()).result

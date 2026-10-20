@@ -1,7 +1,7 @@
 // Real public-door service with a two-person booking stranding the only large table.
-export async function allocationService(h,{size=2,demand=4}={}){
+export async function allocationService(h,{size=2,demand=4,largeSeats=4}={}){
  await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
- const large=await h.command('table.save',{label:'Window 6',seats:6,area:'Dining room',accessTags:['step-free'],x:20,y:30})
+ const large=await h.command('table.save',{label:'Window '+largeSeats,seats:largeSeats,area:'Dining room',accessTags:['step-free'],x:20,y:30})
  const day=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
  const service=await h.command('service.save',{name:'Friday demand review',startAt:day+'T21:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:90,coverLimit:24,pacing:{intervalMinutes:30,arrivalCovers:12,arrivalParties:6,concurrentCovers:12,areaArrivalCaps:{'Dining room':12}},turnPolicy:{cleanupMinutes:15,partyTurns:[],tableTurns:{},areaTurns:{}}})
  const server=await h.command('server.save',{serviceId:service.id,name:'Ana Torres',coverCap:12})

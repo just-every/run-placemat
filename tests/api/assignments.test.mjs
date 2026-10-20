@@ -147,7 +147,7 @@ test('AGENT-004: generated advice honors locks, staffed capacity, kitchen pacing
   await h.command('proposal.approve',{proposalId:turn.id});assert.equal((await advice()).alternatives.length,0,'Do not move a committed guest onto a table requiring a longer promised turn')
  }finally{await h.close()}
  const joined=await installation();try{
-  const {service,tables,reservation}=await allocationService(joined,{size:4,demand:6}),path='/api/allocation-advice?serviceId='+service.id
+  const {service,tables,reservation}=await allocationService(joined,{size:4,demand:6,largeSeats:6}),path='/api/allocation-advice?serviceId='+service.id
   assert.equal((await joined.api(path)).alternatives.length,0,'Unapproved pairs are unavailable')
   await joined.command('combination.save',{tableIds:[tables[1].id,tables[2].id],capacity:4,accessTags:['step-free'],setupMinutes:0,enabled:true,adjacent:true})
   const report=await joined.api(path);assert.equal(report.alternatives.length,1)

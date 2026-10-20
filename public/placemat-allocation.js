@@ -45,7 +45,7 @@ export function renderAllocation({root,state,api,esc,select,field,empty,tableNam
   }catch(error){if(current===request)result.innerHTML=`<p role="alert">${esc(error.message)}</p>`;}
  }
  function setBusy(value) {
-  busy=value;
+  busy=value;root.setAttribute('aria-busy',String(value));
   root.querySelectorAll('button,select,input').forEach(control=>{control.disabled=value;});
   if(!value)renderProposals();
  }
@@ -79,5 +79,5 @@ export function renderAllocation({root,state,api,esc,select,field,empty,tableNam
   }catch(error){errors.set(proposalId,error.message);if(decision==='approve'&&error.status===409)stale.add(proposalId);renderProposals();notify(error.message,true);}
   finally{setBusy(false);}
  });
- renderProposals();refresh();
+ root.setAttribute('aria-busy','false');renderProposals();refresh();
 }
