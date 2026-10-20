@@ -178,3 +178,7 @@
   .tg{min-height:28px;padding:0 10px;font-size:14px}
   .ps-kitchen .g{width:36px;height:36px}
 }
+/* Under 360 a booking row's chips run the card's full width, so the longest guest chip stays inside it. */
+@media (max-width:359px){
+  .bk-row .chips{grid-column:1/-1}
+}

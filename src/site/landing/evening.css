@@ -191,3 +191,9 @@
   .closing .fine{margin-top:20px;font-size:15px}
   .closing-art::before{display:none}
 }
+/* Under 360 the kitchen cards take the column's width instead of their widest line, and "Kitchen back to 15 min by 8:20" fits on one line. */
+@media (max-width:359px){
+  .kc{grid-template-columns:minmax(0,1fr)}
+  .kc-agent{padding:22px 14px}
+  .kc-done span{gap:10px;padding:0 12px;font-size:15px}
+}

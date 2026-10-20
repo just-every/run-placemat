@@ -93,3 +93,15 @@
   .hs-wait .av{width:46px;height:46px;font-size:18px}
   .hs-wait .m{font-size:15px}
 }
+/* Under 390 the tabs drop their spacing so "Reservations 30" stays inside the card; under 360 the card and its type
+   tighten so the tabs and the quote pill each keep one line. */
+@media (max-width:389px){
+  .tabs{gap:0}
+  .tabs span{padding:0 4px 12px}
+  .tabs em{min-width:22px;height:22px;margin-left:5px;font-size:13px}
+}
+@media (max-width:359px){
+  .hs{padding:14px 10px 18px}
+  .tabs{font-size:13px}
+  .hs-quote{padding:0 12px;font-size:14.5px}
+}
