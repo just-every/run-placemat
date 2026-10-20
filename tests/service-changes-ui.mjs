@@ -40,7 +40,7 @@ try {
    let response=await pending;assert.ok(response.ok(),await response.text());const proposal=(await response.json()).result
    const preview=root.locator(`[data-service-proposal="${proposal.id}"]`)
    await preview.getByRole('heading',{name:'Existing booking impacts (3)',exact:true}).waitFor()
-   for(const booking of original)assert.match(await preview.innerText(),new RegExp(booking.id))
+   for(const name of ['Alex Rowan','Sam Patel','Morgan Lee'])assert.ok((await preview.innerText()).includes(name))
    assert.deepEqual((await h.api('/api/state')).state.bookings,original,'Preparing the plan preserves commitments')
    const shot=async name=>{
     if(shots)await root.screenshot({path:resolve(shots,`SERVICE-003-${name}-${width}.png`)})
