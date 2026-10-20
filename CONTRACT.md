@@ -375,7 +375,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 7 | Hero · "100% free, open source alternative to OpenTable, Resy and SevenRooms" | `OSS-001`, `COST-001` | partial |
 | 8 | Hero · "Run Placemat →" opens /run; "Read the docs" opens /docs | `SITE-001` | done |
 | 9 | Hero · "Try the demo" | `SITE-002` | partial |
-| 10 | Hero tags · "Table 12 · Priya +3 · 7:30 · anniversary" | `BOOK-001`, `BOOK-007`, `GUEST-002` | partial |
+| 10 | Hero tags · "Table 12 · Priya +3 · 7:30 · anniversary" | `BOOK-001`, `BOOK-007`, `GUEST-002` | done |
 | 11 | Hero tags · "Regular · 15th visit · likes the window" | `GUEST-001`, `GUEST-002` | done |
 | 12 | Hero tags · "Waitlist · Marco, 2 · 15 min · text sent" | `WAIT-003`, `WAIT-004` | missing |
 | 13 | Hero tags · "Deposit $50 · held" | `PAY-002`, `PAY-003` | missing |

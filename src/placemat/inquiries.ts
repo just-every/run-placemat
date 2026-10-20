@@ -13,7 +13,7 @@ export type InquiryOffer={version:number;serviceId:string;startAt:string;endAt:s
 export type Inquiry={
  id:string;guestId:string;ownerId:string;status:'open'|'offered'|'accepted'|'converted'|'closed';replyDueAt:string;
  partySize:number;requiredArea?:string;requiredAccessTags:string[];requests:BookingRequests;serviceId?:string;requestedStartAt?:string;
- messages:InquiryMessage[];offer?:InquiryOffer;acceptedOfferVersion?:number;tokenHash?:string;
+ messages:InquiryMessage[];offer?:InquiryOffer;acceptedOfferVersion?:number;acceptedAt?:string;tokenHash?:string;
  createdAt:string;updatedAt:string;closedAt?:string;bookingId?:string
 }
 const rows=(s:State):Inquiry[]=>(s.inquiries??=[])
@@ -72,7 +72,7 @@ export async function publicReplyInquiry(db:D1Database,p:any){
  if(p.acceptOfferVersion!==undefined){
   if(!Number.isInteger(p.acceptOfferVersion)||!row.offer||p.acceptOfferVersion!==row.offer.version)fail(409,'The offer changed. Review and accept the current exact offer.')
   if(row.offer!.startAt<=now)fail(409,'This offer has passed. Ask the venue for a new offer.')
-  row.acceptedOfferVersion=row.offer!.version;row.status='accepted'
+  row.acceptedOfferVersion=row.offer!.version;row.acceptedAt=now;row.status='accepted'
  }
  if(p.message!==undefined)append(row,'guest',p.message,now)
  row.updatedAt=now;audit(s,row,now,'guest',p.acceptOfferVersion===undefined?'inquiry.guest-reply':'inquiry.accept')
@@ -128,7 +128,7 @@ export async function executeInquiry(s:State,actor:Actor,command:string,p:any,no
  }else if(command==='inquiry.reply'){
   const offerPayload=p.offer??p,hasOffer=p.offer!==undefined||p.serviceId!==undefined||p.startAt!==undefined
   if(!hasOffer&&p.message===undefined)fail(400,'Write a reply or supply an exact offer.')
-  if(hasOffer){row.offer=makeOffer(s,row,offerPayload,now);delete row.acceptedOfferVersion;row.status='offered'}
+  if(hasOffer){row.offer=makeOffer(s,row,offerPayload,now);delete row.acceptedOfferVersion;delete row.acceptedAt;row.status='offered'}
   if(p.message!==undefined)append(row,'venue',p.message,now,actor.id)
   if(p.replyDueAt!==undefined)row.replyDueAt=due(p.replyDueAt,now)
  }else if(command==='inquiry.close'){
@@ -144,7 +144,7 @@ export async function executeInquiry(s:State,actor:Actor,command:string,p:any,no
   const guest=await db.prepare("SELECT id FROM pm_guests WHERE id=? AND COALESCE(json_extract(data,'$.erased'),0)=0").bind(row.guestId).first<{id:string}>()
   if(!guest)fail(409,'This guest record is unavailable.')
   if(s.bookings.some(b=>b.guestId===row.guestId&&b.startAt===accepted.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
-  const booking:Booking={id:id(),guestId:row.guestId,serviceId:accepted.serviceId,partySize:row.partySize,...slot,requiredAccessTags:[...accepted.requiredAccessTags],...accepted.requiredArea?{requiredArea:accepted.requiredArea}:{},requests:structuredClone(row.requests),tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:now}
+  const booking:Booking={id:id(),guestId:row.guestId,serviceId:accepted.serviceId,partySize:row.partySize,...slot,requiredAccessTags:[...accepted.requiredAccessTags],...accepted.requiredArea?{requiredArea:accepted.requiredArea}:{},requests:structuredClone(row.requests),requestsAcknowledgedAt:row.acceptedAt,tableIds:tables.map(t=>t.id),status:'booked',source:'online',createdAt:now}
   recordServing(booking,servingFor(s,booking.serviceId,booking.tableIds),actor.id,now,command)
   s.bookings.push(booking);s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.inquiry',subject:booking.id})
   row.status='converted';row.bookingId=booking.id;row.closedAt=now;row.updatedAt=now;delete row.tokenHash

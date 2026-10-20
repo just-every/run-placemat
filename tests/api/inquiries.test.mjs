@@ -13,7 +13,7 @@ test('BOOK-007: required access and requested patio stay distinct; owned scoped 
   const normal=(await h.api('/api/public/book',direct,{as:'',status:201})).result
   assert.deepEqual(normal.requiredAccessTags,['step-free']);assert.equal(normal.area,'Dining room');assert.equal(normal.requests.requestedArea,'Patio');assert.ok(normal.requestTerms.some(t=>/not guaranteed/.test(t)))
   const booked=(await h.api('/api/state')).state.bookings.find(b=>b.id===normal.id)
-  assert.deepEqual(booked.tableIds,[small.id]);assert.deepEqual(booked.requests,requests)
+  assert.deepEqual(booked.tableIds,[small.id]);assert.deepEqual(booked.requests,requests);assert.ok(booked.requestsAcknowledgedAt)
   await h.api('/api/public/book',{...direct,email:'too-large@example.test',partySize:16},{as:'',status:409})
   await publicCall('create',{...inquiryPayload(service),requestsAcknowledged:false},400)
   const created=await publicCall('create',inquiryPayload(service),201),token=created.token
@@ -43,7 +43,7 @@ test('BOOK-007: required access and requested patio stay distinct; owned scoped 
   assert.equal((await h.api('/api/state')).state.inquiries.find(i=>i.id===created.id).status,'accepted')
   await h.command('booking.stage',{bookingId:raced.booking.id,stage:'cancelled'})
   const converted=await h.command('inquiry.convert',{inquiryId:created.id},{as:manager})
-  assert.equal(converted.inquiry.status,'converted');assert.deepEqual(converted.booking.tableIds,[large.id]);assert.deepEqual(converted.booking.requiredAccessTags,['step-free']);assert.equal(converted.booking.requiredArea,'Dining room');assert.deepEqual(converted.booking.requests,requests)
+  assert.equal(converted.inquiry.status,'converted');assert.deepEqual(converted.booking.tableIds,[large.id]);assert.deepEqual(converted.booking.requiredAccessTags,['step-free']);assert.equal(converted.booking.requiredArea,'Dining room');assert.deepEqual(converted.booking.requests,requests);assert.ok(converted.booking.requestsAcknowledgedAt)
   await publicCall('status',{token},404);await publicCall('reply',{token,message:'Expired'},404);await h.command('inquiry.convert',{inquiryId:created.id},{status:409})
   const closed=await publicCall('create',inquiryPayload(service,'Closing guest','closing@example.test'),201)
   await h.command('inquiry.close',{inquiryId:closed.id});await publicCall('status',{token:closed.token},404);await publicCall('status',{token:'0'.repeat(64)},404)
