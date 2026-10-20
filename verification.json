@@ -38,7 +38,8 @@
         "node tests/combinations-ui.mjs",
         "node tests/floor-plan-ui.mjs",
         "node tests/staffing-ui.mjs",
-        "node tests/pacing-ui.mjs"
+        "node tests/pacing-ui.mjs",
+        "node tests/performance-ui.mjs"
       ]
     }
   ],

@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
+import {performanceService} from './performance-fixture.mjs'
 
 // Real commands and booking doors supply every row; reports never use a seeded store.
 test('REPORT-001: venue-local shift filters, cover denominators, drilldowns and CSV reconcile through manager HTTP doors',async()=>{
@@ -93,4 +94,96 @@ test('REPORT-001: venue-local shift filters, cover denominators, drilldowns and 
   const seated=await h.command('waitlist.seat',{waitlistId:waiting.id,startAt:joined.startAt})
   assert.deepEqual((await h.api('/api/reports/reservations?source=waitlist')).rows.map(r=>r.bookingId),[seated.id])
  }finally{await h.close()}
+})
+
+test('REPORT-002: two overrun histories, turn/wait distributions, abandonment, staffing, utilization and immutable publications through manager HTTP doors',async()=>{
+ const h=await installation();try{
+  const f=await performanceService(h),url='/api/reports/performance?serviceId='+f.service.id
+  const manager=await h.signIn('performance-manager@example.test','admin'),member=await h.signIn('performance-reader@example.test')
+  const key=(await h.api('/api/agent-keys',{name:'Report preparation'})).result
+  for(const as of ['',member]){
+   await h.api(url,undefined,{as,status:as?403:401})
+   await h.api('/api/reports/performance',{serviceId:f.service.id},{as,status:as?403:401})
+  }
+  await h.api(url,undefined,{as:'',headers:{authorization:'Bearer '+key.key},status:403})
+  await h.api('/api/reports/performance',{serviceId:f.service.id},{as:manager,headers:{origin:'https://other.example.test'},status:403})
+  const {report:r}=await h.api(url,undefined,{as:manager})
+  assert.equal(r.rows.length,4)
+  assert.equal(r.distributions.actualTurns.sampleSize,3);assert.equal(r.distributions.actualTurns.missing,1)
+  const missing=r.rows.find(row=>row.bookingId===f.upcoming.id)
+  assert.equal(missing.actualTurnMinutes,null);assert.equal(missing.arrivalLatenessMinutes,null)
+  for(const b of f.overruns){const row=r.rows.find(row=>row.bookingId===b.id)
+   assert.ok(row.extended);assert.ok(row.departureDelayMinutes>0);assert.equal(row.turnHistory.length,1)
+   assert.equal(row.expectedTurnMinutes,(Date.parse(b.endAt)-Date.parse(b.startAt))/60000)
+   assert.equal(row.actualTurnMinutes,(Date.parse(row.actualDepartureAt)-Date.parse(row.actualSeatAt))/60000)
+   assert.ok(row.serviceHistory.some(e=>e.after.status==='completed'))
+   assert.ok(row.servingHistory.some(e=>e.action==='seated'));assert.ok(row.seatingAssignment)
+  }
+  for(const distribution of Object.values(r.distributions)){
+   const values=distribution.values.map(v=>v.value).sort((a,b)=>a-b),n=values.length
+   assert.equal(distribution.sampleSize,n)
+   assert.equal(distribution.mean,n?values.reduce((a,b)=>a+b,0)/n:null)
+   assert.equal(distribution.median,n?(values[Math.floor((n-1)/2)]+values[Math.floor(n/2)])/2:null)
+   assert.equal(distribution.p90,n?values[Math.ceil(n*.9)-1]:null)
+   for(const value of distribution.values)assert.ok(r.rows.some(row=>row.bookingId===value.id)||r.queue.rows.some(row=>row.queueId===value.id))
+  }
+  assert.equal(r.queue.abandoned.count,1);assert.deepEqual(r.abandoned.queueIds,[f.abandoned.id])
+  assert.equal(r.queue.seated.count,1);assert.equal(r.distributions.actualWait.sampleSize,2)
+  assert.equal(r.distributions.quotedWaitMin.sampleSize,2);assert.equal(r.distributions.quotedWaitMax.sampleSize,2)
+  for(const q of r.queue.rows){
+   assert.equal(q.actualWaitMinutes,(Date.parse(q.resolvedAt)-Date.parse(q.createdAt))/60000)
+   assert.equal(q.quoteDeviationMinutes,q.actualWaitMinutes-q.quotedWaitMin)
+   assert.equal(q.quoteSource,'staff-recorded');assert.ok(q.history.some(e=>e.actor&&e.at))
+  }
+  assert.equal(r.servers.find(s=>s.id===f.servers[0].id).attended.covers,4)
+  assert.notEqual(r.rows.find(b=>b.bookingId===f.overruns[0].id).serverId,r.rows.find(b=>b.bookingId===f.overruns[0].id).seatingAssignment.serverId)
+  assert.equal(r.servers.find(s=>s.id===f.servers[1].id).attended.covers,2)
+  for(const group of [r.servers,r.sections])for(const row of group){
+   assert.equal(row.attended.covers,row.attended.bookingIds.reduce((sum,id)=>sum+r.rows.find(b=>b.bookingId===id).partySize,0))
+   assert.equal(row.attended.covers,row.seated.covers+row.completed.covers)
+  }
+  assert.equal(r.missingSeatingHistory.sampleSize,0)
+  const available=f.tables.reduce((sum,t)=>sum+t.seats,0)*(Date.parse(f.service.endAt)-Date.parse(f.service.startAt))/60000
+  assert.equal(r.utilization.availableSeatMinutes,available);assert.equal(r.utilization.sampleSize,3)
+  const observed=r.rows.filter(b=>b.actualTurnMinutes!==null).reduce((sum,b)=>sum+b.tableIds.reduce((n,id)=>n+f.tables.find(t=>t.id===id).seats,0)*b.actualTurnMinutes,0)
+  assert.ok(Math.abs(r.utilization.observedSeatMinutes-observed)<0.000001)
+  assert.equal(r.utilization.ratio,r.utilization.observedSeatMinutes/available)
+  const pacing=await h.api('/api/pacing?serviceId='+f.service.id)
+  assert.deepEqual(r.pacing.intervals,pacing.intervals);assert.deepEqual(r.pacing.overrideBookingIds,pacing.overrideBookingIds)
+  const published=await h.api('/api/reports/performance',{serviceId:f.service.id},{as:manager,status:201})
+  const fixed=structuredClone(published.report),snapshot=published.publication.id
+  const original=r.rows.find(b=>b.bookingId===f.overruns[0].id).serviceHistory.at(-1)
+  await h.command('booking.stage',{bookingId:f.overruns[0].id,correctsEventId:original.id,reason:'Completion tapped early'})
+  const changed=(await h.api(url)).report,corrected=changed.rows.find(b=>b.bookingId===f.overruns[0].id)
+  assert.equal(corrected.actualTurnMinutes,null);assert.equal(changed.distributions.actualTurns.sampleSize,2)
+  assert.equal(corrected.serviceHistory.at(-1).correctsEventId,original.id)
+  assert.ok(corrected.serviceHistory.some(e=>e.id===original.id))
+  const retained=await h.api('/api/reports/performance?snapshot='+snapshot)
+  assert.deepEqual(retained.report,fixed);assert.equal(retained.changedSincePublication,true)
+  const adjusted=await h.api('/api/reports/performance',{serviceId:f.service.id},{status:201})
+  assert.notEqual(adjusted.publication.id,snapshot);assert.equal(adjusted.publications.length,2)
+  assert.equal(adjusted.report.distributions.actualTurns.sampleSize,2)
+  await h.command('booking.stage',{bookingId:f.overruns[0].id,stage:'completed'})
+  await h.command('service.close',{serviceId:f.service.id,reason:'Supper ended'})
+  const guestId=(await h.api('/api/state')).state.bookings.find(b=>b.id===f.overruns[0].id).guestId
+  await h.command('guest.erase',{guestId,confirm:'ERASE'})
+  const after=await h.api('/api/reports/performance?snapshot='+snapshot)
+  assert.deepEqual(after.report,fixed)
+  for(const value of ['Priya Shah','guest0@example.test','2025550101','Party is finishing dessert','Completion tapped early'])assert.ok(!JSON.stringify(after).includes(value))
+  await h.api('/api/reports/performance?serviceId=unknown',undefined,{status:404})
+  await h.api('/api/reports/performance?snapshot=unknown',undefined,{status:404})
+ }finally{await h.close()}
+})
+
+test('REPORT-002: published service facts survive owner archive round-trip without guest values',async()=>{
+ const h=await installation();let destination
+ try{
+  const {service}=await performanceService(h)
+  const saved=await h.api('/api/reports/performance',{serviceId:service.id},{status:201})
+  const archive=await h.api('/api/backup')
+  destination=await installation();await destination.api('/api/restore',{archive,confirm:'RESTORE'})
+  const restored=await destination.api('/api/reports/performance?snapshot='+saved.publication.id)
+  assert.deepEqual(restored.report,saved.report);assert.deepEqual(restored.publication,saved.publication)
+  assert.ok(!JSON.stringify(restored.report).includes('Priya Shah'))
+ }finally{await destination?.close();await h.close()}
 })

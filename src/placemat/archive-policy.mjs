@@ -36,16 +36,20 @@ export default {
  excludeTables:['pm_agent_keys','pm_public_limits','pm_assertions'],
  requiredConfiguration:['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM'],
  async validateStaged({read}) {
-  const rows=await read('pm_state'),guests=await read('pm_guests')
+  const rows=await read('pm_state'),guests=await read('pm_guests'),reports=await read('pm_performance_reports')
   if(rows.length>1)throw Error('Invalid floor state')
   const ids=new Set(guests.map(row=>row.id))
   for(const row of guests){const g=JSON.parse(row.data);if(g.id!==row.id||typeof g.name!=='string'||typeof g.email!=='string'||typeof g.notes!=='string')throw Error('Invalid guest')}
-  if(!rows.length)return
+  if(!rows.length){if(reports.length)throw Error('Published reports need their venue state');return}
   const s=JSON.parse(rows[0].data)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
   if(s.rooms!==undefined&&(!Array.isArray(s.rooms)||s.rooms.some(r=>!r||typeof r.id!=='string'||typeof r.name!=='string'||!r.name.trim()||!['indoor','outdoor','bar'].includes(r.kind))||new Set(s.rooms.map(r=>r.id)).size!==s.rooms.length||new Set(s.rooms.map(r=>r.name.toLowerCase())).size!==s.rooms.length))throw Error('Invalid rooms')
   if(s.tables.some(t=>!t||t.shape!==undefined&&!['round','square','rectangle','bar'].includes(t.shape)||t.retiredAt!==undefined&&(typeof t.retiredAt!=='string'||!Number.isFinite(Date.parse(t.retiredAt)))))throw Error('Invalid table shape or retirement')
   const tables=new Set(s.tables.map(t=>t.id)),services=new Set(s.services.map(t=>t.id))
+  for(const row of reports){
+   const report=JSON.parse(row.data)
+   if(!services.has(row.service_id)||report.serviceId!==row.service_id||typeof row.id!=='string'||!Number.isFinite(Date.parse(row.published_at))||typeof row.published_by!=='string'||!Number.isInteger(row.floor_version)||!Array.isArray(report.rows)||!Array.isArray(report.queue?.rows)||!report.distributions||!Number.isFinite(Date.parse(report.generatedAt)))throw Error('Invalid published performance report')
+  }
   if(s.bookings.some(b=>!ids.has(b.guestId)||!services.has(b.serviceId)||!b.tableIds.every(id=>tables.has(id))))throw Error('Broken booking relationships')
   validateStaffing(s,tables)
   validatePacing(s)

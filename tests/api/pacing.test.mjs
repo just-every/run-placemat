@@ -13,7 +13,7 @@ async function prepare(h,extra={}){
 const review=(h,command,payload,opts={})=>h.api('/api/pacing/preview',{command,payload},opts)
 const confirmation=(payload,r,reason='Host accepted the kitchen warning')=>({...payload,pacingReview:r.review,pacingReason:reason,pacingConfirm:'yes'})
 
-test('SERVICE-005: two channels race the final arrival allocation; interval, parties, simultaneous and kitchen limits refuse public booking with alternatives and require a reviewed staff override',async()=>{
+test('SERVICE-005 / REPORT-002: two channels race the final arrival allocation; interval, parties, simultaneous and kitchen limits refuse public booking with alternatives and require a reviewed staff override',async()=>{
  const h=await installation();try{
   const {service,at}=await prepare(h)
   for(let i=0;i<2;i++)await h.api('/api/public/book',publicGuest(service,i,{partySize:4}),{as:'',status:201})
@@ -41,6 +41,8 @@ test('SERVICE-005: two channels race the final arrival allocation; interval, par
   const warning=await h.api('/api/commands',{command:'booking.walkin',payload},{status:409});for(const v of r.violations)assert.ok(warning.error.includes(v.label))
   const seated=await h.command('booking.walkin',confirmation(payload,r));assert.equal(seated.status,'seated');assert.equal(seated.pacingOverride.violations.length,4)
   report=await h.api('/api/pacing?serviceId='+service.id);assert.equal(report.intervals[0].covers,16);assert.equal(report.totalCovers,52);assert.equal(report.overrideCount,1);assert.deepEqual(report.overrideBookingIds,[seated.id])
+  const performance=(await h.api('/api/reports/performance?serviceId='+service.id)).report
+  assert.equal(performance.pacing.overrideCount,1);assert.deepEqual(performance.pacing.overrideBookingIds,[seated.id]);assert.deepEqual(performance.pacing.intervals,report.intervals)
   const joined=await h.api('/api/public/queue/join',publicGuest(service,21,{partySize:2,contactConsent:false}),{as:'',status:201});assert.equal(joined.entry.status,'queued');
   const queuePage=await (await h.request('/queue',{as:''})).text();assert.match(queuePage,/Queued only; no table or time promised/);
   const waiting={id:joined.entry.id},seatPayload={waitlistId:waiting.id,startAt:at(0)}
