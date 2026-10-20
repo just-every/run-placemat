@@ -26,8 +26,9 @@ try{
    await page.getByRole('link',{name:'Reservation reports',exact:true}).click()
    await page.locator('#performance-result [data-performance-publish]').waitFor()
    const shot=async(name,locator=page.locator('#performance-content'))=>{
-    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Performance page fits the viewport')
     if(shots)await locator.screenshot({path:resolve(shots,`REPORT-002-${name}-${width}.png`)})
+    const overflow=await page.evaluate(()=>[...document.querySelectorAll('#performance-content *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).map(el=>({tag:el.tagName,class:el.className,text:el.textContent.slice(0,80),right:el.getBoundingClientRect().right})).slice(-12))
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Performance page fits the viewport: '+JSON.stringify(overflow))
    }
    await shot('live')
    const actual=page.locator('[data-performance-distribution=actualTurns]');await actual.locator('summary').click()
