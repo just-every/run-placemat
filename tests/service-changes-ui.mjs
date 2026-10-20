@@ -1,31 +1,23 @@
 // SERVICE-003: shipped manager UI, real Worker/session/D1, network-edge interception only.
 import assert from 'node:assert/strict'
-import {readFile,mkdir} from 'node:fs/promises'
-import {extname,resolve} from 'node:path'
+import {mkdir} from 'node:fs/promises'
+import {resolve} from 'node:path'
 import {chromium} from '@playwright/test'
+import {browserServer} from './browser-server.mjs'
 import {installation,service,publicGuest} from './api/harness.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try {
  for(const width of [1440,390]) {
-  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000}})
+  const h=await installation(),transport=await browserServer(h),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
   try {
    const fixture=await service(h,{tables:3,covers:20})
    for(let i=0;i<3;i++)await h.api('/api/public/book',publicGuest(fixture.service,i),{as:'',status:201})
    const original=(await h.api('/api/state')).state.bookings,errors=[],sentBefore=h.messages.length
-   await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:h.origin,secure:true,sameSite:'Lax'}}))
-   await context.route('**/*',async route=>{
-    const req=route.request(),url=new URL(req.url());if(url.origin!==h.origin){await route.abort();return}
-    const file=resolve('public','.'+url.pathname)
-    if(file.startsWith(resolve('public')+'/')&&extname(file)) {
-     try{const body=await readFile(file);await route.fulfill({status:200,contentType:{'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream',body});return}catch{}
-    }
-    const response=await h.mf.dispatchFetch(req.url(),{method:req.method(),headers:{...req.headers(),host:url.host},...(req.postDataBuffer()?{body:req.postDataBuffer()}:{})})
-    await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
-   })
+   await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
    const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message))
-   await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+   await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
    await page.getByRole('link',{name:'Services & tables',exact:true}).click()
    const root=page.locator('#service-changes-content')
    await root.getByText('Review a closure or private hold',{exact:true}).click()
@@ -76,6 +68,6 @@ try {
    await shot('failed-contact-retained-booking')
    assert.deepEqual(errors,[])
    console.log(`SERVICE-003 exact room closure, three manager-owned impacts, failed contact and unchanged bookings passed at ${width}`)
-  }finally{await context.unrouteAll({behavior:'wait'});await context.close();await h.close()}
+  }finally{await context.close();await transport.close();await h.close()}
  }
 }finally{await browser.close()}
