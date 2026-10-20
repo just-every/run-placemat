@@ -1,8 +1,10 @@
 import {renderPerformance} from './placemat-performance.js';
 /* REPORT-001: use the server's rows and definitions for every drilldown and CSV. */
-export function renderReports({state,canEdit,api,esc,field,select,empty}) {
+export function renderReports({state,canEdit,api,esc,field,select,empty,polling=false}) {
  const root=document.querySelector('#reports-content');
  if(!canEdit){root.innerHTML=empty('A venue manager can open reservation reports.');return;}
+ // Background floor synchronization must not replace a report being read or a saved publication.
+ if(polling&&root.querySelector('#reservation-filters'))return;
  const all=rows=>[['','All'],...rows];
  root.innerHTML=`<form id="reservation-filters"><div class="form-grid">${select('Venue','venue',all([[state.venue.name,state.venue.name]]))}${select('Period','period',[['all','All dates'],['past','Past services'],['current','Current services'],['future','Future services']])}${field('Local service date from','dateFrom','date')}${field('Local service date through','dateTo','date')}${select('Shift','serviceId',all(state.services.map(s=>[s.id,s.name])))}${select('Area','area',all([...new Set(state.tables.map(t=>t.area||'Dining room'))].map(a=>[a,a])))}${select('Source','source',all([...new Set(state.bookings.map(b=>b.source))].map(s=>[s,s])))}${select('Status','status',all(['booked','seated','completed','cancelled','no-show'].map(s=>[s,s])))}${field('Smallest party','partyMin','number',1,'min="1" max="20"')}${field('Largest party','partyMax','number',20,'min="1" max="20"')}<div class="wide"><button type="submit">Apply report filters</button></div></div></form><div id="reservation-result" aria-live="polite"></div>`;
  // Report selectors allow the empty "All" choice.

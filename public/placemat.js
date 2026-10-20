@@ -87,7 +87,7 @@ async function loadStaff(polling = false) {
   if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
   if (!floorTime && service()) floorTime = floorStart(service());
   $('#venue-name').textContent = state.venue.name; $('#venue-zone').textContent = `${state.venue.timezone} · ${actor.agent ? 'Agent preparation access' : actor.role === 'member' ? 'Read-only access' : 'Live operations'}`;
-  const floorReady=renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn(); renderReports({state,canEdit:canEdit(),api,esc,field,select,empty});
+  const floorReady=renderFloor(); renderServices(); renderWaitlist(); renderGuests(); renderApprovals(); renderSettings(); renderMoveIn(); renderReports({state,canEdit:canEdit(),api,esc,field,select,empty,polling});
   await floorReady;
   floorSync.synced(data.version);
 }

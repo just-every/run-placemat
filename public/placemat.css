@@ -312,6 +312,11 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 }
 #floor-staffing .card{overflow-wrap:anywhere}
 
+/* Performance drilldowns retain readable observations on narrow host devices. */
+#performance-content{overflow-wrap:anywhere}
+.rer-themed #performance-content button{max-width:100%;padding:10px 16px;white-space:normal;overflow-wrap:anywhere;text-align:left}
+#performance-content .card{min-width:0}
+
 /* Pacing keeps all column labels readable within its horizontal scroll region. */
 .pacing-table{min-width:820px}
 .pacing-table td:last-child{min-width:190px}
