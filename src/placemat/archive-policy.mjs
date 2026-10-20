@@ -53,6 +53,7 @@ export default {
   if(s.bookings.some(b=>!ids.has(b.guestId)||!services.has(b.serviceId)||!b.tableIds.every(id=>tables.has(id))))throw Error('Broken booking relationships')
   validateStaffing(s,tables)
   validatePacing(s)
+  if(s.riskDecisions!==undefined&&(!Array.isArray(s.riskDecisions)||s.riskDecisions.some(d=>!s.bookings.some(b=>b.id===d.bookingId)||!['contact','policy-review'].includes(d.kind)||!['accepted','declined'].includes(d.decision)||typeof d.id!=='string'||typeof d.actor!=='string'||typeof d.reason!=='string'||!Number.isFinite(Date.parse(d.at))||!d.snapshot||!Array.isArray(d.snapshot.flags)||d.snapshot.flags.some(f=>typeof f!=='string')||typeof d.snapshot.status!=='string'||d.decision==='accepted'&&!Number.isFinite(Date.parse(d.dueAt))||d.completedAt!==undefined&&(!Number.isFinite(Date.parse(d.completedAt))||typeof d.completedBy!=='string'||typeof d.outcome!=='string'))))throw Error('Invalid no-show review work')
   const bookingIds=new Set(s.bookings.map(b=>b.id))
   if(s.serviceEvents!==undefined&&(!Array.isArray(s.serviceEvents)||s.serviceEvents.some(e=>!bookingIds.has(e.bookingId))))throw Error('Broken service observation relationships')
   if(s.waitlist.some(w=>!ids.has(w.guestId)||!services.has(w.serviceId)))throw Error('Broken waitlist relationships')

@@ -1,3 +1,4 @@
+import {decideRisk} from './no-show'
 import {normalizePacing} from './pacing'
 import {seatingPreview,approvePacing,mayPace} from './pacing-review'
 import {normalizeIntake,assertNoActiveDuplicate,issueQueueToken,executeIntake} from './wait-join'
@@ -11,7 +12,7 @@ import {normalizeRules,checkBookingRules} from './booking-rules'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
 import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
-import { load,save } from './store'
+import { load,save,guests } from './store'
 import { updateGuestProfile } from './profiles'
 import {searchTables} from './reservation-search'
 import {saveCombination} from './combinations'
@@ -30,6 +31,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
+ case 'risk.decide':case 'risk.complete':{result=decideRisk(s,await guests(db),actor,command,p,now);break}
  case 'booking.move':case 'booking.swap':case 'booking.lock':{
   result=executeAssignment(s,actor,p,command,version,now);break
  }

@@ -1,3 +1,4 @@
+import {renderRisk} from './placemat-risk.js';
 import {renderPerformance} from './placemat-performance.js';
 /* REPORT-001: use the server's rows and definitions for every drilldown and CSV. */
 export function renderReports({state,canEdit,api,esc,field,select,empty,polling=false,who}) {
@@ -12,6 +13,8 @@ export function renderReports({state,canEdit,api,esc,field,select,empty,polling=
  const form=root.querySelector('form'),result=root.querySelector('#reservation-result');
  const performance=document.createElement('section');performance.id='performance-content';root.append(performance);
  renderPerformance({root:performance,state,api,esc,select,empty,who});
+ const risk=document.createElement('section');risk.id='risk-content';root.append(risk);
+ renderRisk({root:risk,state,api,esc,select,field,empty,who});
  async function refresh(){
   const search=new URLSearchParams();for(const [key,value] of new FormData(form))if(value)search.set(key,value);
   result.textContent='Loading reservation report…';

@@ -1,3 +1,4 @@
+import {noShowReport} from './no-show'
 import {pacingReport} from './pacing'
 import {seatingPreview,issuePacingReview} from './pacing-review'
 import {queuePage} from './queue-views'
@@ -24,7 +25,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  if(path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
@@ -69,6 +70,12 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
   if(path==='/app'){if(actor!.agent)fail(403,'Agent keys use the API.');return productPage(request,env,actor!)}
   if(request.method!=='GET')originCheck(request,env)
   if(path.startsWith('/api/import/')){person(actor!,true);return await importResponse(request,env,actor!)??json({error:'Not found'},404)}
+  if(path==='/api/reports/no-show'){
+   person(actor!)
+   if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   const {state}=await load(env.DB)
+   return json(noShowReport(state,await guests(env.DB),text(url.searchParams.get('serviceId'),'Service')))
+  }
   if(path==='/api/reports/performance'){
    person(actor!)
    if(request.method==='GET')return json(await readPerformance(env.DB,url.searchParams))

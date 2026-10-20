@@ -1,3 +1,4 @@
+import type {RiskDecision} from './no-show'
 import type {PacingPolicy,LimitViolation} from './pacing'
 import type {ServiceEvent} from './service-status'
 import type {ScheduleTemplate} from './schedules'
@@ -25,7 +26,7 @@ export type Proposal = { id:string; kind:'schedule.publish'|'service.publish'|'s
 export type Reminder = { id:string; bookingId:string; guestId:string; message:string; status:'approved'|'exported'; approvedBy:string; approvedAt:string }
 export type AssignmentSnapshot = {serverId?:string;sectionId?:string;serverName?:string;sectionName?:string;bookingId:string;tableIds:string[];locked:boolean;setupStartAt?:string;combination?:CombinationSnapshot}
 export type AuditEntry = {pacing?:PacingOverride;id:string;at:string;actor:string;action:string;subject:string;before?:AssignmentSnapshot[]|{expectedEndAt:string};after?:AssignmentSnapshot[]|{expectedEndAt:string};reason?:string}
-export type State = { venue:{name:string;timezone:string}; hostIds?:string[]; pacingHostIds?:string[]; rooms?:Room[]; allocationTables?:Table[]; tables:Table[]; combinations?:Combination[]; services:Service[]; schedules?:ScheduleTemplate[]; serviceEvents?:ServiceEvent[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:AuditEntry[] }
+export type State = { riskDecisions?:RiskDecision[]; venue:{name:string;timezone:string}; hostIds?:string[]; pacingHostIds?:string[]; rooms?:Room[]; allocationTables?:Table[]; tables:Table[]; combinations?:Combination[]; services:Service[]; schedules?:ScheduleTemplate[]; serviceEvents?:ServiceEvent[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:AuditEntry[] }
 export type Actor = {id:string;name:string;role:string;agent?:boolean}
 export const emptyState = ():State => ({venue:{name:'Placemat',timezone:'America/New_York'},rooms:[],tables:[],combinations:[],services:[],bookings:[],waitlist:[],proposals:[],reminders:[],audit:[]})
 export class Problem extends Error { constructor(public status:number, message:string){super(message)} }
