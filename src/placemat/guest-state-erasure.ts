@@ -20,6 +20,9 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  for(const event of state.serviceEvents??[])if(bookingIds.has(event.bookingId))event.reason=''
  for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId)))){event.reason='';if(event.pacing)event.pacing.reason=''}
  for(const task of state.riskDecisions??[])if(bookingIds.has(task.bookingId)){task.reason='';if(task.outcome)task.outcome=''}
+ const changes=[...(state.serviceChanges??[]),...state.proposals.flatMap(p=>p.plan?.snapshot?.serviceChanges??[])]
+ for(const change of changes)if(change.tasks.some((t:{bookingId:string})=>bookingIds.has(t.bookingId))){change.reason='';for(const task of change.tasks){task.reason='';delete task.outcome}}
+ for(const proposal of state.proposals)if(proposal.kind==='service.closure'&&(proposal.plan.bookingIds??[]).some((id:string)=>bookingIds.has(id)))proposal.reason=''
  const relatedServices=new Set(state.waitlist.filter(w=>w.guestId===guestId).map(w=>w.serviceId))
  const closeReasons=new Set(state.services.filter(s=>relatedServices.has(s.id)).map(s=>s.closeReason).filter(Boolean))
  for(const service of state.services)if(relatedServices.has(service.id))service.closeReason=''

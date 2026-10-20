@@ -1,3 +1,4 @@
+import {prepareClosure,approveClosure,followupChange} from './service-changes'
 import {normalizeBookingRequests,requestTerms} from './booking-requests'
 import {executeInquiry} from './inquiries'
 import {prepareInventory,approveInventory} from './inventory-advisor'
@@ -36,6 +37,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any
  switch(command){
+ case 'service.followup':{result=followupChange(s,actor,p,now);break}
  case 'inquiry.assign':case 'inquiry.reply':case 'inquiry.convert':case 'inquiry.close':{
   result=await executeInquiry(s,actor,command,p,now,db);if(result.before){before.push(...result.before);delete result.before}break
  }
@@ -105,7 +107,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  case 'proposal.prepare':{
   const kind=p.kind,plan=p.plan??{};let exact:any
-  if(kind==='inventory.protect'){
+  if(kind==='service.closure'){
+   exact=prepareClosure(s,plan,now)
+  }else if(kind==='inventory.protect'){
    exact=prepareInventory(s,plan,now)
   }else if(kind==='service.adjust'){
    exact=prepareShiftAdjustment(s,plan,now)
@@ -141,7 +145,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   if(proposal.status!=='pending')fail(409,'This proposal has already been decided.')
   if(command==='proposal.decline'){proposal.status='declined';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break}
   const plan=proposal.plan
-  if(proposal.kind==='inventory.protect'){
+  if(proposal.kind==='service.closure'){
+   approveClosure(s,actor,proposal,now)
+  }else if(proposal.kind==='inventory.protect'){
    approveInventory(s,actor,proposal,now)
   }else if(proposal.kind==='service.adjust'){
    approveShiftAdjustment(s,actor,proposal,now)

@@ -1,3 +1,4 @@
+import {blockedByChange} from './service-blocks'
 import {assertPacing} from './pacing'
 import {fail,type State,type Service,type Table,type Booking} from './model'
 import {assignmentFor,candidateSets} from './combinations'
@@ -23,7 +24,7 @@ export function allocation(s:State,service:Service,partySize:number,slot:Occupan
   let choice:ReturnType<typeof assignmentFor>
   try{choice=assignmentFor(s,ids,partySize,slot.startAt,service.startAt,existing?.requiredAccessTags??[],existing?.requiredArea,existing)}catch(error){if(requested===undefined&&error instanceof Error&&'status' in error&&[404,409].includes(Number(error.status)))continue;throw error}
   const interval={...slot,setupStartAt:choice.setupStartAt},tableIds=choice.tables.map(t=>t.id)
-  const blocked=tableIds.some(id=>unavailable.includes(id))||bookings.some(b=>b.tableIds.some(id=>tableIds.includes(id))&&(active(b)&&overlaps(b,interval,now)||b.needsBussing&&occupiedStartAt(interval)<=now&&occupiedEndAt(interval,now)>now))
+  const blocked=blockedByChange(s,tableIds,interval.setupStartAt??interval.startAt,occupiedEndAt(interval,now),interval.startAt)||tableIds.some(id=>unavailable.includes(id))||bookings.some(b=>b.tableIds.some(id=>tableIds.includes(id))&&(active(b)&&overlaps(b,interval,now)||b.needsBussing&&occupiedStartAt(interval)<=now&&occupiedEndAt(interval,now)>now))
   if(blocked){if(requested!==undefined)fail(409,'A selected table is already occupied during setup, the turn or cleanup. Review the current floor; clashes cannot be overridden.');continue}
   try{checkStaffing(s,[{...existing,...interval,serviceId:service.id,partySize,tableIds,status:(slot.status??existing?.status??'booked') as Booking['status']}],now,new Set(existing?.status==='seated'?[existing.id]:[]),true)}catch(error){if(requested===undefined&&error instanceof Error&&'status'in error&&Number(error.status)===409)continue;throw error}
   if(!allowPacing)assertPacing(s,service,{...existing,...interval,partySize,tableIds,status:(slot.status??existing?.status??'booked') as Booking['status']},now)

@@ -1,3 +1,4 @@
+import {assertServiceBlocks} from './service-blocks'
 import {assertInventory} from './direct-inventory'
 import {assertPacing} from './pacing'
 import {fail,id,text,type Actor,type Booking,type State,type AuditEntry,type ServingAssignment} from './model'
@@ -45,6 +46,7 @@ export function validateAssignments(s:State,moves:Array<{booking:Booking;tableId
  for(const {booking:b,tables,setupStartAt} of destinations){
   const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
   const ids=tables.map(t=>t.id),interval=assignmentInterval({...b,setupStartAt},now)
+  if(!preserve)assertServiceBlocks(s,ids,interval.startAt,interval.cleanupEndAt,b.startAt)
   const stage=serviceSnapshot(s,b).status,physical=b.status==='seated'||['arrived','partially-arrived'].includes(stage)
   const occupiesNow=physical||interval.startAt<=now&&interval.cleanupEndAt>now
   const candidates=[...others,...destinations.filter(d=>d.booking.id!==b.id).map(d=>({...d.booking,tableIds:d.tables.map(t=>t.id),setupStartAt:d.setupStartAt}))]
