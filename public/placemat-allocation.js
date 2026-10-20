@@ -6,6 +6,7 @@ export function renderAllocation({root,state,api,esc,select,field,empty,tableNam
  const errors=new Map(),stale=new Set();
  let report=null,request=0,busy=false;
  const stamp=value=>value?esc(time(value)):'Not recorded';
+ const minutes=value=>Number(value.toFixed(1));
  const list=values=>`<ul>${values.map(value=>`<li>${esc(value)}</li>`).join('')}</ul>`;
  root.innerHTML=`<h3>Allocation alternatives</h3><p class="help">Review table changes against recorded queue demand. Conditional wait estimates are not confirmed seats or promises to guests. A manager must review and approve an exact prepared plan before assignments change.</p><form data-allocation-filter><div class="form-grid">${select('Allocation service','serviceId',services.map(s=>[s.id,s.name]))}<div><button type="submit">Refresh alternatives</button></div></div></form><p data-allocation-message aria-live="polite"></p><div data-allocation-report aria-live="polite"></div><div data-allocation-proposals></div>`;
  const filter=root.querySelector('[data-allocation-filter]'),result=root.querySelector('[data-allocation-report]'),prepared=root.querySelector('[data-allocation-proposals]'),message=root.querySelector('[data-allocation-message]');
@@ -18,7 +19,7 @@ export function renderAllocation({root,state,api,esc,select,field,empty,tableNam
  }
  function wait(value) {
   if(!value||!value.earliestAt)return 'No feasible slot found';
-  return `${stamp(value.earliestAt)} · ${esc(value.waitMinutes)} min from calculation${value.delayMinutes===null||value.delayMinutes===undefined?'':` · ${esc(value.delayMinutes)} min after requested slot`}`;
+  return `${stamp(value.earliestAt)} · ${esc(minutes(value.waitMinutes))} min from calculation${value.delayMinutes===null||value.delayMinutes===undefined?'':` · ${esc(minutes(value.delayMinutes))} min after requested slot`}`;
  }
  function preview(value) {
   return `${list(value.explanations)}<h5>Booking changes and preserved commitments</h5>${value.affectedBookings.map(row=>{
