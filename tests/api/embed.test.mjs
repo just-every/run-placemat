@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,publicGuest,service} from './harness.mjs'
+const online={minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}
 const host='https://bistro.example',widget=origin=>`/book?embed=1&origin=${encodeURIComponent(origin)}`
 const ancestors=r=>r.headers.get('content-security-policy').match(/frame-ancestors ([^;,]+)/)[1].trim()
 const unframeable=(r,label)=>{assert.equal(r.headers.get('x-frame-options'),'DENY',label);assert.match(r.headers.get('content-security-policy'),/frame-ancestors 'none'/,label)}
@@ -37,16 +38,18 @@ test('BOOK-002: the owner alone keeps an exact audited https allowlist that only
  }finally{await h.close()}
 })
 
-test('BOOK-002 / SERVICE-005: widget and standalone bookings share one ledger with source attribution; public widget bookings never override pacing',async()=>{
+test('BOOK-002 / SERVICE-005: widget and standalone bookings share one ledger with source attribution and disclosed policy; public widget bookings never override pacing',async()=>{
  const h=await installation();try{
   await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
   for(const label of ['T1','T2'])await h.command('table.save',{label,seats:2,area:'Dining',x:20,y:30})
   const day=new Date(Date.now()+7*86400000).toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
-  const dinner=await h.command('service.save',{name:'Dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,pacing:{intervalMinutes:15,arrivalCovers:2,arrivalParties:3,concurrentCovers:48,areaArrivalCaps:{}}})
+  const dinner=await h.command('service.save',{name:'Dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online},pacing:{intervalMinutes:15,arrivalCovers:2,arrivalParties:3,concurrentCovers:48,areaArrivalCaps:{}}})
   const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish dinner for the website widget'});await h.command('proposal.approve',{proposalId:p.id})
   await h.command('embed.origins',{origins:[host]})
   const slots=async()=>(await h.api(`/api/public/search?date=${day}&partySize=2`,undefined,{as:''})).results.filter(s=>s.startAt===startAt&&!s.alternative).length
   assert.equal(await slots(),1)
+  const {blockedStarts,...disclosed}=online
+  assert.deepEqual((await h.api(`/api/public/search?date=${day}&partySize=2`,undefined,{as:''})).policies,[{serviceId:dinner.id,serviceName:'Dinner',date:day,...disclosed}],'the widget and page disclose the online channel rules before booking')
   const other=await h.api('/api/public/book',publicGuest(dinner,0,{embedOrigin:'https://other.example'}),{as:'',status:400});assert.match(other.error,/not allowed to embed/)
   const booked=(await h.api('/api/public/book',publicGuest(dinner,1,{embedOrigin:host}),{as:'',status:201})).result
   assert.equal(await slots(),0,'the widget booking fills the arrival interval for every public door')

@@ -332,3 +332,6 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 .rer-themed main.booking-shell.widget-shell{padding:20px 16px 28px}
 .rer-themed .widget-shell h1{margin:14px 0 8px;font-size:40px}
 .widget-changes{padding-left:18px;font-size:14px}
+.booking-policy{margin-top:16px;text-align:left}
+.booking-policy h2{font-size:18px;margin:0 0 6px}
+.booking-policy ul{margin:0;padding-left:18px;font-size:14px}

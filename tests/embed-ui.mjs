@@ -17,7 +17,7 @@ try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
    const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
-   const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8})
+   const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online:{minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}}})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish Friday dinner'});await h.command('proposal.approve',{proposalId:p.id})
    await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:h.origin,secure:true,sameSite:'Lax'}}))
    await context.route('**/*',async route=>{
@@ -52,6 +52,7 @@ try{
    await tabTo('partySize');await page.keyboard.press('Control+A');await page.keyboard.type('2')
    await tabTo('Find available times');await page.keyboard.press('Enter')
    await frame.getByRole('status').filter({hasText:'Availability updated'}).waitFor()
+   assert.match(await frame.locator('.booking-policy').innerText(),/Friday dinner.*online parties of 1–6; parties over 6 send a group inquiry; bookings open 60 days ahead; same-day bookings until 4:00 PM; book at least 30 minutes ahead; arrivals every 15 minutes/s,'the widget discloses the online booking policy')
    await tabTo('public-result');await page.keyboard.press('ArrowDown');await frame.getByRole('heading',{name:'Your selected visit'}).waitFor()
    await tabTo('name');await page.keyboard.type('Priya Shah');await tabTo('email');await page.keyboard.type('priya@example.test')
    await tabTo('requestsAcknowledged');await page.keyboard.press('Space');await tabTo('Confirm booking')

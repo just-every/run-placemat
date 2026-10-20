@@ -43,6 +43,19 @@ export function createPublicSearch({api, esc, field, select, notice}) {
     // An empty area means no constraint; this selector must permit that value.
     find('[name="area"]').required = false;
   }
+  function clock(value) {
+    const [hour, minute] = value.split(':').map(Number);
+    return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
+  }
+  function policyText(p) {
+    const day = new Intl.DateTimeFormat('en-US', {timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric'}).format(new Date(`${p.date}T12:00:00Z`));
+    return `${p.serviceName} (${day}): online parties of ${p.minParty}–${p.maxParty}; parties over ${p.inquiryAbove} send a group inquiry; bookings open ${p.horizonDays} days ahead; same-day bookings until ${clock(p.sameDayCutoff)}; ${p.leadMinutes ? `book at least ${p.leadMinutes} minutes ahead` : 'no minimum notice'}; arrivals every ${p.slotMinutes} minutes.`;
+  }
+  function policies() {
+    // BOOK-002 policy disclosure: the venue's online booking rules, shown before a guest confirms.
+    const rows = response?.policies || [];
+    return rows.length ? `<section class="booking-policy" aria-label="Booking policy"><h2>Booking policy</h2><ul>${rows.map(p => `<li>${esc(policyText(p))}</li>`).join('')}</ul><p class="help">Times are in ${esc(venue.timezone)}. Your table is reserved from arrival until the end time shown.</p></section>` : '';
+  }
   function renderResults() {
     const target = find('#public-search-results');
     if (!response) {
@@ -51,11 +64,11 @@ export function createPublicSearch({api, esc, field, select, notice}) {
     }
     const rows = response.results;
     if (!rows.length) {
-      target.innerHTML = `<p class="empty">${esc(response.message || 'No available times match your visit.')}</p><p>Change the date, party size, area or access requirements and search again, or contact the venue. No booking has been made.</p>`;
+      target.innerHTML = `<p class="empty">${esc(response.message || 'No available times match your visit.')}</p><p>Change the date, party size, area or access requirements and search again, or contact the venue. No booking has been made.</p>${policies()}`;
       return;
     }
     const offset = page * pageSize, visible = rows.slice(offset, offset + pageSize);
-    target.innerHTML = `<article class="card"><h2>Available arrival times</h2><p>${esc(constraints())}</p><p class="help">${esc(response.message || 'Choose an arrival time. Nearby date alternatives are labelled below.')} All times in ${esc(venue.timezone)}.</p><label>Choose an available time<select name="public-result"><option value="">Choose a time</option>${visible.map((slot, index) => `<option value="${offset + index}"${selected === slot ? ' selected' : ''}>${esc(slotLabel(slot))}</option>`).join('')}</select></label>${rows.length > pageSize ? `<p class="help">Times ${offset + 1}–${offset + visible.length} of ${rows.length}, in arrival order.</p><div class="actions">${action('Earlier times', 'previous', page === 0)}${action('Later times', 'next', offset + pageSize >= rows.length)}</div>` : ''}</article>`;
+    target.innerHTML = `<article class="card"><h2>Available arrival times</h2><p>${esc(constraints())}</p><p class="help">${esc(response.message || 'Choose an arrival time. Nearby date alternatives are labelled below.')} All times in ${esc(venue.timezone)}.</p><label>Choose an available time<select name="public-result"><option value="">Choose a time</option>${visible.map((slot, index) => `<option value="${offset + index}"${selected === slot ? ' selected' : ''}>${esc(slotLabel(slot))}</option>`).join('')}</select></label>${rows.length > pageSize ? `<p class="help">Times ${offset + 1}–${offset + visible.length} of ${rows.length}, in arrival order.</p><div class="actions">${action('Earlier times', 'previous', page === 0)}${action('Later times', 'next', offset + pageSize >= rows.length)}</div>` : ''}</article>${policies()}`;
   }
   function renderBooking() {
     const target = find('#public-booking-form');

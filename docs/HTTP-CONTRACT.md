@@ -179,6 +179,8 @@ Owner/admin people prepare `proposal.prepare` with `kind: "service.closure"`, a 
 
 `GET /book?embed=1&origin=<origin>` is the only frameable document: its CSP `frame-ancestors` names the list exactly and it sends no `X-Frame-Options`; with an empty list it sends `frame-ancestors 'none'` and `X-Frame-Options: DENY`. When `origin` is not listed the page is a script-free refusal. Every other response (`/app`, `/book`, `/queue`, `/inquiry`, auth, API and static files) carries `X-Frame-Options: DENY` and CSP `frame-ancestors 'none'`, which the Worker entry adds when a response has no `frame-ancestors`. The widget posts only `{type: 'placemat:height', height}` to the listed origin and listens to no messages. `/placemat-embed.js` frames `/book?embed=1` inside each `[data-placemat-book]` element and accepts height messages only from the Placemat origin and its own frame.
 
+`GET /api/public/search` also returns `policies`: for each published, open service in the searched eight-day window, `{serviceId, serviceName, date, minParty, maxParty, inquiryAbove, horizonDays, sameDayCutoff, leadMinutes, slotMinutes}` from its online channel rule (SERVICE-004); the widget and `/book` show them as the booking policy.
+
 `POST /api/public/book` accepts an optional `embedOrigin`, which must be listed (400 and no booking otherwise). Bookings record `attribution` `{door: 'widget', origin}` or `{door: 'booking-page'}`; the origin is what the widget reported, attribution rather than proof. Widget bookings keep the online channel's rules, turn/reset, joins, staffing and pacing; public requests never override them, and pacing review fields are ignored. The bookings business CSV adds `attribution_json`.
 
 Not built yet: consent-aware GA4 and Meta Pixel/Conversions API events.
