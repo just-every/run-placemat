@@ -34,3 +34,25 @@ for (const { slug } of manifest.sections.flatMap(section => section.pages)) {
   assert.ok((await page(`docs/${slug}.html`)).includes('docs-body'), `SITE-001: ${slug} is published`)
 }
 console.log('Run site passed: homepage → /run, every listed guide published and linked from /docs')
+
+
+// BOUND-001 compares the meaning of the published boundary, rather than pinning its copy.
+const boundary = text(home.match(/<p[^>]*class="[^"]*mi-not[^"]*"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '')
+const contract = await readFile(new URL('../CONTRACT.md', import.meta.url), 'utf8')
+const clause = contract.split('\n').find(line => line.startsWith('- **BOUND-001 —'))
+const declared = clause?.match(/homepage says “([^”]+)”/)?.[1]
+assert.ok(declared, 'BOUND-001: contract declares the homepage boundary')
+const meaning = value => value.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+assert.equal(meaning(boundary), meaning(declared), 'BOUND-001: built homepage and contract make the same exclusion statement')
+const exclusions = [/online ordering/i, /gift cards/i, /POS/i]
+assert.match(boundary, /not in|does not|no /i, 'BOUND-001: homepage marks its exclusions')
+for (const exclusion of exclusions) {
+ assert.match(boundary, exclusion, 'BOUND-001: homepage declares each excluded capability')
+ for (const source of [readme, text(await page('docs/getting-started.html')), text(await page('docs/http-contract.html'))]) {
+  assert.match(source, exclusion, 'BOUND-001: owner docs carry the same exclusions')
+  assert.match(source, /restaurant[’']s POS or its payment provider/i, 'BOUND-001: owner docs point to the venue POS/payment provider')
+ }
+}
+assert.match(text(home), /(?:from|in) your POS/i, 'BOUND-001: homepage places check taking in the venue POS')
+assert.doesNotMatch(text(home.replace(/<p[^>]*class="[^"]*mi-not[^"]*"[^>]*>[\s\S]*?<\/p>/, '')), /gift[- ]?cards?|stored[- ]?value|vouchers?|online (?:food )?ordering/i, 'BOUND-001: homepage makes no excluded capability claim elsewhere')
+console.log('BOUND-001: built homepage and owner docs agree on the product boundary')

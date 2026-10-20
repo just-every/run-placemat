@@ -154,3 +154,44 @@ test('A guest re-imported under a new id can be erased, then a booked guest too;
   const csvNow=await (await h.request('/api/reminders.csv')).text();assert.ok(!csvNow.includes('Amelia'))
  }finally{await h.close();await empty.close()}
 })
+
+
+test('BOUND-001: public reservations, staff actions and exports cannot create gift cards, stored value, vouchers or food orders',async()=>{
+ const h=await installation();try{
+  const setup=await h.mf.dispatchFetch(h.origin+'/setup',{method:'POST',redirect:'manual',headers:{origin:h.origin,host:new URL(h.origin).host,cookie:h.cookie,'content-type':'application/x-www-form-urlencoded'},body:'confirm=yes'})
+  assert.equal(setup.status,303);assert.equal(setup.headers.get('location'),'/app')
+  const {service:s}=await service(h)
+  const financial={giftCard:{amount:10000},storedValue:10000,voucher:'DINNER',order:{items:[{name:'Halibut',quantity:2}]},payment:{amount:10000},balance:10000,transferTo:'another-booking'}
+  const booking=(await h.api('/api/public/book',publicGuest(s,0,financial),{as:'',status:201})).result
+  const before=await h.api('/api/state')
+  assert.equal(before.state.bookings.length,1)
+  assert.equal(before.state.bookings[0].id,booking.id)
+  for(const field of Object.keys(financial)){
+   assert.equal(Object.hasOwn(booking,field),false,`BOUND-001: confirmation has no ${field}`)
+   assert.equal(Object.hasOwn(before.state.bookings[0],field),false,`BOUND-001: reservation has no ${field}`)
+  }
+  for(const command of ['giftCard.issue','storedValue.topup','voucher.redeem','balance.transfer','order.create']){
+   await h.command(command,{bookingId:booking.id,...financial},{status:400})
+  }
+  assert.deepEqual(await h.api('/api/state'),before,'BOUND-001: unsupported value/order actions make no changes')
+  for(const path of ['/api/gift-cards','/api/stored-value','/api/vouchers','/api/orders']){
+   assert.equal((await h.request(path,{method:'POST',body:financial})).status,404,`BOUND-001: ${path} is not a product door`)
+  }
+  const forbidden=/gift[-_ ]?cards?|stored[-_ ]?value|vouchers?|(?:food|online)[-_ ]?orders?|transferTo/i
+  for(const path of ['/app','/book']){
+   const response=await h.request(path);assert.equal(response.status,200,`BOUND-001: ${path} is an actual product screen`)
+   const html=await response.text()
+   assert.match(html,/<main\b/,'BOUND-001: product document was rendered; browser journey inspects hydrated controls')
+   const controls=[...html.matchAll(/<(?:button|a|input|select)\b[^>]*>(?:[^<]*)/g)].map(m=>m[0]).join(' ')
+   assert.doesNotMatch(controls,forbidden,`BOUND-001: ${path} exposes no value or food-order controls`)
+  }
+  for(const path of ['/api/backup','/api/reports/reservations.csv','/api/reminders.csv','/api/calendar/'+booking.id]){
+   const response=await h.request(path);assert.equal(response.status,200)
+   assert.doesNotMatch(await response.text(),forbidden,`BOUND-001: ${path} exports no injected value or order`)
+  }
+  const http=await readFile(new URL('../../docs/HTTP-CONTRACT.md',import.meta.url),'utf8')
+  const doors=[...http.matchAll(/`((?:GET|POST|DELETE) )?\/?api\/[^`]+`/g)].map(m=>m[0]).join(' ')
+  assert.ok(doors.length,'BOUND-001: documented doors were inspected')
+  assert.doesNotMatch(doors,forbidden,'BOUND-001: documented API has no value or food-order doors')
+ }finally{await h.close()}
+})

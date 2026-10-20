@@ -1,5 +1,9 @@
 Placemat runs on your own computer with one command, and later in your own Cloudflare account if you want guests to book from anywhere. It is free and open source under the MIT license.
 
+## Product boundary
+
+Not in Placemat: online ordering, gift cards or the POS itself. Placemat sells no gift cards, stored-value cards or vouchers and takes no online food orders. Gift cards, online ordering and check taking stay in the restaurant’s POS or its payment provider’s own products; connected loyalty stays there too. This release has no payment collection or booking balances. A staff-recorded “ordering” or “paid” stage is only a service observation, never an order or processor payment.
+
 ## Run it on your computer
 
 You need Git and an internet connection, on macOS, Linux or Windows with WSL2. Placemat uses its own pinned Node 22 and pnpm 10.12.4, so you do not need to change the versions you already have.

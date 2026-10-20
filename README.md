@@ -2,6 +2,8 @@
 
 Every table, filled. Placemat is restaurant reservations, the host stand, the waitlist and guest history for US restaurants: a 100% free, open source alternative to OpenTable, Resy and SevenRooms, MIT licensed, on your own computer or in your own Cloudflare account. [CONTRACT.md](CONTRACT.md) is the product it is being built towards; [ACCEPTANCE.md](ACCEPTANCE.md) says which journeys work today. This release has no payments, deposits, card holds or provider sends.
 
+Not in Placemat: online ordering, gift cards or the POS itself. Placemat sells no gift cards, stored-value cards or vouchers and takes no online food orders. Gift cards, online ordering and check taking stay in the restaurant’s POS or its payment provider’s own products; connected loyalty stays there too. This release has no payment collection or booking balances. A staff-recorded “ordering” or “paid” stage is only a service observation, never an order or processor payment.
+
 The owner guides are in [docs/](docs/site.json), starting with [Getting started](docs/getting-started.md); the run site publishes them at `/docs`.
 
 The run site is at https://run-placemat.com. Its run page, https://run-placemat.com/run, gives the install and `rer dev` steps; to run it on your own computer, follow **Clone and run** below.
