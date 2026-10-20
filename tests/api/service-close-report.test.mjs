@@ -72,6 +72,16 @@ test('REPORT-007 partial acceptance: atomic fixed close facts reconcile online n
   assert.equal(await (await h.request(csvUrl)).text(),csv,'Original exported statuses remain fixed after adjustments')
   await h.command('service.close',{serviceId:s.id,reason:'Duplicate close'},{status:409})
   assert.equal((await h.api(url)).snapshotId,initial.snapshotId)
+  const archive=await h.api('/api/backup'),restored=await installation()
+  try {
+   await restored.api('/api/restore',{archive,confirm:'RESTORE'})
+   const copy=await restored.api(url)
+   assert.deepEqual(copy.original,original);assert.deepEqual(copy.adjustments,adjusted.adjustments)
+   assert.equal(await (await restored.request(csvUrl)).text(),csv)
+  }finally{await restored.close()}
+  await h.command('guest.erase',{guestId:fixture.noShows[0].guestId,confirm:'ERASE'})
+  assert.deepEqual((await h.api(url)).original,original,'Guest-free original facts survive erasure without personal values')
+  assert.ok(!JSON.stringify(original).includes('guest0@example.test'))
   const member=await h.signIn('closed-reader@example.test'),key=(await h.api('/api/agent-keys',{name:'Report preparation key'})).result.key
   for(const path of [url,csvUrl]) {
    await h.api(path,undefined,{as:'',status:401})
