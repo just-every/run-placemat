@@ -4,7 +4,9 @@ import {installation,publicGuest} from './harness.mjs'
 
 test('SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and blocked guests; manager overrides remain physical and audited',async()=>{
  const h=await installation();try{
-  await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
+  // Keep a passed cutoff available even during New York's midnight minute.
+  const zone=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'2-digit',hourCycle:'h23'}).format(new Date())==='00'?'America/Los_Angeles':'America/New_York'
+  await h.command('venue.update',{name:'Cedar & Salt',timezone:zone})
   const table=await h.command('table.save',{label:'Dining 1',seats:6,x:30,y:30})
   const manager=await h.signIn('rules-manager@example.test','admin'),reader=await h.signIn('rules-reader@example.test')
   const base={minParty:2,maxParty:4,horizonDays:60,leadMinutes:30,sameDayCutoff:'23:59',slotMinutes:30,inquiryAbove:12,blockedStarts:[]}
@@ -32,10 +34,11 @@ test('SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and 
   const lead=await publish('Too early',day+'T06:00:00Z',day+'T09:00:00Z',{...base,leadMinutes:20000})
   await refuse(lead,{},409,/lead time/)
   assert.equal((await h.api('/api/public/services?partySize=2')).services.find(s=>s.id===lead.id).slots.length,0)
-  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
-  const dayStart=Date.parse(today+'T00:00:00-04:00'),cutoff=await publish('Same-day cutoff',new Date(dayStart).toISOString(),new Date(dayStart+86340000).toISOString(),{...base,sameDayCutoff:'00:00'})
-  const futureSlot=new Date(dayStart+Math.ceil((Date.now()+3600000-dayStart)/1800000)*1800000).toISOString()
-  await refuse(cutoff,{startAt:futureSlot},409,/cutoff/)
+  // Test the cutoff with an arrival in today's service, including late-night runs.
+  // Relative UTC instants avoid a fixed DST offset and a tomorrow-only slot.
+  const cutoffStart=Math.floor(Date.now()/1800000)*1800000
+  const cutoff=await publish('Same-day cutoff',new Date(cutoffStart).toISOString(),new Date(cutoffStart+3*3600000).toISOString(),{...base,sameDayCutoff:'00:00'})
+  await refuse(cutoff,{startAt:cutoff.startAt},409,/cutoff/)
   await h.command('booking.walkin',publicGuest(lunch,3,{tableIds:[table.id]}),{as:manager,status:409})
   await h.command('booking.walkin',publicGuest(lunch,3,{tableIds:[table.id],overrideReason:'Caller already at the host stand'}),{as:reader,status:403})
   const before=(await h.api('/api/state')).state.bookings.length

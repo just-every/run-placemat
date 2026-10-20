@@ -47,6 +47,7 @@
       "browser": true,
       "hosted": false,
       "commands": [
+        "pnpm run test:site",
         "pnpm run test:install"
       ]
     }
