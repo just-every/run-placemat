@@ -161,7 +161,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   before.push(guestGuard(db,entry))
   if(entry.fresh)before.push(guestInsert(db,entry.guest as any,version))
   result={id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'seated',source:waiting?'waitlist':'walk-in',createdAt:now,...(pacingOverride?{pacingOverride}:{}),...(ruleOverride?{ruleOverride}:{})} satisfies Booking
-  checkStaffing(s,[result],now)
+  checkStaffing(s,[result],now,new Set(),Boolean(pacingOverride))
   recordServing(result,servingFor(s,service.id,result.tableIds),actor.id,now,command)
   if(pacingOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.pacing-override',subject:result.id,pacing:pacingOverride})
   s.bookings.push(result);executeServiceStatus(s,actor,{bookingId:result.id,stage:'seated'},now);if(ruleOverride)s.audit.push({id:id(),at:now,actor:actor.id,action:'booking.rule-override',subject:result.id});if(waiting)markQueueSeated(waiting,actor,now,result.id);break

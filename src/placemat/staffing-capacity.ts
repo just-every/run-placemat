@@ -25,7 +25,7 @@ export function concurrentCovers(parties:DiningParty[],now:string,window?:{start
 }
 function areasFor(s:State,b:DiningParty){return [...new Set(b.tableIds.map(id=>(s.allocationTables??s.tables).find(t=>t.id===id)?.area??'Dining room'))]}
 /** Validate the final ledger atomically, so a swap never charges both old and new owners. */
-export function checkStaffing(s:State,candidates:DiningParty[],now:string,allowBreakIds:Set<string>=new Set()){
+export function checkStaffing(s:State,candidates:DiningParty[],now:string,allowBreakIds:Set<string>=new Set(),allowKitchen=false){
  const ids=new Set(candidates.flatMap(b=>b.id?[b.id]:[])),others=s.bookings.filter(b=>!ids.has(b.id)&&diningActive(b))
  const assignments=candidates.map(b=>servingFor(s,b.serviceId,b.tableIds))
  const final=candidates.map((b,i)=>({...b,...assignments[i]??{}}))
@@ -40,7 +40,7 @@ export function checkStaffing(s:State,candidates:DiningParty[],now:string,allowB
    const covers=concurrentCovers(all.filter(v=>v.serverId===server.id),now,window)
    if(covers>server.coverCap)fail(409,`${server.name} would have ${covers} overlapping dining covers against a cap of ${server.coverCap}. Choose another section or time.`)
   }
-  for(const area of areasFor(s,b)){
+  for(const area of allowKitchen?[]:areasFor(s,b)){
    const cap=Object.hasOwn(staffing.kitchenAreaCaps,area)?staffing.kitchenAreaCaps[area]:undefined
    if(cap===undefined)continue
    const covers=concurrentCovers(all.filter(v=>areasFor(s,v).includes(area)),now,window)
@@ -56,11 +56,11 @@ export function recordServing(b:Booking,to:ServingAssignment|null,actor:string,a
  if(from||to)(b.servingHistory??=[]).push({id:id(),at,actor,action,from,to:to?{...to}:null,...reason?{reason}:{}})
 }
 /** Policy edits may not silently reroute or unassign any active guest. */
-export function assertStaffingEdit(s:State,service:Service,now:string){
+export function assertStaffingEdit(s:State,service:Service,now:string,allowKitchen=false){
  const parties=s.bookings.filter(b=>b.serviceId===service.id&&diningActive(b))
  for(const b of parties){
   const owner=servingFor(s,b.serviceId,b.tableIds)
   if((b.serverId??null)!==(owner?.serverId??null)||(b.sectionId??null)!==(owner?.sectionId??null))fail(409,'Active parties use this section mapping. Move or finish those parties before changing its tables or server.')
  }
- checkStaffing(s,parties,now,new Set(parties.map(b=>b.id)))
+ checkStaffing(s,parties,now,new Set(parties.map(b=>b.id)),allowKitchen)
 }

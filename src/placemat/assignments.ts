@@ -55,7 +55,7 @@ export function validateAssignments(s:State,moves:Array<{booking:Booking;tableId
  const parties=destinations.map(d=>({...d.booking,tableIds:d.tables.map(t=>t.id),setupStartAt:d.setupStartAt}))
  for(const party of parties)assertPacing({...s,bookings:[...others,...parties]},s.services.find(v=>v.id===party.serviceId)!,party,now,s)
  const allowBreak=new Set(parties.filter(b=>preserve||b.status==='seated').filter(b=>preserve||s.services.find(v=>v.id===b.serviceId)?.staffing?.sections.some(section=>section.serverId===b.serverId&&b.tableIds.every(id=>section.tableIds.includes(id)))).map(b=>b.id))
- const serving=checkStaffing(s,parties,now,allowBreak)
+ const serving=checkStaffing(s,parties,now,allowBreak,true)
  return destinations.map((d,i)=>({...d,serving:serving[i]}))
 }
 export function validateAssignment(s:State,b:Booking,tableIds:unknown,now:string){return validateAssignments(s,[{booking:b,tableIds}],now)[0].tables}

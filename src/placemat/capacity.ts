@@ -25,7 +25,7 @@ export function allocation(s:State,service:Service,partySize:number,slot:Occupan
   const interval={...slot,setupStartAt:choice.setupStartAt},tableIds=choice.tables.map(t=>t.id)
   const blocked=tableIds.some(id=>unavailable.includes(id))||bookings.some(b=>b.tableIds.some(id=>tableIds.includes(id))&&(active(b)&&overlaps(b,interval,now)||b.needsBussing&&occupiedStartAt(interval)<=now&&occupiedEndAt(interval,now)>now))
   if(blocked){if(requested!==undefined)fail(409,'A selected table is already occupied during setup, the turn or cleanup. Review the current floor; clashes cannot be overridden.');continue}
-  try{checkStaffing(s,[{...existing,...interval,serviceId:service.id,partySize,tableIds,status:(slot.status??existing?.status??'booked') as Booking['status']}],now,new Set(existing?.status==='seated'?[existing.id]:[]))}catch(error){if(requested===undefined&&error instanceof Error&&'status'in error&&Number(error.status)===409)continue;throw error}
+  try{checkStaffing(s,[{...existing,...interval,serviceId:service.id,partySize,tableIds,status:(slot.status??existing?.status??'booked') as Booking['status']}],now,new Set(existing?.status==='seated'?[existing.id]:[]),true)}catch(error){if(requested===undefined&&error instanceof Error&&'status'in error&&Number(error.status)===409)continue;throw error}
   if(!allowPacing)assertPacing(s,service,{...existing,...interval,partySize,tableIds,status:(slot.status??existing?.status??'booked') as Booking['status']},now)
   const capacity=choice.combination?.capacity??choice.tables[0].seats,bestCapacity=best?.combination?.capacity??best?.tables[0].seats??Infinity
   if(!best||capacity<bestCapacity||capacity===bestCapacity&&choice.tables.length<best.tables.length)best=choice
