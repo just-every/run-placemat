@@ -33,7 +33,8 @@ function validateStaffing(s,tables){
 // Both native rer export/import and the owner HTTP backup use this policy.
 export default {
  product:'hospitality/placemat',
- excludeTables:['pm_agent_keys','pm_public_limits','pm_assertions'],
+ // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
+ excludeTables:['pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  requiredConfiguration:['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM'],
  async validateStaged({read}) {
   const rows=await read('pm_state'),guests=await read('pm_guests'),reports=await read('pm_performance_reports')

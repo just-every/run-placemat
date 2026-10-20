@@ -1,5 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
+import {createHash,randomBytes,randomUUID} from 'node:crypto'
 import {installation,publicGuest,service} from './harness.mjs'
 const online={minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}
 const host='https://bistro.example',widget=origin=>`/book?embed=1&origin=${encodeURIComponent(origin)}`
@@ -65,4 +66,105 @@ test('BOOK-002 / SERVICE-005: widget and standalone bookings share one ledger wi
   const venue=await (await h.request('/api/business-export/venue.csv')).text(),bookings=await (await h.request('/api/business-export/bookings.csv')).text()
   assert.match(venue,/embedOrigins_json/);assert.ok(venue.includes(`[""${host}""]`));assert.match(bookings,/attribution_json/);assert.ok(bookings.includes(`""door"":""widget"",""origin"":""${host}""`))
  }finally{await h.close()}
+})
+
+// Fresh random keys each run: what must never reappear in any response, archive or CSV.
+const ga4Secret=randomBytes(16).toString('hex'),metaToken=randomBytes(32).toString('hex')
+const settings=(ga4={},meta={})=>({ga4:{enabled:true,measurementId:'G-PLACEMAT1',debugMode:true,apiSecret:ga4Secret,...ga4},meta:{enabled:true,datasetId:'123456789012',testEventCode:'TEST4242',accessToken:metaToken,...meta}})
+const until=async(check,label)=>{for(let i=0;i<200;i++){if(await check())return;await new Promise(r=>setTimeout(r,25))}assert.fail(label)}
+const quiet=()=>new Promise(r=>setTimeout(r,400))
+const guestHeaders={'cf-connecting-ip':'203.0.113.77','user-agent':'Mozilla/5.0 (Placemat analytics guest)'}
+// What GA4 and Meta receive for one consented event, field for field (BOOK-002, ct ruling 20 Oct 22:48Z).
+function expected(event,visitId,source,{debug=true,test='TEST4242',bookingPage}={}){
+ const params={party_size:2,booking_source:source.door,...(source.door==='widget'?{widget_origin:source.origin}:{})}
+ const ga4={url:`https://www.google-analytics.com/mp/collect?measurement_id=G-PLACEMAT1&api_secret=${ga4Secret}`,body:{client_id:visitId,events:[{name:{search:'search','checkout-start':'begin_checkout',booking:'placemat_booking'}[event],params:{...params,...(debug?{debug_mode:true,engagement_time_msec:1}:{})}}]}}
+ const meta={url:`https://graph.facebook.com/v26.0/123456789012/events?access_token=${metaToken}`,body:{data:[{event_name:{search:'Search','checkout-start':'InitiateCheckout',booking:'Schedule'}[event],event_time:'now',action_source:'website',event_source_url:source.door==='widget'?source.origin:bookingPage,user_data:{client_user_agent:guestHeaders['user-agent'],external_id:[createHash('sha256').update(visitId).digest('hex')]},custom_data:params}],...(test?{test_event_code:test}:{})}}
+ return [ga4,meta]
+}
+const received=rows=>rows.map(({url,method,body})=>{assert.equal(method,'POST');const copy=structuredClone(body);for(const e of copy.data??[]){assert.ok(Math.abs(e.event_time-Date.now()/1000)<120,'event_time is the send time in Unix seconds');e.event_time='now'}return {url,body:copy}})
+const byWire=(a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))
+
+test('BOOK-002 / PRIVACY-001 / AUDIT-001: owner-only write-only analytics keys; consented search, checkout start and booking reach GA4 and Meta test mode with exactly the listed fields; no answer sends nothing; a failing provider never blocks or delays a booking',async()=>{
+ const h=await installation();try{
+  const {service:dinner}=await service(h);await h.command('embed.origins',{origins:[host]})
+  const manager=await h.signIn('manager@example.test','admin'),member=await h.signIn('reader@example.test')
+  assert.match((await h.api('/api/commands',{command:'analytics.settings',payload:settings()},{as:manager,status:403})).error,/owner/)
+  await h.api('/api/commands',{command:'analytics.settings',payload:settings()},{as:member,status:403})
+  const key=(await h.api('/api/agent-keys',{name:'Analytics helper'},{status:201})).result.key
+  await h.api('/api/commands',{command:'analytics.settings',payload:settings()},{as:'',headers:{authorization:`Bearer ${key}`},status:403})
+  await h.command('analytics.settings',settings({apiSecret:''}),{status:400})
+  await h.command('analytics.settings',settings({measurementId:'UA-12345-1'}),{status:400})
+  await h.command('analytics.settings',settings({},{datasetId:'pixel'}),{status:400})
+  assert.deepEqual((await h.api('/api/public/services',undefined,{as:''})).analytics,[],'nothing is offered before the owner switches a provider on')
+  await h.api('/api/public/analytics',{event:'search',visitId:randomUUID(),partySize:2},{as:'',status:202})
+  const {actor}=await h.api('/api/state')
+  assert.deepEqual((await h.command('analytics.settings',settings())).keys,['ga4','meta'])
+  await h.command('analytics.settings',settings({apiSecret:''},{accessToken:''}),{status:409})
+  for(const as of [h.cookie,manager,member]){const body=await (await h.request('/api/state',{as})).text();assert.ok(!body.includes(ga4Secret)&&!body.includes(metaToken),'no state response returns a saved key')}
+  let owner=await h.api('/api/state')
+  assert.deepEqual(owner.analytics.keys,['ga4','meta']);assert.equal((await h.api('/api/state',undefined,{as:manager})).analytics,undefined)
+  assert.deepEqual(owner.state.analytics,{ga4:{enabled:true,measurementId:'G-PLACEMAT1',debugMode:true},meta:{enabled:true,datasetId:'123456789012',testEventCode:'TEST4242'}})
+  let audit=owner.state.audit.filter(a=>a.action==='analytics.settings')
+  assert.equal(audit.length,1);assert.equal(audit[0].actor,actor.id);assert.ok(Date.parse(audit[0].at)<=Date.now())
+  assert.deepEqual([audit[0].before.ga4.enabled,audit[0].before.meta.enabled,audit[0].after.ga4,audit[0].after.meta],[false,false,{enabled:true,measurementId:'G-PLACEMAT1',debugMode:true,keySaved:true,keyEntered:true},{enabled:true,datasetId:'123456789012',testEventCode:'TEST4242',keySaved:true,keyEntered:true}])
+  assert.deepEqual((await h.api('/api/public/services',undefined,{as:''})).analytics,['ga4','meta'],'the public page learns which providers to name, nothing else')
+  // No answer (or Decline): the page never creates a visit ID, so a booking sends nothing.
+  await h.api('/api/public/book',publicGuest(dinner,0),{as:'',headers:guestHeaders,status:201});await quiet()
+  assert.equal(h.analytics.length,0,'no consent, no provider request')
+  for(const bad of [{event:'purchase',visitId:randomUUID(),partySize:2},{event:'search',visitId:'visit-1',partySize:2},{event:'search',visitId:randomUUID(),partySize:2,embedOrigin:'https://other.example'}])await h.api('/api/public/analytics',bad,{as:'',status:400})
+  assert.equal((await h.request('/api/public/analytics',{as:''})).status,405)
+  // Accept in the widget: search, checkout start and the completed booking, each to both providers in their test modes.
+  const visitId=randomUUID(),widget={door:'widget',origin:host},bookingPage=h.origin+'/book'
+  for(const event of ['search','checkout-start'])assert.deepEqual(await h.api('/api/public/analytics',{event,visitId,partySize:2,embedOrigin:host},{as:'',headers:guestHeaders,status:202}),{providers:['ga4','meta']})
+  const guest=publicGuest(dinner,1,{embedOrigin:host,analytics:{visitId}}),booked=(await h.api('/api/public/book',guest,{as:'',headers:guestHeaders,status:201})).result
+  await until(()=>h.analytics.length===6,'three events reach two providers')
+  assert.deepEqual(received(h.analytics).sort(byWire),['search','checkout-start','booking'].flatMap(e=>expected(e,visitId,widget)).sort(byWire),'exactly the listed fields, with GA4 debug_mode and the Meta test_event_code')
+  const wire=JSON.stringify(h.analytics)
+  for(const value of [guest.name,guest.email,booked.id,booked.startAt,booked.startAt.slice(0,16),'203.0.113.77',h.cookie.split('=')[1]])assert.ok(!wire.includes(value),`no ${value} in any provider request`)
+  assert.ok(h.analytics.every(r=>!('cookie' in r.headers)&&Object.values(r.headers).every(v=>!v.includes('203.0.113.77'))))
+  await until(async()=>(await h.api('/api/state')).analytics.results.length===2,'provider answers recorded')
+  assert.deepEqual((await h.api('/api/state')).analytics.results.map(r=>[r.provider,r.event,r.status,r.detail]),[['ga4','placemat_booking',204,'Sent. GA4 does not confirm events; check DebugView.'],['meta','Schedule',200,'Meta received 1 event.']])
+  // The standalone page attributes the booking page; switching test modes off removes debug_mode and test_event_code.
+  await h.command('analytics.settings',settings({debugMode:false,apiSecret:''},{testEventCode:'',accessToken:''}))
+  const pageVisit=randomUUID();h.analytics.length=0
+  await h.api('/api/public/book',publicGuest(dinner,2,{analytics:{visitId:pageVisit}}),{as:'',headers:guestHeaders,status:201})
+  await until(()=>h.analytics.length===2,'booking-page event reaches both providers')
+  assert.deepEqual(received(h.analytics).sort(byWire),expected('booking',pageVisit,{door:'booking-page'},{debug:false,test:'',bookingPage}).sort(byWire))
+  // The visit ID never lands on the booking, in state, guests, the backup or any CSV; keys never leave either.
+  owner=await h.api('/api/state');let stored=JSON.stringify(owner)+JSON.stringify(await h.api('/api/backup'))
+  for(const kind of owner.businessExportKinds)stored+=await (await h.request(`/api/business-export/${kind}.csv`)).text()
+  for(const value of [visitId,pageVisit,ga4Secret,metaToken])assert.ok(!stored.includes(value),'nothing stored or exported carries a visit ID or key')
+  // A provider that hangs and then fails never blocks or delays the guest's booking.
+  let release;const held=new Promise(r=>release=r);h.analytics.length=0
+  h.answerAnalytics(async()=>{await held;return new Response('provider down',{status:503})})
+  const late=await Promise.race([h.api('/api/public/book',publicGuest(dinner,3,{analytics:{visitId:randomUUID()}}),{as:'',headers:guestHeaders,status:201}),new Promise((_,reject)=>setTimeout(()=>reject(Error('the booking waited for a provider')),8000))])
+  assert.ok(late.result.id);await until(()=>h.analytics.length===2,'provider requests are still held after the booking answered')
+  release();await until(async()=>(await h.api('/api/state')).analytics.results.every(r=>r.status===503),'failures recorded for the owner')
+  assert.deepEqual((await h.api('/api/state')).analytics.results.map(r=>r.detail),['GA4 refused the request.','Meta refused the request.'])
+  // Switching off is audited and stops every event; the saved keys stay write-only until the owner replaces them.
+  h.analytics.length=0;await h.command('analytics.settings',{ga4:{enabled:false,measurementId:'G-PLACEMAT1',debugMode:false},meta:{enabled:false,datasetId:'123456789012',testEventCode:''}})
+  owner=await h.api('/api/state');assert.deepEqual(owner.analytics.keys,['ga4','meta'])
+  audit=owner.state.audit.filter(a=>a.action==='analytics.settings');assert.deepEqual(audit.map(a=>[a.actor,a.after.ga4.enabled,a.after.meta.enabled,a.after.ga4.keySaved]),[[actor.id,true,true,true],[actor.id,true,true,true],[actor.id,false,false,true]])
+  assert.deepEqual((await h.api('/api/public/services',undefined,{as:''})).analytics,[])
+  assert.deepEqual(await h.api('/api/public/analytics',{event:'search',visitId:randomUUID(),partySize:2},{as:'',status:202}),{providers:[]});await quiet();assert.equal(h.analytics.length,0)
+  assert.ok(!JSON.stringify(audit).includes(ga4Secret)&&!JSON.stringify(audit).includes(metaToken),'the audit never holds a key')
+ }finally{await h.close()}
+})
+
+test('BOOK-002 / DATA-001 / DATA-003: backups and CSVs leave the analytics keys out by name; a restored installation sends nothing until the owner enters them again',async()=>{
+ const h=await installation(),restored=await installation();try{
+  await service(h);await h.command('analytics.settings',settings())
+  const archive=await h.api('/api/backup'),wire=JSON.stringify(archive)
+  assert.ok(!wire.includes(ga4Secret)&&!wire.includes(metaToken),'the archive carries neither key');assert.ok(archive[0].excludedTables.includes('pm_analytics_keys'),'the archive manifest names the excluded key table')
+  const venue=await (await h.request('/api/business-export/venue.csv')).text()
+  assert.match(venue,/analytics_json/);assert.ok(venue.includes('""measurementId"":""G-PLACEMAT1""')&&!venue.includes(ga4Secret)&&!venue.includes(metaToken))
+  await restored.api('/api/restore',{archive,confirm:'RESTORE'})
+  const copy=await restored.api('/api/state')
+  assert.deepEqual(copy.state.analytics,(await h.api('/api/state')).state.analytics,'settings and test modes come back');assert.deepEqual(copy.analytics.keys,[],'keys do not')
+  assert.deepEqual((await restored.api('/api/public/services',undefined,{as:''})).analytics,[],'no consent question until the keys are entered again')
+  assert.deepEqual(await restored.api('/api/public/analytics',{event:'search',visitId:randomUUID(),partySize:2},{as:'',status:202}),{providers:[]})
+  await quiet();assert.equal(restored.analytics.length,0)
+  await restored.command('analytics.settings',settings())
+  assert.deepEqual((await restored.api('/api/public/services',undefined,{as:''})).analytics,['ga4','meta'],'re-entering the keys resumes analytics')
+ }finally{await h.close();await restored.close()}
 })

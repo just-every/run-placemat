@@ -8,6 +8,7 @@ import type {ScheduleTemplate} from './schedules'
 import type {QueueEntry} from './queue'
 import type {TurnPolicy} from './turn-policy'
 import type { BookingRules } from './booking-rules'
+import type {AnalyticsSettings,AnalyticsAudit} from './analytics'
 export type TableShape = 'round'|'square'|'rectangle'|'bar'
 export type Room = {id:string;name:string;kind:'indoor'|'outdoor'|'bar'}
 export type Table = { id:string; label:string; seats:number; area?:string; accessTags?:string[]; x:number; y:number; shape?:TableShape; retiredAt?:string }
@@ -29,8 +30,8 @@ export type Waiting = QueueEntry
 export type Proposal = { id:string; kind:'service.closure'|'inventory.protect'|'service.adjust'|'allocation.improve'|'schedule.publish'|'service.publish'|'service.turns'|'reminders'|'table.assign'|'floor.change'; plan:any; status:'pending'|'approved'|'declined'; preparedBy:string; preparedAt:string; approvedBy?:string; approvedAt?:string; reason:string }
 export type Reminder = { id:string; bookingId:string; guestId:string; message:string; status:'approved'|'exported'; approvedBy:string; approvedAt:string }
 export type AssignmentSnapshot = {serverId?:string;sectionId?:string;serverName?:string;sectionName?:string;bookingId:string;tableIds:string[];locked:boolean;setupStartAt?:string;combination?:CombinationSnapshot}
-export type AuditEntry = {pacing?:PacingOverride;id:string;at:string;actor:string;action:string;subject:string;before?:AssignmentSnapshot[]|{expectedEndAt:string}|{endAt:string;version:number}|{origins:string[]};after?:AssignmentSnapshot[]|{expectedEndAt:string}|{endAt:string;version:number}|{origins:string[]};reason?:string}
-export type State = { embed?:{origins:string[]}; serviceChanges?:ServiceChange[]; inquiries?:Inquiry[]; riskDecisions?:RiskDecision[]; venue:{name:string;timezone:string}; hostIds?:string[]; pacingHostIds?:string[]; rooms?:Room[]; allocationTables?:Table[]; tables:Table[]; combinations?:Combination[]; services:Service[]; schedules?:ScheduleTemplate[]; serviceEvents?:ServiceEvent[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:AuditEntry[] }
+export type AuditEntry = {pacing?:PacingOverride;id:string;at:string;actor:string;action:string;subject:string;before?:AssignmentSnapshot[]|{expectedEndAt:string}|{endAt:string;version:number}|{origins:string[]}|AnalyticsAudit;after?:AssignmentSnapshot[]|{expectedEndAt:string}|{endAt:string;version:number}|{origins:string[]}|AnalyticsAudit;reason?:string}
+export type State = { embed?:{origins:string[]}; analytics?:AnalyticsSettings; serviceChanges?:ServiceChange[]; inquiries?:Inquiry[]; riskDecisions?:RiskDecision[]; venue:{name:string;timezone:string}; hostIds?:string[]; pacingHostIds?:string[]; rooms?:Room[]; allocationTables?:Table[]; tables:Table[]; combinations?:Combination[]; services:Service[]; schedules?:ScheduleTemplate[]; serviceEvents?:ServiceEvent[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:AuditEntry[] }
 export type Actor = {id:string;name:string;role:string;agent?:boolean}
 export const emptyState = ():State => ({venue:{name:'Placemat',timezone:'America/New_York'},rooms:[],tables:[],combinations:[],services:[],bookings:[],waitlist:[],proposals:[],reminders:[],audit:[]})
 export class Problem extends Error { constructor(public status:number, message:string){super(message)} }

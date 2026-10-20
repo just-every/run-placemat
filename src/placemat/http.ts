@@ -23,6 +23,8 @@ import { slots } from './availability'
 import { execute,onlineBook } from './commands'
 import { productPage } from './views'
 import {embedOrigins} from './embed'
+import {activeProviders,savedKeys} from './analytics'
+import {publicVisit,bookingVisit,sendAnalytics} from './analytics-events'
 import { actorNames } from './people'
 import { importResponse,eraseImportedGuest } from './import/index'
 import { backup,restore,erasureCheckpoint } from './backup'
@@ -34,8 +36,9 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/reports/closed','/api/reports/closed.csv','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
-export async function placematResponse(request:Request,env:Bindings):Promise<Response|null>{
+const paths=new Set(['/api/reports/closed','/api/reports/closed.csv','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+/** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
+export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  if(!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
@@ -76,7 +79,18 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)
-   return json({venue:state.venue,services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
+   return json({venue:state.venue,analytics:activeProviders(state,await savedKeys(env.DB)),services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
+  }
+  if(path==='/api/public/analytics'){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env)
+   const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':analytics:'+Math.floor(Date.now()/60000))
+   const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
+   if((count?.count??0)>60)fail(429,'Too many analytics events. Please wait a minute.')
+   await env.DB.prepare('DELETE FROM pm_public_limits WHERE rowid IN (SELECT rowid FROM pm_public_limits ORDER BY rowid DESC LIMIT -1 OFFSET 500)').run()
+   const {state}=await load(env.DB),{event,visit}=publicVisit(state,await jsonBody(request),request),providers=activeProviders(state,await savedKeys(env.DB))
+   if(providers.length)defer(sendAnalytics(env.DB,event,visit,env.AUTH_ORIGIN+'/book'))
+   return json({providers},202)
   }
   if(path==='/api/public/book'){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
@@ -85,7 +99,9 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
    if((count?.count??0)>20)fail(429,'Too many booking requests. Please wait a minute.')
    await env.DB.prepare('DELETE FROM pm_public_limits WHERE rowid IN (SELECT rowid FROM pm_public_limits ORDER BY rowid DESC LIMIT -1 OFFSET 500)').run()
-   return json({result:await onlineBook(env.DB,await jsonBody(request))},201)
+   const p=await jsonBody(request),result=await onlineBook(env.DB,p),visit=bookingVisit(p,result.partySize,request)
+   if(visit)defer(sendAnalytics(env.DB,'booking',visit,env.AUTH_ORIGIN+'/book'))
+   return json({result},201)
   }
   const actor=await actorFor(request,env)
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
@@ -150,7 +166,8 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    const {state,version}=await load(env.DB)
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]
    const people=await guests(env.DB)
-   return json({state,version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
+   return json({state,version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){

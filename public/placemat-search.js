@@ -1,6 +1,6 @@
 import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
 /* Guest availability and booking. Events stay inside the existing booking shell. */
-export function createPublicSearch({api, esc, field, select, notice}) {
+export function createPublicSearch({api, esc, field, select, notice, analytics}) {
   const root = document.querySelector('#public-content');
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
@@ -96,7 +96,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
   async function book() {
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
     const embedOrigin = document.body.dataset.embedOrigin;
-    const payload = {...contact,...requests, ...(embedOrigin ? {embedOrigin} : {}), partySize: query.partySize, area: query.area,
+    const payload = {...contact,...requests, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
     let result;
     try { result = (await api('/api/public/book', payload)).result; }
@@ -135,6 +135,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
     // This endpoint also serves existing clients; only venue metadata bootstraps the search.
     const bootstrap = await api('/api/public/services?partySize=2');
     venue = bootstrap.venue;
+    analytics.offer(bootstrap.analytics, venue);
     contact = {name: '', email: '', phone: ''};requests=undefined;
     await search({date: today(), partySize: 2, area: '', requiredAccessTags: []});
   }
@@ -146,7 +147,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
     rememberContact();
     const nextQuery = form.dataset.publicCommand === 'search' ? preferences(form) : null;
     run(async () => {
-      if (nextQuery) { await search(nextQuery); notice('Availability updated. Choose an arrival time.'); }
+      if (nextQuery) { await search(nextQuery); analytics.track('search', query.partySize); notice('Availability updated. Choose an arrival time.'); }
       else await book();
     }, nextQuery ? 'Checking availability…' : 'Confirming booking…');
   });
@@ -165,6 +166,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
       const value = event.target.value;
       selected = value === '' ? undefined : response?.results[Number(value)];
       renderBooking();
+      if (selected) analytics.track('checkout-start', query.partySize);
       notice(selected ? 'Review the selected date and time, then enter your contact details.' : 'Choose an available arrival time.');
     }
   });

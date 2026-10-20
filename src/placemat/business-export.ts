@@ -1,4 +1,5 @@
 import {fail,type Guest,type State} from './model'
+import {analyticsSettings} from './analytics'
 
 /** CSV business schema; independent of the structured backup format version. */
 export const businessCsvVersion=1
@@ -35,7 +36,7 @@ function cell(value:unknown):string {
 
 function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[]):Dataset {
  switch(kind) {
-  case 'venue':return {fields:['name','timezone','hostIds_json','pacingHostIds_json','embedOrigins_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,embedOrigins:state.embed?.origins??[]}]}
+  case 'venue':return {fields:['name','timezone','hostIds_json','pacingHostIds_json','embedOrigins_json','analytics_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,embedOrigins:state.embed?.origins??[],analytics:analyticsSettings(state)}]}
   case 'rooms':return {fields:['id','name','kind'],rows:state.rooms??[]}
   case 'tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.tables}
   case 'allocation-tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.allocationTables??[]}

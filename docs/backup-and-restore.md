@@ -14,7 +14,7 @@ A backup restores only into an empty installation, so it can never overwrite a v
 2. Open **Settings**, expand **Backup & restore** and choose the **Backup archive**.
 3. Type `RESTORE` and press **Restore backup**.
 
-Placemat checks the file's integrity and that it fits together before restoring anything, and refuses a damaged file. People and agent keys are not part of a backup: invite your staff again in the new installation.
+Placemat checks the file's integrity and that it fits together before restoring anything, and refuses a damaged file. Booking analytics keys (the GA4 API secret and Meta access token) are never part of a backup either: the analytics settings come back, but nothing is sent and guests are not asked until you enter the keys again in **Settings → Booking analytics**. People and agent keys are not part of a backup: invite your staff again in the new installation.
 
 ## Erased guests and older backups
 

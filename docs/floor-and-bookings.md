@@ -14,6 +14,14 @@ The venue owner chooses which websites may show the booking widget. In **Setting
 
 Paste the snippet shown there into a custom HTML or code block on the page (for example a WordPress Custom HTML block, a Squarespace Code block, Wix Embed HTML or your own site). The widget is the booking page itself: the same tables, rules, pacing and times, so a time booked in the widget disappears from `/book` and the other way round. Both pages list a **Booking policy** for each service in the search: the online party sizes, when a larger party sends a group inquiry, how far ahead and how late on the day guests can book, the minimum notice and the arrival interval, taken from the service’s online booking rules. Guests choose a time and press **Confirm booking** themselves; nothing is booked before that. The bookings list shows where each online booking came from: “website widget on https://…” or “booking page”. The widget shows no staff links, and staff pages refuse to open inside another website.
 
+### Booking analytics (GA4 and Meta)
+
+The venue owner can send booking events to Google Analytics 4 and Meta. In **Settings → Booking analytics (GA4 and Meta)**, tick **Send GA4 events** and enter the GA4 measurement ID (G-…) and a Measurement Protocol API secret, and/or tick **Send Meta events** and enter the Meta dataset (Pixel) ID and a Conversions API access token, then press **Save analytics settings**. Keys are write-only: Placemat never shows them again, and backups and CSV exports leave them out, so enter them again after restoring a backup. Leave a key blank to keep the saved one. Switching a provider off stops its events; its saved key stays until you enter a new one. Every change is recorded with who made it and when.
+
+When analytics is on, the booking page and the widget ask each guest once per visit whether to share booking analytics, naming GA4 and/or Meta and what is sent. Nothing is sent unless the guest presses **Accept**. Then Placemat’s server, not a script on your page, sends three events: search, checkout start (choosing a time) and completed booking. Each carries only the party size, where the guest booked (the booking page, or the website showing the widget) and a random visit ID, plus the browser’s user agent for Meta. Guest names, contact details, IP addresses, cookies, booking references and reservation times are never sent. A provider that is slow or down never holds up a booking.
+
+To test, tick **Test mode** for GA4 (events then appear in GA4 DebugView) or enter a Meta **test event code** from Events Manager → Test events. The settings show each provider’s latest answer: GA4 never confirms events, so check DebugView; Meta reports how many events it received.
+
 ## Read the floor
 
 Choose the **Service** and a time in **View at**. While a service is running, **View at** starts at the current time; otherwise it starts when the service opens. The floor plan shows every table with its label and seats, marked:

@@ -37,7 +37,7 @@ async function respond(request: Request, env: Bindings, execution: ExecutionCont
   if (asset) return asset
   const auth = await authResponse(request, env)
   if (auth) return auth
-  const product = await placematResponse(request, runtimeBindings(env))
+  const product = await placematResponse(request, runtimeBindings(env), work => execution.waitUntil(work))
   if (product) return product
   // The installed variant: the Lobby at / and the public claim state it reads.
   // Local dev serves the saved origin's data at its own port (RER_DEV_ORIGIN).
