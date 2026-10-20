@@ -1,3 +1,4 @@
+import {assertInventory} from './direct-inventory'
 import {assertPacing} from './pacing'
 import {fail,id,text,type Actor,type Booking,type State,type AuditEntry,type ServingAssignment} from './model'
 import {serviceSnapshot} from './service-status'
@@ -29,6 +30,7 @@ function currentParty(s:State,bookingId:unknown){
 }
 export function assignmentChange(s:State,b:Booking,tableIds:unknown,preserve=false){
  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
+ assertInventory(s,Array.isArray(tableIds)?tableIds:[],b.setupStartAt??b.startAt,b.cleanupEndAt??b.endAt,b.source)
  return assignmentFor(s,tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,preserve?b:undefined)
 }
 export function applyAssignment(b:Booking,assignment:ReturnType<typeof assignmentFor>&{serving?:ServingAssignment|null},context?:{actor:string;at:string;action:string;reason?:string}){

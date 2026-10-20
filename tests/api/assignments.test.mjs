@@ -158,3 +158,74 @@ test('AGENT-004: generated advice honors locks, staffed capacity, kitchen pacing
   assert.equal(moved.combination.capacity,4);assert.deepEqual(moved.requiredAccessTags,['step-free']);assert.equal(moved.startAt,service.startAt)
  }finally{await joined.close()}
 })
+
+test('AGENT-004: protected direct inventory and exact shift extensions require person approval and preserve commitments through public doors',async()=>{
+ const {allocationService}=await import('./allocation-fixture.mjs')
+ const h=await installation();try{
+  const {service,tables,reservation,before}=await allocationService(h)
+  const path='/api/allocation-advice?serviceId='+service.id
+  const key=(await h.api('/api/agent-keys',{name:'Service adviser'})).result,agent={as:'',headers:{authorization:'Bearer '+key.key}}
+  const manager=await h.signIn('service-manager@example.test','admin'),reader=await h.signIn('service-reader@example.test')
+  let report=await h.api(path,undefined,agent)
+  const alternative=report.inventory.alternatives.find(a=>a.protection.tableIds[0]===tables[1].id)
+  assert.ok(alternative,'An unused accessible small table can be protected without reducing current queue feasibility')
+  assert.equal(alternative.before.requestedSlotCovers,alternative.after.requestedSlotCovers)
+  assert.ok(alternative.explanations.some(v=>v.includes('No current booking moves')))
+  const prepare=async(kind,plan,opts=agent)=>h.command('proposal.prepare',{kind,plan,reason:'Keep direct website capacity and all access promises'},opts)
+  const protectedPlan=await prepare('inventory.protect',{serviceId:service.id,alternativeId:alternative.id})
+  const staleProtection=await prepare('inventory.protect',{serviceId:service.id,alternativeId:alternative.id})
+  assert.deepEqual((await h.api('/api/state')).state.services.find(s=>s.id===service.id).directInventory,undefined)
+  for(const opts of [agent,{as:reader}])await h.command('proposal.approve',{proposalId:protectedPlan.id},{...opts,status:403})
+  await h.command('proposal.approve',{proposalId:protectedPlan.id},{as:manager})
+  let state=(await h.api('/api/state')).state
+  const protection=state.services.find(s=>s.id===service.id).directInventory[0]
+  assert.deepEqual(protection.tableIds,[tables[1].id]);assert.deepEqual(state.bookings.find(b=>b.id===reservation.id),before)
+  const walk={serviceId:service.id,startAt:service.startAt,name:'Casey Green',email:'casey@example.test',partySize:2,tableIds:[tables[1].id]}
+  await h.command('booking.walkin',walk,{status:409})
+  const queued=await h.command('waitlist.add',{serviceId:service.id,name:'Website interval check',email:'interval@example.test',partySize:2,contactConsent:false})
+  await h.command('waitlist.seat',{waitlistId:queued.id,startAt:service.startAt,tableIds:[tables[1].id]},{status:409})
+  await h.command('proposal.approve',{proposalId:staleProtection.id},{status:409})
+  await h.command('booking.move',{bookingId:reservation.id,tableIds:[tables[1].id],version:(await h.api('/api/state')).version}) // Existing direct guest may use protected inventory.
+  await h.command('booking.walkin',{...walk,tableIds:[tables[2].id]})
+  const walkBooking=(await h.api('/api/state')).state.bookings.find(b=>b.source==='walk-in')
+  await h.command('booking.move',{bookingId:walkBooking.id,tableIds:[tables[1].id],version:(await h.api('/api/state')).version},{status:409})
+  await h.command('booking.stage',{bookingId:reservation.id,stage:'cancelled'})
+  const web=(await h.api('/api/public/book',{serviceId:service.id,startAt:service.startAt,name:'Robin Reed',email:'robin@example.test',partySize:2,area:'Dining room',requiredAccessTags:['step-free']},{as:'',status:201})).result
+  assert.deepEqual((await h.api('/api/state')).state.bookings.find(b=>b.id===web.id).tableIds,[tables[1].id],'Website booking can consume its protected fitting table')
+  const release=await prepare('inventory.protect',{serviceId:service.id,releaseId:protection.id})
+  await h.command('proposal.approve',{proposalId:release.id},{as:manager})
+  assert.deepEqual((await h.api('/api/state')).state.services.find(s=>s.id===service.id).directInventory,[])
+  assert.ok((await h.api('/api/state')).state.audit.some(e=>e.action==='inventory.protect'))
+  await h.command('booking.stage',{bookingId:web.id,stage:'cancelled'})
+  const seated=await h.command('waitlist.seat',{waitlistId:queued.id,startAt:service.startAt,tableIds:[tables[1].id]})
+  assert.deepEqual(seated.tableIds,[tables[1].id],'Explicit release restores staff seating capacity')
+ }finally{await h.close()}
+ const shift=await installation();try{
+  const {service,reservation,before}=await allocationService(shift)
+  // Queue arrives too late for the full 90-minute turn plus cleanup in current hours.
+  const late=new Date(Date.parse(service.endAt)-30*60000).toISOString()
+  await shift.command('waitlist.add',{serviceId:service.id,name:'Late accessible four',email:'late@example.test',phone:'+12025550129',partySize:4,preferredAt:late,preferredArea:'Dining room',requiredAccessTags:['step-free'],contactConsent:false})
+  const path='/api/allocation-advice?serviceId='+service.id,key=(await shift.api('/api/agent-keys',{name:'Shift adviser'})).result,agent={as:'',headers:{authorization:'Bearer '+key.key}}
+  const manager=await shift.signIn('shift-manager@example.test','admin'),reader=await shift.signIn('shift-reader@example.test')
+  let report=await shift.api(path,undefined,agent)
+  assert.ok(report.shifts.alternatives.length)
+  for(const a of report.shifts.alternatives){assert.ok(a.after.feasibleQueuedCovers>a.before.feasibleQueuedCovers);assert.deepEqual(a.preview.unchangedBookings.find(b=>b.id===reservation.id),before);assert.ok(a.preview.waits.some(w=>w.before.earliestAt===null&&w.after.earliestAt));assert.ok(a.preview.explanations.length)}
+  const prepare=()=>shift.command('proposal.prepare',{kind:'service.adjust',plan:{serviceId:service.id,alternativeId:report.shifts.alternatives[0].id},reason:'Manager confirms recorded team and kitchen remain available through the displayed extension'},agent)
+  const stale=await prepare()
+  await shift.command('waitlist.add',{serviceId:service.id,name:'Another party',email:'another@example.test',partySize:2,preferredAt:late,contactConsent:false})
+  await shift.command('proposal.approve',{proposalId:stale.id},{status:409})
+  report=await shift.api(path);const pending=await prepare()
+  for(const opts of [agent,{as:reader}])await shift.command('proposal.approve',{proposalId:pending.id},{...opts,status:403})
+  assert.equal((await shift.api('/api/state')).state.services.find(s=>s.id===service.id).endAt,service.endAt)
+  await shift.command('proposal.approve',{proposalId:pending.id},{as:manager})
+  const state=(await shift.api('/api/state')).state
+  assert.equal(state.services.find(s=>s.id===service.id).endAt,pending.plan.endAt)
+  assert.deepEqual(state.bookings.find(b=>b.id===reservation.id),before)
+  assert.ok(state.audit.some(e=>e.action==='service.adjust'&&e.before.endAt===service.endAt&&e.after.endAt===pending.plan.endAt&&e.actor))
+  await shift.command('guest.erase',{guestId:before.guestId,confirm:'ERASE'})
+  for(const p of (await shift.api('/api/state')).state.proposals.filter(p=>p.kind==='service.adjust')){
+   assert.deepEqual(p.plan.inputs.bookings.find(b=>b.id===before.id).requiredAccessTags,[])
+   assert.deepEqual(p.plan.preview.unchangedBookings.find(b=>b.id===before.id).requiredAccessTags,[])
+  }
+ }finally{await shift.close()}
+})

@@ -1,3 +1,5 @@
+import {adviseInventory} from './inventory-advisor'
+import {adviseShiftAdjustments} from './shift-advisor'
 import {adviseAllocations} from './allocation-advisor'
 import {noShowReport} from './no-show'
 import {pacingReport} from './pacing'
@@ -76,7 +78,8 @@ export async function placematResponse(request:Request,env:Bindings):Promise<Res
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB),serviceId=text(url.searchParams.get('serviceId'),'Service')
    const bookings=state.bookings.filter(b=>b.serviceId===serviceId)
-   return json({...adviseAllocations(state,serviceId,new Date().toISOString()),current:{bookedCovers:bookings.filter(b=>b.status==='booked').reduce((n,b)=>n+b.partySize,0),seatedCovers:bookings.filter(b=>b.status==='seated').reduce((n,b)=>n+b.partySize,0),physicalSeats:state.tables.filter(t=>!t.retiredAt).reduce((n,t)=>n+t.seats,0)}})
+   const now=new Date().toISOString()
+   return json({...adviseAllocations(state,serviceId,now),inventory:adviseInventory(state,serviceId,now),shifts:adviseShiftAdjustments(state,serviceId,now),current:{bookedCovers:bookings.filter(b=>b.status==='booked').reduce((n,b)=>n+b.partySize,0),seatedCovers:bookings.filter(b=>b.status==='seated').reduce((n,b)=>n+b.partySize,0),physicalSeats:state.tables.filter(t=>!t.retiredAt).reduce((n,t)=>n+t.seats,0)}})
   }
   if(path==='/api/reports/no-show'){
    person(actor!)

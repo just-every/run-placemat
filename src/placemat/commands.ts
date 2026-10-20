@@ -1,3 +1,5 @@
+import {prepareInventory,approveInventory} from './inventory-advisor'
+import {prepareShiftAdjustment,approveShiftAdjustment} from './shift-advisor'
 import {prepareAllocation,approveAllocation} from './allocation-advisor'
 import {decideRisk} from './no-show'
 import {normalizePacing} from './pacing'
@@ -98,7 +100,11 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  case 'proposal.prepare':{
   const kind=p.kind,plan=p.plan??{};let exact:any
-  if(kind==='allocation.improve'){
+  if(kind==='inventory.protect'){
+   exact=prepareInventory(s,plan,now)
+  }else if(kind==='service.adjust'){
+   exact=prepareShiftAdjustment(s,plan,now)
+  }else if(kind==='allocation.improve'){
    exact=prepareAllocation(s,plan,now)
   }else if(kind==='floor.change'){
    exact=prepareFloorChange(s,plan,now)
@@ -130,7 +136,11 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   if(proposal.status!=='pending')fail(409,'This proposal has already been decided.')
   if(command==='proposal.decline'){proposal.status='declined';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break}
   const plan=proposal.plan
-  if(proposal.kind==='allocation.improve'){
+  if(proposal.kind==='inventory.protect'){
+   approveInventory(s,actor,proposal,now)
+  }else if(proposal.kind==='service.adjust'){
+   approveShiftAdjustment(s,actor,proposal,now)
+  }else if(proposal.kind==='allocation.improve'){
    approveAllocation(s,actor,proposal,now)
   }else if(proposal.kind==='floor.change'){
    approveFloorChange(s,actor,proposal,now)

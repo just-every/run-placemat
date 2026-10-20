@@ -25,7 +25,7 @@ export type AllocationSelection={serviceId:string;alternativeId?:string;id?:stri
 const basis='Deterministic queue-order feasibility on the remaining published service slots, with full setup, turn, cleanup, access, area, staffing, kitchen and pacing checks. Hypothetical queue placements are not reservations or wait promises. Search considers single moves and exact two-party swaps; it does not claim a global optimum.'
 const canonical=(moves:AllocationMove[])=>JSON.stringify(moves.map(m=>({bookingId:m.bookingId,tableIds:[...m.tableIds].sort()})).sort((a,b)=>a.bookingId.localeCompare(b.bookingId)))
 const isConflict=(error:unknown)=>error instanceof Problem&&[400,404,409].includes(error.status)
-const serviceFor=(s:State,serviceId:string,now:string)=>{
+export const serviceFor=(s:State,serviceId:string,now:string)=>{
  if(!Number.isFinite(Date.parse(now)))fail(400,'A valid allocation advice time is required.')
  const service=s.services.find(v=>v.id===serviceId)??fail(404,'Service not found.')
  if(service.status!=='published'||service.closedAt||service.endAt<=now)fail(409,'Choose an open, published service with remaining seating time.')
@@ -60,7 +60,7 @@ function stageMoves(s:State,service:Service,moves:AllocationMove[],now:string){
  for(const b of staged.bookings.filter(b=>b.serviceId===service.id&&['booked','seated','completed'].includes(b.status)))strictPacing(staged,service,b,now)
  return staged
 }
-function demandRows(s:State,serviceId:string){
+export function demandRows(s:State,serviceId:string){
  return s.waitlist.filter(row=>{
   if(row.serviceId!==serviceId||row.bookingId&&s.bookings.some(b=>b.id===row.bookingId&&['booked','seated'].includes(b.status)))return false
   try{queueCanSeat(row);return true}catch(error){if(isConflict(error))return false;throw error}
@@ -93,7 +93,7 @@ function queueFit(s:State,service:Service,row:QueueEntry,startAt:string,now:stri
  for(const tableIds of candidateSets(filtered).sort((a,b)=>a.length-b.length||a.join('|').localeCompare(b.join('|')))){
   try{
    assignmentFor(filtered,tableIds,row.partySize,startAt,service.startAt,row.requiredAccessTags??[],row.preferredArea)
-   const fit=fitAt(fitLedger(filtered,now),service,row.partySize,startAt,tableIds,unavailable,true)
+   const fit=fitAt(fitLedger(filtered,now),service,row.partySize,startAt,tableIds,unavailable,true,'waitlist')
    const booking:Booking={id:`allocation-demand:${row.id}`,serviceId:service.id,guestId:row.guestId,partySize:row.partySize,startAt:fit.startAt,endAt:fit.endAt,cleanupEndAt:fit.cleanupEndAt,setupStartAt:fit.setupStartAt,tableIds:fit.tables.map(t=>t.id),status:'booked',source:'waitlist',createdAt:now,requiredAccessTags:row.requiredAccessTags,requiredArea:row.preferredArea,...fit.combination?{combination:fit.combination}:{}}
    allocation(filtered,service,row.partySize,booking,booking.tableIds,undefined,unavailable,now,true)
    const serving=checkStaffing(filtered,[booking],now,new Set(),false)[0]
@@ -105,7 +105,7 @@ function queueFit(s:State,service:Service,row:QueueEntry,startAt:string,now:stri
  return null
 }
 /** Each feasible queue placement consumes capacity for subsequent real waiting parties. */
-function evaluateDemand(s:State,service:Service,rows:QueueEntry[],now:string):AllocationDemand{
+export function evaluateDemand(s:State,service:Service,rows:QueueEntry[],now:string):AllocationDemand{
  const ledger={...s,bookings:[...s.bookings]},waits:AllocationWait[]=[]
  let feasibleQueuedCovers=0,requestedSlotCovers=0
  for(const row of rows){

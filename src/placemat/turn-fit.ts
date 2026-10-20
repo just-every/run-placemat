@@ -1,10 +1,11 @@
+import {assertInventory} from './direct-inventory'
 import {fail,type State,type Service} from './model'
 import {allocation} from './capacity'
 import {assignmentFor,candidateSets} from './combinations'
 import {tableTurn} from './turn-policy'
 
 /** Enumerate single tables and exact approved joins; reserve setup before arrival. */
-export function fitAt(s:State,service:Service,partySize:number,startAt:string,requested?:unknown,unavailable:string[]=[],allowPacing=false){
+export function fitAt(s:State,service:Service,partySize:number,startAt:string,requested?:unknown,unavailable:string[]=[],allowPacing=false,channel='online'){
  const cleanup=service.turnPolicy?.cleanupMinutes??0
  if(startAt<service.startAt||service.turnPolicy?.lastSeatingAt&&startAt>service.turnPolicy.lastSeatingAt)fail(400,'Choose an arrival within the service and its last-seating time.')
  let best:(ReturnType<typeof assignmentFor>&{startAt:string;endAt:string;cleanupEndAt:string})|undefined,turnFits=false,lastConflict:Error|undefined
@@ -16,6 +17,7 @@ export function fitAt(s:State,service:Service,partySize:number,startAt:string,re
    const endAt=new Date(Date.parse(startAt)+minutes*60000).toISOString(),cleanupEndAt=new Date(Date.parse(endAt)+cleanup*60000).toISOString()
    if(cleanupEndAt>service.endAt)continue
    turnFits=true
+   assertInventory(s,assignment.tables.map(t=>t.id),assignment.setupStartAt,cleanupEndAt,channel)
    const candidate={...assignment,startAt,endAt,cleanupEndAt}
    allocation(s,service,partySize,candidate,assignment.tables.map(t=>t.id),undefined,unavailable,new Date().toISOString(),allowPacing)
    const capacity=assignment.combination?.capacity??assignment.tables[0].seats,bestCapacity=best?.combination?.capacity??best?.tables[0].seats??Infinity

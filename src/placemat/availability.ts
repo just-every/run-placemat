@@ -13,7 +13,7 @@ export function bookingFit(s:State,service:Service,partySize:number,value:unknow
  const startAt=instant(value,'Start')
  if((Date.parse(startAt)-Date.parse(service.startAt))%(ruleFor(service,channel).slotMinutes*60000)!==0)fail(400,`Choose a ${ruleFor(service,channel).slotMinutes}-minute start that fits the full turn within the service.`)
  const unavailable=channel==='online'?[]:s.bookings.filter(b=>b.needsBussing).flatMap(b=>b.tableIds)
- return fitAt(s,service,partySize,startAt,requested,unavailable,allowPacing)
+ return fitAt(s,service,partySize,startAt,requested,unavailable,allowPacing,channel)
 }
 export function slots(s:State,service:Service,size:unknown){
  if(service.closedAt)return []
