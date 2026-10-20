@@ -28,10 +28,10 @@ export function documentHtml(styles: string[], { title, description, body, curre
 
 function header(current?: 'docs'): string {
   return `<header class="site-bar"><a class="lockup" href="/" aria-label="${esc(identity.product)} home">${mark()}<span>${esc(identity.product)}</span></a>`
-    + `<nav aria-label="Site"><a href="/docs"${current === 'docs' ? ' aria-current="page"' : ''}>Docs</a><a href="${esc(run.repository)}">Source</a></nav></header>`
+    + `<nav aria-label="Site"><a href="/docs"${current === 'docs' ? ' aria-current="page"' : ''}>Docs</a><a href="/contract">Contract</a><a href="${esc(run.repository)}">Source</a></nav></header>`
 }
 
 function footer(): string {
   return `<footer class="site-foot"><div class="site-foot-in"><a class="lockup" href="/">${mark(true)}<span>${esc(identity.product)}</span></a>`
-    + `<nav aria-label="Footer"><a href="/docs">Docs</a><a href="${esc(run.repository)}">Source</a><a href="${esc(run.repository)}/blob/main/LICENSE">${esc(run.licence)} licensed</a></nav></div></footer>`
+    + `<nav aria-label="Footer"><a href="/docs">Docs</a><a href="/contract">Contract</a><a href="${esc(run.repository)}">Source</a><a href="${esc(run.repository)}/blob/main/LICENSE">${esc(run.licence)} licensed</a></nav></div></footer>`
 }
