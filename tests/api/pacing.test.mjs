@@ -30,14 +30,29 @@ test('SERVICE-005: two channels race the final arrival allocation; interval, par
   const concurrent=await h.api('/api/public/book',publicGuest(service,19,{partySize:4,startAt:at(60)}),{as:'',status:409});assert.match(concurrent.error,/Concurrent dining covers.*48.*52.*4/)
   const state=await h.api('/api/state');assert.equal(state.state.bookings.length,12);assert.equal(state.state.bookings.reduce((n,b)=>n+b.partySize,0),48);assert.ok(state.state.tables.length>state.state.bookings.length,'free physical tables remain')
   const found=await h.api('/api/public/search?'+new URLSearchParams({date:service.startAt.slice(0,10),partySize:'4'}),undefined,{as:''});assert.ok(found.results.length);assert.ok(!found.results.some(r=>r.startAt===at(0)));assert.ok(found.results.every(r=>r.startAt>=at(120)))
+  // Reacquiring a cancelled booking must reserve pacing again even with a free table.
+  const original=state.state.bookings.find(b=>b.source==='online'&&b.startAt===at(0)),cancelled=await h.command('booking.stage',{bookingId:original.id,stage:'cancelled'})
+  const replacement=(await h.api('/api/public/book',publicGuest(service,22,{partySize:4}),{as:'',status:201})).result
+  let current=await h.api('/api/state'),free=current.state.tables.find(t=>!current.state.bookings.filter(b=>['booked','seated'].includes(b.status)).some(b=>b.tableIds.includes(t.id)))
+  await h.command('booking.move',{bookingId:replacement.id,tableIds:[free.id],version:current.version})
+  const reacquire=await h.api('/api/commands',{command:'booking.stage',payload:{bookingId:original.id,correctsEventId:cancelled.event.id,reason:'Correct an accidental cancellation'}},{status:409});assert.match(reacquire.error,/Arrival interval covers|Concurrent dining covers/)
   const payload=publicGuest(service,20,{partySize:4}),r=await review(h,'booking.walkin',payload)
   assert.deepEqual(r.violations.map(v=>v.kind).sort(),['arrival-covers','arrival-parties','area-arrival-covers','concurrent-covers'].sort());assert.ok(r.violations.every(v=>v.excess===v.projected-v.limit))
   const warning=await h.api('/api/commands',{command:'booking.walkin',payload},{status:409});for(const v of r.violations)assert.ok(warning.error.includes(v.label))
   const seated=await h.command('booking.walkin',confirmation(payload,r));assert.equal(seated.status,'seated');assert.equal(seated.pacingOverride.violations.length,4)
   report=await h.api('/api/pacing?serviceId='+service.id);assert.equal(report.intervals[0].covers,16);assert.equal(report.totalCovers,52);assert.equal(report.overrideCount,1);assert.deepEqual(report.overrideBookingIds,[seated.id])
-  const waiting=await h.command('waitlist.add',publicGuest(service,21,{partySize:2})),seatPayload={waitlistId:waiting.id,startAt:at(0)}
+  const joined=await h.api('/api/public/queue/join',publicGuest(service,21,{partySize:2,contactConsent:false}),{as:'',status:201});assert.equal(joined.entry.status,'queued');
+  const queuePage=await (await h.request('/queue',{as:''})).text();assert.match(queuePage,/Queued only; no table or time promised/);
+  const waiting={id:joined.entry.id},seatPayload={waitlistId:waiting.id,startAt:at(0)}
   const waitReview=await review(h,'waitlist.seat',seatPayload);assert.ok(waitReview.violations.length);await h.command('waitlist.seat',seatPayload,{status:409});const waitSeat=await h.command('waitlist.seat',confirmation(seatPayload,waitReview));assert.equal(waitSeat.source,'waitlist')
   const after=await h.api('/api/state');assert.ok(after.state.audit.some(a=>a.action==='booking.pacing-override'&&a.subject===waitSeat.id&&a.pacing.violations.length));assert.equal(after.state.waitlist.find(w=>w.id===waiting.id).status,'seated')
+  const patio=await h.command('table.save',{label:'Patio 1',seats:4,area:'Patio',x:50,y:50}),patioPayload=publicGuest(service,23,{partySize:2,tableIds:[patio.id]})
+  const patioReview=await review(h,'booking.walkin',patioPayload),patioSeat=await h.command('booking.walkin',confirmation(patioPayload,patioReview))
+  current=await h.api('/api/state');free=current.state.tables.find(t=>t.area==='Dining'&&!current.state.bookings.filter(b=>['booked','seated'].includes(b.status)).some(b=>b.tableIds.includes(t.id)))
+  const moved=await h.api('/api/commands',{command:'booking.move',payload:{bookingId:patioSeat.id,tableIds:[free.id],version:current.version}},{status:409});assert.match(moved.error,/Dining arrival covers/)
+  const key=(await h.api('/api/agent-keys',{name:'Pacing-aware assignment preparer'})).result
+  const prepared=await h.api('/api/commands',{command:'proposal.prepare',payload:{kind:'table.assign',plan:{bookingId:patioSeat.id,tableIds:[free.id]},reason:'Move into full kitchen area'}},{as:'',headers:{authorization:'Bearer '+key.key},status:409});assert.match(prepared.error,/Dining arrival covers/)
+
  }finally{await h.close()}
 })
 

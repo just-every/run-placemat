@@ -311,3 +311,7 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
   #floor-staffing .split-heading{align-items:flex-start}
 }
 #floor-staffing .card{overflow-wrap:anywhere}
+
+/* Pacing keeps all column labels readable within its horizontal scroll region. */
+.pacing-table{min-width:820px}
+.pacing-table td:last-child{min-width:190px}

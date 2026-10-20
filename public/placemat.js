@@ -269,12 +269,15 @@ async function submitForm(el) {
       const preview=await api('/api/pacing/preview',{command,payload:reviewPayload});
       if(preview.violations.length){
         pacingReviews.set(el,{stamp,review:preview.review});
-        let target=el.querySelector('[data-pacing-warning]');if(!target){target=document.createElement('div');target.dataset.pacingWarning='';el.querySelector('.form-grid').append(target);}
+        let target=el.querySelector('[data-pacing-warning]');if(!target){target=document.createElement('div');target.dataset.pacingWarning='';target.className='wide';const grid=el.querySelector('.form-grid');grid.insertBefore(target,grid.lastElementChild);}
         target.innerHTML=renderPacingWarning(preview.violations,{esc,field});target.scrollIntoView({block:'center'});notice('Review the pacing warning, add a reason and confirm before submitting again.');return;
       }
     }
   }
-  const saved=await execute(command,payload); await loadStaff(); if(command==='waitlist.add'&&saved.token)$('#queue-management-link').innerHTML=queueManagementLink(saved.token,{esc,origin:location.origin}); notice('Saved successfully.', 'success');
+  let saved;
+  try{saved=await execute(command,payload);}
+  catch(error){pacingReviews.delete(el);const confirm=el.querySelector('[name=pacingConfirm]');if(confirm)confirm.checked=false;throw error;}
+  await loadStaff(); if(command==='waitlist.add'&&saved.token)$('#queue-management-link').innerHTML=queueManagementLink(saved.token,{esc,origin:location.origin}); notice('Saved successfully.', 'success');
 }
 document.addEventListener('submit', event => {
   const el = event.target.closest('form[data-command]'); if (!el) return;
