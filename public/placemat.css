@@ -320,3 +320,11 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 /* Pacing keeps all column labels readable within its horizontal scroll region. */
 .pacing-table{min-width:820px}
 .pacing-table td:last-child{min-width:190px}
+
+/* Guest requests occupy a full row of their booking card on host phones. */
+@media(max-width:760px){
+ .bookings-table tr:has(.booking-requests) td:nth-child(1){grid-area:1/1/2/3}
+ .bookings-table tr:has(.booking-requests) td:nth-child(3){grid-area:3/1/4/3;text-align:left}
+ .bookings-table tr:has(.booking-requests) td:nth-child(4){grid-area:4/1}
+ .bookings-table tr:has(.booking-requests) td:nth-child(5){grid-area:4/2}
+}
