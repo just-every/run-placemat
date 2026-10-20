@@ -1,6 +1,6 @@
 import {renderPerformance} from './placemat-performance.js';
 /* REPORT-001: use the server's rows and definitions for every drilldown and CSV. */
-export function renderReports({state,canEdit,api,esc,field,select,empty,polling=false}) {
+export function renderReports({state,canEdit,api,esc,field,select,empty,polling=false,who}) {
  const root=document.querySelector('#reports-content');
  if(!canEdit){root.innerHTML=empty('A venue manager can open reservation reports.');return;}
  // Background floor synchronization must not replace a report being read or a saved publication.
@@ -11,7 +11,7 @@ export function renderReports({state,canEdit,api,esc,field,select,empty,polling=
  root.querySelectorAll('select').forEach(el=>el.required=false);
  const form=root.querySelector('form'),result=root.querySelector('#reservation-result');
  const performance=document.createElement('section');performance.id='performance-content';root.append(performance);
- renderPerformance({root:performance,state,api,esc,select,empty});
+ renderPerformance({root:performance,state,api,esc,select,empty,who});
  async function refresh(){
   const search=new URLSearchParams();for(const [key,value] of new FormData(form))if(value)search.set(key,value);
   result.textContent='Loading reservation report…';

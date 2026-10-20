@@ -48,11 +48,13 @@ try{
    await page.locator('[data-performance-publish]').click();const saved=await (await published).json()
    assert.ok(saved.publication.id);await page.locator('#performance-result [role=status]').filter({hasText:'This report is fixed'}).waitFor();await shot('published')
    const completed=saved.report.rows.find(b=>b.bookingId===fixture.overruns[0].id).serviceHistory.at(-1)
+   const synchronized=page.waitForResponse(r=>r.url().endsWith('/api/state'))
    await h.command('booking.stage',{bookingId:fixture.overruns[0].id,correctsEventId:completed.id,reason:'Completion was tapped early'})
    // Reselecting a publication performs a fresh authorized read; it must still retain the original three turns.
    await page.locator('[data-performance-live]').click();await page.locator('[data-performance-distribution=actualTurns] summary').filter({hasText:'2 observations'}).waitFor()
    await page.locator('#performance-publications').selectOption(saved.publication.id)
    await page.locator('#performance-result [role=status]').filter({hasText:'The floor has changed'}).waitFor()
+   await synchronized
    assert.match(await page.locator('[data-performance-distribution=actualTurns] summary').innerText(),/3 observations/);await shot('retained-after-correction')
    await page.locator('[data-performance-live]').click();await page.locator('[data-performance-distribution=actualTurns] summary').filter({hasText:'2 observations'}).waitFor()
    await page.locator('#performance-parties > summary').click()
