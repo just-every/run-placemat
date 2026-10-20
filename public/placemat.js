@@ -276,7 +276,7 @@ async function submitForm(el) {
   }
   let saved;
   try{saved=await execute(command,payload);}
-  catch(error){pacingReviews.delete(el);const confirm=el.querySelector('[name=pacingConfirm]');if(confirm)confirm.checked=false;throw error;}
+  catch(error){pacingReviews.delete(el);el.querySelector('[data-pacing-warning]')?.remove();throw error;}
   await loadStaff(); if(command==='waitlist.add'&&saved.token)$('#queue-management-link').innerHTML=queueManagementLink(saved.token,{esc,origin:location.origin}); notice('Saved successfully.', 'success');
 }
 document.addEventListener('submit', event => {
