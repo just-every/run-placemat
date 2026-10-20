@@ -196,6 +196,38 @@ try {
     for (const key of ['tables', 'services', 'bookings', 'waitlist', 'proposals', 'reminders', 'audit']) assert.deepEqual(snapshot.state[key], [], `SITE-001: fresh ${key} has no sample restaurant data`)
     assert.deepEqual(snapshot.guests, [], 'SITE-001: fresh guests has no sample restaurant data')
   }
+  // OSS-001: finish a real service in the untouched public installation. No
+  // licence, plan, payment account or provider setup is supplied at any stage.
+  const request = async (path, body) => {
+    const response = await context.request.post(ready.origin + path, { headers: { origin: ready.origin }, data: body })
+    assert.ok(response.ok(), `OSS-001: installed ${path} succeeds (${response.status()})`)
+    return response.json()
+  }
+  const command = async (command, payload) => (await request('/api/commands', { command, payload })).result
+  await command('venue.update', { name: 'Cedar & Salt', timezone: 'America/New_York' })
+  await command('table.save', { label: 'Window 4', seats: 4, x: 40, y: 40 })
+  const start = new Date(Date.now() + 7 * 86400000); start.setUTCMinutes(0, 0, 0)
+  const shift = await command('service.save', { name: 'Friday dinner', startAt: start.toISOString(), endAt: new Date(+start + 4 * 3600000).toISOString(), turnMinutes: 90, coverLimit: 12 })
+  const publication = await command('proposal.prepare', { kind: 'service.publish', plan: { serviceId: shift.id }, reason: 'Review our first dinner service' })
+  await command('proposal.approve', { proposalId: publication.id })
+  const reservation = (await request('/api/public/book', { serviceId: shift.id, startAt: shift.startAt, partySize: 4, name: 'Jordan Rivera', email: 'jordan@example.test' })).result
+  await command('booking.status', { bookingId: reservation.id, status: 'seated' })
+  await command('booking.status', { bookingId: reservation.id, status: 'completed' })
+  await command('booking.stage', { bookingId: reservation.id, stage: 'ready' })
+  await command('service.close', { serviceId: shift.id, reason: 'Dinner completed' })
+  const completedResponse = await context.request.get(ready.origin + '/api/state')
+  assert.equal(completedResponse.status(), 200, 'OSS-001: installed owner retains service history')
+  const completed = await completedResponse.json()
+  assert.equal(completed.state.bookings.find(b => b.id === reservation.id).status, 'completed', 'OSS-001: free installation completes the reservation')
+  assert.ok(completed.state.services.find(s => s.id === shift.id).closedAt, 'OSS-001: free installation closes its service')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto(ready.origin + '/app')
+    await expect(page.getByRole('heading', { name: 'Cedar & Salt', exact: true })).toBeVisible()
+    await expect(page.locator('#floor-content')).toContainText('Friday dinner')
+    await screenshot(page, `OSS-001-completed-service-${width}`)
+  }
+  console.log('OSS-001 passed: exact public install command → owner setup → published/booked/seated/completed/closed service without licence, plan or payment setup.')
   console.log('SITE-001 passed: homepage → run/docs → exact npm command → owner setup → Lobby → empty operations at 1440px and 390px.')
 } finally {
   try { await browser?.close() } finally {

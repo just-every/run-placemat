@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {installation,service,publicGuest} from './harness.mjs'
 
-test('Friday service: three online bookings, walk-in floor, waitlist, no-show, approved reminders and guest history',async()=>{
+test('OSS-001: complete Friday service without a license/payment account; online bookings, walk-in, waitlist, no-show, reminder export and history',async()=>{
  const h=await installation();try{
   const {service:s}=await service(h),bookings=[]
   assert.equal((await h.api('/api/public/services',undefined,{as:''})).services.length,1)
@@ -21,6 +21,9 @@ test('Friday service: three online bookings, walk-in floor, waitlist, no-show, a
   const csv=await (await h.request('/api/reminders.csv')).text();assert.ok(csv.includes('guest1@example.test'));assert.ok(!csv.includes('guest0@example.test'))
   const ics=await (await h.request('/api/calendar/'+bookings[1].id)).text();assert.ok(ics.includes('BEGIN:VEVENT'));assert.ok(ics.includes('DTSTART:'))
   state=(await h.api('/api/state')).state;assert.equal(state.bookings.find(b=>b.id===bookings[0].id).status,'no-show');assert.equal(state.waitlist[0].status,'seated');assert.ok(state.proposals.every(p=>p.approvedBy&&p.approvedAt))
+  for(const b of state.bookings.filter(b=>b.status==='booked'||b.status==='seated')){if(b.status==='booked')await h.command('booking.status',{bookingId:b.id,status:'seated'});await h.command('booking.status',{bookingId:b.id,status:'completed'});await h.command('booking.stage',{bookingId:b.id,stage:'ready'})}
+  await h.command('service.close',{serviceId:s.id,reason:'Friday service finished without a payment or license setup'})
+  const closed=(await h.api('/api/state')).state;assert.ok(closed.services.find(v=>v.id===s.id).closedAt);assert.ok(closed.bookings.every(b=>['completed','no-show'].includes(b.status)))
  }finally{await h.close()}
 })
 

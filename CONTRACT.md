@@ -328,7 +328,7 @@ Google/Meta distribution and POS/voice partner access require actual approved ac
 
 Two statements the homepage makes about what Placemat is are clauses here, so the page and the product are tested against the same words.
 
-- **OSS-001 — Free and open source, MIT licensed.** Placemat’s source is MIT licensed in its public repository and Placemat itself charges no license fee and sets no paywall, plan, seat or cover limit. Restaurants run it on their own computer or in their own Cloudflare account. Third-party providers (Stripe processing, Twilio messaging and voice, Google, Meta, POS and partner fees) bill the restaurant directly under their own terms; COST-001 shows those costs before a channel is enabled, and they are never called free or folded into a Placemat charge. **Acceptance evidence:** Read `LICENSE` (MIT) and the license line on the homepage, README and /run; install with the /run command and run a complete service with no payment, plan or license prompt; enable a provider channel and prove the cost shown is that provider’s own (COST-001) and that Placemat bills nothing.
+- **OSS-001 — Free and open source, MIT licensed.** Placemat’s source is MIT licensed in its public repository and Placemat itself charges no license fee and sets no paywall, plan, seat or cover limit. Restaurants run it on their own computer or in their own Cloudflare account. Third-party providers (Stripe processing, Twilio messaging and voice, Google, Meta, POS and partner fees) bill the restaurant directly under their own terms; COST-001 shows those costs before a channel is enabled, and they are never called free or folded into a Placemat charge. **Acceptance evidence:** Read `LICENSE` (MIT) and the license line on the homepage, README and /run; install with the /run command and run a complete service with no payment, plan or license prompt; enable a provider channel and prove the cost shown is that provider’s own (COST-001) and that Placemat bills nothing. Today OSS-001 is done when every capability that exists conforms and the public installation completes a service without license, plan or payment setup. Before any restaurant provider channel ships, COST-001 and each introducing clause (MSG-002, MSG-003, PAY-001, DIST-001–DIST-004, POS-001–POS-005 and VOICE-001) inherit provider-owned cost disclosure before enablement and no Placemat charge; those future provider journeys remain required in their own clauses. Authentication and hosting may have their own external costs and are never described as free provider service.
 
 - **BOUND-001 — Stated boundary: online ordering, gift cards and the POS.** The homepage says “Not in Placemat: online ordering, gift cards or the POS itself”, and the product says the same. Placemat sells no gift cards, stored-value cards or vouchers, takes no online food orders and is not the point of sale. A PAY-002 deposit, an EXP-002 prepaid ticket and an EXP-005 pickup experience are each tied to one named booking or event, shown as a balance against it and refunded under PAY-005; none is transferable, can be topped up or spends as a general balance. Gift cards, online ordering and check taking stay in the restaurant’s POS or its payment provider’s own gift-card and ordering products, and a Toast, Square or Clover loyalty program stays there too (CRM-006 syncs only identity and redemption status). The homepage names no gift-card provider, so the docs give the same line without naming one. Today’s capabilities must conform to this boundary. Before their capabilities ship, PAY-002, EXP-002 and EXP-005 each inherit the booking/event-bound balance, PAY-005 refund, nontransferability, no-top-up and no-general-spending obligations and their payment acceptance points. Those payment journeys remain missing in their own clauses; BOUND-001 is done when all capabilities that exist today conform. **Acceptance evidence:** Read the homepage boundary line, this clause and the owner docs and find the same three exclusions and the same pointer to the venue’s POS or payment provider; search the staff app, public booking page, `docs/HTTP-CONTRACT.md` routes and exports for gift-card, stored-value, voucher and ordering surfaces and find none; pay a deposit and a prepaid ticket and prove neither can be transferred, topped up or redeemed outside its booking; a site test fails if the homepage names a gift-card or ordering capability this clause excludes, or this clause names one the page omits.
 
@@ -419,7 +419,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 51 | 10:40 PM · Close · "Texts: opted in" | `MSG-008` | missing |
 | 52 | 10:40 PM · Close · Post-visit text ("How was tonight?" · "Perfect, thank you!") | `CRM-005` | missing |
 | 53 | 10:40 PM · Close · Service report: covers booked and walk-in, no-shows, fees, average turn, quote accuracy, covers recovered | `REPORT-007`, `REPORT-001`, `REPORT-002`, `PAY-004` | partial |
-| 54 | 11:00 PM · Closing · "Free and open source, MIT licensed." | `OSS-001` | partial |
+| 54 | 11:00 PM · Closing · "Free and open source, MIT licensed." | `OSS-001` | done |
 
 ## Status
 
@@ -427,9 +427,9 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 14 | 1 | 0 | 15 |
+| Published | 15 | 0 | 0 | 15 |
 | Target and push further | 21 | 24 | 72 | 117 |
-| All | 35 | 25 | 72 | 132 |
+| All | 36 | 24 | 72 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -446,7 +446,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `DATA-001` | Validated empty-destination backups | published | done | `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs` |  |
 | `DATA-002` | Guest erasure and restore fences | published | done | `src/placemat/import/erase.ts`; `src/placemat/backup.ts`; `tests/api/flows.test.mjs` |  |
 | `SITE-001` | Runnable product and owner guides | published | done | `tests/site.mjs`; `tests/install.mjs`; `src/placemat/model.ts` |  |
-| `OSS-001` | Free and open source, MIT licensed | published | partial | `LICENSE`; `src/site/run.json` | `LICENSE` is MIT and no charge exists anywhere in the product; no test asserts the license lines or the absence of a paywall, and COST-001 provider-cost disclosure is not built. |
+| `OSS-001` | Free and open source, MIT licensed | published | done | `LICENSE`; `tests/site.mjs`; `tests/install.mjs`; `tests/api/flows.test.mjs` | Current MIT and no-paywall operation asserted; future channel cost disclosure inherited by COST-001 and provider clauses. |
 | `BOUND-001` | Stated boundary: online ordering, gift cards and the POS | published | done | `tests/api/flows.test.mjs`; `tests/site.mjs`; `tests/boundary-ui.mjs`; `docs/getting-started.md`; `docs/HTTP-CONTRACT.md` | Current screens, booking inputs, commands and exports conform; built-site checks compare the exclusions. PAY-002, EXP-002 and EXP-005 inherit payment acceptance before shipping under ct 20 Oct 10:41Z. |
 | `SETUP-001` | US restaurant onboarding | target | partial | `src/placemat/commands.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Name/timezone and offset instants exist; US defaults, business/contact fields, policy setup and US DST browser evidence are absent. |
 | `SERVICE-002` | Recurring shifts and seasonal schedules | target | done | `src/placemat/schedules.ts`; `public/placemat-schedules.js`; `tests/api/schedules.test.mjs` |  |

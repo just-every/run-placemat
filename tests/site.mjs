@@ -56,3 +56,14 @@ for (const exclusion of exclusions) {
 assert.match(text(home), /(?:from|in) your POS/i, 'BOUND-001: homepage places check taking in the venue POS')
 assert.doesNotMatch(text(home.replace(/<p[^>]*class="[^"]*mi-not[^"]*"[^>]*>[\s\S]*?<\/p>/, '')), /gift[- ]?cards?|stored[- ]?value|vouchers?|online (?:food )?ordering/i, 'BOUND-001: homepage makes no excluded capability claim elsewhere')
 console.log('BOUND-001: built homepage and owner docs agree on the product boundary')
+
+// OSS-001: the actual permission grant and every published entry point agree.
+const licence = await readFile(new URL('../LICENSE', import.meta.url), 'utf8')
+assert.match(licence, /MIT License/, 'OSS-001: source grants the MIT licence')
+assert.match(licence, /Permission is hereby granted[\s\S]*use, copy, modify[\s\S]*distribute/, 'OSS-001: source grants use, modification and redistribution')
+for (const [name, content] of [['homepage', text(home)], ['/run', text(await page('run.html'))], ['README', readme]]) {
+ assert.match(content, /MIT(?: licensed| licen[cs]e)?/i, `OSS-001: ${name} identifies the source licence`)
+ assert.match(content, /free|no (?:licen[cs]e )?fee/i, `OSS-001: ${name} describes free operation`)
+}
+assert.ok(links(await page('run.html')).some(href => href.replace(/\.git$/, '') === run.repository), 'OSS-001: /run links the actual public source')
+console.log('OSS-001: MIT permission grant and published free/source entry points passed')
