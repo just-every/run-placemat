@@ -60,7 +60,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
   function renderBooking() {
     const target = find('#public-booking-form');
     if (!selected) { target.innerHTML = ''; return; }
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${requestFields(field)}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${requestFields(field,requests?.requests)}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
   }
   async function search(nextQuery) {
     query = nextQuery;
@@ -121,7 +121,7 @@ export function createPublicSearch({api, esc, field, select, notice}) {
     // This endpoint also serves existing clients; only venue metadata bootstraps the search.
     const bootstrap = await api('/api/public/services?partySize=2');
     venue = bootstrap.venue;
-    contact = {name: '', email: '', phone: ''};
+    contact = {name: '', email: '', phone: ''};requests=undefined;
     await search({date: today(), partySize: 2, area: '', requiredAccessTags: []});
   }
   root.addEventListener('submit', event => {

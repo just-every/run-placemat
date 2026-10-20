@@ -24,3 +24,8 @@ root.addEventListener('submit',async event=>{const form=event.target.closest('[d
  }catch(error){notice.textContent=error.message;notice.setAttribute('role','alert')}finally{root.inert=false}});
 root.addEventListener('click',event=>{if(event.target.closest('[data-refresh]'))load().catch(error=>{root.innerHTML='';notice.textContent=error.message;notice.setAttribute('role','alert')})});
 load().catch(error=>{notice.textContent=error.message;notice.setAttribute('role','alert')});
+window.addEventListener('hashchange',()=>{
+ const next=new URLSearchParams(location.hash.slice(1)).get('token');if(!next)return;
+ token=next;history.replaceState(null,'',location.pathname);
+ load().catch(error=>{root.innerHTML='';notice.textContent=error.message;notice.setAttribute('role','alert')});
+});
