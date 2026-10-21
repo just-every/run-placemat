@@ -2,7 +2,8 @@ import {publicGuest} from './harness.mjs'
 export async function preshiftFixture(h){
  await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/Los_Angeles'})
  const floor=[];for(let i=0;i<3;i++)floor.push(await h.command('table.save',{label:['12','14','16'][i],seats:i===1?8:4,accessTags:['step-free'],x:20+i*20,y:30}))
- const day=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+ const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7))
+ const day=date.toISOString().slice(0,10)
  const s=await h.command('service.save',{name:'Friday dinner',startAt:day+'T18:00:00-07:00',endAt:day+'T23:00:00-07:00',turnMinutes:90,coverLimit:32,pacing:{intervalMinutes:30,arrivalCovers:16,arrivalParties:6,concurrentCovers:24,areaArrivalCaps:{'Dining room':16}}})
  const server=await h.command('server.save',{serviceId:s.id,name:'Ana',coverCap:24})
  await h.command('section.save',{serviceId:s.id,name:'Window',serverId:server.id,tableIds:floor.map(t=>t.id)})
