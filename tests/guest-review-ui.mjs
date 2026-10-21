@@ -40,13 +40,13 @@ for(const width of [1440,390]){
   if(shots)await card.screenshot({path:resolve(shots,`GUEST-004-review-${width}.png`)})
   // A fresh review re-reads the real guest store after erasure.
   await h.command('guest.erase',{guestId:f.b.id,confirm:'ERASE'})
-  await button.click();await expect(review.locator('details.card')).toHaveCount(1)
+  await button.focus();await button.press('Enter');await expect(review.locator('details.card')).toHaveCount(1)
   await expect(review).not.toContainText('alex.two@example.test');await expect(review).not.toContainText('conflicting note')
   await h.command('guest.erase',{guestId:f.guest.id,confirm:'ERASE'})
-  await button.click();await expect(review).toContainText('No possible duplicates found.')
+  await button.focus();await button.press('Enter');await expect(review).toContainText('No possible duplicates found.')
   if(shots)await card.screenshot({path:resolve(shots,`GUEST-004-empty-${width}.png`)})
   await search.fill('unrelated@example.test');await expect(card).toHaveCount(1);await expect(card.locator(':scope > summary')).toContainText('Unrelated visitor');await card.locator(':scope > summary').click()
-  await card.getByRole('button',{name:'Review possible duplicates'}).click();await expect(card).toContainText('No possible duplicates found.')
+  await card.getByRole('button',{name:'Review possible duplicates'}).focus();await card.getByRole('button',{name:'Review possible duplicates'}).press('Enter');await expect(card).toContainText('No possible duplicates found.')
   assert.deepEqual(errors,[])
   console.log(`GUEST-004 read-only suggestions, conflicts, linked history, permission labels, keyboard, escaping and erasure passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
