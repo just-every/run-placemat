@@ -366,7 +366,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 | # | Claim | Clause(s) | Status |
 | --- | --- | --- | --- |
-| 1 | Hero · "Placemat takes reservations from your site" | `BOOK-001`, `BOOK-002` | partial |
+| 1 | Hero · "Placemat takes reservations from your site" | `BOOK-001`, `BOOK-002` | done |
 | 2 | Hero · "…Google…" (reservations from Google) | `DIST-001` | missing |
 | 3 | Hero · "…and Instagram" | `DIST-002` | missing |
 | 4 | Hero · "runs the host stand" | `FLOOR-002`, `FLOOR-006`, `WAIT-001` | partial |
@@ -375,7 +375,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 7 | Hero · "100% free, open source alternative to OpenTable, Resy and SevenRooms" | `OSS-001`, `COST-001` | partial |
 | 8 | Hero · "Run Placemat →" opens /run; "Read the docs" opens /docs | `SITE-001` | done |
 | 9 | Hero · "Try the demo" | `SITE-002` | partial |
-| 10 | Hero tags · "Table 12 · Priya +3 · 7:30 · anniversary" | `BOOK-001`, `BOOK-007`, `GUEST-002` | partial |
+| 10 | Hero tags · "Table 12 · Priya +3 · 7:30 · anniversary" | `BOOK-001`, `BOOK-007`, `GUEST-002` | done |
 | 11 | Hero tags · "Regular · 15th visit · likes the window" | `GUEST-001`, `GUEST-002` | partial |
 | 12 | Hero tags · "Waitlist · Marco, 2 · 15 min · text sent" | `WAIT-003`, `WAIT-004` | missing |
 | 13 | Hero tags · "Deposit $50 · held" | `PAY-002`, `PAY-003` | missing |
@@ -423,19 +423,19 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 ## Status
 
-Judged from the code and tests at commit `0d24191a1fe729957fe8bbe242b25fc045904c4d` (21 October 2026). Completion requires tests naming the clause and asserting every acceptance point. Existing unnamed integration journeys remain evidence of a partial implementation.
+Judged from the code and tests at commit `a3ac7ecbcc0c0621a8e914c2a552d0c272816cb6` (21 October 2026). Completion requires tests naming the clause and asserting every acceptance point. Existing unnamed integration journeys remain evidence of a partial implementation.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 8 | 7 | 0 | 15 |
+| Published | 9 | 6 | 0 | 15 |
 | Target and push further | 27 | 23 | 67 | 117 |
-| All | 35 | 30 | 67 | 132 |
+| All | 36 | 29 | 67 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
 | `ACCESS-001` | Native sessions and preparation authority | published | partial | `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `PRIVACY-001` | Public guest isolation | published | done | `src/placemat/http.ts`; `src/placemat/commands.ts`; `tests/api/privacy.test.mjs`; `public/placemat-analytics.js`; `tests/api/embed.test.mjs` |  |
-| `BOOK-001` | Live assigned reservations | published | partial | `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
+| `BOOK-001` | Live assigned reservations | published | done | `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` | |
 | `FLOOR-001` | Conflict-safe physical capacity | published | done | `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` |  |
 | `SERVICE-001` | Reviewed dated service publication | published | partial | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `PLAN-001` | Exact plans and accountable decisions | published | partial | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
