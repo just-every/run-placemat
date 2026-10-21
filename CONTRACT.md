@@ -366,17 +366,17 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 | # | Claim | Clause(s) | Status |
 | --- | --- | --- | --- |
-| 1 | Hero · "Placemat takes reservations from your site" | `BOOK-001`, `BOOK-002` | done |
+| 1 | Hero · "Placemat takes reservations from your site" | `BOOK-001`, `BOOK-002` | partial |
 | 2 | Hero · "…Google…" (reservations from Google) | `DIST-001` | missing |
 | 3 | Hero · "…and Instagram" | `DIST-002` | missing |
-| 4 | Hero · "runs the host stand" | `FLOOR-002`, `FLOOR-006`, `WAIT-001` | done |
-| 5 | Hero · "…and waitlist" | `WAIT-001` | done |
-| 6 | Hero · "remembers every guest" | `GUEST-001` | done |
+| 4 | Hero · "runs the host stand" | `FLOOR-002`, `FLOOR-006`, `WAIT-001` | partial |
+| 5 | Hero · "…and waitlist" | `WAIT-001` | partial |
+| 6 | Hero · "remembers every guest" | `GUEST-001` | partial |
 | 7 | Hero · "100% free, open source alternative to OpenTable, Resy and SevenRooms" | `OSS-001`, `COST-001` | partial |
 | 8 | Hero · "Run Placemat →" opens /run; "Read the docs" opens /docs | `SITE-001` | done |
 | 9 | Hero · "Try the demo" | `SITE-002` | partial |
-| 10 | Hero tags · "Table 12 · Priya +3 · 7:30 · anniversary" | `BOOK-001`, `BOOK-007`, `GUEST-002` | done |
-| 11 | Hero tags · "Regular · 15th visit · likes the window" | `GUEST-001`, `GUEST-002` | done |
+| 10 | Hero tags · "Table 12 · Priya +3 · 7:30 · anniversary" | `BOOK-001`, `BOOK-007`, `GUEST-002` | partial |
+| 11 | Hero tags · "Regular · 15th visit · likes the window" | `GUEST-001`, `GUEST-002` | partial |
 | 12 | Hero tags · "Waitlist · Marco, 2 · 15 min · text sent" | `WAIT-003`, `WAIT-004` | missing |
 | 13 | Hero tags · "Deposit $50 · held" | `PAY-002`, `PAY-003` | missing |
 | 14 | Hero tags · "Cancellation · 8:00 → filled from waitlist" | `WAIT-005`, `AGENT-002` | partial |
@@ -423,26 +423,26 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 ## Status
 
-Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1d4` (17 October 2026).
+Judged from the code and tests at commit `0d24191a1fe729957fe8bbe242b25fc045904c4d` (21 October 2026). Completion requires tests naming the clause and asserting every acceptance point. Existing unnamed integration journeys remain evidence of a partial implementation.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 15 | 0 | 0 | 15 |
-| Target and push further | 28 | 22 | 67 | 117 |
-| All | 43 | 22 | 67 | 132 |
+| Published | 8 | 7 | 0 | 15 |
+| Target and push further | 27 | 23 | 67 | 117 |
+| All | 35 | 30 | 67 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
-| `ACCESS-001` | Native sessions and preparation authority | published | done | `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` |  |
+| `ACCESS-001` | Native sessions and preparation authority | published | partial | `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `PRIVACY-001` | Public guest isolation | published | done | `src/placemat/http.ts`; `src/placemat/commands.ts`; `tests/api/privacy.test.mjs`; `public/placemat-analytics.js`; `tests/api/embed.test.mjs` |  |
-| `BOOK-001` | Live assigned reservations | published | done | `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` |  |
+| `BOOK-001` | Live assigned reservations | published | partial | `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `FLOOR-001` | Conflict-safe physical capacity | published | done | `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` |  |
-| `SERVICE-001` | Reviewed dated service publication | published | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` |  |
-| `PLAN-001` | Exact plans and accountable decisions | published | done | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs` |  |
+| `SERVICE-001` | Reviewed dated service publication | published | partial | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
+| `PLAN-001` | Exact plans and accountable decisions | published | partial | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `MSG-001` | Approved reminder CSV custody | published | done | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/reminders.test.mjs` |  |
-| `WAIT-001` | Staff walk-ins and waiting parties | published | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` |  |
-| `GUEST-001` | Guest visit history | published | done | `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` |  |
-| `MIG-001` | Reviewed Tablein-shaped move-in | published | done | `src/placemat/import/index.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` |  |
+| `WAIT-001` | Staff walk-ins and waiting parties | published | partial | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
+| `GUEST-001` | Guest visit history | published | partial | `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
+| `MIG-001` | Reviewed Tablein-shaped move-in | published | partial | `src/placemat/import/index.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `DATA-001` | Validated empty-destination backups | published | done | `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs`; `tests/api/embed.test.mjs` |  |
 | `DATA-002` | Guest erasure and restore fences | published | done | `src/placemat/import/erase.ts`; `src/placemat/backup.ts`; `tests/api/flows.test.mjs` |  |
 | `SITE-001` | Runnable product and owner guides | published | done | `tests/site.mjs`; `tests/install.mjs`; `src/placemat/model.ts` |  |
@@ -550,7 +550,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `SEC-001` | Identity and session lifecycle | target | partial | `src/modules/operator-auth/accounts/admin.mjs`; `src/modules/operator-auth/accounts/native.mjs`; `tests/runtime.mjs`; `tests/api/flows.test.mjs` | Native sessions/invitations and active-role checks exist; MFA, step-up and group SSO journeys are absent. |
 | `SEC-002` | Shared host-stand device and quick staff switch | target | missing |  | Only personal native sessions exist; venue devices, PIN switching, idle lock and per-PIN attribution do not. |
 | `AUDIT-001` | Reservation and financial change history | target | done | `src/placemat/audit.ts`; `src/placemat/store.ts`; `src/placemat/commands.ts`; `src/placemat/guest-state-erasure.ts`; `public/placemat-audit.js`; `tests/api/audit.test.mjs`; `tests/api/embed.test.mjs`; `tests/audit-ui.mjs` | Current changes have version-fenced snapshots, source and filtered owner CSV; missing merge/send/payment workflows inherit before shipping. |
-| `API-001` | Documented booking and guest HTTP doors | target | done | `docs/HTTP-CONTRACT.md`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` |  |
+| `API-001` | Documented booking and guest HTTP doors | target | partial | `docs/HTTP-CONTRACT.md`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `API-002` | Versioned integrations and event subscriptions | target | partial | `docs/HTTP-CONTRACT.md`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` | Core documented HTTP doors exist; versioning, pagination, granular scopes, event subscriptions and named automation adapters do not. |
 | `VOICE-001` | Loman AI and telephone booking connection | target | missing |  | No implementation of this journey exists. |
 | `MOBILE-001` | Phone and tablet host workflows | target | partial | `src/placemat/views.ts`; `public/placemat.css`; `public/placemat.js` | Responsive staff pages exist; native clients, push, device revocation and complete mobile/browser accessibility journeys are absent. |
