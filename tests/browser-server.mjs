@@ -1,6 +1,7 @@
 // Local HTTP transport for the real Worker and shipped static assets. This lets
 // the browser stream attachments through its native download manager.
 import {createServer} from 'node:https'
+import {createHash,X509Certificate} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
 import {tmpdir} from 'node:os'
 import {readFile,mkdtemp,rm} from 'node:fs/promises'
@@ -26,5 +27,6 @@ export async function browserServer(h){
  })
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve)})
  origin=`https://127.0.0.1:${server.address().port}`
- return {origin,async close(){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(certificates,{recursive:true,force:true})}}
+ const certificateSpki=createHash('sha256').update(new X509Certificate(await readFile(cert)).publicKey.export({type:'spki',format:'der'})).digest('base64')
+ return {origin,certificateSpki,async close(){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await rm(certificates,{recursive:true,force:true})}}
 }

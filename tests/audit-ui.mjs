@@ -8,11 +8,8 @@ import {browserServer} from './browser-server.mjs'
 import {csvRecords} from './api/business-fixture.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
-// Downloads use Chromium's browser network path, so trust only this localhost TLS fixture there too.
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic','--allow-insecure-localhost']})
-try {
- for(const width of [1440,390]){
-  const h=await installation(),transport=await browserServer(h),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true})
+for(const width of [1440,390]){
+  const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true})
   try {
    const {service:s,floor}=await service(h,{tables:3,covers:30})
    const b=(await h.api('/api/public/book',publicGuest(s,0,{name:'Priya Rowan',requests:{occasion:'Anniversary',allergyNotes:'Guest-declared shellfish allergy'},requestsAcknowledged:true}),{as:''})).result
@@ -58,6 +55,5 @@ try {
    try {await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/audit')).rows,history,'AUDIT-001: redacted history survives empty-destination restore without returning personal values')}
    finally{await restored.close()}
    assert.deepEqual(errors,[]);console.log(`AUDIT-001 person changes, guest consent, filtered CSV, empty filter, erasure and restored history passed at ${width}`)
-  }finally{await context.close();await transport.close();await h.close()}
+  }finally{await context.close();await browser.close();await transport.close();await h.close()}
  }
-}finally{await browser.close()}

@@ -8,11 +8,8 @@ import {browserServer} from './browser-server.mjs'
 import {businessService,csvRecords} from './api/business-fixture.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
-// Downloads use Chromium's browser network path, so trust only this localhost TLS fixture there too.
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic','--allow-insecure-localhost']})
-try{
- for(const width of [1440,390]){
-  const h=await installation(),transport=await browserServer(h),context=await browser.newContext({viewport:{width,height:1000},acceptDownloads:true,ignoreHTTPSErrors:true})
+for(const width of [1440,390]){
+  const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},acceptDownloads:true,ignoreHTTPSErrors:true})
   try{
    const fixture=await businessService(h),errors=[]
    const cookies=cookie=>cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}})
@@ -43,6 +40,5 @@ try{
    const member=await h.signIn('read-only@example.test');await context.clearCookies();await context.addCookies(cookies(member));await page.goto(transport.origin+'/app');await page.getByRole('link',{name:'Settings',exact:true}).click()
    await page.locator('#settings-content').getByText('Venue settings can be changed by an owner or admin.').waitFor();assert.equal(await page.locator('#business-exports').count(),0,'DATA-003: nonowner has no bulk export controls');await shot('member-settings')
    assert.deepEqual(errors,[]);console.log(`DATA-003 owner downloads, current changes, erasure and role controls passed at ${width}`)
-  }finally{await context.close();await transport.close();await h.close()}
+  }finally{await context.close();await browser.close();await transport.close();await h.close()}
  }
-}finally{await browser.close()}
