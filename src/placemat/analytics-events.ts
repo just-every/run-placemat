@@ -55,11 +55,12 @@ async function answer(provider:AnalyticsProvider,response:Response):Promise<stri
  return response.ok&&Number.isInteger(body?.events_received)?`Meta received ${body.events_received} event${body.events_received===1?'':'s'}.`:`Meta refused the request${body?.error?.type?` (${String(body.error.type).slice(0,60)})`:''}.`
 }
 
-/** Sends one event to every active provider. Runs after the guest's response (waitUntil), so a slow or failing provider never blocks or delays a booking. */
+/** Sends one event to every active provider. Runs after the guest's response (waitUntil), so a slow or failing provider never blocks or delays a booking.
+ The send time is taken when the request hands the event over, so each provider keeps the answer to its most recently sent event, whichever answer arrives last. */
 export async function sendAnalytics(db:D1Database,event:AnalyticsEvent,visit:Visit,bookingPage:string){
- const {state}=await load(db)
+ const at=Date.now(),{state}=await load(db)
  const keys=new Map((await db.prepare('SELECT provider,secret FROM pm_analytics_keys').all<{provider:AnalyticsProvider;secret:string}>()).results.map(row=>[row.provider,row.secret]))
- const settings=analyticsSettings(state),at=Date.now()
+ const settings=analyticsSettings(state)
  await Promise.all(activeProviders(state,new Set(keys.keys())).map(async provider=>{
   let status=0,detail='The provider could not be reached.'
   try{
@@ -68,6 +69,6 @@ export async function sendAnalytics(db:D1Database,event:AnalyticsEvent,visit:Vis
    if(response){status=response.status;detail=await answer(provider,response)}
    else detail='Demo: nothing was sent to the provider.'
   }catch{}
-  await db.prepare('INSERT INTO pm_analytics_results(provider,event,status,detail,at) VALUES(?,?,?,?,?) ON CONFLICT(provider) DO UPDATE SET event=excluded.event,status=excluded.status,detail=excluded.detail,at=excluded.at').bind(provider,providerEventNames[provider][event],status,detail,new Date().toISOString()).run()
+  await db.prepare('INSERT INTO pm_analytics_results(provider,event,status,detail,at) VALUES(?,?,?,?,?) ON CONFLICT(provider) DO UPDATE SET event=excluded.event,status=excluded.status,detail=excluded.detail,at=excluded.at WHERE excluded.at>=pm_analytics_results.at').bind(provider,providerEventNames[provider][event],status,detail,new Date(at).toISOString()).run()
  }))
 }
