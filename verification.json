@@ -47,7 +47,8 @@
         "node tests/service-changes-ui.mjs",
         "node tests/service-close-report-ui.mjs",
         "node tests/embed-ui.mjs",
-        "node tests/audit-ui.mjs"
+        "node tests/audit-ui.mjs",
+        "node tests/preshift-ui.mjs"
       ]
     }
   ],

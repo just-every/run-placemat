@@ -72,3 +72,8 @@ A manager can **Pause online joining** while staff continue **Add a waiting part
 Open **Reservation reports → Service performance** to compare expected and actual turns, arrival lateness and quoted versus actual waits. Open a distribution observation to read its original status history and corrections. Server and section attendance stays attributed to the server who seated the party; a later move is visible separately. Missing observations are shown, never treated as zero. Seating utilization measures occupied physical table-seat time, with known ongoing observations identified. Queue outcomes, pacing intervals and staff exceptions open their contributing parties.
 
 Choose **Publish current service facts** to retain an attributed snapshot. Saved reports stay fixed after corrections. **Refresh live report** shows the corrected facts; publish again to retain the adjustment beside the original. Reports contain reservation references and staff observations without guest names, contacts or private note text. Owner backups carry the saved reports.
+
+
+## Before service
+
+Open **Pre-shift sheet** from Operations and choose the venue-local service date. The sheet shows the current guest flags and unverified requests, table and section assignments, expected covers and pacing. **Open sheet** refreshes it after bookings change. Use **Print sheet** or **Download PDF** for the same authorized view. Managers see guest notes, tags and contacts; owner-granted hosts receive a reduced sheet without them. A read-only member or preparation key cannot open it. PDFs are generated on demand and never stored by Placemat. Deposits, kitchen notes and counter seats will join the sheet when their introducing capabilities ship.

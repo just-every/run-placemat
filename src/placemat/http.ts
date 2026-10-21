@@ -1,3 +1,5 @@
+import {preshift,serviceDate,preshiftPdf} from './preshift'
+import {preshiftPage} from './preshift-view'
 import {auditRows} from './audit'
 import {businessCsv} from './business-export'
 import {readCloseReport,closeReportCsv,closeReportPdf} from './service-close-report'
@@ -38,7 +40,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -108,6 +110,14 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   const actor=await actorFor(request,env)
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
   if(!['owner','admin','member','host','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(['/preshift','/api/preshift','/api/preshift.pdf'].includes(path)){
+   if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   const {state}=await load(env.DB),date=url.searchParams.get('date')??serviceDate(new Date().toISOString(),state.venue.timezone)
+   const sheet=preshift(state,await guests(env.DB),actor!,date)
+   if(path==='/preshift')return preshiftPage(sheet)
+   if(path.endsWith('.pdf'))return new Response(preshiftPdf(sheet),{headers:{...headers,'content-type':'application/pdf','content-disposition':`attachment; filename="placemat-preshift-${date}.pdf"`}})
+   return json(sheet)
+  }
   if(path==='/app'){if(actor!.agent)fail(403,'Agent keys use the API.');return productPage(request,env,actor!)}
   if(request.method!=='GET')originCheck(request,env)
   if(path.startsWith('/api/business-export/')){
