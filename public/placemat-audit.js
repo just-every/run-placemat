@@ -5,6 +5,7 @@ export function createAudit({api,esc,field,select,time,isOwner}) {
  const label=value=>value.replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ');
  const value=v=>v===undefined?'Not recorded':v===null?'No record':typeof v==='object'?JSON.stringify(v):String(v);
  function comparison(before,after) {
+  if(before?.redacted||after?.redacted)return '<p>Personal values redacted after guest erasure.</p>';
   const object=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{value:v};
   const old=object(before),next=object(after);
   const keys=[...new Set([...Object.keys(old),...Object.keys(next)])].filter(key=>JSON.stringify(old[key])!==JSON.stringify(next[key]));
