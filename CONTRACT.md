@@ -423,13 +423,13 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 ## Status
 
-Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe452876475` (21 October 2026). Changed rows are rechecked against sx-placemat-r29 public-door evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.
+Judged from the code and tests at commit `d7b67ce8974d18fca6090ed4ce44ac832467e066` (21 October 2026). Changed rows are rechecked against sx-placemat-r29 public-door evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 15 | 0 | 0 | 15 |
-| Target and push further | 28 | 22 | 67 | 117 |
-| All | 43 | 22 | 67 | 132 |
+| Target and push further | 26 | 28 | 63 | 117 |
+| All | 41 | 28 | 63 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -449,7 +449,7 @@ Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe4528764
 | `OSS-001` | Free and open source, MIT licensed | published | done | `LICENSE`; `tests/site.mjs`; `tests/install.mjs`; `tests/api/flows.test.mjs` | Current MIT and no-paywall operation asserted; future channel cost disclosure inherited by COST-001 and provider clauses. |
 | `BOUND-001` | Stated boundary: online ordering, gift cards and the POS | published | done | `tests/api/flows.test.mjs`; `tests/site.mjs`; `tests/boundary-ui.mjs`; `docs/getting-started.md`; `docs/HTTP-CONTRACT.md` | Current screens, booking inputs, commands and exports conform; built-site checks compare the exclusions. PAY-002, EXP-002 and EXP-005 inherit payment acceptance before shipping under ct 20 Oct 10:41Z. |
 | `SETUP-001` | US restaurant onboarding | target | done | `src/placemat/onboarding.ts`; `src/placemat/onboarding-preview.ts`; `src/placemat/local-time.ts`; `src/placemat/service-input.ts`; `public/placemat-onboarding.js`; `tests/api/onboarding.test.mjs`; `tests/onboarding-ui.mjs` |  |
-| `SERVICE-002` | Recurring shifts and seasonal schedules | target | done | `src/placemat/schedules.ts`; `public/placemat-schedules.js`; `tests/api/schedules.test.mjs` |  |
+| `SERVICE-002` | Recurring shifts and seasonal schedules | target | partial | `src/placemat/schedules.ts`; `public/placemat-schedules.js`; `tests/api/schedules.test.mjs` | Weekly/seasonal shifts, exceptions, exact reviewed batches and booked-service preservation ship. Schedule previews still count retired tables as physical seats, and the editor drops exception-specific UTC offsets, preventing repeated-hour holiday generation through the screen. |
 | `SERVICE-003` | Closures and emergency service changes | target | partial | `src/placemat/service-changes.ts`; `src/placemat/service-blocks.ts`; `public/placemat-service-changes.js`; `tests/api/service-changes.test.mjs`; `tests/service-changes-ui.mjs` | Exact reviewed dated-service, room, arrival-window and private-table holds preserve bookings, block new allocations and create manager-owned impact tasks with staff-recorded failed-contact outcomes. Guest-accepted relocation, published-service amendments, permission-scoped provider outreach and PAY-005 refunds remain missing. |
 | `SERVICE-004` | Party and advance-booking rules | target | done | `src/placemat/booking-rules.ts`; `src/placemat/commands.ts`; `src/placemat/availability.ts`; `public/placemat-rules.js`; `tests/api/booking-rules.test.mjs` |  |
 | `SERVICE-005` | Arrival pacing and concurrent covers | target | done | `src/placemat/pacing.ts`; `src/placemat/pacing-review.ts`; `src/placemat/commands.ts`; `public/placemat-pacing.js`; `tests/api/pacing.test.mjs`; `tests/pacing-ui.mjs` | — |
@@ -464,7 +464,7 @@ Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe4528764
 | `DIST-001` | Reserve with Google | target | missing |  | No implementation of this journey exists. |
 | `DIST-002` | Instagram and Facebook booking | target | missing |  | No implementation of this journey exists. |
 | `DIST-003` | Diner discovery and partner distribution | target | missing |  | No implementation of this journey exists. |
-| `DIST-004` | Channel inventory and attribution | target | missing |  | No implementation of this journey exists. |
+| `DIST-004` | Channel inventory and attribution | target | partial | `src/placemat/inventory-advisor.ts`; `src/placemat/direct-inventory.ts`; `src/placemat/embed.ts`; `tests/api/assignments.test.mjs`; `tests/api/embed.test.mjs`; `tests/allocation-ui.mjs` | Reviewed direct-website table protection and explicit release, shared physical inventory checks, current source labels and widget-origin attribution ship. Google/social/discovery/phone/partner allocations, campaign attribution, independently configured release deadlines and attribution through guest modification remain missing. |
 | `DIST-005` | Guest accounts and repeat booking | target | missing |  | No implementation of this journey exists. |
 | `DIST-006` | Verified diner reviews and restaurant replies | target | missing |  | No diner reviews, ratings, replies or moderation exist. |
 | `FLOOR-002` | Rooms and editable floor plans | target | done | `src/placemat/floor-plan.ts`; `src/placemat/combinations.ts`; `public/placemat-floor-plan.js`; `tests/api/combinations.test.mjs`; `tests/floor-plan-ui.mjs` |  |
@@ -480,7 +480,7 @@ Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe4528764
 | `FLOOR-012` | Printable pre-shift sheet | target | done | `src/placemat/preshift.ts`; `src/placemat/preshift-view.ts`; `src/placemat/http.ts`; `tests/api/preshift.test.mjs`; `tests/preshift-ui.mjs` | Current capabilities asserted through clause-named HTTP and 1440/390 browser journeys; future payment, kitchen notes, acknowledged needs, counters and roles inherit their complete acceptance under ct scope51. |
 | `FLOOR-013` | Service notes and kitchen notes | target | done | `src/placemat/service-notes.ts`; `src/placemat/service-notes-archive.mjs`; `src/placemat/kitchen-view.ts`; `public/placemat-service-notes.js`; `tests/api/service-notes.test.mjs`; `tests/service-notes-ui.mjs` |  |
 | `WAIT-002` | Remote and walk-up joining | target | done | `src/placemat/wait-join.ts`; `src/placemat/queue-views.ts`; `src/placemat/queue-qr.ts`; `public/placemat-queue-join.js`; `tests/api/wait-join.test.mjs`; `tests/queue-ui.mjs` |  |
-| `WAIT-003` | Quoted waits and queue updates | target | missing |  | No implementation of this journey exists. |
+| `WAIT-003` | Quoted waits and queue updates | target | partial | `src/placemat/queue.ts`; `public/placemat-queue.js`; `tests/api/queue.test.mjs`; `tests/api/reports.test.mjs` | Staff can record and revise timestamped wait ranges with a basis, retain quote history, change priority with a reason and compare quoted/actual waits. Delivered revisions, guest-visible quotes, reservation-request versus walk-in distinctions and complete fit/promise-aware ordering remain missing. |
 | `WAIT-004` | Table-ready conversations and offer expiry | target | missing |  | No implementation of this journey exists. |
 | `WAIT-005` | Future cancellation notifications | target | missing |  | No implementation of this journey exists. |
 | `WAIT-006` | Waitlist accountability | target | done | `src/placemat/queue.ts`; `src/placemat/commands.ts`; `src/placemat/people.ts`; `public/placemat-queue.js`; `tests/api/queue.test.mjs` |  |
@@ -490,7 +490,7 @@ Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe4528764
 | `MSG-005` | Scheduled reminders and reconfirmations | target | partial | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs` | Reviewed reminder CSV preparation exists; scheduled provider delivery, reconfirmation links and reply/failure follow-up do not. |
 | `MSG-006` | Unified two-way guest inbox | target | missing |  | No implementation of this journey exists. |
 | `MSG-007` | Delivery retry and failed-contact ownership | target | missing |  | No implementation of this journey exists. |
-| `MSG-008` | Consent and US messaging policy | target | missing |  | No implementation of this journey exists. |
+| `MSG-008` | Consent and US messaging policy | target | partial | `src/placemat/wait-join.ts`; `src/placemat/guest-state-erasure.ts`; `tests/api/wait-join.test.mjs`; `tests/api/audit.test.mjs`; `tests/api/guests.test.mjs` | Optional queue-specific contact permission is stored separately from unknown marketing permission, with guest/staff updates, source/time history and erasure. General channel/purpose permission policies, marketing opt-in, STOP/HELP/unsubscribe, suppression, quiet hours and send-time enforcement across imports, jobs and agents remain missing. |
 | `MSG-009` | Templates and guest communication preferences | target | missing |  | No implementation of this journey exists. |
 | `MSG-010` | Guest text actions: confirm, reschedule and captured requests | target | missing |  | No provider delivery or inbound reply handling exists; reminders are approved CSV rows for the venue’s own sender. |
 | `MSG-011` | Instagram and Facebook direct messages | target | missing |  | No Meta connection, inbound message handling or inbox exists. |
@@ -510,7 +510,7 @@ Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe4528764
 | `EXP-004` | Experience cancellation and event settlement | target | missing |  | No implementation of this journey exists. |
 | `EXP-005` | Prepaid pickup experiences | target | missing |  | No implementation of this journey exists. |
 | `GUEST-002` | Searchable profiles and structured preferences | target | done | `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs` |  |
-| `GUEST-003` | Allergy and accessibility handoff | target | missing |  | No implementation of this journey exists. |
+| `GUEST-003` | Allergy and accessibility handoff | target | partial | `src/placemat/booking-requests.ts`; `src/placemat/assignments.ts`; `src/placemat/preshift.ts`; `src/placemat/service-notes.ts`; `tests/api/inquiries.test.mjs`; `tests/api/preshift.test.mjs`; `tests/api/service-notes.test.mjs` | Separate guest-declared allergy/dietary/accommodation requests and required access constraints ship, with unverified needs shown on pre-shift and kitchen views. Staff acknowledgment, per-fact dated/source history, stale/conflicting-fact clarification, connected POS handoff and acknowledged-source projections remain missing. |
 | `GUEST-004` | Duplicate review and household separation | target | partial | `src/placemat/guests.ts`; `src/placemat/http.ts`; `src/placemat/import/plan.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs`; `tests/guest-review-ui.mjs` | Read-only normalized name/email/exact-phone suggestions, conflict previews, imported visits, linked bookings and unchanged per-entry queue contact permissions have clause-named HTTP and 1440/390 browser proof. Spend and marketing permission are explicitly not recorded. Authorized merge/unmerge, consent reconciliation and their inherited audit/portability/erasure proof remain missing; GUEST-004 stays partial. |
 | `GUEST-005` | POS-linked visit and item history | target | missing |  | No implementation of this journey exists. |
 | `GUEST-006` | Shared guestbook across restaurant groups | target | missing |  | No implementation of this journey exists. |
@@ -527,7 +527,7 @@ Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe4528764
 | `POS-005` | NCR Aloha connection | target | missing |  | No implementation of this journey exists. |
 | `POS-006` | Guest and check matching controls | target | missing |  | No implementation of this journey exists. |
 | `POS-007` | Live check and kitchen pace | target | missing |  | No implementation of this journey exists. |
-| `REPORT-001` | Covers cancellations and no-shows | target | done | `src/placemat/reports.ts`; `src/placemat/http.ts`; `public/placemat-reports.js`; `tests/api/reports.test.mjs` |  |
+| `REPORT-001` | Covers cancellations and no-shows | target | partial | `src/placemat/reports.ts`; `src/placemat/http.ts`; `public/placemat-reports.js`; `tests/api/reports.test.mjs` | Reservation filters, cover/rate denominators, row drilldowns and matching CSV ship. Party-size filters accept only 1–20 despite supported larger bookings, and the screen defaults its maximum to 20, excluding those parties. Complete supported-size filtering and an initial report population including larger parties remain missing. |
 | `REPORT-002` | Turns waits and server performance | target | done | `src/placemat/performance.ts`; `src/placemat/performance-store.ts`; `public/placemat-performance.js`; `tests/api/reports.test.mjs`; `tests/api/pacing.test.mjs`; `tests/performance-ui.mjs` | Current turn/wait distributions, missing data, historical staffing, utilization, pacing/overrides, traceable corrections and immutable archive-portable publications are asserted through manager HTTP and 1440/390 browser doors. |
 | `REPORT-003` | Channels spend and repeat business | target | partial | `src/placemat/model.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Online/walk-in/waitlist source labels exist; marketing attribution, POS revenue, source fees and retention/cohorts do not. |
 | `REPORT-004` | Experience and payment performance | target | missing |  | No implementation of this journey exists. |
