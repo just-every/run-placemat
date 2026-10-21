@@ -67,7 +67,7 @@ for(const width of [1440,390]){
   const lounge=await f.book('Lounge');await context.addCookies(cookies(h.cookie));await page.goto(transport.origin+'/app#floor');await page.locator('#bookings-list').getByText('Lounge unassigned cover 1, Lounge unassigned cover 2',{exact:true}).waitFor();await shot('pool-booking',page.locator('#bookings-list'));
   const move=async ids=>{
    const row=page.locator('#bookings-list tbody tr').filter({hasText:'synthetic-placemat-1'});await row.getByRole('button',{name:'Change assignment',exact:true}).click();
-   const form=page.locator('[data-command="booking.move"]');for(const box of await form.locator('[name=tableIds]').all())await box.uncheck();for(const id of ids)await form.locator(`[name=tableIds][value="${id}"]`).check();await form.getByRole('button',{name:'Move party',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();
+   const form=page.locator('[data-command="booking.move"]');await form.locator('[name=tableIds]').selectOption(ids);await form.getByRole('button',{name:'Move party',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();
   };
   await move(counter.slice(2,4).map(t=>t.id));assert.deepEqual((await f.state()).bookings.find(b=>b.id===lounge.id).tableIds,counter.slice(2,4).map(t=>t.id));await shot('assigned-seats',page.locator('#bookings-list'));
   await move([f.table.id]);assert.deepEqual((await f.state()).bookings.find(b=>b.id===lounge.id).tableIds,[f.table.id]);await shot('transferred-table',page.locator('#bookings-list'));

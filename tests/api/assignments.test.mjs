@@ -266,6 +266,19 @@ test('Counter seats and anonymous pools share overlapping-turn capacity, pacing,
   const report=await h.api('/api/reports/performance?serviceId='+f.service.id);assert.equal(report.report.utilization.availableSeatMinutes,14*360);assert.equal(report.report.utilization.pool.availableCoverMinutes,20*360);assert.equal(report.report.utilization.tables.length,11);
   const archive=await h.api('/api/backup');restored=await installation();await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await restored.api('/api/state')).state.inventories.length,2);
   await h.command('table.save',{...counter[0],seats:2},{status:409});await h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:counter[0].id,changes:{seats:2}},reason:'Invalid inventory edit'},{status:409});
+  // Counter observations retain correction history and immutable exact numeric publications.
+  const liveStart=new Date(Math.floor(Date.now()/900000)*900000-3600000).toISOString();
+  const live=await h.command('service.save',{name:'Live counter',startAt:liveStart,endAt:new Date(Date.parse(liveStart)+4*3600000).toISOString(),turnMinutes:90,coverLimit:40});
+  const livePlan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:live.id},reason:'Live counter reviewed'});await h.command('proposal.approve',{proposalId:livePlan.id});
+  const observed=await h.command('booking.walkin',{serviceId:live.id,startAt:live.startAt,tableIds:counter.slice(0,2).map(t=>t.id),partySize:2,name:'synthetic-placemat-counter-observed',email:'synthetic-placemat-counter-observed@example.test'});
+  await h.command('booking.stage',{bookingId:observed.id,stage:'completed'});
+  const published=await h.api('/api/reports/performance',{serviceId:live.id}),fact=published.report.rows.find(b=>b.bookingId===observed.id);
+  assert.equal(published.report.utilization.observedSeatMinutes,2*(Date.parse(fact.actualDepartureAt)-Date.parse(fact.actualSeatAt))/60000);assert.ok(published.report.utilization.observedSeatMinutes>0);
+  const event=(await f.state()).serviceEvents.filter(e=>e.bookingId===observed.id).at(-1);
+  await h.command('booking.stage',{bookingId:observed.id,correctsEventId:event.id,reason:'Correct an accidental completion'});
+  assert.deepEqual((await h.api('/api/reports/performance?snapshot='+published.publication.id)).report,published.report);
+  const corrected=await h.api('/api/reports/performance?serviceId='+live.id);assert.equal(corrected.report.rows[0].actualDepartureAt,null);assert.equal(corrected.report.rows[0].serviceHistory.at(-1).correctsEventId,event.id);
+  await h.command('booking.stage',{bookingId:observed.id,stage:'completed'});await h.command('booking.stage',{bookingId:observed.id,stage:'ready'});
   // Own inventory pacing and duration are independent of the service default.
   const paced=await h.command('inventory.create',{name:'Paced counter',kind:'counter',capacity:4,turnMinutes:60,arrivalCovers:2,intervalMinutes:30,adjacent:true});assert.ok(paced.id);
   const one=await f.book('Paced counter');assert.equal(Date.parse(one.endAt)-Date.parse(one.startAt),60*60000);await f.book('Paced counter',{},409);
