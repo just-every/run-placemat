@@ -428,8 +428,8 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 15 | 0 | 0 | 15 |
-| Target and push further | 27 | 23 | 67 | 117 |
-| All | 42 | 23 | 67 | 132 |
+| Target and push further | 28 | 22 | 67 | 117 |
+| All | 43 | 22 | 67 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -448,7 +448,7 @@ Judged from the code and tests at commit `d1ee743104d2256f1a3211a958f7b5d960bbe1
 | `SITE-001` | Runnable product and owner guides | published | done | `tests/site.mjs`; `tests/install.mjs`; `src/placemat/model.ts` |  |
 | `OSS-001` | Free and open source, MIT licensed | published | done | `LICENSE`; `tests/site.mjs`; `tests/install.mjs`; `tests/api/flows.test.mjs` | Current MIT and no-paywall operation asserted; future channel cost disclosure inherited by COST-001 and provider clauses. |
 | `BOUND-001` | Stated boundary: online ordering, gift cards and the POS | published | done | `tests/api/flows.test.mjs`; `tests/site.mjs`; `tests/boundary-ui.mjs`; `docs/getting-started.md`; `docs/HTTP-CONTRACT.md` | Current screens, booking inputs, commands and exports conform; built-site checks compare the exclusions. PAY-002, EXP-002 and EXP-005 inherit payment acceptance before shipping under ct 20 Oct 10:41Z. |
-| `SETUP-001` | US restaurant onboarding | target | partial | `src/placemat/commands.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` | Name/timezone and offset instants exist; US defaults, business/contact fields, policy setup and US DST browser evidence are absent. |
+| `SETUP-001` | US restaurant onboarding | target | done | `src/placemat/onboarding.ts`; `src/placemat/onboarding-preview.ts`; `src/placemat/local-time.ts`; `src/placemat/service-input.ts`; `public/placemat-onboarding.js`; `tests/api/onboarding.test.mjs`; `tests/onboarding-ui.mjs` |  |
 | `SERVICE-002` | Recurring shifts and seasonal schedules | target | done | `src/placemat/schedules.ts`; `public/placemat-schedules.js`; `tests/api/schedules.test.mjs` |  |
 | `SERVICE-003` | Closures and emergency service changes | target | partial | `src/placemat/service-changes.ts`; `src/placemat/service-blocks.ts`; `public/placemat-service-changes.js`; `tests/api/service-changes.test.mjs`; `tests/service-changes-ui.mjs` | Exact reviewed dated-service, room, arrival-window and private-table holds preserve bookings, block new allocations and create manager-owned impact tasks with staff-recorded failed-contact outcomes. Guest-accepted relocation, published-service amendments, permission-scoped provider outreach and PAY-005 refunds remain missing. |
 | `SERVICE-004` | Party and advance-booking rules | target | done | `src/placemat/booking-rules.ts`; `src/placemat/commands.ts`; `src/placemat/availability.ts`; `public/placemat-rules.js`; `tests/api/booking-rules.test.mjs` |  |
