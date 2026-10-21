@@ -1,3 +1,4 @@
+import {recoveryReport} from './recovery'
 import {performanceReport} from './performance'
 import {fail,id,text,type Actor} from './model'
 import {load} from './store'
@@ -12,7 +13,8 @@ export async function readPerformance(db:D1Database,params:URLSearchParams) {
   report=JSON.parse(row.data);publication={id:row.id,at:row.published_at,actor:row.published_by,version:row.floor_version}
  }else report=performanceReport(state,text(params.get('serviceId'),'Service'))
  const saved=await db.prepare('SELECT id,published_at,published_by,floor_version FROM pm_performance_reports WHERE service_id=? ORDER BY published_at DESC,id').bind(report.serviceId).all<Omit<Published,'data'|'service_id'>>()
- return {report,publication,currentVersion:version,changedSincePublication:publication!==null&&publication.version!==version,publications:saved.results.map(row=>({id:row.id,at:row.published_at,actor:row.published_by,version:row.floor_version}))}
+ return {report,publication,currentVersion:version,changedSincePublication:publication!==null&&publication.version!==version,publications:saved.results.map(row=>({id:row.id,at:row.published_at,actor:row.published_by,version:row.floor_version})),
+  recovery:snapshot?null:recoveryReport(state,report.serviceId)}
 }
 
 /** Store numeric service facts and stable references; later corrections create a new publication. */

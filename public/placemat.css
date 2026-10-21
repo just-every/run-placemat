@@ -337,3 +337,9 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 .booking-policy{margin-top:16px;text-align:left}
 .booking-policy h2{font-size:18px;margin:0 0 6px}
 .booking-policy ul{margin:0;padding-left:18px;font-size:14px}
+@media print{
+  body *{visibility:hidden}
+  [data-original-close],[data-original-close] *{visibility:visible}
+  [data-original-close]{position:absolute;top:0;left:0;width:100%;border:0;box-shadow:none}
+  [data-original-close] .actions{display:none}
+}

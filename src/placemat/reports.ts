@@ -146,12 +146,12 @@ function csvCell(value: unknown): string {
 }
 
 /** Rows use the report's exact filtered population; numeric cover columns can be summed independently. */
-export function reportCsv(report: ReservationReport): string {
+export function reportCsv(report: ReservationReport, extra?: { header: string[]; values: (row: ReservationReportRow) => unknown[] }): string {
   const filterKeys = ['venue', 'dateFrom', 'dateTo', 'serviceId', 'area', 'source', 'status', 'partyMin', 'partyMax', 'period'] as const
   const header = ['generatedAt', 'timezone', ...filterKeys.map(key => `filter_${key}`),
     'bookingId', 'serviceId', 'service', 'venue', 'serviceDate', 'startAt', 'endAt', 'areas', 'tables', 'partySize', 'source', 'status',
     'bookedCount', 'attendedCount', 'cancelledCount', 'noShowCount', 'activeBookedCount',
-    'bookedCovers', 'attendedCovers', 'cancelledCovers', 'noShowCovers', 'activeBookedCovers', 'pacingOverrideCount']
+    'bookedCovers', 'attendedCovers', 'cancelledCovers', 'noShowCovers', 'activeBookedCovers', 'pacingOverrideCount', ...(extra?.header ?? [])]
   const lines: unknown[][] = [header]
   for (const row of report.rows) {
     const attended = Number(row.status === 'seated' || row.status === 'completed')
@@ -161,7 +161,7 @@ export function reportCsv(report: ReservationReport): string {
     lines.push([report.generatedAt, report.timezone, ...filterKeys.map(key => report.filters[key]),
       row.bookingId, row.serviceId, row.service, row.venue, row.serviceDate, row.startAt, row.endAt, JSON.stringify(row.areas), JSON.stringify(row.tables), row.partySize, row.source, row.status,
       1, attended, cancelled, noShow, activeBooked,
-      row.partySize, attended * row.partySize, cancelled * row.partySize, noShow * row.partySize, activeBooked * row.partySize, Number(row.pacingOverride)])
+      row.partySize, attended * row.partySize, cancelled * row.partySize, noShow * row.partySize, activeBooked * row.partySize, Number(row.pacingOverride), ...(extra?.values(row) ?? [])])
   }
   return lines.map(line => line.map(csvCell).join(',')).join('\r\n') + '\r\n'
 }
