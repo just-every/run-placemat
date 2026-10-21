@@ -17,7 +17,7 @@ for(const width of [1440,390]){
   await owner.addCookies(cookies(h.cookie));await hostContext.addCookies(cookies(hostCookie))
   const page=await owner.newPage(),host=await hostContext.newPage(),guest=await publicContext.newPage()
   for(const p of [page,host,guest])p.on('pageerror',e=>errors.push(e.message))
-  const shot=async(p,name)=>{assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'FLOOR-013 fits viewport');if(shots)await p.screenshot({path:resolve(shots,`FLOOR-013-${name}-${width}.png`),fullPage:!p.url().includes('/app')})}
+  const shot=async(p,name)=>{assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'FLOOR-013 fits viewport');if(shots)await p.screenshot({path:resolve(shots,`FLOOR-013-${name}-${width}.png`),fullPage:await p.locator('body').getAttribute('data-page')!=='staff'})}
   await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
   await host.goto(transport.origin+'/app');const hostNotes=host.getByRole('article',{name:'Service notes'});await hostNotes.waitFor()
   const notes=page.getByRole('article',{name:'Service notes'});await notes.getByText('Add or edit notes',{exact:true}).click()
