@@ -348,9 +348,10 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 .audit-values th, .audit-values td { overflow-wrap: anywhere; white-space: pre-wrap; vertical-align: top; }
 #audit-content .help { overflow-wrap: anywhere; }
 
+.audit-value-label { display: none; }
 .audit-values pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85em; }
 @media (max-width: 600px) {
  .audit-values, .audit-values tbody, .audit-values tr, .audit-values th, .audit-values td { display: block; width: auto; }
  .audit-values thead { display: none; }
- .audit-values td::before { content: attr(data-label); display: block; font-weight: 600; margin-bottom: .3rem; }
+ .audit-value-label { display: block; font-weight: 600; margin-bottom: .3rem; }
 }
