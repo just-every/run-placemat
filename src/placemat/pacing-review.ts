@@ -5,7 +5,7 @@ import {searchTables} from './reservation-search'
 import {queueCanSeat} from './queue'
 import {pacingViolations,type LimitViolation} from './pacing'
 
-export const mayPace=(s:State,a:Actor)=>!a.agent&&(['owner','admin'].includes(a.role)||a.role==='host'&&s.hostIds?.includes(a.id)&&s.pacingHostIds?.includes(a.id))
+export const mayPace=(s:State,a:Actor)=>!a.agent&&(['owner','admin'].includes(a.role)||a.role==='lead'&&s.leadIds?.includes(a.id)||a.role==='host'&&s.hostIds?.includes(a.id)&&s.pacingHostIds?.includes(a.id))
 export function seatingPreview(s:State,actor:Actor,command:string,p:any,now:string){
  if(!['booking.walkin','waitlist.seat'].includes(command))fail(400,'Choose walk-in or waitlist seating for review.')
  if(!mayPace(s,actor))fail(403,'A manager or host with the pacing grant must seat this party.')

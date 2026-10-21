@@ -56,7 +56,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   function policies() {
     // BOOK-002 policy disclosure: the venue's online booking rules, shown before a guest confirms.
     const rows = response?.policies || [];
-    return rows.length ? `<section class="booking-policy" aria-label="Booking policy"><h2>Booking policy</h2><ul>${rows.map(p => `<li>${esc(policyText(p))}</li>`).join('')}</ul><p class="help">Times are in ${esc(venue.timezone)}. Your table is reserved from arrival until the end time shown.</p></section>` : '';
+    return rows.length ? `<section class="booking-policy" aria-label="Booking policy"><h2>Booking policy</h2><ul>${rows.map(p => `<li>${esc(policyText(p))}</li>`).join('')}</ul><p class="help">Times are in ${esc(venue.timezone)}. Your reservation runs from arrival until the end time shown.</p></section>` : '';
   }
   function renderResults() {
     const target = find('#public-search-results');

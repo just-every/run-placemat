@@ -118,7 +118,7 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
 
 /** Change only the occupied party's forecast. A collision requires a separate host decision. */
 export function extendTurn(state:State,actor:Actor,p:Record<string,unknown>,now=new Date().toISOString()) {
- if(actor.agent||!['host','owner','admin'].includes(actor.role))fail(403,'A host or venue manager must extend a turn.')
+ if(actor.agent||!['host','lead','owner','admin'].includes(actor.role))fail(403,'A host or venue manager must extend a turn.')
  if(!Number.isFinite(Date.parse(now)))fail(400,'A valid turn extension time is required.')
  now=new Date(now).toISOString()
  const booking=(state.bookings.find(row=>row.id===p.bookingId)??fail(404,'Booking not found.')) as TimedBooking

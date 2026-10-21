@@ -70,7 +70,7 @@ export function validateAssignments(s:State,moves:Array<{booking:Booking;tableId
 export function validateAssignment(s:State,b:Booking,tableIds:unknown,now:string){return validateAssignments(s,[{booking:b,tableIds}],now)[0].tables}
 
 export function executeAssignment(s:State,actor:Actor,p:any,command:string,version:number,now:string){
- if(actor.agent||!['owner','admin','host'].includes(actor.role))fail(403,'A host or venue manager must change assignments.')
+ if(actor.agent||!['owner','admin','host','lead'].includes(actor.role))fail(403,'A host or venue manager must change assignments.')
  if(typeof p.version!=='number'||!Number.isInteger(p.version)||p.version!==version)fail(409,'The floor changed. Refresh before changing this assignment.')
  const b=currentParty(s,p.bookingId),reason=p.reason===undefined||typeof p.reason==='string'&&!p.reason.trim()?undefined:text(p.reason,'Assignment reason',1000)
  const parties=[b]

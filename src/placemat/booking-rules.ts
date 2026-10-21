@@ -22,7 +22,7 @@ function local(instant:string,zone:string){
 }
 export function checkBookingRules(s:State,service:Service,partySize:number,startAt:string,channel:keyof BookingRules,actor?:Actor,overrideReason?:unknown,allowBlocked=false){
  const rule=ruleFor(service,channel),now=new Date().toISOString(),today=local(now,s.venue.timezone),arrival=local(startAt,s.venue.timezone),violations:string[]=[]
- if(partySize>rule.inquiryAbove&&(!actor||actor.agent||!['owner','admin'].includes(actor.role)))fail(409,'This party needs a large-party inquiry. Contact the venue to discuss availability; no booking has been made.')
+ if(partySize>rule.inquiryAbove&&(!actor||actor.agent||!['owner','admin','lead'].includes(actor.role)))fail(409,'This party needs a large-party inquiry. Contact the venue to discuss availability; no booking has been made.')
  if(!allowBlocked&&rule.blockedStarts.includes(startAt))fail(409,'This arrival time is blocked. Choose another available time.')
  if(rule.sameDayCutoff&&arrival.day===today.day&&today.clock>rule.sameDayCutoff)fail(409,'The same-day booking cutoff has passed. Choose another date.')
  if(partySize<rule.minParty||partySize>rule.maxParty)violations.push(`Party size must be ${rule.minParty}–${rule.maxParty}.`)
@@ -30,7 +30,7 @@ export function checkBookingRules(s:State,service:Service,partySize:number,start
  if(days>rule.horizonDays)violations.push(`Bookings open ${rule.horizonDays} venue-local calendar days ahead.`)
  if((channel==='online'||rule.leadMinutes>0)&&Date.parse(startAt)-Date.parse(now)<rule.leadMinutes*60000)violations.push(`This channel requires ${rule.leadMinutes} minutes of lead time.`)
  if(!violations.length)return undefined
- if(channel==='online'||!actor||actor.agent||!['owner','admin'].includes(actor.role))fail(409,violations.join(' ')+' Choose another available time.')
+ if(channel==='online'||!actor||actor.agent||!['owner','admin','lead'].includes(actor.role))fail(409,violations.join(' ')+' Choose another available time.')
  if(typeof overrideReason!=='string'||!overrideReason.trim()||overrideReason.trim().length>1000)fail(409,violations.join(' ')+' A manager must confirm an override with a reason.')
  return {actor:actor!.id,at:now,channel,violations,reason:(overrideReason as string).trim()}
 }

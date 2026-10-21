@@ -1,3 +1,4 @@
+import {authorizeReports,projectAuthority} from './delegation'
 import {sharedDeviceResponse} from './shared-device'
 import {projectHandover} from './handover'
 import {onboardingPreview} from './onboarding-preview'
@@ -53,7 +54,7 @@ const paths=new Set(['/api/onboarding','/api/onboarding/preview','/kitchen','/ap
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  let responseActor:Actor|null=null
- const json=(data:any,status=200)=>Response.json(projectHandover(data,responseActor),{status,headers})
+ const json=(data:any,status=200)=>Response.json(projectAuthority(projectHandover(data,responseActor),responseActor),{status,headers})
  if(path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
@@ -120,7 +121,8 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   const actor=await actorFor(request,env);responseActor=actor
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
-  if(!['owner','admin','member','host','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(!['owner','admin','member','host','lead','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(path.startsWith('/api/reports/'))await authorizeReports(env.DB,actor!,request,url)
   if(path==='/kitchen'||path==='/api/kitchen'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state,version}=await load(env.DB),view=kitchen(state,actor!,text(url.searchParams.get('serviceId'),'Service'),undefined,await actorNames(env.DB,state))
@@ -184,13 +186,14 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({rows,names:await actorNames(env.DB,{...state,audit:rows})})
   }
   if(path==='/api/reports/performance'){
+   if(actor!.role!=='lead')person(actor!)
+   if(request.method==='GET'){const result=await readPerformance(env.DB,url.searchParams);if(actor!.role==='lead'){delete (result.report as any).closure;result.recovery=null}return json(result)}
    person(actor!)
-   if(request.method==='GET')return json(await readPerformance(env.DB,url.searchParams))
    if(request.method==='POST')return json(await publishPerformance(env.DB,actor!,await jsonBody(request)),201)
    return json({error:'Method not allowed'},405)
   }
   if(path.startsWith('/api/reports/')&&request.method==='GET'){
-   person(actor!);const {state}=await load(env.DB),report=reservationReport(state,url.searchParams)
+   if(actor!.role!=='lead')person(actor!);const {state}=await load(env.DB),report=reservationReport(state,url.searchParams)
    if(path.endsWith('.csv'))return new Response(reportCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-reservations.csv"'}})
    return json(report)
   }

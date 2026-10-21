@@ -6,7 +6,7 @@ function validatePacing(s){
   const p=service.pacing;if(p===undefined)continue
   if(!p||!Number.isInteger(p.intervalMinutes)||p.intervalMinutes<5||p.intervalMinutes>120||['arrivalCovers','arrivalParties','concurrentCovers'].some(k=>!Number.isInteger(p[k])||p[k]<1||p[k]>500)||!p.areaArrivalCaps||typeof p.areaArrivalCaps!=='object'||Array.isArray(p.areaArrivalCaps)||Object.entries(p.areaArrivalCaps).some(([area,n])=>!area.trim()||!Number.isInteger(n)||n<1||n>500))throw Error('Invalid service pacing')
  }
- for(const key of ['hostIds','pacingHostIds'])if(s[key]!==undefined&&(!Array.isArray(s[key])||s[key].some(id=>typeof id!=='string')||new Set(s[key]).size!==s[key].length))throw Error('Invalid host grant')
+ for(const key of ['hostIds','pacingHostIds','leadIds'])if(s[key]!==undefined&&(!Array.isArray(s[key])||s[key].some(id=>typeof id!=='string')||new Set(s[key]).size!==s[key].length))throw Error('Invalid host grant')
  for(const b of s.bookings){const p=b.pacingOverride;if(p===undefined)continue
   if(!p||typeof p.actor!=='string'||!Number.isFinite(Date.parse(p.at))||typeof p.reason!=='string'||!Array.isArray(p.violations)||!p.violations.length||p.violations.some(v=>!v||typeof v.kind!=='string'||typeof v.label!=='string'||['limit','current','projected','excess'].some(k=>!Number.isInteger(v[k])||v[k]<0)||v.projected-v.limit!==v.excess||v.excess<1))throw Error('Invalid pacing override')
  }
@@ -49,6 +49,9 @@ export default {
   validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
   validateOnboarding(s)
+  if(s.leadIds?.some(id=>s.hostIds?.includes(id)))throw Error('Conflicting staff grants')
+  if(s.reportScopes!==undefined&&(!s.reportScopes||typeof s.reportScopes!=='object'||Array.isArray(s.reportScopes)||Object.entries(s.reportScopes).some(([id,ids])=>!id||!Array.isArray(ids)||new Set(ids).size!==ids.length||ids.some(id=>!s.services.some(service=>service.id===id)))))throw Error('Invalid report scope')
+  if(s.managerRefundLimits!==undefined&&(!s.managerRefundLimits||typeof s.managerRefundLimits!=='object'||Array.isArray(s.managerRefundLimits)||Object.entries(s.managerRefundLimits).some(([id,cents])=>!id||!Number.isInteger(cents)||cents<0||cents>100000000)))throw Error('Invalid refund authority limit')
   const inventoryIds=new Set()
   for(const i of s.inventories??[]){
    if(!i||typeof i.id!=='string'||inventoryIds.has(i.id)||typeof i.name!=='string'||!i.name.trim()||!['counter','pool'].includes(i.kind)||!Number.isInteger(i.capacity)||i.capacity<1||i.capacity>40||!Number.isInteger(i.turnMinutes)||i.turnMinutes<15||i.turnMinutes>360||!Number.isInteger(i.arrivalCovers)||i.arrivalCovers<1||i.arrivalCovers>500||!Number.isInteger(i.intervalMinutes)||i.intervalMinutes<5||i.intervalMinutes>120||typeof i.adjacent!=='boolean')throw Error('Invalid seat inventory')

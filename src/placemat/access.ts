@@ -11,12 +11,13 @@ export async function actorFor(request:Request,env:Bindings):Promise<Actor|null>
  }
  const session=await operatorAuth(env).getSession(request)
  if(!session||session.operator.status!=='active')return null
- const role=session.operator.role==='member'&&(await load(env.DB)).state.hostIds?.includes(session.operator.id)?'host':session.operator.role
+ let role:string=session.operator.role
+ if(role==='member'){const {state}=await load(env.DB);role=state.leadIds?.includes(session.operator.id)?'lead':state.hostIds?.includes(session.operator.id)?'host':'member'}
  return {id:session.operator.id,name:session.operator.displayName,role}
 }
 export function person(actor:Actor,owner=false){if(actor.agent||!(owner?['owner']:['owner','admin']).includes(actor.role))fail(403,owner?'The venue owner must do this.':'A venue manager must do this.')}
 export function originCheck(request:Request,env:Bindings){if(request.headers.get('origin')!==env.AUTH_ORIGIN)fail(403,'Use the venue page on its own origin.')}
-export async function jsonBody(request:Request){
+export async function jsonBody(request:Pick<Request,'text'>){
  const data=await request.text();if(data.length>5000000)fail(413,'Request is too large.')
  try{const p=JSON.parse(data);if(p&&typeof p==='object'&&!Array.isArray(p))return p}catch{}
  return fail(400,'Send a JSON object.')

@@ -528,3 +528,31 @@ test('Shared host stand idle lock is enforced by the server despite background s
   await h.api('/api/hoststand/floor',undefined,{as:f.deviceCookie,status:423});await h.api('/api/hoststand/commands',{generation:before.generation,command:'booking.stage',payload:{bookingId:f.booking.id,stage:'seated'}},{as:f.deviceCookie,status:423});assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===f.booking.id).status,'booked');
  }finally{await h.close()}
 })
+
+
+test('Manager and shift lead: owner-scoped seating exceptions, report and snapshot boundaries, recorded refund authority and immediate revocation',async()=>{
+ const {delegationFixture}=await import('./delegation-fixture.mjs'),h=await installation();let restored;try{
+  const f=await delegationFixture(h);assert.equal((await h.api('/api/state',undefined,{as:f.leadCookie})).actor.role,'lead');
+  const manager=await h.api('/api/state',undefined,{as:f.managerCookie});assert.equal(manager.state.managerRefundLimits[f.manager.id],10000);
+  const lead=await h.api('/api/state',undefined,{as:f.leadCookie});assert.equal(lead.state.managerRefundLimits,undefined);assert.deepEqual(lead.state.reportScopes,{[f.lead.id]:[f.first.id]});assert.ok(!JSON.stringify(lead.state.audit).includes('refundLimitCents'));
+  await h.command('team.manager-limit',{operatorId:f.manager.id,refundLimitCents:20000},{as:f.managerCookie,status:403});await h.command('team.host',{operatorId:f.lead.id,enabled:true},{status:409});
+  const payload={serviceId:f.first.id,startAt:f.first.startAt,partySize:2,name:'synthetic-placemat-lead-walkin',email:'synthetic-placemat-lead-walkin@example.test',tableIds:[f.tables[1].id]};
+  const preview=await h.api('/api/pacing/preview',{command:'booking.walkin',payload},{as:f.leadCookie});assert.ok(preview.violations.some(v=>v.kind==='arrival-covers'));
+  await h.command('booking.walkin',payload,{as:f.leadCookie,status:409});
+  const seated=await h.command('booking.walkin',{...payload,pacingReview:preview.review,pacingConfirm:'yes',pacingReason:'Lead explicitly reviews seating capacity and current staffing'},{as:f.leadCookie});assert.equal(seated.pacingOverride.actor,f.lead.id);
+  const state=(await h.api('/api/state')).state;assert.ok(state.audit.some(e=>e.action==='booking.pacing-override'&&e.actor===f.lead.id&&e.source==='person'));assert.ok(state.audit.some(e=>e.action==='team.manager-limit'&&e.changes.some(c=>c.kind==='managerRefundLimits')));
+  await h.api('/api/pacing/preview',{command:'booking.walkin',payload:{...payload,email:'synthetic-placemat-clash@example.test',tableIds:[f.tables[0].id]}},{as:f.leadCookie,status:409});
+  for(const command of ['venue.update','analytics.settings','proposal.approve','team.host','service.save','guest.update','payment.refund'])await h.command(command,{refundLimitCents:10001},{as:f.leadCookie,status:403});
+  for(const path of ['/api/backup','/api/business-export/guests.csv','/api/reminders.csv','/api/reports/reservations.csv?serviceId='+f.first.id])await h.request(path,{as:f.leadCookie}).then(r=>assert.equal(r.status,403,path));
+  const snapshots=[];for(const service of [f.first,f.second])snapshots.push(await h.api('/api/reports/performance',{serviceId:service.id}));
+  for(const as of [f.leadCookie,f.managerCookie]){
+   for(const path of ['/api/reports/reservations','/api/reports/performance','/api/reports/no-show'])await h.api(path+'?serviceId='+f.second.id,undefined,{as,status:403});
+   await h.api('/api/reports/reservations',undefined,{as,status:403});await h.api('/api/reports/reservations?serviceId='+f.first.id,undefined,{as});
+   await h.api('/api/reports/performance?snapshot='+snapshots[1].publication.id+'&serviceId='+f.first.id,undefined,{as,status:403});await h.api('/api/reports/performance?snapshot='+snapshots[0].publication.id,undefined,{as});
+  }
+  await h.api('/api/reports/performance',{serviceId:f.first.id},{as:f.leadCookie,status:403});await h.api('/api/reports/performance',{serviceId:f.first.id},{as:f.managerCookie});assert.equal((await h.request('/api/reports/reservations.csv?serviceId='+f.first.id,{as:f.managerCookie})).status,200);for(const path of ['/api/reports/reservations.csv','/api/reports/closed.csv','/api/reports/closed.pdf'])assert.equal((await h.request(path+'?serviceId='+f.second.id,{as:f.managerCookie})).status,403);
+  const archive=await h.api('/api/backup');restored=await installation();await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/state')).state.reportScopes,(await h.api('/api/state')).state.reportScopes);
+  await h.command('team.reports',{operatorId:f.lead.id,serviceIds:[]});await h.api('/api/reports/reservations?serviceId='+f.first.id,undefined,{as:f.leadCookie,status:403});
+  await h.command('team.lead',{operatorId:f.lead.id,enabled:false});await h.api('/api/pacing/preview',{command:'booking.walkin',payload},{as:f.leadCookie,status:403});await h.command('booking.stage',{bookingId:seated.id,stage:'ordering'},{as:f.leadCookie,status:403});
+ }finally{if(restored)await restored.close();await h.close()}
+})

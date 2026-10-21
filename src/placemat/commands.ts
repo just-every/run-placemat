@@ -1,3 +1,4 @@
+import {executeDelegation} from './delegation'
 import {deviceFence} from './shared-device'
 import {executeHandover} from './handover'
 import {createInventory} from './seat-inventory'
@@ -45,10 +46,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  const priorAuditIds=new Set(s.audit.map(e=>e.id))
  if(actor.deviceId)before.push(deviceFence(db,actor,Date.parse(now)))
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
+ const leadCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','booking.walkin','waitlist.seat']
  const hostCommands=['booking.handover.complete','booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
- if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
+ if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='lead'&&s.leadIds?.includes(actor.id)&&leadCommands.includes(command))&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
+ case 'team.lead':case 'team.reports':case 'team.manager-limit':{result=await executeDelegation(db,s,actor,command,p);break}
  case 'booking.handover':case 'booking.handover.assign':case 'booking.handover.complete':{result=await executeHandover(db,s,actor,command,p,now);break}
  case 'service.note':case 'service.preorder-item':case 'service.preorder-active':case 'service.preorder-count':{result=executeServiceNotes(s,actor,command,p,now);break}
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
@@ -74,6 +77,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   const operatorId=text(p.operatorId,'Team member',100)
   const operator=await db.prepare("SELECT id,role,status FROM oa_operators WHERE id=?").bind(operatorId).first<{id:string;role:string;status:string}>()
   if(!operator||operator.role!=='member'||operator.status!=='active')fail(409,'Choose an active native team member for host access.')
+  if(command==='team.host'&&p.enabled&&s.leadIds?.includes(operatorId))fail(409,'Remove the separate shift-lead grant before granting host access.')
   if(command==='team.pacing'){
    if(!s.hostIds?.includes(operatorId))fail(409,'Grant host access before granting pacing overrides.')
    s.pacingHostIds=[...new Set([...(s.pacingHostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
@@ -265,5 +269,5 @@ export async function onlineBook(db:D1Database,p:any){
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
- return {assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ return {assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
 }

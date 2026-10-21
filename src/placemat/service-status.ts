@@ -86,7 +86,7 @@ function advance(before:ServiceSnapshot,status:ServiceStatus):ServiceSnapshot {
 /** booking.stage: stage and/or floorStage; correction uses correctsEventId + reason.
  * The command dispatcher supplies the atomic save and general audit row. */
 export function executeServiceStatus(s:State,actor:Actor,p:any,now:string) {
- if(actor.agent||!['owner','admin','host'].includes(actor.role))fail(403,'A host or venue manager must record service status.')
+ if(actor.agent||!['owner','admin','host','lead'].includes(actor.role))fail(403,'A host or venue manager must record service status.')
  if(p.source!==undefined&&p.source!=='staff-recorded')fail(400,'This action records a staff observation, not a POS signal.')
  if(!Number.isFinite(Date.parse(now)))fail(400,'A valid service observation time is required.')
  const b=s.bookings.find(v=>v.id===p.bookingId)??fail(404,'Booking not found.')
