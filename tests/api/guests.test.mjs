@@ -155,7 +155,8 @@ test('GUEST-004: merge journal exports and validated restore reconcile; erasure 
    const row=state.state.waitlist.find(w=>w.id===id);assert.equal(row.contactConsent,false);assert.equal(row.contactPhone,f.a.phone===row.contactPhone?f.a.phone:f.b.phone)
   }
   const exported=csvRecords(await (await h.request('/api/business-export/guest-merges.csv')).text())
-  assert.deepEqual(exported.map(row=>JSON.parse(row.data_json)),merges)
+  const csvExpected=structuredClone(merges);for(const merge of csvExpected)for(const record of merge.snapshots.records)for(const side of ['before','after'])delete record[side].managementTokenHash
+  assert.deepEqual(exported.map(row=>JSON.parse(row.data_json)),csvExpected);assert.ok(!JSON.stringify(exported).includes('managementTokenHash'),'CSV excludes live private-link digests')
   const archive=await h.api('/api/backup')
   const invalid=structuredClone(archive),entry=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_guest_merges'),broken=JSON.parse(entry.row.data)
   broken.duplicateId='synthetic-placemat-404';entry.row.data=JSON.stringify(broken)

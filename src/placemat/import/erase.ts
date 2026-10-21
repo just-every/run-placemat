@@ -9,7 +9,7 @@ import { Problem,type Actor,type Guest } from '../model'
  */
 export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Actor){
  requireOwner(actor)
- const rows=(await db.prepare('SELECT id,version,data FROM pm_guest_merges').all()).results
+ const rows=(await db.prepare('SELECT id,version,data FROM pm_guest_merges').all()).results as Array<{id:string;version:number;data:string}>
  const journals=rows.map(row=>({...row,journal:JSON.parse(row.data)}))
  const ids=new Set([guestId])
  for(let changed=true;changed;){changed=false;for(const {journal:j} of journals)if(j.status==='merged'&&(ids.has(j.guestId)||ids.has(j.duplicateId)))for(const id of [j.guestId,j.duplicateId])if(!ids.has(id)){ids.add(id);changed=true}}
