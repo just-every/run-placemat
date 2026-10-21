@@ -1,10 +1,10 @@
-// REPORT-007: shipped manager UI, real Worker/session/D1, network-edge interception only.
+// REPORT-007 and REPORT-001 (parties above 20): shipped manager UI, real Worker/session/D1, network-edge interception only.
 import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {chromium} from '@playwright/test'
 import {browserServer} from './browser-server.mjs'
-import {installation} from './api/harness.mjs'
+import {installation,publicGuest} from './api/harness.mjs'
 import {closeReportService} from './api/service-close-report-fixture.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
@@ -14,6 +14,12 @@ try {
   const h=await installation(),transport=await browserServer(h),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
   try {
    const fixture=await closeReportService(h),errors=[]
+   // A banquet party of 24 is a supported booking; the report screen must list it by default and under the size filters.
+   const banquetDay=new Date(Date.now()+30*86400000).toISOString().slice(0,10),banquetTables=[await h.command('table.save',{label:'B1',area:'Banquet',seats:12,x:10,y:80}),await h.command('table.save',{label:'B2',area:'Banquet',seats:12,x:40,y:80})]
+   await h.command('combination.save',{tableIds:banquetTables.map(t=>t.id),capacity:24,accessTags:[],setupMinutes:0,enabled:true,adjacent:true})
+   const banquet=await h.command('service.save',{name:'Banquet',startAt:banquetDay+'T18:00:00Z',endAt:banquetDay+'T23:00:00Z',turnMinutes:120,coverLimit:100,bookingRules:{'walk-in':{minParty:1,maxParty:40,horizonDays:3650,leadMinutes:0,sameDayCutoff:'23:59',slotMinutes:15,inquiryAbove:40,blockedStarts:[]}}})
+   await h.command('proposal.approve',{proposalId:(await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:banquet.id},reason:'Review banquet service'})).id})
+   await h.command('booking.walkin',publicGuest(banquet,11,{startAt:banquet.startAt,partySize:24,tableIds:banquetTables.map(t=>t.id)}))
    await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
    const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message))
    await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
@@ -24,6 +30,12 @@ try {
    const closeResponse=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command==='service.close')
    await closeForm.getByRole('button').click();const closed=await closeResponse;assert.ok(closed.ok(),await closed.text())
    await page.getByRole('link',{name:'Reservation reports',exact:true}).click()
+   const reservations=page.locator('#reservation-result')
+   await reservations.locator('details[open]').getByText('Banquet · 24 guests').waitFor()
+   const filters=page.locator('#reservation-filters');await filters.locator('[name=partyMin]').fill('21');await filters.getByRole('button',{name:'Apply report filters',exact:true}).click()
+   await reservations.locator('a[href*="partyMin=21"]').waitFor();await reservations.getByText('All matching reservations (1)').waitFor();assert.match(await reservations.innerText(),/Booked: 24 covers · 1 reservations/)
+   await filters.locator('[name=partyMin]').fill('');await filters.locator('[name=partyMax]').fill('20');await filters.getByRole('button',{name:'Apply report filters',exact:true}).click()
+   await reservations.locator('a[href*="partyMax=20"]').waitFor();assert.equal(await reservations.getByText(/Banquet · 24 guests/).count(),0);await filters.locator('[name=partyMax]').fill('')
    const root=page.locator('#close-report-content')
    await root.locator('[name=serviceId]').selectOption(fixture.service.id)
    await root.getByRole('button',{name:'Open close report',exact:true}).click()

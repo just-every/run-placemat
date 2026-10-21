@@ -93,6 +93,20 @@ test('REPORT-001: venue-local shift filters, cover denominators, drilldowns and 
   const waiting=await h.command('waitlist.add',publicGuest(joined,10))
   const seated=await h.command('waitlist.seat',{waitlistId:waiting.id,startAt:joined.startAt})
   assert.deepEqual((await h.api('/api/reports/reservations?source=waitlist')).rows.map(r=>r.bookingId),[seated.id])
+  // Parties above 20 are supported bookings; every size filter and the unfiltered report include them.
+  const [b1,b2]=[await h.command('table.save',{label:'B1',area:'Banquet',seats:12,x:10,y:80}),await h.command('table.save',{label:'B2',area:'Banquet',seats:12,x:40,y:80})]
+  await h.command('combination.save',{tableIds:[b1.id,b2.id],capacity:24,accessTags:[],setupMinutes:0,enabled:true,adjacent:true})
+  const bigRule={minParty:1,maxParty:40,horizonDays:3650,leadMinutes:0,sameDayCutoff:'23:59',slotMinutes:15,inquiryAbove:40,blockedStarts:[]}
+  const banquet=await h.command('service.save',{name:'Banquet',startAt:`${year}-12-10T18:00:00Z`,endAt:`${year}-12-10T23:00:00Z`,turnMinutes:120,coverLimit:100,bookingRules:{'walk-in':bigRule}})
+  const banquetPlan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:banquet.id},reason:'Review banquet service'});await h.command('proposal.approve',{proposalId:banquetPlan.id})
+  const party=await h.command('booking.walkin',publicGuest(banquet,11,{startAt:banquet.startAt,partySize:24,tableIds:[b1.id,b2.id]}))
+  const sizes=async filter=>(await h.api('/api/reports/reservations?serviceId='+banquet.id+filter)).rows.map(r=>r.bookingId)
+  for(const filter of ['','&partyMin=21','&partyMin=24&partyMax=24','&partyMax=500','&partyMin=24'])assert.deepEqual(await sizes(filter),[party.id],filter||'unfiltered')
+  for(const filter of ['&partyMax=20','&partyMin=25'])assert.deepEqual(await sizes(filter),[],filter)
+  assert.ok((await h.api('/api/reports/reservations')).rows.some(r=>r.bookingId===party.id&&r.partySize===24))
+  assert.ok((await (await h.request('/api/reports/reservations.csv?partyMin=21')).text()).includes(party.id))
+  assert.equal((await h.api('/api/reports/reservations?partyMin=21')).summary.booked.covers,24)
+  for(const filter of ['partyMax=501','partyMin=1.5','partyMin=-1'])await h.api('/api/reports/reservations?'+filter,undefined,{status:400})
  }finally{await h.close()}
 })
 

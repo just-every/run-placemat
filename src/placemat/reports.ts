@@ -40,9 +40,12 @@ function dateFilter(value: string | null, key: string): string | null {
   return value
 }
 
+// Reservations, walk-ins and queued parties are all accepted up to 500 guests.
+const maxParty = 500
+
 function partyFilter(value: string | null, key: string): number | null {
   if (value === null) return null
-  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 20) fail(400, `${key} must be an integer from 1 to 20.`)
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > maxParty) fail(400, `${key} must be an integer from 1 to ${maxParty}.`)
   return Number(value)
 }
 
