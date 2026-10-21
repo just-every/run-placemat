@@ -49,6 +49,7 @@ for(const width of [1440,390]){
 
   await signIn(context,h.cookie,transport.origin)
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message))
+  if(process.env.PLACEMAT_BROWSER_CPU){const cdp=await context.newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:Number(process.env.PLACEMAT_BROWSER_CPU)})}
   await page.goto(transport.origin+'/app#guests')
   await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
   await page.getByRole('link',{name:'Guests',exact:true}).click()

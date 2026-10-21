@@ -37,7 +37,13 @@ const field = (label, name, type = 'text', value = '', attributes = '') => `<lab
 const select = (label, name, choices, selected = '') => `<label>${esc(label)}<select name="${name}" required>${options(choices, selected)}</select></label>`;
 const form = (command, content, submit, disabled = false, className = '') => `<form data-command="${command}"${className ? ` class="${className}"` : ''}><fieldset ${disabled ? 'disabled' : ''}><div class="form-grid">${content}<div class="wide"><button type="submit">${esc(submit)}</button></div></div></fieldset></form>`;
 let serviceStatusId='',assignmentId='',floorArea='',floorSection='',floorServer='',busyCount=0;
-const floorSync=createFloorSync({api,refresh:()=>loadStaff(true),isBusy:()=>busyCount>0});
+function reviewingGuest() {
+  return [...document.querySelectorAll('#guest-results > details[open]')].some(card=>{
+    const bounds=card.getBoundingClientRect();
+    return bounds.bottom>0&&bounds.top<innerHeight&&[...card.querySelectorAll('[data-guest-review],[data-merge-journal]')].some(panel=>panel.hasChildNodes());
+  });
+}
+const floorSync=createFloorSync({api,refresh:()=>loadStaff(true),isBusy:()=>busyCount>0||reviewingGuest()});
 let onboardingRules;
 let openingBookingIds, bookOpenedAt;
 const isNewBooking = booking => openingBookingIds && !openingBookingIds.has(booking.id);
