@@ -264,6 +264,61 @@ test('Direct transport roles, CSRF, agent preparation and exact-draft person app
  }finally{await h.close()}
 })
 
+test('ACCESS-001: native roles and preparation keys enforce downloads, move-in, erasure and backup custody on every direct door',async()=>{
+ const h=await installation(),empty=await installation();try{
+  const {service:s}=await service(h),booking=(await h.api('/api/public/book',publicGuest(s,0),{as:'',status:201})).result
+  const manager=await h.signIn('custody-manager@example.test','admin'),member=await h.signIn('custody-reader@example.test')
+  const key=(await h.api('/api/agent-keys',{name:'Custody preparation'})).result,agent={as:'',headers:{authorization:'Bearer '+key.key}}
+  const proposal=await h.command('proposal.prepare',{kind:'reminders',plan:{serviceId:s.id},reason:'Reviewed reminders for authorized download'},agent)
+  await h.command('proposal.approve',{proposalId:proposal.id},{as:manager})
+  const csv='guest_id,name,email,phone,notes,visit_date,party_size,visit_status\ncustody-1,Custody Import,custody@example.test,+1 415 555 0123,Window,2026-08-10,2,completed\n'
+  const dry=(await h.api('/api/import/dry-run',{csv})).result
+  const job=(await h.api('/api/import/apply',{csv,confirm:dry.fingerprint})).result.job
+  assert.equal((await h.request('/api/reminders.csv')).status,200) // Establish the legitimate exported state before testing refusals.
+  const archive=await h.api('/api/backup'),guest=(await h.api('/api/guests?search=guest0')).guests[0]
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(s.startAt))
+  const ownerDownloads=['/api/backup','/api/business-export/guests.csv','/api/audit.csv','/api/import/journal','/api/import/journal/'+job.id]
+  const managerDownloads=['/api/reminders.csv','/api/calendar/'+booking.id,'/api/reports/reservations.csv','/api/preshift?date='+date,'/api/preshift.pdf?date='+date,'/preshift?date='+date]
+  const writes=[
+   ['/api/import/dry-run',{csv}],['/api/import/apply',{csv,confirm:dry.fingerprint}],
+   ['/api/import/undo',{jobId:job.id,confirm:'UNDO',fingerprint:dry.fingerprint}],
+   ['/api/restore',{archive,confirm:'RESTORE'}],['/api/agent-keys',{name:'Must be refused'}],
+   ['/api/agent-keys/'+key.id,{},'DELETE'],
+   ['/api/commands',{command:'guest.erase',payload:{guestId:guest.id,confirm:'ERASE'}}]
+  ]
+  const before=(await h.api('/api/state')).state
+  for(const [label,opts,owner,operate] of [['signed out',{as:''},false,false],['owner',{},true,true],['admin',{as:manager},false,true],['member',{as:member},false,false],['preparation',agent,false,false]]){
+   const denied=label==='signed out'?401:403
+   for(const path of ownerDownloads.concat(managerDownloads)){
+    const allowed=ownerDownloads.includes(path)?owner:operate,r=await h.request(path,opts)
+    assert.equal(r.status,allowed?200:denied,label+' '+path)
+    const body=await r.text()
+    if(!allowed)assert.ok(!body.includes('guest0@example.test')&&!body.includes('custody@example.test'),'Denied download exposes no guest values')
+    else if(path==='/api/reminders.csv')assert.ok(body.includes('guest0@example.test'),'Permitted manager reminder download contains the approved guest')
+    else if(path==='/api/calendar/'+booking.id)assert.match(body,/BEGIN:VEVENT/)
+   }
+   if(!owner)for(const [path,body,method='POST'] of writes){const r=await h.request(path,{...opts,method,body});await r.text();assert.equal(r.status,denied,label+' '+method+' '+path)}
+  }
+  // The owner's otherwise-valid mutations must all fail before changing data when the browser origin is wrong or absent.
+  for(const origin of ['https://outside.example',''])for(const [path,body,method='POST'] of writes){
+   const r=await h.request(path,{method,body,headers:{origin}});await r.text();assert.equal(r.status,403,'Cross-origin '+method+' '+path)
+  }
+  assert.deepEqual((await h.api('/api/state')).state,before,'Refused custody requests change neither records nor audit history')
+  assert.equal((await h.api('/api/import/journal/'+job.id)).result.job.state,'completed')
+  await h.api('/api/import/undo',{jobId:job.id,confirm:'UNDO',fingerprint:dry.fingerprint})
+  assert.equal((await h.api('/api/import/journal/'+job.id)).result.job.state,'undone')
+  await empty.api('/api/restore',{archive,confirm:'RESTORE'})
+  assert.equal((await empty.api('/api/state')).guests.find(g=>g.id===guest.id).email,'guest0@example.test','Owner restore really imports authorized guest data')
+  await h.command('guest.erase',{guestId:guest.id,confirm:'ERASE'})
+  assert.equal((await h.api('/api/guests?search=guest0')).guests.length,0,'Owner erasure succeeds after unauthorized attempts were refused')
+  await h.api('/api/agent-keys/'+key.id,undefined,{method:'DELETE'})
+  for(const path of ['/api/state','/api/guests',...ownerDownloads,...managerDownloads]){const r=await h.request(path,agent);await r.text();assert.equal(r.status,401,'Revoked key '+path)}
+  for(const [path,body,method='POST'] of writes){
+   const r=await h.request(path,{...agent,method,body}).catch(error=>{throw new Error('Revoked key '+method+' '+path+' transport: '+error.cause?.message,{cause:error})});await r.text();assert.equal(r.status,401,'Revoked key '+method+' '+path)
+  }
+ }finally{await h.close();await empty.close()}
+})
+
 test('FLOOR-001: combinations, UTC turn bounds, service-wide table conflicts, cover cap and stale review protect capacity',async()=>{
  const h=await installation();try{
   const {service:s,floor}=await service(h,{tables:2,seats:2,covers:8})
