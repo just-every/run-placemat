@@ -15,7 +15,7 @@ for(const width of [1440,390]){
   const cookies=cookie=>cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}})
   await context.addCookies(cookies(h.cookie));const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message))
   await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
-  const shot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'FLOOR-012 fits viewport');if(shots)await page.screenshot({path:resolve(shots,`FLOOR-012-${name}-${width}.png`),fullPage:true})}
+  const shot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'FLOOR-012 fits viewport');if(shots)await page.screenshot({path:resolve(shots,`FLOOR-012-${name}-${width}.png`),fullPage:name!=='operations-link'})}
   const entry=page.getByRole('link',{name:'Pre-shift sheet',exact:true});await entry.scrollIntoViewIfNeeded();await shot('operations-link');await entry.click()
   await page.getByLabel('Service date').fill(f.date);await page.getByRole('button',{name:'Open sheet',exact:true}).click()
   const article=page.getByRole('article',{name:'Pre-shift sheet'}),body=await article.innerText()
