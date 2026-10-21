@@ -262,7 +262,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
  }catch(error){
   if(error instanceof Problem)return json({error:error.message},error.status)
   if(error instanceof Error&&'status' in error&&typeof error.status==='number')return json({error:('code' in error?String(error.code):error.message)},error.status)
-  if(error instanceof Error&&error.message.includes('pm_assertions'))return json({error:'The guest changed or was erased. Reload before saving again.'},409)
+  if(error instanceof Error&&(error.message.includes('pm_assertions')||error.message.includes('IMPORT_ATOMIC_GUARD')))return json({error:'The guest changed or was erased. Reload before saving again.'},409)
   console.error('Placemat request failed',error instanceof Error?error.name:'unknown')
   return json({error:'The request could not finish. Reload the current floor and try again.'},500)
  }
