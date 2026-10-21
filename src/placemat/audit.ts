@@ -42,10 +42,11 @@ export function eraseAudit(state:State,guestId:string):void {
  const ids=new Set([guestId,...state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id),...state.waitlist.filter(w=>w.guestId===guestId).map(w=>w.id),...(state.inquiries??[]).filter(i=>i.guestId===guestId).map(i=>i.id)])
  const linked=(value:unknown):boolean=>typeof value==='string'?ids.has(value):Array.isArray(value)?value.some(linked):!!value&&typeof value==='object'&&Object.values(value).some(linked)
  for(const event of state.audit){
-  let affected=ids.has(event.subject)
-  for(const change of event.changes??[])if(ids.has(change.id)||linked(change.before)||linked(change.after)){
-   change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true};affected=true
+  const affected=ids.has(event.subject)||(event.changes??[]).some(change=>ids.has(change.id)||linked(change.before)||linked(change.after))
+  if(affected){
+   // One action can copy a guest's instructions onto several affected records.
+   for(const change of event.changes??[]){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
+   event.reason='';if(event.pacing)event.pacing.reason=''
   }
-  if(affected){event.reason='';if(event.pacing)event.pacing.reason=''}
  }
 }

@@ -25,7 +25,7 @@ try {
    await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
    await page.getByRole('link',{name:'Settings',exact:true}).click()
    const root=page.locator('#audit-content');await root.getByText('Change history',{exact:true}).click()
-   await root.getByText(/history entries$/).waitFor()
+   await root.getByText(/history entr(?:y|ies)$/).waitFor()
    const filter=root.locator('form'),apply=async()=>{const answer=page.waitForResponse(r=>r.url().includes('/api/audit?'));await filter.getByRole('button',{name:'Filter history'}).click();assert.equal((await answer).status(),200)}
    const owner=(await h.api('/api/state')).actor.id
    await filter.locator('[name=actor]').selectOption(owner);await filter.locator('[name=action]').selectOption('guest.update');await apply()
@@ -43,7 +43,7 @@ try {
    await h.command('guest.erase',{guestId,confirm:'ERASE'})
    await page.reload();await page.getByRole('link',{name:'Settings',exact:true}).click()
    if(!(await root.locator('details').first().evaluate(el=>el.open)))await root.getByText('Change history',{exact:true}).click()
-   await root.getByText(/history entries$/).waitFor()
+   await root.getByText(/history entr(?:y|ies)$/).waitFor()
    await root.locator('[name=actor]').selectOption(owner);await root.locator('[name=action]').selectOption('guest.update');await apply();await root.locator('article summary').click()
    assert.doesNotMatch(await root.innerText(),/Priya|quiet table|shellfish/);assert.match(await root.innerText(),/redacted/);await capture('erased-history')
    const history=(await h.api('/api/audit')).rows,archive=await h.api('/api/backup'),restored=await installation()
