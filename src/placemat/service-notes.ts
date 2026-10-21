@@ -8,7 +8,7 @@ export type Preorder={itemId:string;itemName:string;quantity:number}
 export type ManagerPreorder={itemId:string;quantity:number;actor:string;at:string}
 export const localServiceDate=(instant:string,timezone:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(instant))
 export const canReadShift=(actor:Actor)=>!actor.agent&&['owner','admin','host'].includes(actor.role)
-export const notesFor=(s:State,date:string)=> (s.serviceNotes??[]).filter(n=>n.date===date)
+export const notesFor=(s:State,date:string,names:Record<string,string>={})=> (s.serviceNotes??[]).filter(n=>n.date===date).map(n=>({...n,history:n.history.map(e=>({...e,author:names[e.actor]??e.actor}))}))
 export function executeServiceNotes(s:State,actor:Actor,command:string,p:any,now:string){
  if(command==='service.note'){
   const date=text(p.date,'Service date',10)
@@ -45,11 +45,11 @@ export function normalizePreorders(service:Service,value:unknown):Preorder[]{
  })
 }
 /** All kitchen receivers share this identity-free projection. */
-export function kitchen(s:State,actor:Actor,serviceId:string,now=new Date().toISOString()){
+export function kitchen(s:State,actor:Actor,serviceId:string,now=new Date().toISOString(),names:Record<string,string>={}){
  if(actor.agent||!['owner','admin','host','member'].includes(actor.role))fail(403,'Sign in as restaurant staff to open the kitchen view.')
  const service=serviceBy(s,serviceId),bookings=s.bookings.filter(b=>b.serviceId===serviceId&&!['cancelled','no-show'].includes(b.status)),p=pacingReport(s,serviceId,now)
  const tables=(ids:string[])=>ids.map(id=>s.tables.find(t=>t.id===id)?.label??'Unknown table')
- return {venue:s.venue.name,timezone:s.venue.timezone,service:service.name,generatedAt:now,date:localServiceDate(service.startAt,s.venue.timezone),notes:notesFor(s,localServiceDate(service.startAt,s.venue.timezone)).filter(n=>n.kind==='kitchen'),policy:p.policy,intervals:p.intervals.map(({startAt,covers,limit,parties,partyLimit})=>({startAt,covers,limit,parties,partyLimit})),largeParties:bookings.filter(b=>b.partySize>=8).map(b=>({tables:tables(b.tableIds),partySize:b.partySize,startAt:b.startAt})),items:(service.preorderItems??[]).map(item=>({name:item.name,guestQuantity:bookings.reduce((n,b)=>n+(b.preorders??[]).filter(v=>v.itemId===item.id).reduce((n,v)=>n+v.quantity,0),0),managerQuantity:(service.managerPreorders??[]).find(v=>v.itemId===item.id)?.quantity??0})),needs:bookings.map(b=>({tables:tables(b.tableIds),startAt:b.startAt,allergy:b.requests?.allergyNotes??'',dietary:b.requests?.dietaryNotes??'',access:[b.requests?.wheelchair?'Wheelchair':'',b.requests?.highchair?'Highchair':'',b.requests?.stroller?'Stroller':'',...(b.requiredAccessTags??[])].filter(Boolean)}))}
+ return {venue:s.venue.name,timezone:s.venue.timezone,service:service.name,generatedAt:now,date:localServiceDate(service.startAt,s.venue.timezone),notes:notesFor(s,localServiceDate(service.startAt,s.venue.timezone),names).filter(n=>n.kind==='kitchen'),policy:p.policy,intervals:p.intervals.map(({startAt,covers,limit,parties,partyLimit})=>({startAt,covers,limit,parties,partyLimit})),largeParties:bookings.filter(b=>b.partySize>=8).map(b=>({tables:tables(b.tableIds),partySize:b.partySize,startAt:b.startAt})),items:(service.preorderItems??[]).map(item=>({name:item.name,guestQuantity:bookings.reduce((n,b)=>n+(b.preorders??[]).filter(v=>v.itemId===item.id).reduce((n,v)=>n+v.quantity,0),0),managerQuantity:(service.managerPreorders??[]).find(v=>v.itemId===item.id)?.quantity??0})),needs:bookings.map(b=>({tables:tables(b.tableIds),startAt:b.startAt,allergy:b.requests?.allergyNotes??'',dietary:b.requests?.dietaryNotes??'',access:[b.requests?.wheelchair?'Wheelchair':'',b.requests?.highchair?'Highchair':'',b.requests?.stroller?'Stroller':'',...(b.requiredAccessTags??[])].filter(Boolean)}))}
 }
 /** Existing API readers keep existing access, but new restricted notes never reach them via snapshots. */
 export function filterNotes(s:State,actor:Actor){

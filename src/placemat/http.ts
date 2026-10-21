@@ -114,13 +114,13 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(!['owner','admin','member','host','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
   if(path==='/kitchen'||path==='/api/kitchen'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
-   const {state,version}=await load(env.DB),view=kitchen(state,actor!,text(url.searchParams.get('serviceId'),'Service'))
+   const {state,version}=await load(env.DB),view=kitchen(state,actor!,text(url.searchParams.get('serviceId'),'Service'),undefined,await actorNames(env.DB,state))
    return path==='/kitchen'?kitchenPage(view,version):json(view)
   }
   if(['/preshift','/api/preshift','/api/preshift.pdf'].includes(path)){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB),date=url.searchParams.get('date')??serviceDate(new Date().toISOString(),state.venue.timezone)
-   const sheet=preshift(state,await guests(env.DB),actor!,date)
+   const sheet=preshift(state,await guests(env.DB),actor!,date,undefined,await actorNames(env.DB,state))
    if(path==='/preshift')return preshiftPage(sheet)
    if(path.endsWith('.pdf'))return new Response(preshiftPdf(sheet),{headers:{...headers,'content-type':'application/pdf','content-disposition':`attachment; filename="placemat-preshift-${date}.pdf"`}})
    return json(sheet)

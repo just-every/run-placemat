@@ -5,11 +5,11 @@ import {textPdf,type PdfLine} from './pdf'
 
 export const serviceDate=(instant:string,timezone:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(instant))
 /** This is the sole projection used by JSON, HTML, print and PDF. No raw state or guest is returned. */
-export function preshift(state:State,guests:Guest[],actor:Actor,date:string,generatedAt=new Date().toISOString()){
+export function preshift(state:State,guests:Guest[],actor:Actor,date:string,generatedAt=new Date().toISOString(),names:Record<string,string>={}){
  if(actor.agent||!['owner','admin','host'].includes(actor.role))fail(403,'The pre-shift sheet is for managers and owner-granted hosts.')
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T12:00:00Z'))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)fail(400,'Choose a valid service date.')
  const manager=actor.role==='owner'||actor.role==='admin'
- return {venue:state.venue.name,timezone:state.venue.timezone,date,generatedAt,notes:notesFor(state,date),audience:manager?'Manager':'Host',services:state.services.filter(s=>serviceDate(s.startAt,state.venue.timezone)===date).map(s=>{
+ return {venue:state.venue.name,timezone:state.venue.timezone,date,generatedAt,notes:notesFor(state,date,names),audience:manager?'Manager':'Host',services:state.services.filter(s=>serviceDate(s.startAt,state.venue.timezone)===date).map(s=>{
   const bookings=state.bookings.filter(b=>b.serviceId===s.id&&!['cancelled','no-show'].includes(b.status)).sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.id.localeCompare(b.id))
   const tableLabels=(ids:string[])=>ids.map(id=>state.tables.find(t=>t.id===id)?.label??'Unknown table')
   return {name:s.name,status:s.status,startAt:s.startAt,endAt:s.endAt,coverLimit:s.coverLimit,pacing:pacingReport(state,s.id,generatedAt),sections:(s.staffing?.sections??[]).map(section=>({name:section.name,server:s.staffing!.servers.find(server=>server.id===section.serverId)?.name??'Unassigned',tables:tableLabels(section.tableIds),expectedCovers:bookings.filter(b=>b.sectionId===section.id).reduce((n,b)=>n+b.partySize,0)})),bookings:bookings.map(b=>{
@@ -29,7 +29,7 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
  const add=(text:string)=>lines.push({text})
  for(const note of sheet.notes){
   lines.push({text:note.kind==='shift'?'Shift notes':'Kitchen notes',bold:true,size:14})
-  for(const entry of note.history)add(`${entry.text} | ${entry.actor} | ${entry.at}`)
+  for(const [i,entry] of note.history.entries())add(`${i===note.history.length-1?'Current':'Previous'}: ${entry.text} | ${entry.author} | ${entry.at}`)
  }
  for(const s of sheet.services){
   lines.push({text:`${s.name} (${s.status})`,bold:true,size:14})
