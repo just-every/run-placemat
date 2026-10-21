@@ -1,5 +1,5 @@
 document.querySelector('#refresh-kitchen').addEventListener('click',()=>location.reload())
-let version
+let version=Number(document.body.dataset.version)
 setInterval(async()=>{
  try{
   const response=await fetch('/api/floor-version',{cache:'no-store'});if(!response.ok)throw Error()

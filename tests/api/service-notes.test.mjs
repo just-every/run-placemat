@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 import {notesFixture} from './service-notes-fixture.mjs'
+import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
 import {csvRecords} from './business-fixture.mjs'
 
 test('FLOOR-013: dated note history, three guest preorders, source totals, identity-free kitchen, sheet, CSV, restore and erasure',async()=>{
@@ -46,6 +47,14 @@ test('FLOOR-013: dated note history, three guest preorders, source totals, ident
   await h.api('/api/public/book',publicGuest(f.service,4,{startAt:new Date(Date.parse(f.service.startAt)+2*3600000).toISOString(),preorders:[{itemId:f.item.id,quantity:1}]}),{as:'',status:409})
   assert.equal((await h.api(kitchen)).items[0].guestQuantity,6,'FLOOR-013 withdrawal preserves recorded orders')
   const saved=(await h.api('/api/state')).state,archive=await h.api('/api/backup')
+  // Keep archive integrity valid so the public restore door reaches relationship validation.
+  const invalid=structuredClone(archive),stateRow=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_state')
+  const broken=JSON.parse(stateRow.row.data);broken.bookings[0].preorders[0].itemId='missing-dish';stateRow.row.data=JSON.stringify(broken)
+  const content=new ContentVerifier(invalid[0]),integrity=new ArchiveVerifier(invalid[0])
+  for(let i=1;i<invalid.length-1;i++){invalid[i]=await makePart(invalid[i].index,invalid[i].items);integrity.add(invalid[i]);for(const item of invalid[i].items)content.add(item)}
+  invalid.at(-1).contentHash=content.digest();invalid.at(-1).archiveHash=integrity.digest()
+  const rejected=await restored.request('/api/restore',{method:'POST',body:{archive:invalid,confirm:'RESTORE'}});assert.equal(rejected.status,500)
+  assert.equal((await restored.api('/api/state')).state.bookings.length,0,'FLOOR-013 invalid relationships never apply partial records')
   await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/state')).state,saved)
   for(const kind of ['service-notes','services','bookings']){
    const rows=csvRecords(await (await h.request('/api/business-export/'+kind+'.csv')).text())
@@ -62,6 +71,6 @@ test('FLOOR-013: dated note history, three guest preorders, source totals, ident
    assert.equal((await source.api(kitchen)).items[0].guestQuantity,3)
    for(const kind of ['service-notes','bookings','audit'])assert.ok(!(await (await source.request('/api/business-export/'+kind+'.csv')).text()).includes(first.history[0].text))
   }
-  const fenced=await installation();try{await fenced.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:409})}finally{await fenced.close()}
+  const fenced=await installation();try{await fenced.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400})}finally{await fenced.close()}
  }finally{await h.close();await restored.close();await erased.close()}
 })

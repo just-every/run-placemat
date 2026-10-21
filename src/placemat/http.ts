@@ -114,8 +114,8 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(!['owner','admin','member','host','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
   if(path==='/kitchen'||path==='/api/kitchen'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
-   const {state}=await load(env.DB),view=kitchen(state,actor!,text(url.searchParams.get('serviceId'),'Service'))
-   return path==='/kitchen'?kitchenPage(view):json(view)
+   const {state,version}=await load(env.DB),view=kitchen(state,actor!,text(url.searchParams.get('serviceId'),'Service'))
+   return path==='/kitchen'?kitchenPage(view,version):json(view)
   }
   if(['/preshift','/api/preshift','/api/preshift.pdf'].includes(path)){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
