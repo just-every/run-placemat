@@ -33,8 +33,8 @@ export async function installation({entry='tests/api/worker.ts',bindings={}}={})
   cookie=boot.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
   const api=async(path,body,opts={})=>{const r=await request(path,{...(body===undefined?{}:{method:'POST',body}),...opts}),v=await r.json();if(opts.status)assert.equal(r.status,opts.status,JSON.stringify(v));else assert.ok(r.ok,JSON.stringify(v));return v}
   const command=async(command,payload,opts={})=>(await api('/api/commands',{command,payload},opts)).result
-  const signIn=async(email,role='member')=>{
-   await api('/auth/invite',{email,displayName:role==='admin'?'Floor manager':'Host reader',role,returnTo:'/app'},{status:202})
+  const signIn=async(email,role='member',displayName)=>{
+   await api('/auth/invite',{email,displayName:displayName??(role==='admin'?'Floor manager':'Host reader'),role,returnTo:'/app'},{status:202})
    const message=messages.findLast(m=>JSON.stringify(m.to).includes(email)),match=message?.text?.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)?.[0]??message?.html?.match(/href="([^"]*\/auth\/confirm\?token=[^"]+)"/)?.[1]?.replaceAll('&amp;','&')
    assert.ok(match,'Invitation crosses the real mail edge')
    const link=new URL(match),confirmed=await request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}});assert.equal(confirmed.status,303)

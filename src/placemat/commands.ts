@@ -1,3 +1,4 @@
+import {executeHandover} from './handover'
 import {createInventory} from './seat-inventory'
 import {saveOnboarding} from './onboarding'
 import {serviceInput} from './service-input'
@@ -41,10 +42,11 @@ const plain=(v:any)=>JSON.stringify(v)
 export async function execute(db:D1Database,actor:Actor,command:string,p:any,pacingSecret?:string){
  const {state:s,version}=await load(db),now=new Date().toISOString(),before:D1PreparedStatement[]=[]
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
- const hostCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
+ const hostCommands=['booking.handover.complete','booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
+ case 'booking.handover':case 'booking.handover.assign':case 'booking.handover.complete':{result=await executeHandover(db,s,actor,command,p,now);break}
  case 'service.note':case 'service.preorder-item':case 'service.preorder-active':case 'service.preorder-count':{result=executeServiceNotes(s,actor,command,p,now);break}
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
  case 'analytics.settings':{const change=setAnalytics(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}

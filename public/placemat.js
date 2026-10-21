@@ -1,3 +1,4 @@
+import {handoverWork} from './placemat-handover.js'
 import {toUtc as venueToUtc} from './placemat-local-time.js'
 import {restaurantSetup,updatePolicySummary,onboardingPayload,bookingPreview} from './placemat-onboarding.js'
 import {serviceNotes,preorderSummary} from './placemat-service-notes.js'
@@ -120,7 +121,7 @@ function renderFloor() {
   $('#service-notes').innerHTML=serviceNotes(state,s,{esc,form,field,select,canEdit:canEdit(),canReadShift:canOperateFloor(),who,time});
   const staffingReady=staffing.mount($('#floor-staffing'),state,s);
   timeline.mount($('#floor-timeline'),s,serviceChoices(),zone());
-  $('#shift-handover').innerHTML=shiftHandover(state,serviceId,data.serviceStages,{esc,guest,who,time,tableNames,canEdit:canOperateFloor(),button});
+  $('#shift-handover').innerHTML=handoverWork(state,serviceId,{esc,guest,who,time,form,field,select,actor,people:data.people||[],localTime})+shiftHandover(state,serviceId,data.serviceStages,{esc,guest,who,time,tableNames,canEdit:canOperateFloor(),button});
   const pacingServiceId=serviceId,pacingReady=api('/api/pacing?serviceId='+encodeURIComponent(serviceId)).then(report=>{const target=$('#bookings-pacing');if(target&&serviceId===pacingServiceId)target.innerHTML=renderPacing(report,state,{esc,time,guest,who});});
   return Promise.all([staffingReady,pacingReady]);
 }
@@ -316,7 +317,7 @@ async function submitForm(el) {
   if (command === 'table.assign') {
     await prepare(command,{bookingId:payload.bookingId,tableIds:payload.tableIds},payload.reason); return;
   }
-  for (const name of ['startAt','endAt','expectedEndAt','preferredAt']) if (command!=='service.save'&&payload[name]) payload[name] = toUtc(payload[name],payload[name==='endAt'?'endOffset':'startOffset']);
+  for (const name of ['startAt','endAt','expectedEndAt','preferredAt','dueAt']) if (command!=='service.save'&&payload[name]) payload[name] = toUtc(payload[name],payload[name==='endAt'?'endOffset':'startOffset']);
   if(['booking.walkin','waitlist.seat'].includes(command)){
     const reviewPayload={...payload};delete reviewPayload.pacingReason;delete reviewPayload.pacingConfirm;
     const stamp=JSON.stringify(reviewPayload),previous=pacingReviews.get(el);

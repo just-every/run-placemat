@@ -98,3 +98,31 @@ test('FLOOR-007: phone suffix/name/email/booking/table search, combined service/
   assert.equal(erased.guestName,'Erased guest');assert.equal(erased.vipLevel,'none');assert.equal(erased.requests.allergyNotes,'');assert.equal(erased.requests.wheelchair,false);assert.deepEqual(erased.requiredAccessTags,[])
  }finally{await h.close()}
 })
+
+
+test('Owned guest requests and callbacks pass between active hosts, preserve audit and requests, refuse unassigned writers and erase linked text',async()=>{
+ const h=await installation();let restored;try{
+  const {searchFixture}=await import('./timeline-fixture.mjs'),f=await searchFixture(h);
+  const first=await h.signIn('synthetic-placemat-first@example.test','member','Avery Host'),next=await h.signIn('synthetic-placemat-next@example.test','member','Blair Host'),reader=await h.signIn('synthetic-placemat-reader@example.test');
+  const people=await h.api('/auth/operators'),ownerId=(await h.api('/api/state')).actor.id,firstId=people.find(p=>p.email==='synthetic-placemat-first@example.test').id,nextId=people.find(p=>p.email==='synthetic-placemat-next@example.test').id;
+  for(const operatorId of [firstId,nextId])await h.command('team.host',{operatorId,enabled:true});
+  const task={bookingId:f.elena.id,kind:'request',text:'synthetic-placemat-access <guest supplied>',ownerId:firstId,dueAt:new Date(Date.now()+3600000).toISOString()};
+  for(const as of [first,next,reader])await h.command('booking.handover',task,{as,status:403});
+  await h.command('booking.handover',{...task,ownerId:'missing'},{status:409});
+  const request=await h.command('booking.handover',task),callback=await h.command('booking.handover',{...task,kind:'callback',text:'synthetic-placemat-callback promise',ownerId:firstId});
+  await h.command('booking.handover.assign',{bookingId:f.elena.id,taskId:callback.task.id,ownerId:nextId,dueAt:task.dueAt});
+  const complete=(record,as,outcome='synthetic-placemat-outcome')=>h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:record.task.id,outcome},as?{as}:{});
+  await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:callback.task.id,outcome:'Not assigned'},{as:first,status:403});
+  await complete(request,first,'synthetic-placemat-step-free table checked with guest');
+  let state=await h.api('/api/state',undefined,{as:next}),row=state.state.bookings.find(b=>b.id===f.elena.id);assert.equal(row.handover[0].history.at(-1).actor,firstId);assert.equal(row.handover[1].ownerId,nextId);assert.equal(row.handover[1].history.length,2);assert.equal(row.handover[1].history[0].ownerId,firstId);assert.equal(row.handover[1].history[1].ownerId,nextId);assert.equal(state.names[nextId],'Blair Host');assert.equal(row.requests.wheelchair,true);assert.ok(row.requiredAccessTags.includes('step-free'));
+  await complete(callback,next,'synthetic-placemat-callback completed by the next host');
+  await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:callback.task.id,outcome:'Duplicate'},{as:next,status:409});
+  const pending=await h.command('booking.handover',{...task,kind:'callback',ownerId:nextId,text:'synthetic-placemat-next-shift'});
+  await h.command('team.host',{operatorId:nextId,enabled:false});await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:pending.task.id,outcome:'Revoked'},{as:next,status:403});
+  await complete(pending,undefined,'synthetic-placemat-manager fallback');
+  state=(await h.api('/api/state')).state;const audit=state.audit.filter(e=>e.subject===f.elena.id&&e.action==='booking.handover.complete');assert.deepEqual(audit.map(e=>e.actor),[firstId,nextId,ownerId]);assert.ok(audit.every(e=>e.source==='person'&&e.changes.some(c=>c.kind==='bookings')));
+  const csv=await (await h.request('/api/business-export/bookings.csv')).text();assert.match(csv,/handover_json/);assert.match(csv,/synthetic-placemat-callback/);
+  const archive=await h.api('/api/backup');restored=await installation();await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await restored.api('/api/state')).state.bookings.find(b=>b.id===f.elena.id).handover.length,3);
+  await h.command('guest.erase',{guestId:f.guest.id,confirm:'ERASE'});state=(await h.api('/api/state')).state;assert.deepEqual(state.bookings.find(b=>b.id===f.elena.id).handover,[]);for(const value of ['synthetic-placemat-access','synthetic-placemat-callback','synthetic-placemat-step-free'])assert.ok(!JSON.stringify(state).includes(value));
+ }finally{if(restored)await restored.close();await h.close()}
+})

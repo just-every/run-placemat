@@ -56,6 +56,20 @@ for(const width of [1440,390]){
   await rows.getByRole('button',{name:'Change assignment',exact:true}).click()
   await expect(page.locator('#reassignment')).toContainText('Eléna García')
   const selected=timeline.locator('[name=search]');await selected.focus();await selected.press('Tab');await expect(timeline.locator('[name=source]')).toBeFocused()
+  // Existing host search feeds a manager-owned request and a real next-host callback handover.
+  const nextCookie=await h.signIn('synthetic-placemat-next-ui@example.test','member','Blair Host'),managerCookie=await h.signIn('synthetic-placemat-manager-ui@example.test','admin','Morgan Manager'),nextId=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-next-ui@example.test').id;
+  await h.command('team.host',{operatorId:nextId,enabled:true});
+  const signIn=async token=>{await context.clearCookies();await context.addCookies(token.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}));await page.reload();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();};
+  const follow=page.getByRole('region',{name:'Owned guest follow-up'}),followShot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await follow.screenshot({path:resolve(shots,`FLOOR-007-${name}-${width}.png`)})};
+  await signIn(managerCookie);
+  const create=async(kind,text,ownerId)=>{
+   await follow.getByText('Assign guest follow-up',{exact:true}).click();const form=follow.locator('[data-command="booking.handover"]');await form.locator('[name=bookingId]').selectOption(f.elena.id);await form.locator('[name=kind]').selectOption(kind);await form.locator('[name=ownerId]').selectOption(ownerId);await form.getByLabel('Guest follow-up',{exact:true}).fill(text);await form.getByRole('button',{name:'Assign follow-up',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();
+   return (await h.api('/api/state')).state.bookings.find(b=>b.id===f.elena.id).handover.at(-1).id;
+  };
+  const requestId=await create('request','synthetic-placemat-access <guest supplied>',host.id),callbackId=await create('callback','synthetic-placemat-callback promised',host.id);
+  const callbackCard=follow.locator(`[data-handover-task="${callbackId}"]`);await callbackCard.getByText('Hand over this follow-up',{exact:true}).click();const transfer=callbackCard.locator('[data-command="booking.handover.assign"]');await transfer.locator('[name=ownerId]').selectOption(nextId);await transfer.getByRole('button',{name:'Hand over follow-up',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await followShot('owned-callback');
+  await signIn(cookie);const requestCard=follow.locator(`[data-handover-task="${requestId}"]`);assert.equal(await follow.locator(`[data-handover-task="${callbackId}"] [data-command="booking.handover.complete"]`).count(),0);await requestCard.getByLabel('Recorded outcome',{exact:true}).fill('synthetic-placemat-access checked with guest');await requestCard.getByRole('button',{name:'Complete guest follow-up',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await followShot('request-resolved');
+  await signIn(nextCookie);await callbackCard.getByLabel('Recorded outcome',{exact:true}).fill('synthetic-placemat-next-host completed callback');await callbackCard.getByRole('button',{name:'Complete guest follow-up',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await expect(callbackCard).toContainText('Completed');await expect(callbackCard).toContainText('Blair Host');await followShot('callback-completed');await signIn(cookie);
   // Live changes cannot resurrect personal alerts once the host explicitly refreshes.
   await h.command('guest.erase',{guestId:f.guest.id,confirm:'ERASE'})
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor()
@@ -63,7 +77,7 @@ for(const width of [1440,390]){
   await apply({search:'0191'},[])
   await apply({search:f.elena.id},[f.elena]);await expect(rows).toContainText('Erased guest')
   for(const value of ['Eléna García','VIP','Shellfish','step-free','wheelchair requested'])assert.ok(!(await rows.innerText()).includes(value),'FLOOR-007 erasure removes '+value)
-  await shot('erased')
+  await shot('erased');for(const value of ['synthetic-placemat-access','synthetic-placemat-callback','synthetic-placemat-next-host'])assert.ok(!(await follow.innerText()).includes(value));await followShot('followup-erased')
   assert.deepEqual(errors,[])
   console.log(`FLOOR-007 normalized guest/phone/ID/table search, combined filters, flags, host action, keyboard and erasure passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
