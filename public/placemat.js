@@ -371,7 +371,7 @@ if (!isPublic) {
 }
 if (isPublic) publicSearch.load();
 if (document.body.dataset.embedOrigin) reportHeight(document.body.dataset.embedOrigin);
-else busy(async () => { await loadStaff(); floorSync.start(); notice(''); },'Loading…');
+else if(!isPublic) busy(async () => { await loadStaff(); floorSync.start(); notice(''); },'Loading…');
 
 // Keep course timers advancing without replacing a host's open form.
 if(!isPublic)setInterval(()=>document.querySelectorAll('[data-stage-since]').forEach(el=>{el.textContent=`${Math.max(0,Math.floor((Date.now()-Date.parse(el.dataset.stageSince))/60000))}m`;}),30000);
