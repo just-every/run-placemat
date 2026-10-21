@@ -21,10 +21,10 @@ for(const width of [1440,390]){
   const apply=async({search='',source='',status='',serviceId=f.first.id}={},expected=[])=>{
    const form=timeline.locator('[data-timeline-filter]')
    await form.getByLabel('Day (venue date)',{exact:true}).fill(f.date)
-   await form.getByLabel('Service',{exact:true}).selectOption(serviceId)
+   await form.locator('[name=serviceId]').selectOption(serviceId)
    await form.getByLabel('Search parties or tables',{exact:true}).fill(search)
-   await form.getByLabel('Booking source',{exact:true}).selectOption(source)
-   await form.getByLabel('Booking status',{exact:true}).selectOption(status)
+   await form.locator('[name=source]').selectOption(source)
+   await form.locator('[name=status]').selectOption(status)
    const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/timeline'&&new URL(r.url()).searchParams.get('search')===search&&new URL(r.url()).searchParams.get('source')===source&&new URL(r.url()).searchParams.get('status')===status&&new URL(r.url()).searchParams.get('serviceId')===serviceId)
    await form.getByRole('button',{name:'Apply timeline filters',exact:true}).click()
    assert.ok((await response).ok(),'FLOOR-007 search succeeds through the real HTTP door')
@@ -55,7 +55,7 @@ for(const width of [1440,390]){
   // Finding a party retains the existing assignment action and its real host authority.
   await rows.getByRole('button',{name:'Change assignment',exact:true}).click()
   await expect(page.locator('#reassignment')).toContainText('Eléna García')
-  const selected=timeline.locator('[name=search]');await selected.focus();await selected.press('Tab');await expect(timeline.getByLabel('Booking source',{exact:true})).toBeFocused()
+  const selected=timeline.locator('[name=search]');await selected.focus();await selected.press('Tab');await expect(timeline.locator('[name=source]')).toBeFocused()
   // Live changes cannot resurrect personal alerts once the host explicitly refreshes.
   await h.command('guest.erase',{guestId:f.guest.id,confirm:'ERASE'})
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor()
