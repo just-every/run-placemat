@@ -423,7 +423,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 ## Status
 
-Judged from landing main commit `c86aea288116e8daf6fd09cd313c7fe452876475` (21 October 2026), with changed rows rechecked against sx-placemat-r29 public-door evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.
+Judged from the code and tests at commit `c86aea288116e8daf6fd09cd313c7fe452876475` (21 October 2026). Changed rows are rechecked against sx-placemat-r29 public-door evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
