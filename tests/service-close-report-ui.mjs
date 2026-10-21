@@ -29,6 +29,9 @@ try {
    await closeForm.locator('[name=reason]').fill('Dinner operations complete; unresolved follow-up assigned')
    const closeResponse=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command==='service.close')
    await closeForm.getByRole('button').click();const closed=await closeResponse;assert.ok(closed.ok(),await closed.text())
+   // Closing also refreshes the staff page. Wait for the closed-service control
+   // to disappear before using filters that that refresh replaces.
+   await closeForm.waitFor({state:'detached'})
    await page.getByRole('link',{name:'Reservation reports',exact:true}).click()
    const reservations=page.locator('#reservation-result')
    await reservations.locator('details[open]').getByText('Banquet · 24 guests').waitFor()
