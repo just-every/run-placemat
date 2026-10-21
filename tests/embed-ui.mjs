@@ -75,7 +75,17 @@ try{
    const tabTo=async name=>{for(let i=0;i<12;i++){await page.keyboard.press('Tab');if(await focused()===name)return}assert.fail(`Keyboard focus never reached ${name}`)}
    await tabTo('Accept analytics');await page.keyboard.press('Enter');await consent.getByText('Accepted for this visit').waitFor()
    assert.equal(h.analytics.length,0,'accepting alone sends nothing')
-   await tabTo('date');await page.keyboard.type(day.slice(5,7)+day.slice(8,10)+day.slice(0,4))
+   await tabTo('date')
+   // Native date controls retain the host's segment order on macOS even with a US page locale.
+   // Use their actual keyboard spinboxes, preserving the all-keyboard guest journey.
+   const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
+   for(let segment=0;segment<3;segment++){
+    const before=(await dateInput.inputValue()).split('-').map(Number);await page.keyboard.press('ArrowUp')
+    const after=(await dateInput.inputValue()).split('-').map(Number),index=after.findIndex((n,i)=>n!==before[i]);assert.ok(index>=0,'keyboard changes the focused date segment')
+    for(let step=0;step<366;step++){const current=(await dateInput.inputValue()).split('-').map(Number)[index];if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
+    assert.equal(Number((await dateInput.inputValue()).split('-')[index]),wanted[index]);await page.keyboard.press('ArrowRight')
+   }
+   assert.equal(await dateInput.inputValue(),day)
    await tabTo('partySize');await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('2')
    await tabTo('Find available times');await page.keyboard.press('Enter')
    await frame.getByRole('status').filter({hasText:'Availability updated'}).waitFor()
