@@ -179,6 +179,6 @@ test('GUEST-004: merge journal exports and validated restore reconcile; erasure 
    const csv=await (await source.request('/api/business-export/guest-merges.csv')).text();assert.ok(csvRecords(csv).every(row=>!JSON.parse(row.data_json).snapshots))
    await source.api('/api/public/book',publicGuest(f.s,0,{email:f.b.email,name:f.b.name}),{as:'',status:409})
   }
-  await h.api('/api/restore',{archive,confirm:'RESTORE'},{status:409})
+  const old=await h.api('/api/restore',{archive,confirm:'RESTORE'},{status:400});assert.match(old.error,/before a guest was erased/)
  }finally{await h.close();await restored.close();await erased.close()}
 })
