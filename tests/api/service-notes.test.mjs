@@ -36,7 +36,7 @@ test('FLOOR-013: dated note history, three guest preorders, source totals, ident
   }
   const hostState=await h.api('/api/state',undefined,{as:host});assert.ok(JSON.stringify(hostState).includes(first.history[0].text))
   for(const path of ['/api/preshift?date=','/preshift?date=','/api/preshift.pdf?date=']){
-   const body=await (await h.request(path+f.date,{as:host})).text();assert.ok(body.includes(first.history[0].text));assert.ok(body.includes('Halibut: 10 portions'))
+   const body=await (await h.request(path+f.date,{as:host})).text();assert.ok(body.includes(path.includes('.pdf')?first.history[0].text.replaceAll('’',"'"):first.history[0].text));assert.ok(body.includes('Halibut: 10 portions'))
   }
   const before=(await h.api('/api/state')).state
   await h.api('/api/public/book',publicGuest(f.service,4,{preorders:[{itemId:'unknown',quantity:1}]}),{as:'',status:409})
