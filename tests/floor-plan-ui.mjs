@@ -48,7 +48,7 @@ try{
    await guestPage.locator('#public-content[aria-busy]').waitFor({state:'detached'})
    const search=guestPage.locator('[data-public-command=search]')
    await search.getByLabel('Arrival date',{exact:true}).fill(day);await search.getByLabel('Party size',{exact:true}).fill('4')
-   await search.getByLabel('Required area',{exact:true}).selectOption('Dining room')
+   await search.locator('[name=area]').selectOption('Dining room')
    await search.locator('[name=requiredAccessTags][value="step-free"]').check()
    await search.getByRole('button',{name:'Find available times',exact:true}).click()
    await guestPage.getByRole('status').filter({hasText:'Availability updated'}).waitFor()
