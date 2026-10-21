@@ -143,10 +143,10 @@ test('GUEST-004: exact identity suggestions separate households; reviewed manage
   const firstUndo=await h.api('/api/guests/unmerge-preview?mergeId='+firstMerge.id)
   assert.ok(firstUndo.laterRecords.some(r=>r.kind==='guests'&&r.id===f.a.id))
   await h.command('guest.unmerge',{mergeId:firstMerge.id,review:firstUndo.review,confirm:'UNMERGE'})
-  assert.equal((await h.api('/api/guests?search=alex.one')).guests[0].notes,'Later person-entered correction')
+  assert.equal((await h.api('/api/guests?search=alex.one')).guests.find(g=>g.id===f.a.id).notes,'Later person-entered correction')
   // Pending combined identities remain in scope for erasure after a later edit.
   await h.command('guest.erase',{guestId:f.b.id,confirm:'ERASE'})
-  assert.deepEqual((await h.api('/api/guests?search=alex.one')).guests,[])
+  assert.deepEqual((await h.api('/api/guests?search=alex.one')).guests.map(g=>g.id),[onlyName.guestId],'Unrelated plus-address identity remains separate')
   assert.ok(!JSON.stringify(await h.api('/api/backup')).includes(f.b.email))
  }finally{await h.close()}
 })
