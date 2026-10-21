@@ -142,6 +142,8 @@ details.guest summary .muted{grid-column:1;font-size:16px}
 .guest-notes{padding-left:28px;border-left:1px solid var(--pm-rule)}
 .guest-notes .form-grid{grid-template-columns:1fr}
 .guest-notes button[type=submit]{width:100%}
+.guest-notes form:is([data-command="guest.merge"],[data-command="guest.unmerge"]) .form-grid{grid-template-columns:minmax(0,1fr)}
+.guest-notes form:is([data-command="guest.merge"],[data-command="guest.unmerge"]) button{min-width:0;white-space:normal;padding:10px 18px}
 .rer-themed details.guest>details{margin:20px 28px 22px;border:0;border-top:1px solid var(--pm-rule);border-radius:0}
 .rer-themed details.guest>details>summary{padding:16px 0 0}
 .rer-themed details.guest>details>:not(summary){margin-left:0;margin-right:0}

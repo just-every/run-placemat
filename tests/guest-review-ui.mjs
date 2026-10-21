@@ -25,6 +25,10 @@ async function reviewGuest(card){
 }
 async function screenshot(page,name,width){
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Guest review fits viewport')
+ assert.ok(await page.locator('form:is([data-command="guest.merge"],[data-command="guest.unmerge"])').evaluateAll(forms=>forms.every(form=>{
+  const panel=form.closest('article').getBoundingClientRect()
+  return [...form.querySelectorAll('input:not([type=hidden]),button')].every(control=>{const rect=control.getBoundingClientRect();return rect.left>=panel.left&&rect.right<=panel.right})
+ })),'Identity confirmation controls fit their review panel')
  if(shots)await page.locator('#guest-results').screenshot({path:resolve(shots,`GUEST-004-${name}-${width}.png`)})
 }
 for(const width of [1440,390]){
