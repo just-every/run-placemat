@@ -1,6 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
+import {searchFixture} from './timeline-fixture.mjs'
 
 const at=(value,minutes)=>new Date(Date.parse(value)+minutes*60000).toISOString()
 test('FLOOR-005: late six-top, actual turn extension, collision and direct host replacement preserve both histories; day/service timeline and header open their parties',async()=>{
@@ -54,5 +55,46 @@ test('FLOOR-005: late six-top, actual turn extension, collision and direct host 
   assert.equal(overdueRow.overdue,true);assert.ok(overdueRow.overdueMinutes>0)
   await h.command('booking.extend',{bookingId:overdue.id,expectedEndAt:at(new Date().toISOString(),30),reason:''},{as:hostCookie,status:400})
   await h.command('booking.extend',{bookingId:next.id,expectedEndAt:at(startAt,90),reason:'Not seated'},{as:hostCookie,status:409})
+ }finally{await h.close()}
+})
+
+
+test('FLOOR-007: phone suffix/name/email/booking/table search, combined service/source/status filters and current VIP/allergy/access alerts follow erasure',async()=>{
+ const h=await installation();try{
+  const f=await searchFixture(h),base='/api/timeline?date='+f.date
+  const rows=async(params={},opts={})=>(await h.api(base+'&'+new URLSearchParams(params),undefined,opts)).rows
+  const ids=items=>items.map(row=>row.id).sort()
+  const all=[f.elena,f.jules,f.morgan,f.taylor,f.later]
+  const before=(await h.api('/api/state')).state
+  assert.deepEqual(ids(await rows({search:'0191'})),ids([f.elena,f.later]))
+  for(const search of ['(415) 555-0191','+1 415 555 0191','elena garcia','ELENA@EXAMPLE.TEST'])assert.deepEqual(ids(await rows({search})),ids([f.elena,f.later]),search)
+  assert.deepEqual(ids(await rows({search:f.elena.id})),[f.elena.id])
+  assert.deepEqual(ids(await rows({search:'pAtIo 14'})),[f.jules.id])
+  assert.deepEqual(ids(await rows({search:'not a guest'})),[])
+  assert.deepEqual(ids(await rows({source:'online'})),ids([f.elena,f.jules,f.later]))
+  assert.deepEqual(ids(await rows({source:'walk-in'})),[f.morgan.id])
+  assert.deepEqual(ids(await rows({source:'waitlist'})),[f.taylor.id])
+  assert.deepEqual(ids(await rows({status:'cancelled'})),[f.jules.id])
+  assert.deepEqual(ids(await rows({status:'seated'})),ids([f.morgan,f.taylor]))
+  assert.deepEqual(ids(await rows({search:'0191',serviceId:f.first.id,source:'online',status:'booked'})),[f.elena.id])
+  assert.deepEqual(ids(await rows({search:'0191',serviceId:f.first.id,source:'walk-in',status:'booked'})),[])
+  const row=(await rows({serviceId:f.first.id,search:'0191'}))[0]
+  assert.equal(row.vipLevel,'vip');assert.equal(row.requests.allergyNotes,'Shellfish <guest supplied>');assert.equal(row.requests.wheelchair,true);assert.deepEqual(row.requiredAccessTags,['step-free'])
+  assert.ok(!JSON.stringify(await rows()).includes('Private planning note'))
+  assert.deepEqual((await h.api('/api/state')).state,before,'FLOOR-007 search changes no guest, booking, request or permission')
+  for(const suffix of ['source=google','status=paid','source=online&source=waitlist','status=booked&status=seated'])await h.api(base+'&'+suffix,undefined,{status:400})
+  await h.api(base,undefined,{as:'',status:401})
+  const host=await h.signIn('search-host@example.test'),member=await h.signIn('search-reader@example.test'),manager=await h.signIn('search-manager@example.test','admin')
+  const operator=(await h.api('/auth/operators')).find(p=>p.email==='search-host@example.test')
+  await h.command('team.host',{operatorId:operator.id,enabled:true})
+  const key=(await h.api('/api/agent-keys',{name:'Search preparation'})).result
+  for(const as of [host,member,manager])assert.deepEqual(ids(await rows({}, {as})),ids(all),'FLOOR-007 inherits existing native timeline read authority')
+  assert.deepEqual(ids(await rows({}, {as:'',headers:{authorization:'Bearer '+key.key}})),ids(all))
+  await h.request('/api/agent-keys/'+key.id,{method:'DELETE'})
+  await h.api(base,undefined,{as:'',headers:{authorization:'Bearer '+key.key},status:401})
+  await h.command('guest.erase',{guestId:f.guest.id,confirm:'ERASE'})
+  for(const search of ['0191','elena garcia','elena@example.test'])assert.deepEqual(await rows({search}),[],'FLOOR-007 erased identity never matches '+search)
+  const erased=(await rows({search:f.elena.id}))[0]
+  assert.equal(erased.guestName,'Erased guest');assert.equal(erased.vipLevel,'none');assert.equal(erased.requests.allergyNotes,'');assert.equal(erased.requests.wheelchair,false);assert.deepEqual(erased.requiredAccessTags,[])
  }finally{await h.close()}
 })

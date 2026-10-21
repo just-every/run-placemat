@@ -49,7 +49,8 @@
         "node tests/embed-ui.mjs",
         "node tests/audit-ui.mjs",
         "node tests/preshift-ui.mjs",
-        "node tests/service-notes-ui.mjs"
+        "node tests/service-notes-ui.mjs",
+        "node tests/timeline-search-ui.mjs"
       ]
     }
   ],

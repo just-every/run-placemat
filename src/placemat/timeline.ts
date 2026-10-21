@@ -1,3 +1,4 @@
+import {searchGuests} from './guests'
 import {checkStaffing} from './staffing-capacity'
 import {active,overlaps} from './capacity'
 import {fail,id,number,text,type Actor,type Booking,type Guest,type State} from './model'
@@ -66,6 +67,9 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
  if(!Number.isFinite(Date.parse(now)))fail(400,'A valid timeline time is required.')
  now=new Date(now).toISOString()
  const today=localDate(now,state.venue.timezone),date=dateParam(param(params,'date')??param(params,'day')??today)
+ const source=param(params,'source'),status=param(params,'status')
+ if(source&&!['online','walk-in','waitlist'].includes(source))fail(400,'Choose online, walk-in or waitlist as the booking source.')
+ if(status&&!['booked','seated','completed','cancelled','no-show'].includes(status))fail(400,'Choose a supported booking status.')
  const serviceId=param(params,'serviceId'),search=(param(params,'search')??'').trim(),area=param(params,'area')??param(params,'room'),serverId=param(params,'serverId')??param(params,'server')
  const zoom=number(param(params,'zoom')??30,'Timeline zoom',15,240),nextMinutes=number(param(params,'nextMinutes')??30,'Next window minutes',0,1440)
  if(serviceId&&!state.services.some(service=>service.id===serviceId))fail(404,'Service not found.')
@@ -81,7 +85,7 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
   const lateMinutes=lateAt?Math.max(0,(Date.parse(lateAt)-Date.parse(booking.startAt))/60000):0
   const overdueMinutes=booking.status==='seated'?Math.max(0,(nowMs-Date.parse(expectedDepartureAt))/60000):0
   const history=(state.audit as Audit[]).filter(event=>auditFor(event,booking.id))
-  return {...booking,bookingId:booking.id,serviceName:service.name,serviceDate:localDate(service.startAt,state.venue.timezone),guestName:guest?.name??'Erased guest',
+  return {...booking,bookingId:booking.id,serviceName:service.name,serviceDate:localDate(service.startAt,state.venue.timezone),guestName:guest?.name??'Erased guest',vipLevel:guest?.erased?'none':guest?.profile?.vipLevel??'none',
    tableNames:tables.map(table=>table.label),areas:[...new Set(tables.map(table=>table.area||'Dining room'))],serverId:booking.serverId??null,serverName:booking.serverName??null,sectionName:booking.sectionName??null,servingHistory:booking.servingHistory??[],
    expectedSeatAt:booking.startAt,expectedDepartureAt,expectedResetAt:new Date(Date.parse(expectedDepartureAt)+reset).toISOString(),...actual,
    lateMinutes,late:lateMinutes>0,overdueMinutes,overdue:overdueMinutes>0,
@@ -89,11 +93,11 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
    assignmentHistory:history.filter(event=>['booking.move','booking.swap','booking.lock','table.assign','proposal.approve'].includes(event.action)),
    serviceHistory,turnHistory:history.filter(event=>event.action==='booking.extend')}
  })
- const needle=search.toLocaleLowerCase()
+ // GUEST-002 normalization is search only: it never merges or changes identities.
+ const needle=search.toLocaleLowerCase(),matchingGuests=new Set(searchGuests(guests,search).map(guest=>guest.id))
  const matches=(row:typeof allRows[number])=>{
-  if(serviceId&&row.serviceId!==serviceId||area&&!row.areas.includes(area)||serverId&&row.serverId!==serverId)return false
-  const guest=guestById.get(row.guestId)
-  return !needle||[row.id,row.guestName,guest?.phone??'',guest?.email??'',row.serviceName,...row.tableNames].join(' ').toLocaleLowerCase().includes(needle)
+  if(serviceId&&row.serviceId!==serviceId||source&&row.source!==source||status&&row.status!==status||area&&!row.areas.includes(area)||serverId&&row.serverId!==serverId)return false
+  return !needle||matchingGuests.has(row.guestId)||[row.id,row.serviceName,...row.tableNames].some(value=>value.toLocaleLowerCase().includes(needle))
  }
  const scoped=allRows.filter(matches),rows=scoped.filter(row=>row.serviceDate===date).sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.id.localeCompare(b.id))
  const seated=rows.filter(row=>row.status==='seated'&&(!row.actualSeatAt||Date.parse(row.actualSeatAt)<=nowMs))
@@ -104,7 +108,7 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
  const services=state.services.filter(service=>(!serviceId||service.id===serviceId)&&localDate(service.startAt,state.venue.timezone)===date)
  const starts=services.map(service=>service.startAt).concat(rows.map(row=>row.expectedSeatAt)).sort()
  const ends=services.map(service=>service.endAt).concat(rows.map(row=>row.expectedResetAt)).sort()
- return {date,timezone:state.venue.timezone,serviceId,search,area,serverId,zoom,nextMinutes,now,rows,
+ return {date,timezone:state.venue.timezone,serviceId,search,source,status,area,serverId,zoom,nextMinutes,now,rows,
   window:{startAt:starts[0]??null,endAt:ends.at(-1)??null},
   filters:{serverNames:Object.fromEntries(state.services.flatMap(s=>(s.staffing?.servers??[]).map(server=>[server.id,server.name]))),areas:[...new Set(state.tables.map(table=>table.area||'Dining room'))].sort(),servers:[...new Set([...state.services.flatMap(s=>(s.staffing?.servers??[]).map(server=>server.id)),...state.bookings.flatMap((booking:TimedBooking)=>booking.serverId?[booking.serverId]:[])])].sort()},
   header:{seatedCovers:coverMetric(seated),dueCovers:{...coverMetric(due),fromAt:now,toAt:dueUntil},averageActualTurn:{
