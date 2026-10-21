@@ -3,6 +3,49 @@ import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {installation,service,publicGuest} from './harness.mjs'
 
+test('BOOK-001: three public reservations and a race for the last fitting combination return one real confirmation and current availability',async()=>{
+ const h=await installation();try{
+  const {service:s,floor}=await service(h,{tables:5,seats:2,covers:20})
+  const combination=floor.slice(3).map(t=>t.id)
+  await h.command('combination.save',{tableIds:combination,capacity:4,accessTags:[],setupMinutes:0,enabled:true,adjacent:true})
+  const available=async size=>(await h.api('/api/public/services?partySize='+size,undefined,{as:''})).services.find(v=>v.id===s.id)
+  assert.ok((await available(2)).slots.some(slot=>slot.startAt===s.startAt),'BOOK-001: published service offers the requested arrival')
+  const first=[]
+  for(let i=0;i<3;i++){
+   const confirmation=(await h.api('/api/public/book',publicGuest(s,i),{as:'',status:201})).result
+   assert.match(confirmation.confirmation,/Your table at Cedar & Salt is booked/);assert.equal(confirmation.partySize,2);assert.equal(confirmation.startAt,s.startAt)
+   const booking=(await h.api('/api/state')).state.bookings.find(b=>b.id===confirmation.id)
+   assert.ok(booking,'BOOK-001: public confirmation points to a durable reservation')
+   assert.equal(booking.status,'booked');assert.equal(booking.serviceId,s.id);assert.equal(booking.startAt,s.startAt)
+   assert.equal(booking.partySize,2);assert.equal(booking.tableIds.length,1)
+   assert.ok(floor.some(table=>table.id===booking.tableIds[0]&&table.seats>=booking.partySize),'BOOK-001: confirmation has a fitting real table')
+   first.push(booking)
+  }
+  assert.equal(new Set(first.flatMap(b=>b.tableIds)).size,3,'BOOK-001: all three confirmed reservations occupy distinct tables')
+  assert.ok(first.every(b=>!b.tableIds.some(id=>combination.includes(id))),'BOOK-001: only the final two-table combination remains')
+  assert.ok((await available(4)).slots.some(slot=>slot.startAt===s.startAt),'BOOK-001: the last fitting combination is currently bookable')
+  const race=await Promise.all([3,4].map(i=>h.request('/api/public/book',{method:'POST',as:'',body:publicGuest(s,i,{partySize:4})})))
+  assert.deepEqual(race.map(r=>r.status).sort(),[201,409],'BOOK-001: concurrent guests receive exactly one confirmation and one conflict')
+  const answers=await Promise.all(race.map(r=>r.json())),winner=answers[race.findIndex(r=>r.status===201)].result,loser=answers[race.findIndex(r=>r.status===409)]
+  assert.match(winner.confirmation,/Your table at Cedar & Salt is booked/);assert.equal(winner.partySize,4);assert.equal(winner.startAt,s.startAt)
+  assert.ok(loser.error,'BOOK-001: losing guest gets an actionable conflict');assert.equal(loser.result,undefined,'BOOK-001: conflict is never a false confirmation')
+  const state=(await h.api('/api/state')).state
+  const assigned=state.bookings.find(b=>b.id===winner.id)
+  assert.ok(assigned,'BOOK-001: winning confirmation points to a durable reservation');assert.equal(assigned.status,'booked');assert.equal(assigned.serviceId,s.id);assert.equal(assigned.partySize,4)
+  assert.deepEqual([...assigned.tableIds].sort(),[...combination].sort(),'BOOK-001: winner is assigned the exact fitting combination')
+  assert.equal(state.bookings.length,4);assert.equal(state.bookings.reduce((sum,b)=>sum+b.partySize,0),10)
+  assert.equal(new Set(state.bookings.flatMap(b=>b.tableIds)).size,5)
+  assert.deepEqual(state.bookings.map(b=>b.id).sort(),[...first.map(b=>b.id),winner.id].sort(),'BOOK-001: confirmations match durable reservations')
+  for(const size of [2,4]){
+   const current=await available(size)
+   assert.ok(!current.slots.some(slot=>slot.startAt===s.startAt),'BOOK-001: next availability excludes the occupied arrival for party '+size)
+   assert.ok(current.slots.some(slot=>slot.startAt===new Date(Date.parse(s.startAt)+90*60000).toISOString()),'BOOK-001: later capacity remains genuinely available')
+  }
+  await h.api('/api/public/book',publicGuest(s,5),{as:'',status:409})
+  assert.deepEqual((await h.api('/api/state')).state,state,'BOOK-001: a full-floor request creates no booking or other state change')
+ }finally{await h.close()}
+})
+
 test('OSS-001: complete Friday service without a license/payment account; online bookings, walk-in, waitlist, no-show, reminder export and history',async()=>{
  const h=await installation();try{
   const {service:s}=await service(h),bookings=[]
