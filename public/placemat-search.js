@@ -50,7 +50,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   }
   function policyText(p) {
     const day = new Intl.DateTimeFormat('en-US', {timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric'}).format(new Date(`${p.date}T12:00:00Z`));
-    return `${p.serviceName} (${day}): online parties of ${p.minParty}–${p.maxParty}; parties over ${p.inquiryAbove} send a group inquiry; bookings open ${p.horizonDays} days ahead; same-day bookings until ${clock(p.sameDayCutoff)}; ${p.leadMinutes ? `book at least ${p.leadMinutes} minutes ahead` : 'no minimum notice'}; arrivals every ${p.slotMinutes} minutes.`;
+    return `${p.serviceName} (${day}): online parties of ${p.minParty}–${p.maxParty}; parties over ${p.inquiryAbove} send a group inquiry; bookings open ${p.horizonDays} days ahead; ${p.sameDayCutoff?'same-day bookings until '+clock(p.sameDayCutoff):'no same-day cutoff'}; ${p.leadMinutes ? `book at least ${p.leadMinutes} minutes ahead` : 'no minimum notice'}; arrivals every ${p.slotMinutes} minutes.`;
   }
   function policies() {
     // BOOK-002 policy disclosure: the venue's online booking rules, shown before a guest confirms.
@@ -90,6 +90,8 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     areas = response.areas;
     accessTags = response.accessTags;
     document.querySelector('#venue-line').textContent = `${venue.name} · All times in ${venue.timezone}`;
+    let info=document.querySelector('#restaurant-contact');if(!info){info=document.createElement('div');info.id='restaurant-contact';document.querySelector('#venue-line').after(info);}
+    info.innerHTML=`${venue.logo?`<img src="${esc(venue.logo)}" alt="Restaurant logo" width="80" height="80" style="object-fit:contain">`:''}<p>${esc([venue.address,venue.phone,venue.email,venue.website,venue.currency].filter(Boolean).join(' · '))}</p>`;
     query = response.query;
     renderSearch();
     renderResults();

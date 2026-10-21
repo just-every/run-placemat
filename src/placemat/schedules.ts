@@ -1,4 +1,6 @@
+import {normalizeRules} from './booking-rules'
 import {fail,id,number,text,type Actor,type Proposal,type Service,type State} from './model'
+import {localResolver} from './local-time'
 
 type ShiftTimes={startTime:string;endTime:string;turnMinutes:number;coverLimit:number;startOffset?:string;endOffset?:string}
 export type ScheduleException={date:string;closed:boolean}&Partial<ShiftTimes>
@@ -65,32 +67,6 @@ function normalize(p:any,current:ScheduleTemplate|undefined,actor:Actor,now:stri
  return {id:current?.id??id(),name:text(p.name,'Schedule name',120),shift:p.shift,seasonStart,seasonEnd,weekdays:[...p.weekdays].sort(),...base,exceptions,version:(current?.version??0)+1,updatedAt:now,updatedBy:actor.id}
 }
 
-/** Resolve with the venue's actual IANA rules. A fold needs an explicit offset; a gap never shifts silently. */
-function localResolver(timezone:string){
- let formatter:Intl.DateTimeFormat
- try{formatter=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'})}catch{fail(400,'Use a valid IANA venue timezone before generating services.')}
- const parts=(at:number)=>{
-  const values:Record<string,string>={}
-  for(const part of formatter.formatToParts(new Date(at)))if(part.type!=='literal')values[part.type]=part.value
-  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`
- }
- const offsetsByDate=new Map<string,number[]>()
- return (localDate:string,time:string,choice:string|undefined)=>{
-  const local=`${localDate}T${time}:00`,naive=Date.parse(local+'Z')
-  let possibleOffsets=offsetsByDate.get(localDate)
-  if(!possibleOffsets){
-   const center=Date.parse(localDate+'T12:00:00Z'),found=new Set<number>()
-   for(let hours=-36;hours<=36;hours+=6){const sample=center+hours*3600000;found.add(Date.parse(parts(sample)+'Z')-sample)}
-   possibleOffsets=[...found];offsetsByDate.set(localDate,possibleOffsets)
-  }
-  const matches=possibleOffsets.map(o=>({at:naive-o,offset:o})).filter(v=>parts(v.at)===local)
-  if(!matches.length)fail(400,`${localDate} ${time} does not exist in ${timezone}. Choose another local time.`)
-  const label=(ms:number)=>`${ms<0?'-':'+'}${String(Math.floor(Math.abs(ms)/3600000)).padStart(2,'0')}:${String(Math.floor(Math.abs(ms)/60000)%60).padStart(2,'0')}`
-  if(matches.length>1&&!choice)fail(400,`${localDate} ${time} occurs twice in ${timezone}. Choose an explicit offset: ${matches.map(v=>label(v.offset)).join(' or ')}.`)
-  const selected=(choice?matches.find(v=>label(v.offset)===choice):matches[0])??fail(400,`${choice} is not a valid offset for ${localDate} ${time} in ${timezone}.`)
-  return {at:new Date(selected.at).toISOString(),offset:label(selected.offset)}
- }
-}
 function occurrence(template:ScheduleTemplate,localDate:string):ShiftTimes|null{
  if(localDate<template.seasonStart||localDate>template.seasonEnd)return null
  const exception=template.exceptions.find(e=>e.date===localDate)
@@ -131,7 +107,7 @@ function preview(s:ScheduleState,actor:Actor,p:any,now:string):Proposal{
    const start=resolve(localDate,settings.startTime,settings.startOffset),end=resolve(settings.endTime<=settings.startTime?nextDate(localDate):localDate,settings.endTime,settings.endOffset)
    const duration=(Date.parse(end.at)-Date.parse(start.at))/60000
    if(duration<settings.turnMinutes||duration>1440)fail(400,`${template.name} on ${localDate} must fit a full turn and be at most 24 elapsed hours.`)
-   service={...structuredClone(current??{}),id:current?.id??id(),name:template.name,startAt:start.at,endAt:end.at,turnMinutes:settings.turnMinutes,coverLimit:settings.coverLimit,status:'published',version:(current?.version??0)+1,scheduleSource:{scheduleId:template.id,scheduleVersion:template.version,localDate}}
+   service={...structuredClone(current??{}),...(!current&&s.venue.setup?{bookingRules:normalizeRules(s.venue.setup.bookingDefaults)}:{}),id:current?.id??id(),name:template.name,startAt:start.at,endAt:end.at,turnMinutes:settings.turnMinutes,coverLimit:settings.coverLimit,status:'published',version:(current?.version??0)+1,scheduleSource:{scheduleId:template.id,scheduleVersion:template.version,localDate}}
    delete service.closedAt;delete service.closedBy;delete service.closeReason
    startOffset=start.offset;endOffset=end.offset
   }

@@ -6,7 +6,7 @@ export function normalizeRules(value:any):BookingRules{
  const result={} as BookingRules
  for(const channel of ['online','walk-in','waitlist'] as const){
   const p=value?.[channel]??defaultRule(),cutoff=p.sameDayCutoff??'23:59'
-  if(typeof cutoff!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(cutoff))fail(400,'Use HH:MM for the same-day cutoff.')
+  if(typeof cutoff!=='string'||cutoff!==''&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(cutoff))fail(400,'Use HH:MM for the same-day cutoff.')
   const minParty=number(p.minParty,'Minimum party',1,500),maxParty=number(p.maxParty,'Maximum party',minParty,500)
   const blockedStarts=p.blockedStarts??[]
   if(!Array.isArray(blockedStarts)||blockedStarts.length>100||blockedStarts.some(v=>typeof v!=='string'||!/(Z|[+-]\d\d:\d\d)$/.test(v)||!Number.isFinite(Date.parse(v))))fail(400,'Blocked starts must be offset timestamps (up to 100).')
@@ -22,9 +22,9 @@ function local(instant:string,zone:string){
 }
 export function checkBookingRules(s:State,service:Service,partySize:number,startAt:string,channel:keyof BookingRules,actor?:Actor,overrideReason?:unknown,allowBlocked=false){
  const rule=ruleFor(service,channel),now=new Date().toISOString(),today=local(now,s.venue.timezone),arrival=local(startAt,s.venue.timezone),violations:string[]=[]
- if(partySize>rule.inquiryAbove)fail(409,'This party needs a large-party inquiry. Contact the venue to discuss availability; no booking has been made.')
+ if(partySize>rule.inquiryAbove&&(!actor||actor.agent||!['owner','admin'].includes(actor.role)))fail(409,'This party needs a large-party inquiry. Contact the venue to discuss availability; no booking has been made.')
  if(!allowBlocked&&rule.blockedStarts.includes(startAt))fail(409,'This arrival time is blocked. Choose another available time.')
- if(arrival.day===today.day&&today.clock>rule.sameDayCutoff)fail(409,'The same-day booking cutoff has passed. Choose another date.')
+ if(rule.sameDayCutoff&&arrival.day===today.day&&today.clock>rule.sameDayCutoff)fail(409,'The same-day booking cutoff has passed. Choose another date.')
  if(partySize<rule.minParty||partySize>rule.maxParty)violations.push(`Party size must be ${rule.minParty}–${rule.maxParty}.`)
  const days=(Date.parse(arrival.day)-Date.parse(today.day))/86400000
  if(days>rule.horizonDays)violations.push(`Bookings open ${rule.horizonDays} venue-local calendar days ahead.`)

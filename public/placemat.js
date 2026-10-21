@@ -1,3 +1,5 @@
+import {toUtc as venueToUtc} from './placemat-local-time.js'
+import {restaurantSetup,updatePolicySummary,onboardingPayload,bookingPreview} from './placemat-onboarding.js'
 import {serviceNotes,preorderSummary} from './placemat-service-notes.js'
 import {createAudit} from './placemat-audit.js'
 import {renderServiceChanges} from './placemat-service-changes.js'
@@ -36,6 +38,7 @@ const select = (label, name, choices, selected = '') => `<label>${esc(label)}<se
 const form = (command, content, submit, disabled = false, className = '') => `<form data-command="${command}"${className ? ` class="${className}"` : ''}><fieldset ${disabled ? 'disabled' : ''}><div class="form-grid">${content}<div class="wide"><button type="submit">${esc(submit)}</button></div></div></fieldset></form>`;
 let serviceStatusId='',assignmentId='',floorArea='',floorSection='',floorServer='',busyCount=0;
 const floorSync=createFloorSync({api,refresh:()=>loadStaff(true),isBusy:()=>busyCount>0});
+let onboardingRules;
 let data, state, actor, serviceId = '', floorTime = '', guestQuery = '', importPlan, importCsv = '';
 const isPublic = document.body.dataset.page === 'public';
 const publicSearch = isPublic ? createPublicSearch({api,esc,field,select,notice,analytics:createAnalyticsConsent({api,esc})}) : null;
@@ -70,19 +73,7 @@ function partsAt(value, timezone) {
 }
 function localTime(value, timezone = zone()) { const p = partsAt(value, timezone); return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`; }
 function time(value) { return new Intl.DateTimeFormat('en-US', {timeZone:zone(),dateStyle:'medium',timeStyle:'short'}).format(new Date(value)); }
-// Obtain actual zone offsets around the date, then roundtrip each candidate.
-// A gap has no candidates; a repeated local hour has two and must be rejected.
-function toUtc(value) {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error('Enter a complete local date and time.');
-  const wall = Date.parse(`${value}:00Z`), offsets = new Set();
-  for (let h = -48; h <= 48; h += 6) {
-    const sample = wall + h * 3600000;
-    offsets.add(Date.parse(`${localTime(sample)}:00Z`) - sample);
-  }
-  const candidates = [...offsets].map(offset => wall - offset).filter(candidate => localTime(candidate) === value);
-  if (candidates.length !== 1) throw new Error(candidates.length ? `That time repeats during a daylight-saving change in ${zone()}. Choose another time.` : `That local time does not exist in ${zone()}. Choose another time.`);
-  return new Date(candidates[0]).toISOString();
-}
+function toUtc(value,offset) { return venueToUtc(value,zone(),offset); }
 function serviceChoices() { return state.services.map(s => [s.id, `${s.name} · ${time(s.startAt)} · ${s.closedAt?'closed':s.status}`]); }
 function serviceField() { return select('Service', 'serviceId', state.services.filter(s => s.status === 'published').map(s => [s.id,`${s.name} · ${time(s.startAt)}`]), serviceId); }
 function tableField(selected = [], required = false) { return `<label class="wide">Tables <span class="help">${required ? 'Choose the exact tables for this assignment.' : 'Leave empty for automatic assignment.'} Use Ctrl or ⌘ to select several.</span><select name="tableIds" multiple ${required ? 'required' : ''}>${activeTables(state).map(t => `<option value="${esc(t.id)}" ${selected.includes(t.id) ? 'selected' : ''}>${esc(t.label)} · ${t.seats} seats</option>`).join('')}</select></label>`; }
@@ -94,6 +85,7 @@ async function loadStaff(polling = false) {
   if (polling && !floorSync.canRefresh()) return;
   data = next; state = next.state; actor = next.actor;
   if (people?.error && canEdit()) throw people.error;
+  if(actor.role==='owner'&&!onboardingRules)onboardingRules=(await api('/api/onboarding')).defaults;
   data.people = !canEdit() ? [] : people ? people.rows : await api('/auth/operators');
   if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
   if (!floorTime && service()) floorTime = floorStart(service());
@@ -150,7 +142,7 @@ function renderServices() {
   renderServiceChanges({root:$('#service-changes-content'),state,canEdit:editable,command:execute,refresh:loadStaff,esc,who,guest,time,notice});
 }
 function serviceEditor(s) {
-  return `<details ${s || !state.services.length ? 'open' : ''}><summary>${s ? `Edit ${esc(s.name)}` : 'Create service'}</summary>${form('service.save', `<input type="hidden" name="id" value="${esc(s?.id || '')}">` + field('Service name','name','text',s?.name || '', 'required maxlength="120"') + field('Turn duration (minutes)','turnMinutes','number',s?.turnMinutes || 90,'required min="15" max="360"') + field(`Starts (${zone()})`,'startAt','datetime-local',s ? localTime(s.startAt) : '', 'required') + field(`Ends (${zone()})`,'endAt','datetime-local',s ? localTime(s.endAt) : '', 'required') + field('Cover limit','coverLimit','number',s?.coverLimit || '', 'required min="1" max="500"') + pacingFields(s,state,{field,esc}) + bookingRuleFields(s,{field}) + turnPolicyFields(s,state,{field,esc,localTime}), 'Save service')}</details>`;
+  return `<details ${s || !state.services.length ? 'open' : ''}><summary>${s ? `Edit ${esc(s.name)}` : 'Create service'}</summary>${form('service.save', `<input type="hidden" name="id" value="${esc(s?.id || '')}">` + field('Service name','name','text',s?.name || '', 'required maxlength="120"') + field('Turn duration (minutes)','turnMinutes','number',s?.turnMinutes || 90,'required min="15" max="360"') + field(`Starts (${zone()})`,'startAt','datetime-local',s ? localTime(s.startAt) : '', 'required') + field('Start UTC offset (required only for repeated time)','startOffset','text','','placeholder="-04:00"') + field(`Ends (${zone()})`,'endAt','datetime-local',s ? localTime(s.endAt) : '', 'required') + field('End UTC offset (required only for repeated time)','endOffset','text','','placeholder="-05:00"') + field('Cover limit','coverLimit','number',s?.coverLimit || '', 'required min="1" max="500"') + pacingFields(s,state,{field,esc}) + bookingRuleFields(s??{bookingRules:state.venue.setup?.bookingDefaults??onboardingRules},{field}) + turnPolicyFields(s,state,{field,esc,localTime}), 'Save service')}<p class="help">Preview uses the entered service and your real tables, without saving a service, guest or booking.</p><button type="button" class="secondary" data-action="onboarding-preview">Preview booking page</button><div data-onboarding-preview></div></details>`;
 }
 function tableEditor(t) { return physicalTableEditor(t,state,{esc,field,select,form,guest,time}); }
 
@@ -191,7 +183,7 @@ function renderApprovals(polling = false) {
   if(canEdit()){const root=document.createElement('section');root.id='allocation-content';$('#approvals-content').prepend(root);renderAllocation({root,state,api,esc,select,field,empty,tableNames,time,who});}
 }
 function renderSettings() {
-  $('#settings-content').innerHTML = `${canEdit() ? form('venue.update', field('Venue name','name','text',state.venue.name,'required maxlength="120"') + field('Venue timezone','timezone','text',state.venue.timezone,'required placeholder="America/New_York"'), 'Save venue') : empty('Venue settings can be changed by an owner or admin.')}${isOwner() ? `<details><summary>Agent preparation keys</summary><p class="help">Keys can read operations and prepare proposals. A signed-in person must approve each plan. Copy a new key immediately; it is shown once.</p>${form('key.create',field('Key name','name','text','','required maxlength="80"'),'Create preparation key')}<div id="key-result"></div>${(data.keys || []).map(k => `<article class="card"><strong>${esc(k.name)}</strong><p class="help">${esc(k.id)}</p>${badge(k.revoked_at ? 'Revoked' : 'Active')}${!k.revoked_at ? button('Revoke key','revoke-key',k.id) : ''}</article>`).join('')}</details>${widgetSettings(state,{esc,form,who,time})}${analyticsSettings(state,data,{esc,form,field,who,time})}${businessExports(data.businessExportKinds||[],esc)}<details><summary>Backup & restore</summary><p><a href="/api/backup" download>Download venue backup</a></p><p class="help">Restore requires an empty product destination. Choose a backup archive and type RESTORE. The server validates its integrity and erasure fences.</p><form data-command="backup.restore"><label>Backup archive<input type="file" name="archiveFile" accept=".json,application/json" required></label>${field('Type RESTORE to confirm','confirm','text','','required pattern="RESTORE" autocomplete="off"')}<label>Trusted later backup for erasure journal (optional)<input type="file" name="journalFile" accept=".json,application/json"></label><button type="submit">Restore backup</button></form></details>` : ''}${canEdit() ? `<details><summary>People & invitations</summary><p class="help">Admin manages the floor. Hosts can change assignments and record service observations. Members can read operations. Invitations need your configured production mail; local development suppresses mail.</p>${form('people.invite',field('Person name','displayName','text','','required maxlength="120"')+field('Email','email','email','','required')+select('Role','role',isOwner()?[['member','Read-only staff'],['admin','Manager'],['owner','Owner']]:[['member','Read-only staff']]),'Invite person',false,'inline')}<div>${data.people.map(p=>`<article class="card"><p><strong>${esc(p.displayName)}</strong> · ${esc(p.email)} · ${esc((state.hostIds||[]).includes(p.id)?'host':p.role)} · ${esc(p.status)}</p>${isOwner()?hostGrant(p,state,{esc,form}):''}</article>`).join('')}</div></details>` : ''}`;
+  $('#settings-content').innerHTML = `${restaurantSetup(state,onboardingRules,{esc,field,form,isOwner:isOwner(),time,who})}${canEdit() ? form('venue.update', field('Venue name','name','text',state.venue.name,'required maxlength="120"') + field('Venue timezone','timezone','text',state.venue.timezone,'required placeholder="America/New_York"'), 'Save venue') : empty('Venue settings can be changed by an owner or admin.')}${isOwner() ? `<details><summary>Agent preparation keys</summary><p class="help">Keys can read operations and prepare proposals. A signed-in person must approve each plan. Copy a new key immediately; it is shown once.</p>${form('key.create',field('Key name','name','text','','required maxlength="80"'),'Create preparation key')}<div id="key-result"></div>${(data.keys || []).map(k => `<article class="card"><strong>${esc(k.name)}</strong><p class="help">${esc(k.id)}</p>${badge(k.revoked_at ? 'Revoked' : 'Active')}${!k.revoked_at ? button('Revoke key','revoke-key',k.id) : ''}</article>`).join('')}</details>${widgetSettings(state,{esc,form,who,time})}${analyticsSettings(state,data,{esc,form,field,who,time})}${businessExports(data.businessExportKinds||[],esc)}<details><summary>Backup & restore</summary><p><a href="/api/backup" download>Download venue backup</a></p><p class="help">Restore requires an empty product destination. Choose a backup archive and type RESTORE. The server validates its integrity and erasure fences.</p><form data-command="backup.restore"><label>Backup archive<input type="file" name="archiveFile" accept=".json,application/json" required></label>${field('Type RESTORE to confirm','confirm','text','','required pattern="RESTORE" autocomplete="off"')}<label>Trusted later backup for erasure journal (optional)<input type="file" name="journalFile" accept=".json,application/json"></label><button type="submit">Restore backup</button></form></details>` : ''}${canEdit() ? `<details><summary>People & invitations</summary><p class="help">Admin manages the floor. Hosts can change assignments and record service observations. Members can read operations. Invitations need your configured production mail; local development suppresses mail.</p>${form('people.invite',field('Person name','displayName','text','','required maxlength="120"')+field('Email','email','email','','required')+select('Role','role',isOwner()?[['member','Read-only staff'],['admin','Manager'],['owner','Owner']]:[['member','Read-only staff']]),'Invite person',false,'inline')}<div>${data.people.map(p=>`<article class="card"><p><strong>${esc(p.displayName)}</strong> · ${esc(p.email)} · ${esc((state.hostIds||[]).includes(p.id)?'host':p.role)} · ${esc(p.status)}</p>${isOwner()?hostGrant(p,state,{esc,form}):''}</article>`).join('')}</div></details>` : ''}`;
   const history=document.createElement('div');history.id='audit-content';$('#settings-content').append(history);audit.mount(history,state,who);
 }
 function renderMoveIn() {
@@ -241,6 +233,7 @@ async function prepare(kind, plan, reason) {
 }
 async function submitForm(el) {
   const command = el.dataset.command, payload = payloadFrom(el);
+  if(command==='venue.onboard'){await execute(command,await onboardingPayload(el,payload));await loadStaff();notice('Restaurant setup and policy acknowledgment saved.','success');return;}
   if (command === 'floor.change') {
     const proposal=floorChangePayload(el);
     await prepare(proposal.kind,proposal.plan,proposal.reason); return;
@@ -281,8 +274,7 @@ async function submitForm(el) {
   if (command === 'table.assign') {
     await prepare(command,{bookingId:payload.bookingId,tableIds:payload.tableIds},payload.reason); return;
   }
-  for (const name of ['startAt','endAt','expectedEndAt','preferredAt']) if (payload[name]) payload[name] = toUtc(payload[name]);
-  if (command === 'service.save' && Date.parse(payload.endAt) <= Date.parse(payload.startAt)) throw new Error('Service end must be after its start.');
+  for (const name of ['startAt','endAt','expectedEndAt','preferredAt']) if (command!=='service.save'&&payload[name]) payload[name] = toUtc(payload[name],payload[name==='endAt'?'endOffset':'startOffset']);
   if(['booking.walkin','waitlist.seat'].includes(command)){
     const reviewPayload={...payload};delete reviewPayload.pacingReason;delete reviewPayload.pacingConfirm;
     const stamp=JSON.stringify(reviewPayload),previous=pacingReviews.get(el);
@@ -314,6 +306,7 @@ document.addEventListener('change', event => {
   if (el.name === 'floor-time') { floorTime = el.value; renderRoom(); }
 });
 document.addEventListener('input', event => {
+  const setup=event.target.closest('form[data-command="venue.onboard"]');if(setup&&event.target.name!=='acknowledge')updatePolicySummary(setup);
   if (event.target.id === 'guest-search') { guestQuery = event.target.value; renderGuestResults().catch(error=>notice(error.message,'error')); }
 });
 document.addEventListener('click', event => {
@@ -345,6 +338,7 @@ document.addEventListener('click', event => {
     $('#reassignment').scrollIntoView({block:'center'}); return;
   }
   busy(async () => {
+    if(action==='onboarding-preview'){const container=el.closest('details'),form=container.querySelector('form[data-command="service.save"]');if(!form.reportValidity())return;const payload=payloadFrom(form);const preview=await api('/api/onboarding/preview',payload);container.querySelector('[data-onboarding-preview]').innerHTML=bookingPreview(preview,{esc,select});notice('Booking page preview ready. No records were created.','success');return;}
     if (action === 'refresh') { await loadStaff(); notice('Venue refreshed.', 'success'); }
     if (action === 'publish') await prepare('service.publish',{serviceId:id},'Publish the reviewed service hours, capacity and table plan.');
     if (action === 'reminders') await prepare('reminders',{serviceId:id},'Prepare a reminder batch for this service for export to the venue’s own sender.');

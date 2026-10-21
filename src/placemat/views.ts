@@ -47,7 +47,7 @@ export async function productPage(request: Request, _env: unknown, actor?: Actor
   const frameHeaders = widget ? bookFrameHeaders(embedOrigins) : { 'frame-ancestors': "'none'", 'x-frame-options': 'DENY' }
   return new Response(request.method === 'HEAD' ? null : `<!doctype html><html lang="en"${frame.htmlClass}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${publicPage ? 'Book a table' : 'Operations'} · ${escape(branding.name)}</title>${fontHead}${frame.head}<link rel="stylesheet" href="/plan.css"><link rel="stylesheet" href="/placemat.css">${widget && !allowed ? '' : '<script type="module" src="/placemat.js"></script>'}${publicPage ? '' : staffPreloads}</head><body data-page="${publicPage ? 'public' : 'staff'}"${allowed ? ` data-embed-origin="${escape(host)}"` : ''}${editor ? ' data-editor' : ''}>${body}</body></html>`, { headers: {
     'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin',
-    'content-security-policy': `default-src 'self'; script-src 'self'; ${frame.policy}; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors ${widget ? frameHeaders['frame-ancestors'] : "'none'"}; form-action 'self'`,
+    'content-security-policy': `default-src 'self'; img-src 'self' data:; script-src 'self'; ${frame.policy}; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors ${widget ? frameHeaders['frame-ancestors'] : "'none'"}; form-action 'self'`,
     ...(frameHeaders['x-frame-options'] ? { 'x-frame-options': frameHeaders['x-frame-options'] } : {}),
   } })
 }

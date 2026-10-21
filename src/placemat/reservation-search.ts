@@ -1,3 +1,4 @@
+import {publicVenue} from './onboarding'
 import {ruleFor} from './booking-rules'
 import {slots} from './availability'
 import {accessTags,accessibleTables} from './assignments'
@@ -32,5 +33,5 @@ export function reservationSearch(state:State,params:URLSearchParams){
  }
  results.sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.serviceName.localeCompare(b.serviceName)||a.serviceId.localeCompare(b.serviceId))
  const exact=results.some(r=>!r.alternative)
- return {venue:state.venue,areas:[...new Set(state.tables.map(t=>t.area??'Dining room'))].sort(),accessTags:[...new Set(state.tables.flatMap(t=>t.accessTags??[]))].sort(),query:{date,partySize,area,requiredAccessTags:context.requiredAccessTags},results,policies,message:exact?'Available times on your date, followed by nearby dates. Times are not held until booking succeeds.':results.length?'No matching times on your date. Choose an available alternative in the next seven days.':'No matching times on this date or the next seven days. Change the date, party size or seating requirements, or contact the venue. No booking has been made.'}
+ return {venue:publicVenue(state.venue),areas:[...new Set(state.tables.map(t=>t.area??'Dining room'))].sort(),accessTags:[...new Set(state.tables.flatMap(t=>t.accessTags??[]))].sort(),query:{date,partySize,area,requiredAccessTags:context.requiredAccessTags},results,policies,message:exact?'Available times on your date, followed by nearby dates. Times are not held until booking succeeds.':results.length?'No matching times on your date. Choose an available alternative in the next seven days.':'No matching times on this date or the next seven days. Change the date, party size or seating requirements, or contact the venue. No booking has been made.'}
 }

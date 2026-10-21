@@ -1,3 +1,5 @@
+import {saveOnboarding} from './onboarding'
+import {serviceInput} from './service-input'
 import {executeServiceNotes,normalizePreorders} from './service-notes'
 import {prepareCloseReport} from './service-close-report'
 import {prepareClosure,approveClosure,followupChange} from './service-changes'
@@ -77,11 +79,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  case 'schedule.save':case 'schedule.preview':case 'schedule.publish':{
   result=executeSchedule(s,actor,p,command,now);break
  }
+ case 'venue.onboard':{result=saveOnboarding(s,actor,p,now);break}
  case 'venue.update':{
   const name=text(p.name,'Venue name',120),timezone=text(p.timezone,'Timezone',80)
   try{new Intl.DateTimeFormat('en',{timeZone:timezone}).format()}catch{fail(400,'Use an IANA timezone such as America/New_York.')}
   if(s.services.length&&timezone!==s.venue.timezone)fail(409,'Keep the venue timezone after creating a service; existing services retain their instants.')
-  result=s.venue={name,timezone};break
+  result=s.venue={...s.venue,name,timezone};break
  }
  case 'server.save':case 'server.break':case 'section.save':case 'kitchen.save':{result=executeStaffing(s,actor,command,p,now);break}
  case 'room.save':{result=saveRoom(s,p);break}
@@ -106,10 +109,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  case 'service.save':{
   const current=p.id?serviceBy(s,p.id):null
   if(current?.status==='published')fail(409,'Published services keep their exact settings. Create another service for a different sitting.')
-  const startAt=instant(p.startAt,'Service start'),endAt=instant(p.endAt,'Service end'),turnMinutes=number(p.turnMinutes,'Turn minutes',15,360)
-  const duration=(Date.parse(endAt)-Date.parse(startAt))/60000
-  if(duration<turnMinutes||duration>1440)fail(400,'Service duration must fit a turn and be no more than 24 hours.')
-  const service={id:current?.id??id(),name:text(p.name,'Service name',120),startAt,endAt,turnMinutes,coverLimit:number(p.coverLimit,'Cover limit',1,500),pacing:normalizePacing(p.pacing??current?.pacing),bookingRules:normalizeRules(p.bookingRules??current?.bookingRules),turnPolicy:normalizeTurnPolicy(p.turnPolicy??current?.turnPolicy,s,{startAt,endAt}),status:'draft' as const,version:(current?.version??0)+1}
+  const service={id:current?.id??id(),...serviceInput(s,p,current),status:'draft' as const,version:(current?.version??0)+1}
   if(current)Object.assign(current,service);else s.services.push(service)
   result=service;break
  }

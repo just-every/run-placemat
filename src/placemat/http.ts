@@ -1,3 +1,6 @@
+import {onboardingPreview} from './onboarding-preview'
+import {onboardingDefaults,publicVenue} from './onboarding'
+import {serviceInput} from './service-input'
 import {kitchen,filterNotes} from './service-notes'
 import {kitchenPage} from './kitchen-view'
 import {preshift,serviceDate,preshiftPdf} from './preshift'
@@ -42,7 +45,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -66,7 +69,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path.startsWith('/api/public/queue/')){
    if(path==='/api/public/queue/services'&&request.method==='GET'){
     const {state}=await load(env.DB)
-    return json({venue:state.venue,services:state.services.filter(s=>s.status==='published'&&!s.closedAt&&Date.parse(s.endAt)>Date.now()).map(s=>({id:s.id,name:s.name,startAt:s.startAt,endAt:s.endAt,publicQueuePaused:s.publicQueuePaused===true,areas:[...new Set(state.tables.map(t=>t.area??'Dining room'))]}))})
+    return json({venue:publicVenue(state.venue),services:state.services.filter(s=>s.status==='published'&&!s.closedAt&&Date.parse(s.endAt)>Date.now()).map(s=>({id:s.id,name:s.name,startAt:s.startAt,endAt:s.endAt,publicQueuePaused:s.publicQueuePaused===true,areas:[...new Set(state.tables.map(t=>t.area??'Dining room'))]}))})
    }
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    originCheck(request,env);const p=await jsonBody(request)
@@ -85,7 +88,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)
-   return json({venue:state.venue,analytics:activeProviders(state,await savedKeys(env.DB)),services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,managerPreorders,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
+   return json({venue:publicVenue(state.venue),analytics:activeProviders(state,await savedKeys(env.DB)),services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,managerPreorders,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
   }
   if(path==='/api/public/analytics'){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
@@ -127,6 +130,14 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   if(path==='/app'){if(actor!.agent)fail(403,'Agent keys use the API.');return productPage(request,env,actor!)}
   if(request.method!=='GET')originCheck(request,env)
+  if(path==='/api/onboarding'){
+   person(actor!,true);if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   return json({defaults:onboardingDefaults()})
+  }
+  if(path==='/api/onboarding/preview'){
+   person(actor!,true);if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   return json(onboardingPreview((await load(env.DB)).state,await jsonBody(request)))
+  }
   if(path.startsWith('/api/business-export/')){
    person(actor!,true)
    if(request.method!=='GET')return json({error:'Method not allowed'},405)

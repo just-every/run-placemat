@@ -78,7 +78,7 @@ function localTime(at:string,timezone:string){
 }
 function channelAllows(s:State,service:Service,row:QueueEntry,startAt:string,now:string){
  const rule=ruleFor(service,'waitlist'),today=localTime(now,s.venue.timezone),arrival=localTime(startAt,s.venue.timezone)
- return row.partySize>=rule.minParty&&row.partySize<=rule.maxParty&&row.partySize<=rule.inquiryAbove&&!rule.blockedStarts.includes(startAt)&&!(arrival.day===today.day&&today.clock>rule.sameDayCutoff)&&(Date.parse(arrival.day)-Date.parse(today.day))/86400000<=rule.horizonDays
+ return row.partySize>=rule.minParty&&row.partySize<=rule.maxParty&&row.partySize<=rule.inquiryAbove&&!rule.blockedStarts.includes(startAt)&&!(rule.sameDayCutoff&&arrival.day===today.day&&today.clock>rule.sameDayCutoff)&&(Date.parse(arrival.day)-Date.parse(today.day))/86400000<=rule.horizonDays
 }
 /** Freeze ongoing occupancy at the supplied clock because fitAt owns a wall-clock default. */
 function fitLedger(s:State,now:string):State{
