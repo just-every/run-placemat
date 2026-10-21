@@ -1,3 +1,4 @@
+import {DEVICE_COOKIE} from './shared-device-cookie'
 import {operatorAuth,type Bindings} from '../auth.server'
 import {actorFor,person,originCheck,jsonBody} from './access'
 import {execute} from './commands'
@@ -6,13 +7,11 @@ import {fail,id,text,type Actor} from './model'
 import {floorStage} from './service-status'
 import {sharedDevicePage} from './shared-device-view'
 export const DEVICE_IDLE_MS=120000
-export const DEVICE_COOKIE='__Host-pm-device'
 const WINDOW=15*60000
 const safeHeaders={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers:safeHeaders})
 const randomHex=(bytes=32)=>Array.from(crypto.getRandomValues(new Uint8Array(bytes)),n=>n.toString(16).padStart(2,'0')).join('')
 const cookie=(token:string)=>`${DEVICE_COOKIE}=${token}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=2592000`
-export const hasDeviceCookie=(request:Request)=>request.headers.get('cookie')?.split(';').some(s=>s.trim().startsWith(DEVICE_COOKIE+'='))??false
 function deviceToken(request:Request){return request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(DEVICE_COOKIE+'='))?.slice(DEVICE_COOKIE.length+1)??''}
 async function digestPin(pin:string,salt:string){
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveBits'])
@@ -90,9 +89,9 @@ export async function sharedDeviceResponse(request:Request,env:Bindings):Promise
   const signedOut=await operatorAuth(env).signOut(request),response=json({registered:true});response.headers.append('set-cookie',signedOut.cookie);response.headers.append('set-cookie',cookie(token));await event(db,'claimed',now,row.id,null);return response
  }
  const row=await device(request,db,now)
- if(path==='/api/hoststand/lock'&&request.method==='POST'){await lock(db,row,now);return json({locked:true})}
+ if(path==='/api/hoststand/lock'&&request.method==='POST'){await lock(db,row,now);const signedOut=await operatorAuth(env).signOut(request),response=json({locked:true});response.headers.append('set-cookie',signedOut.cookie);return response}
  if(path==='/api/hoststand/unlock'&&request.method==='POST'){
-  await lock(db,row,now,'staff-switch');const generation=row.generation+1
+  await lock(db,row,now,'staff-switch');const generation=row.generation+1,signedOut=await operatorAuth(env).signOut(request)
   if(row.blocked_until>now)fail(429,'PIN attempts are temporarily throttled. Try again later.')
   const bucket=await hash(row.id+':pin:'+Math.floor(now/60000)),limit=await db.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>();if(limit!.count>20)fail(429,'PIN attempts are temporarily throttled. Try again later.')
   const p=await jsonBody(request),email=typeof p.email==='string'&&p.email.length<=200?p.email.trim().toLowerCase():'',pin=typeof p.pin==='string'&&/^\d{6,12}$/.test(p.pin)?p.pin:'synthetic-placemat-invalid'
@@ -107,7 +106,7 @@ export async function sharedDeviceResponse(request:Request,env:Bindings):Promise
   if(!staff)return fail(401,'Staff sign-in could not be verified.')
   const accepted=await db.prepare("UPDATE pm_host_devices SET operator_id=?,operator_version=?,pin_version=?,last_action_at=? WHERE id=? AND generation=? AND revoked_at IS NULL AND expires_at>? AND EXISTS(SELECT 1 FROM oa_operators o JOIN pm_host_pins p ON p.operator_id=o.id WHERE o.id=? AND o.status='active' AND o.role='member' AND o.version=? AND p.operator_version=o.version AND p.version=?) AND EXISTS(SELECT 1 FROM pm_state s,json_each(s.data,'$.hostIds') h WHERE s.id=1 AND h.value=?)").bind(staff.id,staff.operator_version,staff.version,now,row.id,generation,now,staff.id,staff.operator_version,staff.version,staff.id).run()
   if(accepted.meta.changes!==1)fail(409,'Host stand authorization changed. Unlock again.')
-  await db.prepare('UPDATE pm_host_pins SET failures=0,blocked_until=0 WHERE operator_id=? AND version=?').bind(staff.id,staff.version).run();await event(db,'unlocked',now,row.id,staff.id);return json({unlocked:true})
+  await db.prepare('UPDATE pm_host_pins SET failures=0,blocked_until=0 WHERE operator_id=? AND version=?').bind(staff.id,staff.version).run();await event(db,'unlocked',now,row.id,staff.id);const response=json({unlocked:true});response.headers.append('set-cookie',signedOut.cookie);return response
  }
  const actor=await currentActor(db,row,now)
  if(path==='/api/hoststand/status'&&request.method==='GET')return json({registered:true,locked:!actor,...actor?{name:actor.name,lockAt:row.last_action_at+DEVICE_IDLE_MS}:{}})

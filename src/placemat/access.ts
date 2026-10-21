@@ -1,4 +1,4 @@
-import {hasDeviceCookie} from './shared-device'
+import {hasDeviceCookie} from './shared-device-cookie'
 import { operatorAuth,type Bindings } from '../auth.server'
 import { fail,type Actor } from './model'
 import { hash,load } from './store'
