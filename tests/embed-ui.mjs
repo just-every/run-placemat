@@ -16,7 +16,7 @@ const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try{
  for(const width of [1440,390]){
-  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000}})
+  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
