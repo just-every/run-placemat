@@ -39,11 +39,11 @@ test('FLOOR-013: dated note history, three guest preorders, source totals, ident
    const body=await (await h.request(path+f.date,{as:host})).text();assert.ok(body.includes(path.includes('.pdf')?first.history[0].text.replaceAll('’',"'"):first.history[0].text));assert.ok(body.includes('Halibut: 10 portions'))
   }
   const before=(await h.api('/api/state')).state
-  await h.api('/api/public/book',publicGuest(f.service,4,{preorders:[{itemId:'unknown',quantity:1}]}),{as:'',status:409})
-  await h.api('/api/public/book',publicGuest(f.service,4,{preorders:[{itemId:f.item.id,quantity:-1}]}),{as:'',status:400})
+  await h.api('/api/public/book',publicGuest(f.service,4,{startAt:new Date(Date.parse(f.service.startAt)+2*3600000).toISOString(),preorders:[{itemId:'unknown',quantity:1}]}),{as:'',status:409})
+  await h.api('/api/public/book',publicGuest(f.service,4,{startAt:new Date(Date.parse(f.service.startAt)+2*3600000).toISOString(),preorders:[{itemId:f.item.id,quantity:-1}]}),{as:'',status:400})
   assert.deepEqual((await h.api('/api/state')).state,before,'FLOOR-013 invalid preorders write nothing')
   await h.command('service.preorder-active',{serviceId:f.service.id,itemId:f.item.id,active:false})
-  await h.api('/api/public/book',publicGuest(f.service,4,{preorders:[{itemId:f.item.id,quantity:1}]}),{as:'',status:409})
+  await h.api('/api/public/book',publicGuest(f.service,4,{startAt:new Date(Date.parse(f.service.startAt)+2*3600000).toISOString(),preorders:[{itemId:f.item.id,quantity:1}]}),{as:'',status:409})
   assert.equal((await h.api(kitchen)).items[0].guestQuantity,6,'FLOOR-013 withdrawal preserves recorded orders')
   const saved=(await h.api('/api/state')).state,archive=await h.api('/api/backup')
   await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/state')).state,saved)
