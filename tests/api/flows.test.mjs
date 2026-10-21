@@ -487,3 +487,44 @@ test('BOUND-001: public reservations, staff actions and exports cannot create gi
   assert.doesNotMatch(doors,forbidden,'BOUND-001: documented API has no value or food-order doors')
  }finally{await h.close()}
 })
+
+test('Shared host stand: owner enrollment, personal PIN switch, attributed seating/moves, throttles, live suspension/revocation and restricted-door refusal',async()=>{
+ const {sharedDeviceFixture}=await import('./shared-device-fixture.mjs'),h=await installation();try{
+  const f=await sharedDeviceFixture(h),as=f.deviceCookie;
+  await h.api('/api/hoststand/devices',{label:'No member enrollment'},{as:f.staff[0].cookie,status:403});
+  await h.api('/api/hoststand/claim',{claimCode:f.registration.claimCode},{as:'',status:409});
+  await h.api('/api/hoststand/floor',undefined,{as,status:423});
+  await f.unlock(0);let view=await f.floor(),firstGeneration=view.generation;assert.equal(view.actor.id,f.staff[0].id);assert.equal(view.actor.name,'Avery Host');
+  for(const value of [f.guest.email,'synthetic-placemat-private-note','synthetic-placemat-private-tag','synthetic-placemat-private-allergy',f.staff[0].pin,f.registration.claimCode])assert.ok(!JSON.stringify(view).includes(value));
+  const action=(command,payload,status=200,generation=view.generation)=>h.api('/api/hoststand/commands',{generation,command,payload},{as,status});
+  await action('booking.stage',{bookingId:f.booking.id,stage:'seated'});await f.unlock(1);view=await f.floor();assert.equal(view.actor.id,f.staff[1].id);
+  await action('booking.move',{bookingId:f.booking.id,tableIds:[f.tables[1].id],version:view.version},409,firstGeneration);
+  await action('booking.move',{bookingId:f.booking.id,tableIds:[f.tables[1].id],version:view.version});
+  const state=(await h.api('/api/state')).state,events=state.audit.filter(e=>e.subject===f.booking.id&&['booking.stage','booking.move'].includes(e.action));assert.deepEqual(events.map(e=>e.actor),f.staff.map(s=>s.id));assert.ok(events.every(e=>e.deviceId===f.registration.id));assert.deepEqual(state.bookings.find(b=>b.id===f.booking.id).tableIds,[f.tables[1].id]);
+  for(const path of ['/api/state','/api/guests','/api/backup','/api/reminders.csv','/api/reports/reservations.csv','/api/agent-keys','/api/audit','/auth/operators'])assert.equal((await h.request(path,{as})).status,401,path);
+  for(const command of ['guest.erase','venue.update','proposal.approve','service.pacing'])await action(command,{bookingId:f.booking.id},403);
+  await action('booking.stage',{bookingId:f.booking.id,stage:'paid'},403);
+  await h.api('/api/hoststand/commands',{generation:view.generation,command:'booking.stage',payload:{bookingId:f.booking.id,stage:'ordering'}},{as,headers:{origin:'https://other.example.test'},status:403});
+  for(let i=0;i<5;i++)await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as,status:i===4?429:401});await f.unlock(0,429);assert.equal((await h.api('/api/hoststand/status',undefined,{as})).locked,true);
+  await f.unlock(1);await h.api('/auth/operator/status',{operatorId:f.staff[1].id,status:'inactive'});await h.api('/api/hoststand/floor',undefined,{as,status:423});await f.unlock(1,401);
+  await h.api('/auth/operator/status',{operatorId:f.staff[1].id,status:'active'});await f.unlock(1,401);
+  const renewed=await h.signIn('synthetic-placemat-renewed@example.test','member','Renewed Host'),operator=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-renewed@example.test');await h.command('team.host',{operatorId:operator.id,enabled:true});await h.api('/api/hoststand/pin',{pin:'161803398874'},{as:renewed});
+  await h.api('/api/hoststand/unlock',{email:operator.email,pin:'161803398874'},{as});await h.command('team.host',{operatorId:operator.id,enabled:false});await h.command('team.host',{operatorId:operator.id,enabled:true});await h.api('/api/hoststand/unlock',{email:operator.email,pin:'161803398874'},{as,status:401});
+  const registration=await h.api('/api/hoststand/devices',{label:'Second stand'},{status:201}),oldManager=await h.signIn('synthetic-placemat-device-manager@example.test','admin');
+  const claimed=await h.request('/api/hoststand/claim',{method:'POST',body:{claimCode:registration.claimCode},as:oldManager});assert.equal(claimed.status,200);await h.api('/auth/operators',undefined,{as:oldManager,status:401});
+  const other=claimed.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='));
+  for(let i=0;i<10;i++)await h.api('/api/hoststand/unlock',{email:`synthetic-placemat-unknown-${i}@example.test`,pin:'999999999999'},{as:other,status:i===9?429:401});
+  await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:other,status:429});
+  const archive=await h.api('/api/backup'),archiveText=JSON.stringify(archive);for(const table of ['pm_host_devices','pm_host_pins','pm_host_security_events'])assert.ok(archive[0].excludedTables.includes(table));for(const secret of [f.registration.claimCode,f.deviceCookie.split('=')[1],...f.staff.map(s=>s.pin)])assert.ok(!archiveText.includes(secret));
+  await h.api('/api/hoststand/revoke',{deviceId:f.registration.id});await h.api('/api/hoststand/status',undefined,{as,status:403});await h.api('/api/hoststand/floor',undefined,{as,status:403});
+ }finally{await h.close()}
+})
+
+
+test('Shared host stand idle lock is enforced by the server despite background status reads', {timeout:140000},async()=>{
+ const {sharedDeviceFixture}=await import('./shared-device-fixture.mjs'),h=await installation();try{
+  const f=await sharedDeviceFixture(h);await f.unlock();const before=await f.floor();
+  for(let i=0;i<4;i++){await new Promise(resolve=>setTimeout(resolve,31000));const status=await h.api('/api/hoststand/status',undefined,{as:f.deviceCookie});assert.equal(status.locked,i===3,'Background status reads do not extend the two-minute lease');}
+  await h.api('/api/hoststand/floor',undefined,{as:f.deviceCookie,status:423});await h.api('/api/hoststand/commands',{generation:before.generation,command:'booking.stage',payload:{bookingId:f.booking.id,stage:'seated'}},{as:f.deviceCookie,status:423});assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===f.booking.id).status,'booked');
+ }finally{await h.close()}
+})

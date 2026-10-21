@@ -1,3 +1,4 @@
+import {deviceFence} from './shared-device'
 import {executeHandover} from './handover'
 import {createInventory} from './seat-inventory'
 import {saveOnboarding} from './onboarding'
@@ -41,6 +42,8 @@ function booking(s:State,bookingId:unknown){return s.bookings.find(b=>b.id===boo
 const plain=(v:any)=>JSON.stringify(v)
 export async function execute(db:D1Database,actor:Actor,command:string,p:any,pacingSecret?:string){
  const {state:s,version}=await load(db),now=new Date().toISOString(),before:D1PreparedStatement[]=[]
+ const priorAuditIds=new Set(s.audit.map(e=>e.id))
+ if(actor.deviceId)before.push(deviceFence(db,actor,Date.parse(now)))
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
  const hostCommands=['booking.handover.complete','booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
@@ -76,7 +79,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
    s.pacingHostIds=[...new Set([...(s.pacingHostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
   }else{
    s.hostIds=[...new Set([...(s.hostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
-   if(!p.enabled)s.pacingHostIds=s.pacingHostIds?.filter(id=>id!==operatorId)
+   if(!p.enabled){s.pacingHostIds=s.pacingHostIds?.filter(id=>id!==operatorId);before.push(db.prepare('DELETE FROM pm_host_pins WHERE operator_id=?').bind(operatorId),db.prepare('UPDATE pm_host_devices SET operator_id=NULL,generation=generation+1 WHERE operator_id=?').bind(operatorId))}
   }
   result={id:operatorId,operatorId,enabled:p.enabled};break
  }
@@ -237,10 +240,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  default:fail(400,'Unknown command.')
  }
  if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings','analytics.remove-key'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??result?.booking?.id??'venue'})
- for(const entry of s.audit)if(entry.at===now&&entry.actor===actor.id)entry.source=actor.agent?'preparation-key':'person'
+ for(const entry of s.audit)if(entry.at===now&&entry.actor===actor.id){entry.source=actor.agent?'preparation-key':'person';if(actor.deviceId&&!priorAuditIds.has(entry.id))entry.deviceId=actor.deviceId}
  if(guestChange)s.audit.at(-1)!.changes=[guestChange]
  if(mergeChanges.length)s.audit.at(-1)!.changes=mergeChanges
- await save(db,s,version,before)
+ try{await save(db,s,version,before)}catch(error){if(actor.deviceId&&String(error).includes('CHECK constraint failed'))fail(409,'Host stand authorization changed. Unlock again.');throw error}
  return result
 }
 export async function onlineBook(db:D1Database,p:any){

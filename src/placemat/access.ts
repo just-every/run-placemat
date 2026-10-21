@@ -1,7 +1,9 @@
+import {hasDeviceCookie} from './shared-device'
 import { operatorAuth,type Bindings } from '../auth.server'
 import { fail,type Actor } from './model'
 import { hash,load } from './store'
 export async function actorFor(request:Request,env:Bindings):Promise<Actor|null>{
+ if(hasDeviceCookie(request))return null
  const bearer=request.headers.get('authorization')
  if(bearer?.startsWith('Bearer ')){
   const key=await env.DB.prepare("SELECT k.id,k.name FROM pm_agent_keys k JOIN oa_operators o ON o.id=k.created_by WHERE k.digest=? AND k.revoked_at IS NULL AND o.role='owner' AND o.status='active'").bind(await hash(bearer.slice(7))).first<{id:string;name:string}>()

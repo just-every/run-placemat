@@ -1,3 +1,4 @@
+import {sharedDeviceResponse} from './shared-device'
 import {projectHandover} from './handover'
 import {onboardingPreview} from './onboarding-preview'
 import {onboardingDefaults,publicVenue} from './onboarding'
@@ -53,8 +54,9 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
  const url=new URL(request.url),path=url.pathname
  let responseActor:Actor|null=null
  const json=(data:any,status=200)=>Response.json(projectHandover(data,responseActor),{status,headers})
- if(!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
+  const shared=await sharedDeviceResponse(request,env);if(shared)return shared
   if(path==='/inquiry'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return inquiryPage(request)}
   if(path.startsWith('/api/public/inquiries/')){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)

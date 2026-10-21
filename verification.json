@@ -32,7 +32,7 @@
         "pnpm run build",
         "pnpm run typecheck",
         "pnpm run test:runtime",
-        "node tests/floor-ui.mjs",
+        "PLACEMAT_FLOOR_ONLY=existing node tests/floor-ui.mjs",
         "node tests/queue-ui.mjs",
         "node tests/search-ui.mjs",
         "node tests/combinations-ui.mjs",
@@ -61,6 +61,14 @@
         "node tests/onboarding-ui.mjs",
         "node tests/guest-review-ui.mjs",
         "node tests/schedules-ui.mjs"
+      ]
+    },
+    {
+      "name": "shared-hoststand",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "PLACEMAT_FLOOR_ONLY=hoststand node tests/floor-ui.mjs"
       ]
     }
   ],

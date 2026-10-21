@@ -11,7 +11,7 @@ const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try{
- for(const width of [1440,390]){
+ for(const width of process.env.PLACEMAT_FLOOR_ONLY==='hoststand'?[]:[1440,390]){
   const h=await installation(),context=await browser.newContext({viewport:{width,height:1000}})
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
@@ -96,3 +96,30 @@ try{
   }finally{await context.close();await h.close()}
  }
 }finally{await browser.close()}
+
+
+// The same real Worker, native sessions and shipped controls cover venue devices.
+if(process.env.PLACEMAT_FLOOR_ONLY!=='existing')for(const width of [1440,390]){
+ const {sharedDeviceFixture}=await import('./api/shared-device-fixture.mjs'),{browserServer}=await import('./browser-server.mjs');
+ const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),personal=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true}),stand=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true});
+ try{
+  const f=await sharedDeviceFixture(h,{enroll:false,pins:false}),errors=[],cookies=token=>token.split('; ').map(value=>{const i=value.indexOf('=');return {name:value.slice(0,i),value:value.slice(i+1),url:transport.origin,secure:true,sameSite:'Lax'}});
+  const page=await personal.newPage(),device=await stand.newPage();for(const p of [page,device])p.on('pageerror',e=>errors.push(e.message));
+  const shot=async(name,p=device,locator)=>{assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Shared stand fits viewport');if(shots)await (locator||p).screenshot({path:resolve(shots,`SEC-002-${name}-${width}.png`),...(locator?{}:{fullPage:true})})};
+  await personal.addCookies(cookies(h.cookie));await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.getByRole('link',{name:'Venue & access',exact:true}).click();
+  await page.getByText('Shared host stands',{exact:true}).click();const enrollment=page.locator('[data-command="hoststand.register"]');await shot('registration',page,enrollment);await enrollment.getByLabel('Host stand name',{exact:true}).fill('Host iPad');await enrollment.getByRole('button',{name:'Create device registration',exact:true}).click();await page.locator('#device-registration pre').waitFor();const claimCode=await page.locator('#device-registration pre').innerText();assert.match(claimCode,/^[a-f0-9]{64}$/);await page.getByRole('button',{name:'Clear registration code',exact:true}).click();
+  for(const staff of f.staff){await personal.clearCookies();await personal.addCookies(cookies(staff.cookie));await page.goto(transport.origin+'/app#settings');await page.getByText('Personal host-stand PIN',{exact:true}).click();const form=page.locator('[data-command="hoststand.pin"]');await shot('personal-pin',page,form);await form.getByLabel('New personal PIN',{exact:true}).fill(staff.pin);await form.getByRole('button',{name:'Save personal PIN',exact:true}).click();await page.getByRole('status').filter({hasText:'Personal PIN saved'}).waitFor();assert.equal(await form.getByLabel('New personal PIN',{exact:true}).inputValue(),'');}
+  await device.goto(transport.origin+'/hoststand');await device.getByLabel('Owner-issued code',{exact:true}).fill(claimCode);await device.getByRole('button',{name:'Register host stand',exact:true}).click();await device.getByRole('heading',{name:'Host stand locked',exact:true}).waitFor();await shot('locked');
+  const unlock=async(staff,success=true)=>{await device.getByLabel('Staff email',{exact:true}).fill(staff.email);await device.getByLabel('Personal PIN',{exact:true}).fill(staff.pin);const started=performance.now();await device.getByRole('button',{name:'Unlock host stand',exact:true}).click();if(success){await device.getByRole('heading',{name:'synthetic-placemat-device-guest',exact:true}).waitFor();const seconds=(performance.now()-started)/1000;assert.ok(seconds<5,`Staff switch completed in ${seconds.toFixed(3)} seconds`);console.log(`SEC-002 PIN switch at ${width}: ${seconds.toFixed(3)} seconds`);}else await device.getByRole('alert').waitFor();};
+  await unlock(f.staff[0]);const party=device.locator(`[data-device-booking="${f.booking.id}"]`);await party.locator('[name=stage]').selectOption('seated');await party.getByRole('button',{name:'Record seating step',exact:true}).click();await device.getByRole('status').filter({hasText:'Seating operation recorded'}).waitFor();await shot('first-host');
+  await device.getByRole('button',{name:'Switch staff',exact:true}).click();await device.getByRole('heading',{name:'Host stand locked',exact:true}).waitFor();assert.ok(!(await device.locator('#host-stand').innerText()).includes('synthetic-placemat-device-guest'));await unlock(f.staff[1]);
+  await party.getByText('Change seats',{exact:true}).click();const move=party.locator('[data-host-action="move"]');await move.locator('[name=tableIds]').selectOption([f.tables[1].id]);await move.getByRole('button',{name:'Move party',exact:true}).click();await device.getByRole('status').filter({hasText:'Seating operation recorded'}).waitFor();const movedAt=Date.now();await shot('second-host');
+  const audited=(await h.api('/api/state')).state.audit.filter(e=>e.subject===f.booking.id&&['booking.stage','booking.move'].includes(e.action));assert.deepEqual(audited.map(e=>e.actor),f.staff.map(s=>s.id));assert.ok(audited.every(e=>e.deviceId));assert.equal((await stand.request.get(transport.origin+'/api/backup')).status(),401);
+  const content=await device.content();for(const value of ['synthetic-placemat-private-note','synthetic-placemat-private-tag','synthetic-placemat-private-allergy',f.guest.email])assert.ok(!content.includes(value));
+  await device.waitForTimeout(Math.max(0,121500-(Date.now()-movedAt)));await device.getByRole('heading',{name:'Host stand locked',exact:true}).waitFor();assert.ok(!(await device.locator('#host-stand').innerText()).includes('synthetic-placemat-device-guest'));await shot('idle-locked');
+  for(let i=0;i<5;i++)await unlock({...f.staff[0],pin:'999999999999'},false);assert.match(await device.getByRole('alert').innerText(),/temporarily throttled/);await shot('throttled');await unlock(f.staff[1]);
+  await h.api('/auth/operator/status',{operatorId:f.staff[1].id,status:'inactive'});await device.reload();await device.getByRole('heading',{name:'Host stand locked',exact:true}).waitFor();await unlock(f.staff[1],false);assert.match(await device.getByRole('alert').innerText(),/could not be verified/);await shot('suspended');
+  await personal.clearCookies();await personal.addCookies(cookies(h.cookie));await page.goto(transport.origin+'/app#settings');await page.getByText('Shared host stands',{exact:true}).click();await page.getByRole('button',{name:'Revoke device',exact:true}).click();await page.getByRole('status').filter({hasText:'Host stand revoked'}).waitFor();await device.reload();await device.getByRole('alert').filter({hasText:'revoked or expired'}).waitFor();await shot('revoked');assert.deepEqual(errors,[]);
+  console.log(`SEC-002 enrollment, personal PINs, two-host attribution, restricted reads, actual idle lock, throttle, suspension and revocation passed at ${width}`);
+ }finally{await personal.close();await stand.close();await browser.close();await transport.close();await h.close()}
+}
