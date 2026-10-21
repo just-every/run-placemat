@@ -41,7 +41,14 @@
         "node tests/pacing-ui.mjs",
         "node tests/performance-ui.mjs",
         "node tests/risk-ui.mjs",
-        "node tests/allocation-ui.mjs",
+        "node tests/allocation-ui.mjs"
+      ]
+    },
+    {
+      "name": "runtime-ui",
+      "browser": true,
+      "hosted": false,
+      "commands": [
         "node tests/inquiries-ui.mjs",
         "node tests/business-export-ui.mjs",
         "node tests/service-changes-ui.mjs",
