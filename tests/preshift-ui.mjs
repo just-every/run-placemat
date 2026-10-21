@@ -24,7 +24,7 @@ for(const width of [1440,390]){
   const download=async()=>{const pending=page.waitForEvent('download');await page.getByRole('link',{name:'Download PDF',exact:true}).click();const file=await pending;assert.equal(await file.failure(),null);return readFile(await file.path(),'utf8')}
   const pdf=await download();assert.match(pdf,/^%PDF-1.4/);assert.ok(pdf.includes('Shellfish'));assert.ok(pdf.includes('Private anniversary planning'))
   await page.evaluate(()=>{window.printed=0;window.print=()=>window.printed++});await page.getByRole('button',{name:'Print sheet',exact:true}).click();assert.equal(await page.evaluate(()=>window.printed),1)
-  await page.emulateMedia({media:'print'});assert.equal(await page.getByRole('navigation',{name:'Sheet actions'}).evaluate(e=>getComputedStyle(e).display),'none');await shot('print');await page.emulateMedia({media:'screen'})
+  await page.emulateMedia({media:'print'});assert.equal(await page.getByRole('navigation',{name:'Sheet actions',includeHidden:true}).evaluate(e=>getComputedStyle(e).display),'none');await shot('print');await page.emulateMedia({media:'screen'})
   const generated=(await article.innerText()).match(/Generated ([^\n]+)/)[1]
   await h.command('booking.status',{bookingId:f.large.id,status:'cancelled'});await h.command('guest.profile',{guestId:f.guest.id,vipLevel:'vip'})
   await page.getByRole('button',{name:'Open sheet',exact:true}).click();assert.ok(!(await article.innerText()).includes('Marcus Chen'));assert.ok((await article.innerText()).includes('2 expected covers'));assert.ok((await article.innerText()).includes('vip'));assert.notEqual((await article.innerText()).match(/Generated ([^\n]+)/)[1],generated);await shot('updated')
