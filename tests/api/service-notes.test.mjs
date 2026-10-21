@@ -53,7 +53,7 @@ test('FLOOR-013: dated note history, three guest preorders, source totals, ident
   const content=new ContentVerifier(invalid[0]),integrity=new ArchiveVerifier(invalid[0])
   for(let i=1;i<invalid.length-1;i++){invalid[i]=await makePart(invalid[i].index,invalid[i].items);integrity.add(invalid[i]);for(const item of invalid[i].items)content.add(item)}
   invalid.at(-1).contentHash=content.digest();invalid.at(-1).archiveHash=integrity.digest()
-  const rejected=await restored.request('/api/restore',{method:'POST',body:{archive:invalid,confirm:'RESTORE'}});assert.equal(rejected.status,500)
+  const rejected=await restored.request('/api/restore',{method:'POST',body:{archive:invalid,confirm:'RESTORE'}});assert.equal(rejected.status,400);assert.match((await rejected.json()).error,/preorder relationship/)
   assert.equal((await restored.api('/api/state')).state.bookings.length,0,'FLOOR-013 invalid relationships never apply partial records')
   await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/state')).state,saved)
   for(const kind of ['service-notes','services','bookings']){
