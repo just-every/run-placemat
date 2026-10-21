@@ -30,21 +30,21 @@ try {
    const owner=(await h.api('/api/state')).actor.id
    await filter.locator('[name=actor]').selectOption(owner);await filter.locator('[name=action]').selectOption('guest.update');await apply()
    assert.equal(await root.locator('[data-audit-entry]').count(),1)
-   await root.locator('article summary').click();assert.match(await root.innerText(),/Priya requested a quiet table/);assert.match(await root.innerText(),/Before[\s\S]*After/)
+   await root.locator('article > details > summary').click();assert.match(await root.innerText(),/Priya requested a quiet table/);assert.match(await root.innerText(),/Before[\s\S]*After/)
    const capture=async name=>{await root.scrollIntoViewIfNeeded();if(shots)await root.screenshot({path:resolve(shots,`AUDIT-001-${name}-${width}.png`)});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'History fits viewport')}
    await capture('person-before-after')
    const pending=page.waitForEvent('download');await root.getByRole('link',{name:'Download filtered history CSV'}).click();const downloaded=await pending
    assert.equal(await downloaded.failure(),null);const csv=csvRecords(await readFile(await downloaded.path(),'utf8'))
    assert.equal(csv.length,1);assert.equal(csv[0].actor,owner);assert.equal(JSON.parse(csv[0].changes_json)[0].after.notes,'Priya requested a quiet table')
    await filter.locator('[name=actor]').selectOption('guest');await filter.locator('[name=action]').selectOption('waitlist.public-update');await apply()
-   await root.locator('article summary').click();const entry=await root.innerText();assert.match(entry,/guest-supplied/);assert.match(entry,/contact Consent[\s\S]*false[\s\S]*true/)
+   await root.locator('article > details > summary').click();const entry=await root.innerText();assert.match(entry,/guest-supplied/);assert.match(entry,/contact Consent[\s\S]*false[\s\S]*true/)
    await capture('guest-consent')
    await filter.locator('[name=action]').selectOption('booking.move');await apply();assert.equal(await root.locator('[data-audit-entry]').count(),0);await capture('empty-filter')
    await h.command('guest.erase',{guestId,confirm:'ERASE'})
    await page.reload();await page.getByRole('link',{name:'Settings',exact:true}).click()
    if(!(await root.locator('details').first().evaluate(el=>el.open)))await root.getByText('Change history',{exact:true}).click()
    await root.getByText(/history entr(?:y|ies)$/).waitFor()
-   await root.locator('[name=actor]').selectOption(owner);await root.locator('[name=action]').selectOption('guest.update');await apply();await root.locator('article summary').click()
+   await root.locator('[name=actor]').selectOption(owner);await root.locator('[name=action]').selectOption('guest.update');await apply();await root.locator('article > details > summary').click()
    assert.doesNotMatch(await root.innerText(),/Priya|quiet table|shellfish/);assert.match(await root.innerText(),/redacted/);await capture('erased-history')
    const history=(await h.api('/api/audit')).rows,archive=await h.api('/api/backup'),restored=await installation()
    try {await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/audit')).rows,history,'AUDIT-001: redacted history survives empty-destination restore without returning personal values')}
