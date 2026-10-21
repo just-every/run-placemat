@@ -190,7 +190,16 @@ test('GUEST-004: merge journal exports and validated restore reconcile; erasure 
   assert.equal((await restored.api('/api/state')).state.bookings.length,0)
   await restored.api('/api/restore',{archive,confirm:'RESTORE'})
   assert.deepEqual((await restored.api(journalPath)).merges,merges);assert.deepEqual((await restored.api('/api/state')).state,state.state)
-  await h.command('guest.erase',{guestId:f.b.id,confirm:'ERASE'})
+  const third=await h.command('waitlist.add',publicGuest(f.s,4,{name:'Alex Rivera',email:'alex.concurrent@example.test',phone:f.a.phone})),thirdPreview=await h.api('/api/guests/merge-preview?guestId='+f.a.id+'&duplicateId='+third.guestId)
+  const race=await Promise.all([
+   h.request('/api/commands',{method:'POST',body:{command:'guest.erase',payload:{guestId:f.b.id,confirm:'ERASE'}}}),
+   h.request('/api/commands',{method:'POST',body:{command:'guest.merge',payload:{guestId:f.a.id,duplicateId:third.guestId,review:thirdPreview.review,confirm:'MERGE'}}})
+  ])
+  for(const response of race)assert.ok([200,409].includes(response.status),'Identity/erasure races either commit safely or refuse')
+  if(race[0].status===200){
+   const afterRace=JSON.stringify([await h.api(journalPath),await h.api('/api/backup')])
+   for(const value of [f.a.email,f.b.email])assert.ok(!afterRace.includes(value),'A concurrent merge cannot keep erased identity snapshots')
+  }else await h.command('guest.erase',{guestId:f.b.id,confirm:'ERASE'})
   const purged=(await h.api(journalPath)).merges[0];assert.equal(purged.status,'erased');assert.equal(purged.snapshots,undefined)
   await h.api('/api/guests/unmerge-preview?mergeId='+purged.id,undefined,{status:409})
   await h.command('guest.unmerge',{mergeId:purged.id,review:preview.review,confirm:'UNMERGE'},{status:409})
