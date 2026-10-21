@@ -152,17 +152,19 @@ function renderWaitlist() {
   $('#waitlist-content').innerHTML = `<p class="help">${esc(s?.name || 'Choose or create a service first.')} · arrival times use ${esc(zone())}</p>${renderQueue(rows,{esc,who,time,guest,canEdit:canEdit(),canSeat:canSeat(),canIntake:canIntake(),form,field,select,seatFields:()=>startField()+tableField()+field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"')})}${canIntake() && s?.status === 'published' && !s.closedAt ? `<details><summary>Add a waiting party</summary>${form('waitlist.add',serviceField()+personFields()+queueIntakeFields({field,timezone:zone()}),'Add to waitlist')}</details>` : ''}<div id="queue-management-link"></div>${canEdit()?intakeSettings(s,{esc,form}):''}${canEdit()&&s?.status==='published'?queueCloseForm(s,{esc,form,field,time}):''}`;
 }
 
+function expandedGuests() {return [...document.querySelectorAll('#guest-results > details[open]')].map(card=>card.querySelector('[data-action=guest-review]')?.dataset.id);}
 function renderGuests() {
+  const expanded=expandedGuests();
   $('#guests-content').innerHTML = `<label class="search-field"><span class="search-label">${searchIcon}Find a guest</span><input type="search" id="guest-search" value="${esc(guestQuery)}" placeholder="Name, email or phone"></label><div id="guest-results"></div>`;
-  renderGuestResults().catch(error=>notice(error.message,'error'));
+  renderGuestResults(expanded).catch(error=>notice(error.message,'error'));
 }
-async function renderGuestResults() {
+async function renderGuestResults(expanded=expandedGuests()) {
   const query=guestQuery;
   const rows=(await api('/api/guests?search='+encodeURIComponent(query))).guests;
   if(query!==guestQuery)return;
   $('#guest-results').innerHTML = rows.map(g => {
     const visits = [...(g.history || []), ...state.bookings.filter(b => b.guestId === g.id).map(b => ({date:b.startAt, partySize:b.partySize, status:b.status}))].sort((a,b) => b.date.localeCompare(a.date));
-    return `<details class="card guest"><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}<button type="button" data-action="guest-review" data-id="${esc(g.id)}" aria-expanded="false">Review possible duplicates</button><div data-guest-review aria-live="polite"></div></div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
+    return `<details class="card guest"${expanded.includes(g.id)?' open':''}><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}<button type="button" data-action="guest-review" data-id="${esc(g.id)}" aria-expanded="false">Review possible duplicates</button><div data-guest-review aria-live="polite"></div></div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
   }).join('') || empty(guestQuery ? 'No guests match your search.' : 'Guests appear here after a booking, walk-in, waitlist entry or import.');
 }
 function proposalDescription(p) {
