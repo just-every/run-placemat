@@ -12,7 +12,14 @@ export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Acto
  const rows=(await db.prepare('SELECT id,version,data FROM pm_guest_merges').all()).results as Array<{id:string;version:number;data:string}>
  const journals=rows.map(row=>({...row,journal:JSON.parse(row.data)}))
  const ids=new Set([guestId])
- for(let changed=true;changed;){changed=false;for(const {journal:j} of journals)if(j.status==='merged'&&(ids.has(j.guestId)||ids.has(j.duplicateId)))for(const id of [j.guestId,j.duplicateId])if(!ids.has(id)){ids.add(id);changed=true}}
+ const people=(await db.prepare('SELECT data FROM pm_guests').all()).results.map(row=>JSON.parse(row.data) as Guest)
+ for(let changed=true;changed;){
+  changed=false
+  for(const {journal:j} of journals)if(j.status==='merged'&&(ids.has(j.guestId)||ids.has(j.duplicateId)))for(const id of [j.guestId,j.duplicateId])if(!ids.has(id)){ids.add(id);changed=true}
+  // A later-edited survivor can still hold a reviewed identity after reversal.
+  // Its contact provenance identifies that unresolved joint profile explicitly.
+  for(const g of people)if(!g.erased&&(ids.has(g.id)||(g.contacts??[]).some(c=>ids.has(c.sourceGuestId))))for(const id of [g.id,...(g.contacts??[]).map(c=>c.sourceGuestId)])if(!ids.has(id)){ids.add(id);changed=true}
+ }
  const related=journals.filter(({journal:j})=>ids.has(j.guestId)||ids.has(j.duplicateId))
  const purge:D1Sql[]=related.flatMap(row=>{
   const j={id:row.id,guestId:row.journal.guestId,duplicateId:row.journal.duplicateId,status:'erased',createdAt:row.journal.createdAt,createdBy:row.journal.createdBy,purgedAt:new Date().toISOString()}

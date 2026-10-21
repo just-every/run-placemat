@@ -24,6 +24,8 @@ async function pair(db:D1Database,guestId:string,duplicateId:string){
  if(typeof guestId!=='string'||typeof duplicateId!=='string'||guestId===duplicateId)fail(400,'Choose two different guest profiles.')
  const [survivor,duplicate]=await Promise.all([guestRow(db,guestId),guestRow(db,duplicateId)])
  active(survivor);active(duplicate)
+ const dependent=await db.prepare("SELECT 1 FROM pm_guests WHERE json_extract(data,'$.mergedInto')=? LIMIT 1").bind(duplicateId).first()
+ if(dependent)fail(409,'This duplicate already has merged aliases. Keep it as the selected profile or reverse its existing merge first.')
  const a=survivor.guest,b=duplicate.guest,phone=normalizedGuestPhone(a.phone),sharedPhone=!!phone&&phone===normalizedGuestPhone(b.phone),sameName=normalizedGuestName(a.name)===normalizedGuestName(b.name),sharedEmail=!!normalizedGuestEmail(a.email)&&normalizedGuestEmail(a.email)===normalizedGuestEmail(b.email)
  if(sharedPhone&&!sameName||!sharedEmail&&!(sharedPhone&&sameName))fail(409,'These profiles are not a duplicate suggestion. Shared household contacts never authorize a merge.')
  return {survivor,duplicate}
@@ -140,6 +142,8 @@ async function unmergeContext(db:D1Database,state:State,mergeId:string){
  const [survivor,duplicate]=await Promise.all([guestRow(db,journal.guestId),guestRow(db,journal.duplicateId)])
  if(survivor.guest.erased||duplicate.guest.erased)fail(409,'An erased guest prevents reversal of this merge.')
  if(survivor.guest.mergedInto||duplicate.guest.mergedInto!==survivor.guest.id)fail(409,'A later merge changed these identities. Reverse the later merge first.')
+ const later=await db.prepare("SELECT 1 FROM pm_guest_merges WHERE rowid>(SELECT rowid FROM pm_guest_merges WHERE id=?) AND json_extract(data,'$.status')='merged' AND (json_extract(data,'$.guestId') IN (?,?) OR json_extract(data,'$.duplicateId') IN (?,?)) LIMIT 1").bind(mergeId,journal.guestId,journal.duplicateId,journal.guestId,journal.duplicateId).first()
+ if(later)fail(409,'A later merge uses these identities. Reverse the later merge first.')
  const plan=planUnmerge(state,journal,survivor,duplicate)
  const review=await hash(canonicalJson({journal:{version:row.version,data:journal},survivor,duplicate,records:linked(state,[journal.guestId,journal.duplicateId]),laterEvents:plan.laterEvents}))
  return {row,journal,survivor,duplicate,plan,review}

@@ -19,7 +19,7 @@ export function validateGuestMerges(people,rows,state){
   }
   if(guests.get(j.guestId).erased||guests.get(j.duplicateId).erased)invalid('Erased guest retains merge snapshots')
   const snapshots=j.snapshots
-  if(!snapshots||!snapshots.guests||!Array.isArray(snapshots.records))invalid('Missing guest merge snapshots')
+  if(!snapshots||!snapshots.guests||!Array.isArray(snapshots.records)||!Array.isArray(snapshots.auditIds)||snapshots.auditIds.some(id=>typeof id!=='string'))invalid('Missing guest merge snapshots')
   for(const [key,id] of [['survivor',j.guestId],['duplicate',j.duplicateId]]){
    const entry=snapshots.guests[key]
    if(!entry||!guest(entry.before)||!guest(entry.after)||entry.before.id!==id||entry.after.id!==id||!Number.isInteger(entry.afterVersion)||entry.afterVersion<1||entry.before.erased||entry.after.erased)invalid('Invalid guest merge profile snapshot')

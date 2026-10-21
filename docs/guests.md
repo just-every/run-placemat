@@ -26,6 +26,6 @@ When a guest asks you to remove their details, the owner expands **Erase persona
 
 Placemat removes the guest's name, contact details, profile preferences, dated notes and their sources, and their details held for an import. Their bookings stay, without anything that identifies them, so your covers and history still add up. The same contact details cannot be imported again. Erasure cannot reach files that were already downloaded and kept outside Placemat, such as an exported reminders CSV.
 
-For an actively merged identity, erasure includes the reviewed aliases. It removes the merge snapshots and permanently prevents reversal. Previously reversed profiles stay separate; their shared journal snapshots are still removed.
+Erasure includes reviewed aliases and any later-edited profile that still retains that merged identity pending assignment. It removes the merge snapshots and permanently prevents reversal. Previously reversed profiles stay separate; their shared journal snapshots are still removed.
 
 Only the owner can erase guests.

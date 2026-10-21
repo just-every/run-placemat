@@ -132,6 +132,22 @@ test('GUEST-004: exact identity suggestions separate households; reviewed manage
   // Name alone, phone suffixes and email dot/plus rewrites are never duplicate evidence.
   const onlyName=await h.command('waitlist.add',publicGuest(f.s,3,{name:'Alex Rivera',phone:'+1 650 555 0199',email:'alex.one+different@example.test'}))
   assert.ok(!(await h.api('/api/guests?review='+f.a.id)).review.candidates.some(c=>c.guest.id===onlyName.guestId))
+  const third=await h.command('waitlist.add',publicGuest(f.s,4,{name:'Alex Rivera',phone:f.a.phone,email:'alex.three@example.test'}))
+  const again=await h.api(path),firstMerge=await h.command('guest.merge',{...payload,review:again.review})
+  const thirdPath='/api/guests/merge-preview?guestId='+f.a.id+'&duplicateId='+third.guestId,thirdPreview=await h.api(thirdPath)
+  const laterMerge=await h.command('guest.merge',{guestId:f.a.id,duplicateId:third.guestId,review:thirdPreview.review,confirm:'MERGE'})
+  await h.api('/api/guests/unmerge-preview?mergeId='+firstMerge.id,undefined,{status:409})
+  const lastUndo=await h.api('/api/guests/unmerge-preview?mergeId='+laterMerge.id)
+  await h.command('guest.unmerge',{mergeId:laterMerge.id,review:lastUndo.review,confirm:'UNMERGE'})
+  await h.command('guest.profile',{guestId:f.a.id,notes:'Later person-entered correction'})
+  const firstUndo=await h.api('/api/guests/unmerge-preview?mergeId='+firstMerge.id)
+  assert.ok(firstUndo.laterRecords.some(r=>r.kind==='guests'&&r.id===f.a.id))
+  await h.command('guest.unmerge',{mergeId:firstMerge.id,review:firstUndo.review,confirm:'UNMERGE'})
+  assert.equal((await h.api('/api/guests?search=alex.one')).guests[0].notes,'Later person-entered correction')
+  // Pending combined identities remain in scope for erasure after a later edit.
+  await h.command('guest.erase',{guestId:f.b.id,confirm:'ERASE'})
+  assert.deepEqual((await h.api('/api/guests?search=alex.one')).guests,[])
+  assert.ok(!JSON.stringify(await h.api('/api/backup')).includes(f.b.email))
  }finally{await h.close()}
 })
 
