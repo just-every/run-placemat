@@ -123,13 +123,14 @@ function utilizationReport(state:State,serviceId:string,rows:TimelineRow[],now:s
   const observed=(spans.get(table.id)??[]).map(span=>({...span,end:Math.min(span.end,availableEnd)})).filter(span=>span.end>span.start)
   const observedSeatMinutes=unionMinutes(observed)*table.seats
   const availableSeatMinutes=Math.max(0,availableEnd-start)/60000*table.seats
-  return {tableId:table.id,seats:table.seats,observedSeatMinutes,completedSeatMinutes:unionMinutes(observed.filter(v=>v.completed))*table.seats,availableSeatMinutes,
+  return {tableId:table.id,inventoryKind:table.inventoryKind??null,seats:table.seats,observedSeatMinutes,completedSeatMinutes:unionMinutes(observed.filter(v=>v.completed))*table.seats,availableSeatMinutes,
    bookingIds:[...new Set(observed.map(v=>v.bookingId))]}
  })
- const observedSeatMinutes=tableRows.reduce((n,t)=>n+t.observedSeatMinutes,0),availableSeatMinutes=tableRows.reduce((n,t)=>n+t.availableSeatMinutes,0)
- return {observedSeatMinutes,completedSeatMinutes:tableRows.reduce((n,t)=>n+t.completedSeatMinutes,0),availableSeatMinutes,
+ const poolRows=tableRows.filter(t=>t.inventoryKind==='pool'),physicalRows=tableRows.filter(t=>t.inventoryKind!=='pool')
+ const observedSeatMinutes=physicalRows.reduce((n,t)=>n+t.observedSeatMinutes,0),availableSeatMinutes=physicalRows.reduce((n,t)=>n+t.availableSeatMinutes,0)
+ return {pool:{observedCoverMinutes:poolRows.reduce((n,t)=>n+t.observedSeatMinutes,0),availableCoverMinutes:poolRows.reduce((n,t)=>n+t.availableSeatMinutes,0),covers:poolRows},observedSeatMinutes,completedSeatMinutes:physicalRows.reduce((n,t)=>n+t.completedSeatMinutes,0),availableSeatMinutes,
   ratio:availableSeatMinutes?observedSeatMinutes/availableSeatMinutes:null,sampleSize:known.length,missing:missing.length,
-  bookingIds:known,missingBookingIds:missing,ongoingBookingIds:ongoing,tables:tableRows}
+  bookingIds:known,missingBookingIds:missing,ongoingBookingIds:ongoing,tables:physicalRows}
 }
 
 /** Private, guest-free calculated data; callers own immutable snapshot persistence. */
@@ -154,7 +155,7 @@ export function performanceReport(state:State,serviceId:string,now=new Date().to
    arrival:'Only a corrected recorded arrival contributes lateness; early arrivals contribute zero. A staff seating observation also records arrival when no earlier arrival exists.',
    waits:'Quotes are staff-recorded ranges, not provider estimates. Actual wait requires recorded intake and seating or terminal disposition. Quote deviation is actual wait minus the nearest quoted bound, zero inside the range; negative is earlier, positive later.',
    staffing:'Assigned expected covers use current assignments of booked, seated and completed reservations. Attended covers use the serving event at the corrected actual seating instant, never a later assignment. Each party contributes once per server and section; seated and completed split attended covers. Missing seating assignment history is reported separately.',
-   utilization:'Occupied physical table seats × observed dining minutes / available physical table seats × service minutes. This measures table seating capacity occupied, not estimated guest distribution within joined tables. Each table is counted once; overlapping observed intervals are unioned per physical table. Corrected completed observations and explicitly identified ongoing observations with known seat times contribute, clipped to service bounds and recorded table retirement. Assignment audits restore historical tables; missing times are excluded and counted. Setup and cleanup are excluded.',
+   utilization:'Counter seats count individually. Anonymous pool covers are excluded from physical-seat utilization and have separate cover-minute totals. Occupied physical table seats × observed dining minutes / available physical table seats × service minutes. This measures table seating capacity occupied, not estimated guest distribution within joined tables. Each table is counted once; overlapping observed intervals are unioned per physical table. Corrected completed observations and explicitly identified ongoing observations with known seat times contribute, clipped to service bounds and recorded table retirement. Assignment audits restore historical tables; missing times are excluded and counted. Setup and cleanup are excluded.',
    corrections:'Service histories retain original and correction event ids, actors, receipt times, and before/after facts. Reasons, guest names, contacts and notes are excluded. Published snapshots are retained by the caller; this calculation does not rewrite them.'}}
 }
 

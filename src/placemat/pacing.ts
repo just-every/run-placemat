@@ -55,6 +55,13 @@ export function pacingViolations(s:State,service:Service,candidate:Candidate,now
   const window=diningInterval(party,now),inArea=bookings.filter(b=>areasFor(s,b).includes(area)),current=concurrentCovers(inArea,now,window)
   check('area-concurrent-covers',`${area} kitchen concurrent cover cap`,cap,current,concurrentCovers([...inArea,party],now,window))
  }
+ for(const inventory of s.inventories??[]){
+  const units=new Set((s.allocationTables??s.tables).filter(t=>t.inventoryId===inventory.id).map(t=>t.id))
+  if(!party.tableIds.some(id=>units.has(id)))continue
+  const window=arrivalWindow(service,{...normalizePacing(undefined),intervalMinutes:inventory.intervalMinutes},party.startAt)
+  const current=covers(bookings.filter(b=>b.tableIds.some(id=>units.has(id))&&inWindow(b,window)))
+  check('inventory-arrival-covers',`${inventory.name} arrival covers`,inventory.arrivalCovers,current,current+party.partySize)
+ }
  const policy=policyFor(service)
  if(!policy)return violations
  const window=arrivalWindow(service,policy,party.startAt),arrivals=bookings.filter(b=>inWindow(b,window)),arrivalCovers=covers(arrivals)

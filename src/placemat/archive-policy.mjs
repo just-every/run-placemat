@@ -49,6 +49,22 @@ export default {
   validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
   validateOnboarding(s)
+  const inventoryIds=new Set()
+  for(const i of s.inventories??[]){
+   if(!i||typeof i.id!=='string'||inventoryIds.has(i.id)||typeof i.name!=='string'||!i.name.trim()||!['counter','pool'].includes(i.kind)||!Number.isInteger(i.capacity)||i.capacity<1||i.capacity>40||!Number.isInteger(i.turnMinutes)||i.turnMinutes<15||i.turnMinutes>360||!Number.isInteger(i.arrivalCovers)||i.arrivalCovers<1||i.arrivalCovers>500||!Number.isInteger(i.intervalMinutes)||i.intervalMinutes<5||i.intervalMinutes>120||typeof i.adjacent!=='boolean')throw Error('Invalid seat inventory')
+   inventoryIds.add(i.id)
+   const units=s.tables.filter(t=>t.inventoryId===i.id)
+   if(units.length!==i.capacity||new Set(units.map(t=>t.ordinal)).size!==i.capacity||units.some(t=>t.inventoryKind!==i.kind||t.inventoryTurnMinutes!==i.turnMinutes||t.seats!==1||!Number.isInteger(t.ordinal)||t.ordinal<1||t.ordinal>i.capacity||t.area!==i.name||t.retiredAt))throw Error('Invalid inventory units')
+  }
+  if(s.tables.some(t=>(t.inventoryId!==undefined||t.inventoryKind!==undefined)&&!inventoryIds.has(t.inventoryId)))throw Error('Unknown seat inventory')
+  for(const b of s.bookings){
+   const units=b.tableIds.map(id=>s.tables.find(t=>t.id===id))
+   if(!units.some(t=>t?.inventoryId))continue
+   const inventory=(s.inventories??[]).find(i=>i.id===units[0]?.inventoryId)
+   if(!inventory||units.some(t=>t?.inventoryId!==inventory.id)||units.length!==b.partySize||new Set(b.tableIds).size!==b.tableIds.length||inventory.kind==='pool'&&b.status==='seated')throw Error('Invalid inventory booking')
+   const ordinals=units.map(t=>t.ordinal).sort((a,b)=>a-b)
+   if(inventory.adjacent&&ordinals.some((n,index)=>n!==ordinals[0]+index))throw Error('Invalid adjacent seats')
+  }
   if(s.rooms!==undefined&&(!Array.isArray(s.rooms)||s.rooms.some(r=>!r||typeof r.id!=='string'||typeof r.name!=='string'||!r.name.trim()||!['indoor','outdoor','bar'].includes(r.kind))||new Set(s.rooms.map(r=>r.id)).size!==s.rooms.length||new Set(s.rooms.map(r=>r.name.toLowerCase())).size!==s.rooms.length))throw Error('Invalid rooms')
   if(s.tables.some(t=>!t||t.shape!==undefined&&!['round','square','rectangle','bar'].includes(t.shape)||t.retiredAt!==undefined&&(typeof t.retiredAt!=='string'||!Number.isFinite(Date.parse(t.retiredAt)))))throw Error('Invalid table shape or retirement')
   const tables=new Set(s.tables.map(t=>t.id)),services=new Set(s.services.map(t=>t.id))

@@ -1,3 +1,4 @@
+import {tableTurn} from './turn-policy'
 import {assertServiceBlocks,assertClosureAssignment} from './service-blocks'
 import {assertInventory} from './direct-inventory'
 import {assertPacing} from './pacing'
@@ -33,7 +34,10 @@ export function assignmentChange(s:State,b:Booking,tableIds:unknown,preserve=fal
  assertClosureAssignment(s,b,tableIds)
  const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
  assertInventory(s,Array.isArray(tableIds)?tableIds:[],b.setupStartAt??b.startAt,b.cleanupEndAt??b.endAt,b.source)
- return assignmentFor(s,tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,preserve?b:undefined)
+ const destination=assignmentFor(s,tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,preserve?b:undefined)
+ if(b.status==='seated'&&destination.tables.some(t=>t.inventoryKind==='pool'))fail(409,'A seated party needs physical seats, not unassigned pool covers.')
+ if(!preserve&&(destination.tables.some(t=>t.inventoryId)||b.tableIds.some(id=>s.tables.find(t=>t.id===id)?.inventoryId))&&destination.tables.some(t=>tableTurn(service,t,b.partySize)*60000>Date.parse(b.endAt)-Date.parse(b.startAt)))fail(409,'The destination turn exceeds the promised reservation; choose a fitting assignment.')
+ return destination
 }
 export function applyAssignment(b:Booking,assignment:ReturnType<typeof assignmentFor>&{serving?:ServingAssignment|null},context?:{actor:string;at:string;action:string;reason?:string}){
  if(assignment.serving!==undefined){if(context)recordServing(b,assignment.serving,context.actor,context.at,context.action,context.reason,true);else if(assignment.serving)Object.assign(b,assignment.serving);else{delete b.serverId;delete b.sectionId;delete b.serverName;delete b.sectionName}}

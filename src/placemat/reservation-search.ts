@@ -10,7 +10,7 @@ export const localDay=(at:string,zone:string)=>new Intl.DateTimeFormat('en-CA',{
 export function searchTables(state:State,area:unknown,tags:unknown){
  const requiredArea=area===undefined||area===''?undefined:text(area,'Dining area',80)
  const requiredAccessTags=accessTags(tags,'Required access tags'),filtered=accessibleTables(state,requiredAccessTags)
- return {requiredArea,requiredAccessTags,state:{...filtered,tables:filtered.tables.filter(t=>!requiredArea||(t.area??'Dining room')===requiredArea)}}
+ return {requiredArea,requiredAccessTags,state:{...filtered,tables:filtered.tables.filter(t=>(t.inventoryKind!=='pool'||requiredArea===t.area)&&(!requiredArea||(t.area??'Dining room')===requiredArea))}}
 }
 
 export function reservationSearch(state:State,params:URLSearchParams){
@@ -33,5 +33,5 @@ export function reservationSearch(state:State,params:URLSearchParams){
  }
  results.sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.serviceName.localeCompare(b.serviceName)||a.serviceId.localeCompare(b.serviceId))
  const exact=results.some(r=>!r.alternative)
- return {venue:publicVenue(state.venue),areas:[...new Set(state.tables.map(t=>t.area??'Dining room'))].sort(),accessTags:[...new Set(state.tables.flatMap(t=>t.accessTags??[]))].sort(),query:{date,partySize,area,requiredAccessTags:context.requiredAccessTags},results,policies,message:exact?'Available times on your date, followed by nearby dates. Times are not held until booking succeeds.':results.length?'No matching times on your date. Choose an available alternative in the next seven days.':'No matching times on this date or the next seven days. Change the date, party size or seating requirements, or contact the venue. No booking has been made.'}
+ return {inventoryOptions:(state.inventories??[]).map(i=>({...i,units:state.tables.filter(t=>t.inventoryId===i.id).map(t=>({id:t.id,label:t.label,ordinal:t.ordinal}))})),venue:publicVenue(state.venue),areas:[...new Set(state.tables.map(t=>t.area??'Dining room'))].sort(),accessTags:[...new Set(state.tables.flatMap(t=>t.accessTags??[]))].sort(),query:{date,partySize,area,requiredAccessTags:context.requiredAccessTags},results,policies,message:exact?'Available times on your date, followed by nearby dates. Times are not held until booking succeeds.':results.length?'No matching times on your date. Choose an available alternative in the next seven days.':'No matching times on this date or the next seven days. Change the date, party size or seating requirements, or contact the venue. No booking has been made.'}
 }

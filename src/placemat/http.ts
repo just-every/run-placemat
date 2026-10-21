@@ -154,7 +154,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const {state}=await load(env.DB),serviceId=text(url.searchParams.get('serviceId'),'Service')
    const bookings=state.bookings.filter(b=>b.serviceId===serviceId)
    const now=new Date().toISOString()
-   return json({...adviseAllocations(state,serviceId,now),inventory:adviseInventory(state,serviceId,now),shifts:adviseShiftAdjustments(state,serviceId,now),current:{bookedCovers:bookings.filter(b=>b.status==='booked').reduce((n,b)=>n+b.partySize,0),seatedCovers:bookings.filter(b=>b.status==='seated').reduce((n,b)=>n+b.partySize,0),physicalSeats:state.tables.filter(t=>!t.retiredAt).reduce((n,t)=>n+t.seats,0)}})
+   return json({...adviseAllocations(state,serviceId,now),inventory:adviseInventory(state,serviceId,now),shifts:adviseShiftAdjustments(state,serviceId,now),current:{bookedCovers:bookings.filter(b=>b.status==='booked').reduce((n,b)=>n+b.partySize,0),seatedCovers:bookings.filter(b=>b.status==='seated').reduce((n,b)=>n+b.partySize,0),physicalSeats:state.tables.filter(t=>!t.retiredAt&&t.inventoryKind!=='pool').reduce((n,t)=>n+t.seats,0)}})
   }
   if(path==='/api/reports/closed'||path==='/api/reports/closed.csv'||path==='/api/reports/closed.pdf'){
    person(actor!)

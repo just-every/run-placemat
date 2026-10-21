@@ -31,7 +31,8 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
       area: String(values.get('area') || ''), requiredAccessTags: values.getAll('requiredAccessTags').map(String)};
   }
   function constraints() {
-    return `${query.partySize} guests · ${query.area ? `Area guaranteed: ${query.area}` : 'Any available area'} · ${query.requiredAccessTags.length ? `Required access guaranteed: ${query.requiredAccessTags.join(', ')}` : 'No access requirements selected'}`;
+    const inventory=response?.inventoryOptions?.find(i=>i.name===query.area);
+    return `${query.partySize} guests · ${inventory?`${inventory.kind==='pool'?'Unassigned covers':'Counter seats'}: ${query.area}; hosts may transfer to physical seating`:query.area ? `Area guaranteed: ${query.area}` : 'Any available area'} · ${query.requiredAccessTags.length ? `Required access guaranteed: ${query.requiredAccessTags.join(', ')}` : 'No access requirements selected'}`;
   }
   function slotLabel(slot) {
     return `${slot.alternative ? 'Nearby date alternative' : 'Requested date'} · ${fullTime(slot.startAt)} · ${slot.serviceName} · until ${fullTime(slot.endAt)}`;
@@ -74,7 +75,14 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   function renderBooking() {
     const target = find('#public-booking-form');
     if (!selected) { target.innerHTML = ''; return; }
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${requestFields(field,requests?.requests)}${preorderFields(menus.get(selected.serviceId),{esc,field})}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${counterSeats()}${requestFields(field,requests?.requests)}${preorderFields(menus.get(selected.serviceId),{esc,field})}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
+  }
+  function counterSeats(){
+    const inventory=response?.inventoryOptions?.find(i=>i.name===query.area&&i.kind==='counter');
+    if(!inventory)return '';
+    const units=[...inventory.units].sort((a,b)=>a.ordinal-b.ordinal),choices=[['','Assign available seats']];
+    for(let i=0;i+query.partySize<=units.length;i++)choices.push([units.slice(i,i+query.partySize).map(t=>t.id).join(','),units.slice(i,i+query.partySize).map(t=>t.label).join(', ')]);
+    return select('Counter seats','counterSeats',choices).replace(' required','');
   }
   async function search(nextQuery) {
     query = nextQuery;
@@ -100,7 +108,9 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
     const embedOrigin = document.body.dataset.embedOrigin;
     const payload = {...contact,...requests, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
+      ...(find('[name="counterSeats"]')?.value?{tableIds:find('[name="counterSeats"]').value.split(',')} : {}),
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
+    const seats=find('[name="counterSeats"]');if(seats)seats.required=false;
     let result;
     try { result = (await api('/api/public/book', payload)).result; }
     catch (error) {
@@ -113,7 +123,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
       }
       throw error;
     }
-    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(contact.name)}, your table for ${query.partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(constraints())}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${action('Make another booking', 'another')}</article>`;
+    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(contact.name)}, your reservation for ${query.partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(constraints())}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${result.assignment?`<p>${esc(result.assignment)}</p>`:''}${action('Make another booking', 'another')}</article>`;
     notice('Your booking is confirmed.', 'success');
   }
   async function run(work, message) {

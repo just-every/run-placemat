@@ -134,6 +134,7 @@ export function executeServiceStatus(s:State,actor:Actor,p:any,now:string) {
   const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
   assignmentFor(s,b.tableIds,b.partySize,b.startAt,service.startAt,b.requiredAccessTags??[],b.requiredArea,b)
  }
+ if(after.bookingStatus==='seated'&&b.tableIds.some(id=>s.tables.find(t=>t.id===id)?.inventoryKind==='pool'))fail(409,'Assign physical counter seats or a table before seating a pool reservation.')
  const newlySeating=after.bookingStatus==='seated'&&before.bookingStatus!=='seated'
  if((after.bookingStatus==='booked'||after.bookingStatus==='seated')&&(newlySeating||!['booked','seated'].includes(before.bookingStatus))){
   checkStaffing(s,[{...b,status:after.bookingStatus}],now,new Set(),true)

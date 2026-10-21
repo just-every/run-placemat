@@ -60,6 +60,7 @@ function replacementsFor(s:State,raw:any):Replacement[]{
 /** A preview contains all commitments and refusals; preparation never changes the floor. */
 export function prepareFloorChange(s:State,p:any,now:string):FloorPlan {
  const current=s.tables.find(t=>t.id===p.tableId)??fail(404,'Table not found.')
+ if(current.inventoryId)fail(409,'Inventory units keep their reviewed configuration; create new inventory instead.')
  if(current.retiredAt)fail(409,'A retired table remains in history and cannot be changed.')
  if(p.retire!==undefined&&typeof p.retire!=='boolean')fail(400,'Choose whether to retire this table.')
  const changes=changesFor(p.changes),retire=p.retire??false,replacements=replacementsFor(s,p.replacements)

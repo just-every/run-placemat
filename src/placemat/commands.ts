@@ -1,3 +1,4 @@
+import {createInventory} from './seat-inventory'
 import {saveOnboarding} from './onboarding'
 import {serviceInput} from './service-input'
 import {executeServiceNotes,normalizePreorders} from './service-notes'
@@ -88,15 +89,17 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   result=s.venue={...s.venue,name,timezone};break
  }
  case 'server.save':case 'server.break':case 'section.save':case 'kitchen.save':{result=executeStaffing(s,actor,command,p,now);break}
+ case 'inventory.create':{result=createInventory(s,p);break}
  case 'room.save':{result=saveRoom(s,p);break}
  case 'combination.save':{result=saveCombination(s,p);break}
  case 'table.save':{
   const current=p.id?s.tables.find(t=>t.id===p.id):null
   if(p.id&&!current)fail(404,'Table not found.')
+  if(current?.inventoryId)fail(409,'Inventory units keep their reviewed configuration.')
   if(current?.retiredAt)fail(409,'A retired table is retained unchanged for history.')
   if(current&&s.combinations?.some(c=>c.tableIds.includes(current.id)))fail(409,'Remove this table from approved combinations before changing its settings.')
   if(current&&s.bookings.some(b=>b.tableIds.includes(current.id)))fail(409,'A table with booking history is kept unchanged. Add a new table instead.')
-  if(!current&&s.tables.filter(t=>!t.retiredAt).length>=40)fail(400,'This release supports up to 40 tables.')
+  if(!current&&s.tables.filter(t=>!t.retiredAt&&!t.inventoryId).length>=40)fail(400,'This release supports up to 40 tables.')
   const table={id:current?.id??id(),shape:tableShape(p.shape??current?.shape??'rectangle'),label:text(p.label,'Table label',40),area:p.area===undefined?(current?.area??'Dining room'):text(p.area,'Area',80),seats:number(p.seats,'Seats',1,20),accessTags:accessTags(p.accessTags??current?.accessTags,'Table access tags'),x:number(p.x,'Floor X',0,100),y:number(p.y,'Floor Y',0,100)}
   if(s.tables.some(t=>t.id!==table.id&&t.label===table.label))fail(409,'Table labels must be distinct.')
   if(current)Object.assign(current,table);else s.tables.push(table)
@@ -245,7 +248,7 @@ export async function onlineBook(db:D1Database,p:any){
  const partySize=number(p.partySize,'Party size',1,500),attribution=bookingAttribution(s,p.embedOrigin)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
  const {state:filtered,requiredArea,requiredAccessTags}=searchTables(s,p.area,p.requiredAccessTags)
- const fit=bookingFit(filtered,service,partySize,p.startAt),{tables,...slot}=fit
+ const fit=bookingFit(filtered,service,partySize,p.startAt,'online',p.tableIds),{tables,...slot}=fit
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
  if(p.requests!==undefined&&p.requestsAcknowledged!==true)fail(400,'Acknowledge required guarantees and requested preferences before booking.')
@@ -253,9 +256,9 @@ export async function onlineBook(db:D1Database,p:any){
  const preorders=normalizePreorders(service,p.preorders)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
+ const b:Booking={preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
- return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ return {assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
 }

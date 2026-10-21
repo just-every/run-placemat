@@ -29,7 +29,7 @@ export function normalizeTurnPolicy(value:any,s:State,service:{startAt:string;en
 /** Table, then area, then party range, then service default. A join uses its longest table turn. */
 export function tableTurn(service:Service,table:Table,partySize:number){
  const policy=service.turnPolicy
- return policy?.tableTurns[table.id]??policy?.areaTurns[table.area??'Dining room']??policy?.partyTurns.find(r=>partySize>=r.minSize&&partySize<=r.maxSize)?.minutes??service.turnMinutes
+ return table.inventoryTurnMinutes??policy?.tableTurns[table.id]??policy?.areaTurns[table.area??'Dining room']??policy?.partyTurns.find(r=>partySize>=r.minSize&&partySize<=r.maxSize)?.minutes??service.turnMinutes
 }
 export function turnImpact(s:State,service:Service,policy:TurnPolicy){
  const proposed={...service,turnPolicy:policy}

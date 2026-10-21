@@ -229,3 +229,47 @@ test('AGENT-004: protected direct inventory and exact shift extensions require p
   }
  }finally{await shift.close()}
 })
+
+
+test('Counter seats and anonymous pools share overlapping-turn capacity, pacing, transfers, pre-shift output and restore guards',async()=>{
+ const {seatFixture}=await import('./seat-fixture.mjs'),h=await installation();let restored;
+ try{
+  const f=await seatFixture(h),counter=await f.units('Chef counter'),pool=await f.units('Lounge');
+  const hostCookie=await h.signIn('synthetic-placemat-host@example.test'),host=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-host@example.test');
+  await h.command('inventory.create',{name:'Forbidden',kind:'pool',capacity:20,turnMinutes:90,arrivalCovers:20,intervalMinutes:30,adjacent:false},{as:hostCookie,status:403});
+  await h.command('team.host',{operatorId:host.id,enabled:true});
+  await f.book('Chef counter',{tableIds:[counter[0].id,counter[2].id]},409);
+  await f.book('Chef counter',{tableIds:[counter[0].id]},409);
+  await f.book('Chef counter',{tableIds:[counter[0].id,f.table.id]},409);
+  const first=await f.book('Chef counter',{tableIds:counter.slice(0,2).map(t=>t.id)});
+  for(let i=0;i<4;i++)await f.book();
+  await f.book('Chef counter',{},409);
+  await f.book('Chef counter',{startAt:new Date(Date.parse(f.service.startAt)+30*60000).toISOString()},409);
+  const rows=(await f.state()).bookings.filter(b=>b.tableIds.some(id=>counter.some(t=>t.id===id)));
+  assert.equal(new Set(rows.flatMap(b=>b.tableIds)).size,10);assert.equal(rows.length,5);
+  for(const b of rows){assert.equal(b.tableIds.length,2);const selected=b.tableIds.map(id=>counter.find(t=>t.id===id).ordinal).sort((a,b)=>a-b);assert.equal(selected[1]-selected[0],1);assert.equal(Date.parse(b.endAt)-Date.parse(b.startAt),90*60000)}
+  const later=await f.book('Chef counter',{startAt:new Date(Date.parse(f.service.startAt)+90*60000).toISOString()});assert.ok(later);
+  const lounge=await f.book('Lounge'),before=(await f.state()).bookings.find(b=>b.id===lounge.id);assert.equal(before.tableIds.length,2);assert.ok(before.tableIds.every(id=>pool.some(t=>t.id===id)));
+  await h.command('booking.stage',{bookingId:lounge.id,stage:'seated'},{as:hostCookie,status:409});
+  for(let i=0;i<9;i++)await f.book('Lounge');await f.book('Lounge',{},409);
+  // A counter cancellation releases its exact seats. One transfer releases pool covers and acquires the seats atomically.
+  await h.command('booking.status',{bookingId:first.id,status:'cancelled'});
+  await f.move(lounge,counter.slice(0,2).map(t=>t.id));
+  let state=await f.state();assert.equal(state.bookings.filter(b=>!['cancelled','no-show'].includes(b.status)&&b.startAt===f.service.startAt&&b.tableIds.some(id=>pool.some(t=>t.id===id))).reduce((n,b)=>n+b.partySize,0),18);
+  await h.command('booking.stage',{bookingId:lounge.id,stage:'seated'},{as:hostCookie});
+  await f.book('Chef counter',{tableIds:counter.slice(0,2).map(t=>t.id)},409);
+  await h.command('booking.move',{bookingId:lounge.id,tableIds:pool.slice(0,2).map(t=>t.id),version:(await h.api('/api/state')).version},{status:409});
+  await f.move(lounge,[f.table.id]);state=await f.state();const moved=state.bookings.find(b=>b.id===lounge.id);assert.deepEqual(moved.tableIds,[f.table.id]);assert.equal(moved.startAt,before.startAt);assert.equal(moved.endAt,before.endAt);
+  const released=await f.book('Chef counter',{tableIds:counter.slice(0,2).map(t=>t.id)});assert.ok(released);
+  const sheet=await h.api('/api/preshift?date='+f.date),sheetText=JSON.stringify(sheet);assert.match(sheetText,/Chef counter seat 1/);assert.match(sheetText,/Lounge unassigned cover/);
+  const pdf=await (await h.request('/api/preshift.pdf?date='+f.date)).text();assert.match(pdf,/Chef counter seat 1/);assert.match(pdf,/Lounge unassigned cover/);
+  const report=await h.api('/api/reports/performance?serviceId='+f.service.id);assert.equal(report.report.utilization.availableSeatMinutes,14*360);assert.equal(report.report.utilization.pool.availableCoverMinutes,20*360);assert.equal(report.report.utilization.tables.length,11);
+  const archive=await h.api('/api/backup');restored=await installation();await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await restored.api('/api/state')).state.inventories.length,2);
+  await h.command('table.save',{...counter[0],seats:2},{status:409});await h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:counter[0].id,changes:{seats:2}},reason:'Invalid inventory edit'},{status:409});
+  // Own inventory pacing and duration are independent of the service default.
+  const paced=await h.command('inventory.create',{name:'Paced counter',kind:'counter',capacity:4,turnMinutes:60,arrivalCovers:2,intervalMinutes:30,adjacent:true});assert.ok(paced.id);
+  const one=await f.book('Paced counter');assert.equal(Date.parse(one.endAt)-Date.parse(one.startAt),60*60000);await f.book('Paced counter',{},409);
+  await f.book('Paced counter',{startAt:new Date(Date.parse(f.service.startAt)+30*60000).toISOString()});
+  await h.command('guest.erase',{guestId:rows[0].guestId,confirm:'ERASE'});assert.ok(!JSON.stringify(await h.api('/api/preshift?date='+f.date)).includes('synthetic-placemat-4"'));
+ }finally{if(restored)await restored.close();await h.close()}
+})

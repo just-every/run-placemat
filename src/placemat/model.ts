@@ -12,7 +12,8 @@ import type { BookingRules } from './booking-rules'
 import type {AnalyticsSettings,AnalyticsAudit} from './analytics'
 export type TableShape = 'round'|'square'|'rectangle'|'bar'
 export type Room = {id:string;name:string;kind:'indoor'|'outdoor'|'bar'}
-export type Table = { id:string; label:string; seats:number; area?:string; accessTags?:string[]; x:number; y:number; shape?:TableShape; retiredAt?:string }
+export type Inventory = {id:string;name:string;kind:'counter'|'pool';capacity:number;turnMinutes:number;arrivalCovers:number;intervalMinutes:number;adjacent:boolean}
+export type Table = { inventoryId?:string;inventoryKind?:'counter'|'pool';ordinal?:number;inventoryTurnMinutes?:number; id:string; label:string; seats:number; area?:string; accessTags?:string[]; x:number; y:number; shape?:TableShape; retiredAt?:string }
 export type Combination = {id:string;tableIds:string[];capacity:number;accessTags:string[];setupMinutes:number;enabled:boolean;adjacent:true}
 export type CombinationSnapshot = Omit<Combination,'enabled'|'adjacent'> & {areas:string[]}
 export type ShiftServer={id:string;name:string;coverCap:number;onBreak:boolean}
@@ -32,7 +33,7 @@ export type Proposal = { id:string; kind:'service.closure'|'inventory.protect'|'
 export type Reminder = { contactName?:string;contactEmail?:string;contactPhone?:string; id:string; bookingId:string; guestId:string; message:string; status:'approved'|'exported'; approvedBy:string; approvedAt:string }
 export type AssignmentSnapshot = {serverId?:string;sectionId?:string;serverName?:string;sectionName?:string;bookingId:string;tableIds:string[];locked:boolean;setupStartAt?:string;combination?:CombinationSnapshot}
 export type AuditEntry = {source?:'guest-supplied'|'person'|'preparation-key';changes?:import('./audit').AuditChange[];pacing?:PacingOverride;id:string;at:string;actor:string;action:string;subject:string;before?:AssignmentSnapshot[]|{expectedEndAt:string}|{endAt:string;version:number}|{origins:string[]}|AnalyticsAudit;after?:AssignmentSnapshot[]|{expectedEndAt:string}|{endAt:string;version:number}|{origins:string[]}|AnalyticsAudit;reason?:string}
-export type State = { serviceNotes?:ServiceNote[]; embed?:{origins:string[]}; analytics?:AnalyticsSettings; serviceChanges?:ServiceChange[]; inquiries?:Inquiry[]; riskDecisions?:RiskDecision[]; venue:{name:string;timezone:string;setup?:import('./onboarding').RestaurantSetup}; hostIds?:string[]; pacingHostIds?:string[]; rooms?:Room[]; allocationTables?:Table[]; tables:Table[]; combinations?:Combination[]; services:Service[]; schedules?:ScheduleTemplate[]; serviceEvents?:ServiceEvent[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:AuditEntry[] }
+export type State = { inventories?:Inventory[]; serviceNotes?:ServiceNote[]; embed?:{origins:string[]}; analytics?:AnalyticsSettings; serviceChanges?:ServiceChange[]; inquiries?:Inquiry[]; riskDecisions?:RiskDecision[]; venue:{name:string;timezone:string;setup?:import('./onboarding').RestaurantSetup}; hostIds?:string[]; pacingHostIds?:string[]; rooms?:Room[]; allocationTables?:Table[]; tables:Table[]; combinations?:Combination[]; services:Service[]; schedules?:ScheduleTemplate[]; serviceEvents?:ServiceEvent[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:AuditEntry[] }
 export type Actor = {id:string;name:string;role:string;agent?:boolean}
 export const emptyState = ():State => ({venue:{name:'Placemat',timezone:'America/New_York'},rooms:[],tables:[],combinations:[],services:[],bookings:[],waitlist:[],proposals:[],reminders:[],audit:[]})
 export class Problem extends Error { constructor(public status:number, message:string){super(message)} }

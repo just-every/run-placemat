@@ -1,3 +1,4 @@
+import {inventoryChoices} from './seat-inventory'
 import {assertInventory} from './direct-inventory'
 import {fail,type State,type Service} from './model'
 import {allocation} from './capacity'
@@ -9,7 +10,8 @@ export function fitAt(s:State,service:Service,partySize:number,startAt:string,re
  const cleanup=service.turnPolicy?.cleanupMinutes??0
  if(startAt<service.startAt||service.turnPolicy?.lastSeatingAt&&startAt>service.turnPolicy.lastSeatingAt)fail(400,'Choose an arrival within the service and its last-seating time.')
  let best:(ReturnType<typeof assignmentFor>&{startAt:string;endAt:string;cleanupEndAt:string})|undefined,turnFits=false,lastConflict:Error|undefined
- const choices=requested===undefined?candidateSets(s):[requested]
+ if(channel!=='online')s={...s,tables:s.tables.filter(t=>t.inventoryKind!=='pool')}
+ const choices=requested===undefined?[...candidateSets(s),...inventoryChoices(s,partySize,startAt,cleanup)]:[requested]
  for(const ids of choices){
   try{
    const assignment=assignmentFor(s,ids,partySize,startAt,service.startAt)

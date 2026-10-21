@@ -1,3 +1,4 @@
+import {inventoryChoices} from './seat-inventory'
 import {blockedByChange} from './service-blocks'
 import {assertPacing} from './pacing'
 import {fail,type State,type Service,type Table,type Booking} from './model'
@@ -18,7 +19,7 @@ export const active=(b:Booking)=>b.status==='booked'||b.status==='seated'||b.sta
 export function allocation(s:State,service:Service,partySize:number,slot:Occupancy,requested?:unknown,except?:string,unavailable:string[]=[],now=new Date().toISOString(),allowPacing=false):Table[] {
  const bookings=s.bookings.filter(b=>b.id!==except)
  const existing=except?s.bookings.find(b=>b.id===except):undefined
- const choices=requested===undefined?candidateSets(s):[requested]
+ const choices=requested===undefined?[...candidateSets(s),...inventoryChoices(s,partySize,slot.startAt,0)]:[requested]
  let best:ReturnType<typeof assignmentFor>|undefined
  for(const ids of choices){
   let choice:ReturnType<typeof assignmentFor>

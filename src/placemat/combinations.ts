@@ -1,3 +1,4 @@
+import {inventoryAssignment} from './seat-inventory'
 import {fail,id,number,type Booking,type Combination,type CombinationSnapshot,type State,type Table} from './model'
 
 export const sameTables=(a:string[],b:string[])=>a.length===b.length&&a.every(id=>b.includes(id))
@@ -19,8 +20,16 @@ function assertFit(tables:Table[],c:Pick<Combination,'capacity'|'accessTags'>,si
 export function assignmentFor(s:State,tableIds:unknown,size:number,startAt:string,serviceStartAt:string,requiredTags:string[]=[],requiredArea?:string,frozen?:Booking){
  const tables=chosenTables(s,tableIds)
  if(tables.some(t=>t.retiredAt)&&(!frozen||!['booked','seated'].includes(frozen.status)||!sameTables(frozen.tableIds,tables.map(t=>t.id))))fail(409,'Retired tables cannot receive new assignments.')
+ const inventoryId=inventoryAssignment(tables,size)
  let combination:CombinationSnapshot|undefined
- if(tables.length>1){
+ if(inventoryId){
+  const inventory=s.inventories?.find(v=>v.id===inventoryId)??fail(409,'Inventory is unavailable.')
+  const sorted=[...tables].sort((a,b)=>a.ordinal!-b.ordinal!)
+  if(inventory.adjacent&&sorted.some((t,n)=>t.ordinal!==sorted[0].ordinal!+n))fail(409,'Choose adjacent counter seats.')
+  combination={id:inventoryId,tableIds:tables.map(t=>t.id),capacity:size,accessTags:tables[0].accessTags??[],setupMinutes:0,areas:[tableArea(tables[0])]}
+  assertFit(tables,combination,size,requiredTags,requiredArea)
+ }
+ if(!inventoryId&&tables.length>1){
   const saved=frozen?.combination
   if(saved&&sameTables(saved.tableIds,tables.map(t=>t.id))&&sameTables(frozen!.tableIds,saved.tableIds)){
    combination=structuredClone(saved)
@@ -32,14 +41,14 @@ export function assignmentFor(s:State,tableIds:unknown,size:number,startAt:strin
    combination={...structuredClone(snapshot),areas:[...new Set(tables.map(tableArea))].sort()}
   }
   assertFit(tables,combination,size,requiredTags,requiredArea)
- }else assertFit(tables,{capacity:tables[0].seats,accessTags:tables[0].accessTags??[]},size,requiredTags,requiredArea)
+ }else if(!inventoryId)assertFit(tables,{capacity:tables[0].seats,accessTags:tables[0].accessTags??[]},size,requiredTags,requiredArea)
  const calculated=new Date(Date.parse(startAt)-(combination?.setupMinutes??0)*60000).toISOString()
  const setupStartAt=frozen?.setupStartAt??calculated
  if(setupStartAt!==calculated||setupStartAt<serviceStartAt)fail(409,'The approved combination’s full setup must fit before arrival within service hours.')
  return {tables,setupStartAt,...combination?{combination}:{}}
 }
 export function candidateSets(s:State):string[][]{
- return [...s.tables.filter(t=>!t.retiredAt).map(t=>[t.id]),...(s.combinations??[]).filter(c=>c.enabled&&c.adjacent===true&&c.tableIds.every(id=>s.tables.some(t=>t.id===id&&!t.retiredAt))).map(c=>c.tableIds)]
+ return [...s.tables.filter(t=>!t.retiredAt&&!t.inventoryId).map(t=>[t.id]),...(s.combinations??[]).filter(c=>c.enabled&&c.adjacent===true&&c.tableIds.every(id=>s.tables.some(t=>t.id===id&&!t.retiredAt))).map(c=>c.tableIds)]
 }
 /** Existing commitments freeze their terms; disabling affects only new assignments. */
 export function saveCombination(s:State,p:any){
@@ -48,6 +57,7 @@ export function saveCombination(s:State,p:any){
  if(p.adjacent!==true)fail(400,'A manager must explicitly confirm that these tables are adjacent.')
  if(typeof p.enabled!=='boolean')fail(400,'Choose whether this combination is enabled.')
  const tables=chosenTables(s,p.tableIds)
+ if(tables.some(t=>t.inventoryId))fail(409,'Counter seats and pool covers use their own inventory rules, not table joins.')
  if(tables.some(t=>t.retiredAt))fail(409,'Retired tables cannot belong to a new or edited combination.')
  if(tables.length<2)fail(400,'An approved combination needs at least two tables.')
  const combination:Combination={id:current?.id??id(),tableIds:tables.map(t=>t.id).sort(),capacity:number(p.capacity,'Combined seats',1,tables.reduce((n,t)=>n+t.seats,0)),accessTags:tags(p.accessTags),setupMinutes:number(p.setupMinutes,'Setup minutes',0,120),enabled:p.enabled,adjacent:true}
