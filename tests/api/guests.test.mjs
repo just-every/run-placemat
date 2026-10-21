@@ -203,6 +203,8 @@ test('GUEST-004: merge journal exports and validated restore reconcile; erasure 
   const purged=(await h.api(journalPath)).merges[0];assert.equal(purged.status,'erased');assert.equal(purged.snapshots,undefined)
   await h.api('/api/guests/unmerge-preview?mergeId='+purged.id,undefined,{status:409})
   await h.command('guest.unmerge',{mergeId:purged.id,review:preview.review,confirm:'UNMERGE'},{status:409})
+  const changedIdentity='guest_id,name,email,phone,notes,visit_date,party_size,visit_status\nreview-a,New Name,new-identity@example.test,+1 202 555 0189,,,,\n'
+  assert.equal((await h.api('/api/import/dry-run',{csv:changedIdentity})).result.canApply,false,'Erased source ID cannot return with changed contacts')
   const later=await h.api('/api/backup');await erased.api('/api/restore',{archive:later,confirm:'RESTORE'})
   for(const source of [h,erased]){
    const remaining=(await source.api('/api/guests?search=alex.')).guests

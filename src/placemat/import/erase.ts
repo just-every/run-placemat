@@ -28,34 +28,28 @@ export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Acto
   return [{sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guest_merges WHERE id=? AND version=?) THEN 1 ELSE 0 END',params:[row.id,row.version]},
    {sql:'UPDATE pm_guest_merges SET version=version+1,data=? WHERE id=? AND version=?',params:[canonicalJson(j),row.id,row.version]}]
  })]
- let result={erasedRecords:0,identityHashes:[] as string[]}
- // First erase the survivor, making every active merge immediately irreversible.
- const ordered=[...ids].sort((a,b)=>Number(journals.some(({journal:j})=>j.status==='merged'&&j.duplicateId===a))-Number(journals.some(({journal:j})=>j.status==='merged'&&j.duplicateId===b)))
- for(const [index,id] of ordered.entries()){
-  const erased=await eraseSingleGuest(db,id,actor,index===0?purge:[])
-  result={erasedRecords:result.erasedRecords+erased.erasedRecords,identityHashes:[...new Set([...result.identityHashes,...erased.identityHashes])]}
- }
- return result
+ return eraseGuestGroup(db,[...ids],actor,purge)
 }
 
-/** Caller authorizes the native request; current operator authority is fenced in SQL. */
-async function eraseSingleGuest(db:D1Database,guestId:string,actor:Actor,extraStatements:D1Sql[]=[]){
- requireOwner(actor)
+/** All reviewed identities and operational redactions commit in one custody batch. */
+async function eraseGuestGroup(db:D1Database,guestIds:string[],actor:Actor,extraStatements:D1Sql[]){
  const owner=await db.prepare("SELECT version FROM oa_operators WHERE id=? AND role='owner' AND status='active'").bind(actor.id).first()
  if(!owner)throw new Problem(403,'An active owner is required.')
- const native=await db.prepare('SELECT version,data FROM pm_guests WHERE id=?').bind(guestId).first()
- if(!native)throw new Problem(404,'Guest not found.')
- const guest=JSON.parse(native.data) as Guest,hashes=guestIdentityHashes(guest),at=new Date().toISOString()
+ const native=(await db.prepare('SELECT id,version,data FROM pm_guests WHERE id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(guestIds)).all()).results as Array<{id:string;version:number;data:string}>
+ if(native.length!==guestIds.length)throw new Problem(404,'Guest not found.')
+ const people=native.map(row=>JSON.parse(row.data) as Guest),hashes=[...new Set(people.flatMap(guestIdentityHashes))],at=new Date().toISOString()
  const context=contextWithAuthority(db,actor.id,()=>({sql:"EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND role='owner' AND status='active' AND version=?)",params:[actor.id,owner.version]}))
  context.originalErasurePolicy='withdraw-affected-artifacts'
- const erased:Guest={id:guestId,name:'Erased guest',email:'',phone:'',notes:'',history:[],erased:true}
- const guard:D1Sql={sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END',params:[guestId,native.version,native.data]}
- const statements:D1Sql[]=[guard,...extraStatements,...await guestStateErasure(db,guestId),...hashes.map(hash=>({sql:'INSERT OR IGNORE INTO pm_erased(identity_hash,erased_at) VALUES(?,?)',params:[hash,at]})),{sql:'UPDATE pm_guests SET version=version+1,data=? WHERE id=?',params:[canonicalJson(erased),guestId]},{sql:'DELETE FROM pm_import_guest_revisions WHERE guest_id=?',params:[guestId]}]
- const selected=new Set([guest.id,guest.email,guest.phone].filter(Boolean))
- const related={source:(record:any)=>{const payload=record.payload;return payload&&typeof payload==='object'&&(!Array.isArray(payload))&&(payload.id===guest.id||guestIdentityHashes(payload).some(hash=>hashes.includes(hash)))},original:(bytes:Uint8Array)=>{try{return parseOriginal(bytes,selected,hashes)}catch{return false}}}
- // Erasing older installations left some jobs unindexed; index them before this erasure.
+ const guards:D1Sql[]=native.map(row=>({sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END',params:[row.id,row.version,row.data]}))
+ const erased=(id:string):Guest=>({id,name:'Erased guest',email:'',phone:'',notes:'',history:[],erased:true})
+ const statements:D1Sql[]=[...extraStatements,...guards,...await guestStateErasure(db,guestIds),
+  ...hashes.map(hash=>({sql:'INSERT OR IGNORE INTO pm_erased(identity_hash,erased_at) VALUES(?,?)',params:[hash,at]})),
+  ...native.map(row=>({sql:'UPDATE pm_guests SET version=version+1,data=? WHERE id=?',params:[canonicalJson(erased(row.id)),row.id]})),
+  {sql:'DELETE FROM pm_import_guest_revisions WHERE guest_id IN (SELECT value FROM json_each(?))',params:[JSON.stringify(guestIds)]}]
+ const selected=new Set(people.flatMap(guest=>[guest.id,guest.email,guest.phone].filter(Boolean)))
+ const related={source:(record:any)=>{const payload=record.payload;return payload&&typeof payload==='object'&&!Array.isArray(payload)&&(selected.has(payload.id)||guestIdentityHashes(payload).some(hash=>hashes.includes(hash)))},original:(bytes:Uint8Array)=>{try{return parseOriginal(bytes,selected,hashes)}catch{return false}}}
  for(let page=await upgradeD1ImportErasureIndex(context);!page.complete;page=await upgradeD1ImportErasureIndex(context));
- const result=await eraseD1ImportTarget('guest',guestId,statements,context,related)
+ const result=await eraseD1ImportTarget('guest',guestIds[0],statements,context,related)
  return {erasedRecords:result.erasedRecords,identityHashes:hashes}
 }
 

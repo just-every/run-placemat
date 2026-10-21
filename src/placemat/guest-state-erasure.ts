@@ -7,10 +7,11 @@ import type {D1Database,D1Sql} from './import/kit'
 const proposalBookings=(plan:any)=>[...(plan?.preview?.unchangedBookings??[]),...(plan?.bookings??[]),...(plan?.snapshot?.bookings??[]),...(plan?.assignmentInputs?.bookings??[]),...(plan?.inputs?.bookings??[]),...(plan?.booking?[plan.booking]:[])]
 
 /** Guest-linked operational free text follows the existing DATA-002 erasure. */
-export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1Sql[]>{
+export async function guestStateErasure(db:D1Database,guestIds:string|string[]):Promise<D1Sql[]>{
  const row=await db.prepare('SELECT version,data FROM pm_state WHERE id=1').first()
  if(!row)return []
  const state=JSON.parse(row.data) as State
+ for(const guestId of typeof guestIds==='string'?[guestIds]:guestIds){
  const noteDates=new Set(state.services.filter(s=>state.bookings.some(b=>b.guestId===guestId&&b.serviceId===s.id)).map(s=>localServiceDate(s.startAt,state.venue.timezone)))
  const noteIds=new Set((state.serviceNotes??[]).filter(n=>noteDates.has(n.date)).map(n=>n.id))
  for(const note of state.serviceNotes??[])if(noteIds.has(note.id))for(const entry of note.history)entry.text=''
@@ -59,6 +60,7 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
   }
  }
 
+ }
  return [
   {sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END',params:[row.version]},
   {sql:'UPDATE pm_state SET data=?,version=version+1 WHERE id=1 AND version=?',params:[JSON.stringify(state),row.version]},

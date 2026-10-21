@@ -39,6 +39,7 @@ export async function reviewCsv(csv:string,context:D1ImportContext){
   const hashes=guestIdentityHashes(guest)
   for(const hash of hashes){const prior=contacts.get(hash);if(prior&&prior!==guest.id)diagnostic('warning','DUPLICATE_CONTACT','Different guest IDs share a contact detail; they remain separate for manager duplicate review.',row);contacts.set(hash,guest.id)}
   if(hashes.length){const erased=await context.storage.database.prepare('SELECT identity_hash FROM pm_erased WHERE identity_hash IN (SELECT value FROM json_each(?)) LIMIT 1').bind(JSON.stringify(hashes)).first();if(erased)diagnostic('error','ERASED_IDENTITY','An erased contact cannot be reimported.',row)}
+  if(await context.storage.database.prepare("SELECT 1 FROM pm_guests WHERE id=? AND json_extract(data,'$.erased')=1").bind(guest.id).first())diagnostic('error','ERASED_IDENTITY','This source guest ID was erased and cannot be reimported.',row)
   const current=await context.storage.targets.read(context.storage.database,context.destination,'guest',guest.id)
   const recordId=artifactHash+':'+sourceId
   if(current){
