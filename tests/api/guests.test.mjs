@@ -74,6 +74,13 @@ test('GUEST-004: exact identity suggestions separate households; reviewed manage
  const h=await installation();try{
   const f=await guestReviewFixture(h),member=await h.signIn('duplicate-reader@example.test'),manager=await h.signIn('duplicate-manager@example.test','admin')
   const key=(await h.api('/api/agent-keys',{name:'Existing guest read authority'})).result,agent={as:'',headers:{authorization:'Bearer '+key.key}}
+  const shared='guest_id,name,email,phone,notes,visit_date,party_size,visit_status\nexact-email-a,Robin Ellis,ROBIN@example.test,+1 202 555 0181,,,,\nexact-email-b,Robin Ellis,robin@example.test,+1 202 555 0182,,,,\nfamily-email-a,Chris Ward,family@example.test,+1 202 555 0183,,,,\nfamily-email-b,Jamie Ward,family@example.test,+1 202 555 0183,,,,\n'
+  const sharedPlan=(await h.api('/api/import/dry-run',{csv:shared})).result;await h.api('/api/import/apply',{csv:shared,confirm:sharedPlan.fingerprint})
+  const emailPair=(await h.api('/api/guests?search=robin@example.test')).guests,emailReview=(await h.api('/api/guests?review='+emailPair[0].id)).review
+  assert.deepEqual(emailReview.candidates.map(c=>c.guest.id),[emailPair[1].id]);assert.deepEqual(emailReview.candidates[0].reasons,['Same normalized email'])
+  await h.api('/api/public/book',publicGuest(f.s,5,{email:'robin@example.test'}),{as:'',status:409})
+  const familyPair=(await h.api('/api/guests?search=family@example.test')).guests,familyReview=(await h.api('/api/guests?review='+familyPair[0].id)).review
+  assert.deepEqual(familyReview.candidates,[]);assert.deepEqual(familyReview.households.map(c=>c.guest.id),[familyPair[1].id],'A shared phone with another name is a household even when email also matches')
   const before=await h.api('/api/state'),review=(await h.api('/api/guests?review='+f.a.id)).review
   assert.deepEqual(review.candidates.map(c=>c.guest.id),[f.b.id]);assert.deepEqual(review.households.map(c=>c.guest.id),[f.guest.id])
   const alias=review.candidates[0];assert.ok(alias.conflicts.some(c=>c.field==='email'&&c.selected===f.a.email&&c.candidate===f.b.email))
