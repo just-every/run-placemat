@@ -7,6 +7,9 @@ test('SERVICE-002: weekly shifts, inclusive seasons and holiday exceptions previ
   await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
   await h.command('table.save',{label:'Dining 2',seats:2,x:20,y:20})
   await h.command('table.save',{label:'Dining 6',seats:6,x:60,y:20})
+  // A retired table stays in history but is not a physical seat in any preview.
+  const old=await h.command('table.save',{label:'Old 10',seats:10,x:80,y:20})
+  await h.command('proposal.approve',{proposalId:(await h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:old.id,retire:true},reason:'Retire the old table before scheduling'})).id})
   const manager=await h.signIn('schedule-manager@example.test','admin'),reader=await h.signIn('schedule-reader@example.test')
   const base={seasonStart:'2027-11-22',seasonEnd:'2027-11-28',weekdays:[0,1,2,3,4,5,6],turnMinutes:90,coverLimit:30,exceptions:[]}
   await h.command('schedule.save',{...base,name:'Dinner',shift:'dinner',startTime:'17:00',endTime:'22:00'},{as:reader,status:403})

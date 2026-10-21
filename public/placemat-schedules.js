@@ -13,17 +13,19 @@ export function scheduleEditor(s, {form,field,select,esc}) {
  field('Cover limit','coverLimit','number',s?.coverLimit||60,'required min="1" max="500"')+
  field('Start UTC offset, when time repeats (optional)','startOffset','text',s?.startOffset||'','placeholder="-04:00"')+
  field('End UTC offset, when time repeats (optional)','endOffset','text',s?.endOffset||'','placeholder="-05:00"')+
- `<label class="wide">Holiday exceptions: one per line, date closed or date start end [turn minutes] [cover limit]<textarea name="exceptions" rows="4" placeholder="2027-11-25 14:00 20:00 120 80">${esc(exceptions.map(e=>e.closed?`${e.date} closed`:`${e.date} ${e.startTime} ${e.endTime} ${e.turnMinutes??s.turnMinutes} ${e.coverLimit??s.coverLimit}`).join('\n'))}</textarea></label>`+
+ `<label class="wide">Holiday exceptions: one per line, date closed or date start end [turn minutes] [cover limit] [startOffset=-05:00] [endOffset=-05:00]<textarea name="exceptions" rows="4" placeholder="2027-11-25 14:00 20:00 120 80">${esc(exceptions.map(e=>e.closed?`${e.date} closed`:`${e.date} ${e.startTime} ${e.endTime} ${e.turnMinutes??s.turnMinutes} ${e.coverLimit??s.coverLimit}${e.startOffset?` startOffset=${e.startOffset}`:''}${e.endOffset?` endOffset=${e.endOffset}`:''}`).join('\n'))}</textarea></label>`+
  `<p class="help wide">Dates and shifts use the venue timezone. Holiday exceptions replace that date’s weekly shift, including a day normally closed. End at or before start means the next day. Existing bookings retain their agreed hours and tables after an edit.</p>`,s?'Save schedule changes':'Save recurring schedule');
 }
 export function parseSchedule(formEl,values){
  if(formEl.dataset.command==='schedule.save'){
   values.weekdays=new FormData(formEl).getAll('weekdays').map(Number);
   values.exceptions=String(values.exceptions||'').trim().split('\n').filter(Boolean).map(line=>{
-   const [date,startTime,endTime,turnMinutes,coverLimit,...extra]=line.trim().split(/\s+/);
+   const words=line.trim().split(/\s+/),offsets={},numbers=[];
+   for(const word of words.slice(3)){const m=/^(startOffset|endOffset)=(.+)$/.exec(word);if(m&&!(m[1] in offsets))offsets[m[1]]=m[2];else numbers.push(word);}
+   const [date,startTime,endTime]=words,[turnMinutes,coverLimit,...extra]=numbers;
    if(startTime==='closed'&&!endTime)return {date,closed:true};
-   if(!endTime||extra.length)throw new Error('Use holiday lines such as 2027-11-25 14:00 20:00 120 80, or 2027-11-25 closed.');
-   return {date,closed:false,startTime,endTime,...(turnMinutes?{turnMinutes:Number(turnMinutes)}:{}),...(coverLimit?{coverLimit:Number(coverLimit)}:{})};
+   if(!endTime||extra.length)throw new Error('Use holiday lines such as 2027-11-25 14:00 20:00 120 80, 2027-11-07 01:30 04:00 startOffset=-05:00 for a repeated hour, or 2027-11-25 closed.');
+   return {date,closed:false,startTime,endTime,...(turnMinutes?{turnMinutes:Number(turnMinutes)}:{}),...(coverLimit?{coverLimit:Number(coverLimit)}:{}),...offsets};
   });
   if(!values.startOffset)delete values.startOffset;if(!values.endOffset)delete values.endOffset;
  }

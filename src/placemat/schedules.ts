@@ -96,7 +96,8 @@ function preview(s:ScheduleState,actor:Actor,p:any,now:string):Proposal{
  const selected:ScheduleTemplate[]=scheduleIds.map((scheduleId:string)=>schedules.find(t=>t.id===scheduleId)??fail(404,'Schedule not found.'))
  const renewServiceIds=p.renewServiceIds??[]
  if(!Array.isArray(renewServiceIds)||renewServiceIds.some((v:unknown)=>typeof v!=='string')||new Set(renewServiceIds).size!==renewServiceIds.length)fail(400,'Choose distinct existing service IDs for renewed approval.')
- const seats=s.tables.reduce((sum,t)=>sum+t.seats,0),resolve=localResolver(s.venue.timezone),candidates:Candidate[]=[],requiresRenewedApproval:Renewal[]=[]
+ // Retired tables stay in history but are no longer physical seats.
+ const seats=s.tables.filter(t=>!t.retiredAt).reduce((sum,t)=>sum+t.seats,0),resolve=localResolver(s.venue.timezone),candidates:Candidate[]=[],requiresRenewedApproval:Renewal[]=[]
  for(const template of selected)for(let localDate=fromDate;localDate<=toDate;localDate=nextDate(localDate)){
   const settings=occurrence(template,localDate)
   const existing=s.services.filter(v=>v.scheduleSource?.scheduleId===template.id&&v.scheduleSource.localDate===localDate)

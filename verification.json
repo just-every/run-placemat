@@ -59,7 +59,8 @@
         "node tests/service-notes-ui.mjs",
         "node tests/timeline-search-ui.mjs",
         "node tests/onboarding-ui.mjs",
-        "node tests/guest-review-ui.mjs"
+        "node tests/guest-review-ui.mjs",
+        "node tests/schedules-ui.mjs"
       ]
     }
   ],
