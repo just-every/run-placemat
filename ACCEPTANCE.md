@@ -22,7 +22,7 @@ Statuses below match the 21 October 2026 contract review, including candidate `a
 
 - **MSG-001 — Approved reminder CSV custody.** **Status: done.** Book guests, mark one no-show, approve remaining reminders and download CSV with US-formatted local times; erase a booked guest and download again, proving the guest’s personal values are absent. **Current evidence:** `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/reminders.test.mjs`.
 
-- **WAIT-001 — Staff walk-ins and waiting parties.** **Status: partial.** Run the Friday HTTP journey with online bookings, a walk-in, a waiting party and a no-show; seat the waiting party and refuse completion before seating. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`. **Gap:** Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done.
+- **WAIT-001 — Staff walk-ins and waiting parties.** **Status: done.** Run the Friday HTTP journey with online bookings, a walk-in, a waiting party and a no-show; seat the waiting party and refuse completion before seating. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`.
 
 - **GUEST-001 — Guest visit history.** **Status: partial.** Book a guest, change its service status, import dated visits and read guest/state through an authorized session; update notes and find both current and imported history. **Current evidence:** `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs`. **Gap:** Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done.
 

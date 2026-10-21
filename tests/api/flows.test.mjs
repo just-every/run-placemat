@@ -86,6 +86,52 @@ test('SERVICE-001: exact dated venue, floor and service publication rejects chan
  }finally{await h.close()}
 })
 
+test('WAIT-001: Friday online bookings, fitting manager walk-in and no-show release seat a queued party while impossible status changes stay atomic',async()=>{
+ const h=await installation();try{
+  const manager=await h.signIn('queue-manager@example.test','admin'),{service:s,floor}=await service(h),online=[]
+  assert.equal(new Date(s.startAt).getUTCDay(),5,'WAIT-001: this is the dated Friday journey')
+  for(let i=0;i<3;i++)online.push((await h.api('/api/public/book',publicGuest(s,i),{as:'',status:201})).result)
+  const walkin=await h.command('booking.walkin',publicGuest(s,3),{as:manager})
+  assert.equal(walkin.status,'seated');assert.equal(walkin.source,'walk-in');assert.equal(walkin.partySize,2)
+  assert.ok(walkin.tableIds.every(id=>floor.some(t=>t.id===id&&t.seats>=walkin.partySize)),'WAIT-001: manager walk-in receives a fitting physical table')
+  const waiting=await h.command('waitlist.add',publicGuest(s,4),{as:manager})
+  let state=(await h.api('/api/state')).state
+  assert.equal(state.bookings.length,4);assert.equal(new Set(state.bookings.flatMap(b=>b.tableIds)).size,4)
+  assert.equal(state.waitlist.find(w=>w.id===waiting.id).status,'queued')
+  assert.equal(state.waitlist.find(w=>w.id===waiting.id).serviceId,s.id)
+  const refuse=async(command,payload)=>{
+   const before=(await h.api('/api/state')).state
+   await h.command(command,payload,{as:manager,status:409})
+   assert.deepEqual((await h.api('/api/state')).state,before,'WAIT-001: refused '+command+' writes neither business state nor history')
+  }
+  await refuse('booking.status',{bookingId:online[1].id,status:'completed'})
+  await refuse('waitlist.seat',{waitlistId:waiting.id,startAt:s.startAt})
+  await refuse('booking.walkin',publicGuest(s,5))
+  const released=state.bookings.find(b=>b.id===online[0].id).tableIds
+  await h.command('booking.status',{bookingId:online[0].id,status:'no-show'},{as:manager})
+  const seated=await h.command('waitlist.seat',{waitlistId:waiting.id,startAt:s.startAt},{as:manager})
+  assert.equal(seated.status,'seated');assert.equal(seated.source,'waitlist');assert.equal(seated.guestId,waiting.guestId)
+  assert.equal(seated.serviceId,s.id);assert.equal(seated.partySize,waiting.partySize);assert.deepEqual(seated.tableIds,released,'WAIT-001: waiting party uses exactly the no-show capacity')
+  state=(await h.api('/api/state')).state
+  assert.equal(state.waitlist.find(w=>w.id===waiting.id).status,'seated')
+  assert.equal(state.bookings.find(b=>b.id===online[0].id).status,'no-show')
+  assert.equal(new Set(state.bookings.filter(b=>['booked','seated'].includes(b.status)).flatMap(b=>b.tableIds)).size,4)
+  await refuse('waitlist.seat',{waitlistId:waiting.id,startAt:s.startAt})
+  await h.command('booking.status',{bookingId:online[1].id,status:'cancelled'},{as:manager})
+  await h.command('booking.status',{bookingId:online[2].id,status:'seated'},{as:manager})
+  await h.command('booking.status',{bookingId:online[2].id,status:'completed'},{as:manager})
+  await h.command('booking.status',{bookingId:seated.id,status:'completed'},{as:manager})
+  for(const [bookingId,terminal] of [[online[0].id,'no-show'],[online[1].id,'cancelled'],[online[2].id,'completed']]){
+   for(const status of ['seated','completed','cancelled','no-show'].filter(v=>v!==terminal))await refuse('booking.status',{bookingId,status})
+   assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===bookingId).status,terminal)
+  }
+  const final=(await h.api('/api/state')).state
+  assert.equal(final.bookings.find(b=>b.id===seated.id).status,'completed')
+  assert.ok(final.serviceEvents.some(e=>e.bookingId===seated.id&&e.after.bookingStatus==='seated'))
+  assert.ok(final.serviceEvents.some(e=>e.bookingId===seated.id&&e.after.bookingStatus==='completed'))
+ }finally{await h.close()}
+})
+
 test('OSS-001: complete Friday service without a license/payment account; online bookings, walk-in, waitlist, no-show, reminder export and history',async()=>{
  const h=await installation();try{
   const {service:s}=await service(h),bookings=[]
