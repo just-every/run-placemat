@@ -17,7 +17,7 @@ import {initializeQueue,queueCanSeat,markQueueSeated,executeQueue} from './queue
 import {normalizeTurnPolicy,turnImpact} from './turn-policy'
 import {normalizeRules,checkBookingRules} from './booking-rules'
 import {setEmbedOrigins,bookingAttribution} from './embed'
-import {setAnalytics,savedKeys} from './analytics'
+import {setAnalytics,removeAnalyticsKey,savedKeys} from './analytics'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
 import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
@@ -42,6 +42,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  switch(command){
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
  case 'analytics.settings':{const change=setAnalytics(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}
+ case 'analytics.remove-key':{const change=removeAnalyticsKey(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}
  case 'service.followup':{result=followupChange(s,actor,p,now);break}
  case 'inquiry.assign':case 'inquiry.reply':case 'inquiry.convert':case 'inquiry.close':{
   result=await executeInquiry(s,actor,command,p,now,db);if(result.before){before.push(...result.before);delete result.before}break
@@ -223,7 +224,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  default:fail(400,'Unknown command.')
  }
- if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
+ if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings','analytics.remove-key'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
  await save(db,s,version,before)
  return result
 }

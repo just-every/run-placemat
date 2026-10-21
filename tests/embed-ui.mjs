@@ -116,6 +116,23 @@ try{
    assert.deepEqual((await h.api('/api/state')).state.bookings.map(b=>b.attribution.door),['widget','booking-page'])
    assert.deepEqual(thirdParty,[],'the browser never contacts GA4, Meta or any other third party')
    await standalone.close()
+   // The owner removes the saved GA4 API secret (ct 21 Oct 00:03Z): GA4 stays on, the settings say a key is needed and the removal is listed with the owner and time.
+   await page.goto(h.origin+'/app#settings');await page.getByText('Booking analytics (GA4 and Meta)').click()
+   await analytics.getByRole('button',{name:'Remove saved GA4 API secret'}).click();await page.getByRole('status').filter({hasText:'Saved key removed'}).waitFor()
+   if(!await analytics.evaluate(el=>el.open))await page.getByText('Booking analytics (GA4 and Meta)').click()
+   await analytics.getByText('GA4 events are switched on but need an API secret: nothing is sent until you enter one.').waitFor()
+   assert.match(await analytics.innerText(),/Meta events are on; the access token is saved\./);assert.match(await analytics.innerText(),/Venue owner · removed the saved GA4 API secret/)
+   assert.equal(await analytics.getByRole('button',{name:'Remove saved GA4 API secret'}).count(),0);assert.ok(await analytics.getByLabel('Send GA4 events',{exact:true}).isChecked())
+   assert.ok(await analytics.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'analytics settings still fit the staff screen')
+   if(shots)await analytics.screenshot({path:resolve(shots,`BOOK-002-key-removed-${width}.png`)})
+   // The next visit is asked about Meta only, and its accepted search reaches Meta alone.
+   h.analytics.length=0;const next=await context.newPage();await next.goto(h.origin+'/book');await next.locator('#public-content[aria-busy]').waitFor({state:'detached'})
+   assert.match(await next.locator('#analytics-consent').innerText(),/Cedar & Salt uses Meta\. If you accept/)
+   await next.getByRole('button',{name:'Accept analytics'}).click();const nextForm=next.locator('[data-public-command=search]')
+   await nextForm.locator('[name=date]').fill(laterDay);await nextForm.locator('[name=partySize]').fill('2');await nextForm.getByRole('button',{name:'Find available times'}).click();await next.getByRole('status').filter({hasText:'Availability updated'}).waitFor()
+   for(let i=0;i<120&&!h.analytics.length;i++)await new Promise(r=>setTimeout(r,50))
+   await quiet();assert.deepEqual(h.analytics.map(r=>new URL(r.url).hostname),['graph.facebook.com'],'GA4 receives nothing without its key')
+   await next.close()
    if(width===1440){
     // Staff and guest pages other than the widget refuse every frame, and an unlisted website gets no widget.
     await page.goto(host+'/frames');await page.waitForLoadState('load')
@@ -125,7 +142,7 @@ try{
     assert.match(page.frames().find(f=>f!==page.mainFrame()).url(),/^chrome-error:/,'an unlisted website cannot frame the widget')
    }
    assert.deepEqual(errors,[])
-   console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger and frame refusals passed at ${width}`)
+   console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)
   }finally{await context.close();await h.close()}
  }
 }finally{await browser.close()}

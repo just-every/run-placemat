@@ -243,6 +243,7 @@ async function submitForm(el) {
   if (command === 'combination.save') validateCombination(payload,state);
   if (command === 'embed.origins') payload.origins = parseOrigins(payload.origins);
   if (command === 'analytics.settings') { await execute(command, analyticsPayload(el)); await loadStaff(); notice('Saved successfully.', 'success'); return; }
+  if (command === 'analytics.remove-key') { await execute(command, payload); await loadStaff(); notice('Saved key removed.', 'success'); return; }
   if (command === 'import.preview') {
     importCsv = await payload.csvFile.text();
     importPlan = (await api('/api/import/dry-run',{csv:importCsv})).result;

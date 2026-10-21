@@ -151,6 +151,53 @@ test('BOOK-002 / PRIVACY-001 / AUDIT-001: owner-only write-only analytics keys; 
  }finally{await h.close()}
 })
 
+test('BOOK-002 / AUDIT-001: only the owner removes a saved GA4 or Meta key; the removal is audited with actor and time and never the key; a provider left on without a key sends nothing until a new key is entered (ct 21 Oct 00:03Z)',async()=>{
+ const h=await installation();try{
+  const {service:dinner}=await service(h);await h.command('analytics.settings',settings())
+  const manager=await h.signIn('manager@example.test','admin'),member=await h.signIn('reader@example.test')
+  const key=(await h.api('/api/agent-keys',{name:'Analytics helper'},{status:201})).result.key
+  const remove=provider=>({command:'analytics.remove-key',payload:{provider}})
+  assert.match((await h.api('/api/commands',remove('ga4'),{as:manager,status:403})).error,/owner/,'a manager cannot remove a key')
+  await h.api('/api/commands',remove('ga4'),{as:member,status:403})
+  await h.api('/api/commands',remove('ga4'),{as:'',headers:{authorization:`Bearer ${key}`},status:403})
+  await h.command('analytics.remove-key',{provider:'ga5'},{status:400})
+  assert.deepEqual((await h.api('/api/state')).analytics.keys,['ga4','meta'],'refused removals leave both keys saved')
+  const {actor}=await h.api('/api/state'),removed=await h.command('analytics.remove-key',{provider:'ga4'})
+  assert.deepEqual([removed.provider,removed.keys],['ga4',['meta']])
+  assert.match((await h.api('/api/commands',remove('ga4'),{status:409})).error,/No GA4 API secret is saved/)
+  let owner=await h.api('/api/state')
+  assert.deepEqual(owner.analytics.keys,['meta'],'the GA4 API secret is deleted')
+  assert.deepEqual(owner.state.analytics.ga4,{enabled:true,measurementId:'G-PLACEMAT1',debugMode:true},'GA4 stays switched on with its settings')
+  let audit=owner.state.audit.filter(a=>a.action==='analytics.remove-key')
+  assert.equal(audit.length,1);assert.equal(audit[0].actor,actor.id);assert.ok(Math.abs(Date.parse(audit[0].at)-Date.now())<60000,'removal time recorded')
+  assert.deepEqual([audit[0].subject,audit[0].before.ga4.keySaved,audit[0].after.ga4,audit[0].after.meta.keySaved],['ga4',true,{enabled:true,measurementId:'G-PLACEMAT1',debugMode:true,keySaved:false,keyRemoved:true},true])
+  // On without a key: the guest is asked only about Meta, and GA4 receives nothing from search or a completed booking.
+  assert.deepEqual((await h.api('/api/public/services',undefined,{as:''})).analytics,['meta'])
+  const visitId=randomUUID()
+  assert.deepEqual(await h.api('/api/public/analytics',{event:'search',visitId,partySize:2},{as:'',headers:guestHeaders,status:202}),{providers:['meta']})
+  await h.api('/api/public/book',publicGuest(dinner,0,{analytics:{visitId}}),{as:'',headers:guestHeaders,status:201})
+  await until(()=>h.analytics.length===2,'search and booking reach Meta');await quiet()
+  assert.deepEqual(h.analytics.map(r=>new URL(r.url).hostname),['graph.facebook.com','graph.facebook.com'],'nothing reaches GA4 without its key')
+  // Settings saves never bring a key back: switching GA4 on again (or keeping it on) needs a newly entered key.
+  assert.match((await h.api('/api/commands',{command:'analytics.settings',payload:settings({apiSecret:''},{accessToken:''})},{status:400})).error,/Enter the GA4 API secret/)
+  await h.command('analytics.remove-key',{provider:'meta'});h.analytics.length=0
+  assert.deepEqual((await h.api('/api/public/services',undefined,{as:''})).analytics,[],'no consent question while no provider holds a key')
+  assert.deepEqual(await h.api('/api/public/analytics',{event:'search',visitId:randomUUID(),partySize:2},{as:'',status:202}),{providers:[]})
+  await h.api('/api/public/book',publicGuest(dinner,1,{analytics:{visitId:randomUUID()}}),{as:'',headers:guestHeaders,status:201});await quiet();assert.equal(h.analytics.length,0)
+  owner=await h.api('/api/state');audit=owner.state.audit.filter(a=>a.action==='analytics.remove-key')
+  assert.deepEqual(audit.map(a=>[a.actor,a.subject,a.after.ga4.keySaved,a.after.meta.keySaved]),[[actor.id,'ga4',false,true],[actor.id,'meta',false,false]])
+  let stored=JSON.stringify(owner)+JSON.stringify(await h.api('/api/backup'))
+  for(const kind of owner.businessExportKinds)stored+=await (await h.request(`/api/business-export/${kind}.csv`)).text()
+  assert.ok(stored.includes('analytics.remove-key'),'the removals are in the exported history')
+  assert.ok(!stored.includes(ga4Secret)&&!stored.includes(metaToken),'no state, audit, backup or CSV holds a removed key')
+  // A newly entered key resumes that provider and is audited as entered.
+  const fresh=randomBytes(16).toString('hex')
+  await h.command('analytics.settings',settings({apiSecret:fresh},{enabled:false,accessToken:''}))
+  owner=await h.api('/api/state');assert.deepEqual(owner.analytics.keys,['ga4']);assert.deepEqual((await h.api('/api/public/services',undefined,{as:''})).analytics,['ga4'])
+  assert.deepEqual(owner.state.audit.at(-1).after.ga4,{enabled:true,measurementId:'G-PLACEMAT1',debugMode:true,keySaved:true,keyEntered:true});assert.ok(!JSON.stringify(owner).includes(fresh))
+ }finally{await h.close()}
+})
+
 test('BOOK-002 / DATA-001 / DATA-003: backups and CSVs leave the analytics keys out by name; a restored installation sends nothing until the owner enters them again',async()=>{
  const h=await installation(),restored=await installation();try{
   await service(h);await h.command('analytics.settings',settings())
