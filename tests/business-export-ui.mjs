@@ -8,7 +8,8 @@ import {browserServer} from './browser-server.mjs'
 import {businessService,csvRecords} from './api/business-fixture.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+// Downloads use Chromium's browser network path, so trust only this localhost TLS fixture there too.
+const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic','--allow-insecure-localhost']})
 try{
  for(const width of [1440,390]){
   const h=await installation(),transport=await browserServer(h),context=await browser.newContext({viewport:{width,height:1000},acceptDownloads:true,ignoreHTTPSErrors:true})
