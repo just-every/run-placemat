@@ -46,6 +46,46 @@ test('BOOK-001: three public reservations and a race for the last fitting combin
  }finally{await h.close()}
 })
 
+test('SERVICE-001: exact dated venue, floor and service publication rejects changed drafts and exposes only the approved service',async()=>{
+ const h=await installation();try{
+  const manager=await h.signIn('publication-manager@example.test','admin')
+  await h.command('venue.update',{name:'Synthetic Friday Bistro',timezone:'America/New_York'})
+  const table=await h.command('table.save',{label:'Window 1',seats:4,x:25,y:45},{as:manager})
+  const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10)
+  let draft=await h.command('service.save',{name:'Friday dinner',startAt:day+'T22:00:00Z',endAt:day+'T23:59:00Z',turnMinutes:60,coverLimit:12},{as:manager})
+  const hidden=async()=>assert.equal((await h.api('/api/public/services',undefined,{as:''})).services.length,0,'SERVICE-001: an unpublished or merely prepared service is not offered')
+  await hidden()
+  const prepare=async()=>h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:draft.id},reason:'Review the exact Friday restaurant, tables and service'},{as:manager})
+  for(const change of ['service','floor','venue']){
+   const proposal=await prepare(),snapshot=(await h.api('/api/state')).state
+   assert.deepEqual(proposal.plan.service,snapshot.services.find(v=>v.id===draft.id))
+   assert.deepEqual(proposal.plan.tables,snapshot.tables);assert.deepEqual(proposal.plan.venue,snapshot.venue)
+   await hidden()
+   if(change==='service')draft=await h.command('service.save',{...draft,name:'Revised Friday dinner',turnMinutes:75,coverLimit:8},{as:manager})
+   if(change==='floor')await h.command('table.save',{...table,x:40,y:55},{as:manager})
+   if(change==='venue')await h.command('venue.update',{name:'Synthetic Revised Bistro',timezone:'America/New_York'})
+   const before=(await h.api('/api/state')).state
+   await h.command('proposal.approve',{proposalId:proposal.id},{as:manager,status:409})
+   assert.deepEqual((await h.api('/api/state')).state,before,'SERVICE-001: stale '+change+' approval changes nothing')
+   await hidden()
+  }
+  const other=await h.command('service.save',{name:'Unapproved second sitting',startAt:day+'T20:00:00Z',endAt:day+'T21:30:00Z',turnMinutes:60,coverLimit:4})
+  const exact=await prepare(),decision=await h.command('proposal.approve',{proposalId:exact.id},{as:manager})
+  const {state,names}=await h.api('/api/state'),published=state.services.find(v=>v.id===draft.id)
+  assert.equal(decision.status,'approved');assert.equal(names[decision.approvedBy],'Floor manager')
+  assert.equal(published.status,'published');assert.equal(published.turnMinutes,75);assert.equal(published.coverLimit,8)
+  assert.equal(published.startAt,day+'T22:00:00.000Z');assert.equal(published.endAt,day+'T23:59:00.000Z')
+  assert.equal(state.venue.timezone,'America/New_York');assert.equal(state.venue.name,'Synthetic Revised Bistro')
+  assert.deepEqual(state.tables.map(t=>({id:t.id,x:t.x,y:t.y})),[{id:table.id,x:40,y:55}])
+  assert.equal(state.services.find(v=>v.id===other.id).status,'draft')
+  const available=(await h.api('/api/public/services?partySize=4',undefined,{as:''})).services
+  assert.deepEqual(available.map(v=>v.id),[draft.id]);assert.ok(available[0].slots.some(v=>v.startAt===published.startAt))
+  await h.api('/api/public/book',publicGuest(other,0),{as:'',status:404})
+  const booked=(await h.api('/api/public/book',publicGuest(published,0,{partySize:4}),{as:'',status:201})).result
+  assert.deepEqual((await h.api('/api/state')).state.bookings.find(v=>v.id===booked.id).tableIds,[table.id])
+ }finally{await h.close()}
+})
+
 test('OSS-001: complete Friday service without a license/payment account; online bookings, walk-in, waitlist, no-show, reminder export and history',async()=>{
  const h=await installation();try{
   const {service:s}=await service(h),bookings=[]

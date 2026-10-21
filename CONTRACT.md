@@ -427,9 +427,9 @@ Judged from the code and tests at commit `a3ac7ecbcc0c0621a8e914c2a552d0c272816c
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 9 | 6 | 0 | 15 |
+| Published | 10 | 5 | 0 | 15 |
 | Target and push further | 27 | 23 | 67 | 117 |
-| All | 36 | 29 | 67 | 132 |
+| All | 37 | 28 | 67 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -437,7 +437,7 @@ Judged from the code and tests at commit `a3ac7ecbcc0c0621a8e914c2a552d0c272816c
 | `PRIVACY-001` | Public guest isolation | published | done | `src/placemat/http.ts`; `src/placemat/commands.ts`; `tests/api/privacy.test.mjs`; `public/placemat-analytics.js`; `tests/api/embed.test.mjs` |  |
 | `BOOK-001` | Live assigned reservations | published | done | `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` | |
 | `FLOOR-001` | Conflict-safe physical capacity | published | done | `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` |  |
-| `SERVICE-001` | Reviewed dated service publication | published | partial | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
+| `SERVICE-001` | Reviewed dated service publication | published | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | |
 | `PLAN-001` | Exact plans and accountable decisions | published | partial | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `MSG-001` | Approved reminder CSV custody | published | done | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/reminders.test.mjs` |  |
 | `WAIT-001` | Staff walk-ins and waiting parties | published | partial | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
