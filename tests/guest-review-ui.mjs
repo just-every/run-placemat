@@ -46,6 +46,8 @@ for(const width of [1440,390]){
   await signIn(context,h.cookie,transport.origin)
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message))
   await page.goto(transport.origin+'/app#guests')
+  await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+  await page.getByRole('link',{name:'Guests',exact:true}).click()
   const card=await openGuest(page,'alex.one'),review=await reviewGuest(card)
   await expect(review).toContainText(f.booking.id)
   await expect(review).toContainText('1 imported visits · 1 linked bookings')
