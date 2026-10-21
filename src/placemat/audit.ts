@@ -40,6 +40,9 @@ export function auditRows(state:State,params:URLSearchParams):AuditEntry[]{
 /** Erasure removes entire linked snapshots, retaining ids and action accountability. */
 export function eraseAudit(state:State,guestId:string):void {
  const ids=new Set([guestId,...state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id),...state.waitlist.filter(w=>w.guestId===guestId).map(w=>w.id),...(state.inquiries??[]).filter(i=>i.guestId===guestId).map(i=>i.id)])
+ const relatedServices=new Set(state.waitlist.filter(row=>row.guestId===guestId).map(row=>row.serviceId))
+ const sharedInstructions=new Set(state.services.filter(service=>relatedServices.has(service.id)).map(service=>service.closeReason).filter((value):value is string=>!!value))
+ const scrub=(value:unknown):unknown=>typeof value==='string'&&sharedInstructions.has(value)?'':Array.isArray(value)?value.map(scrub):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([key,item])=>[key,scrub(item)])):value
  const linked=(value:unknown):boolean=>typeof value==='string'?ids.has(value):Array.isArray(value)?value.some(linked):!!value&&typeof value==='object'&&Object.values(value).some(linked)
  for(const event of state.audit){
   const affected=ids.has(event.subject)||(event.changes??[]).some(change=>ids.has(change.id)||linked(change.before)||linked(change.after))
@@ -48,5 +51,8 @@ export function eraseAudit(state:State,guestId:string):void {
    for(const change of event.changes??[]){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
    event.reason='';if(event.pacing)event.pacing.reason=''
   }
+  // Closing instructions are shared onto other parties' follow-ups and later snapshots.
+  for(const change of event.changes??[]){change.before=scrub(change.before);change.after=scrub(change.after)}
+  if(event.reason&&sharedInstructions.has(event.reason))event.reason=''
  }
 }
