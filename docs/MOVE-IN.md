@@ -23,8 +23,10 @@ required and at most 200 characters. Email is at most 254 characters, phone 80,
 and notes 4,000. Contact fields are trimmed, and email is lowercased. Phone accepts
 digits, `+`, parentheses, whitespace, dots and hyphens. Guests without contact
 information produce a warning because matching can use only their source ID.
-Different guest IDs sharing a normalized email or phone must be consolidated.
-The importer also rejects a contact already held by a different native guest.
+Different guest IDs sharing a normalized email or phone remain separate, with a
+warning for manager duplicate review under GUEST-004. Contacts held by another
+native profile also warn; they never authorize an overwrite or automatic merge.
+Existing source IDs still cannot overwrite records changed after import.
 
 A row without all three visit fields imports a guest only if all three are empty.
 Otherwise `visit_date` must be a real `YYYY-MM-DD` date, `party_size` an integer
@@ -105,8 +107,8 @@ replay protection for records without contacts. Tombstones retain no cleartext
 contact. Same-person identification across different IDs and entirely changed
 contact details cannot be inferred from this shape.
 
-Native publication checks both permanent tombstones and normalized contact
-collisions inside its D1 transaction. Strict undo never restores erased custody.
+Native publication checks permanent erasure tombstones inside its D1 transaction;
+shared contacts stay separate until an explicitly reviewed manager merge. Strict undo never restores erased custody.
 Erasure withdraws an affected original artifact in full, including bytes belonging
 to other guests in that CSV; other non-erased structured guest records remain.
 Raw CSV files outside this installation are outside its custody.
