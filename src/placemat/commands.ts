@@ -38,7 +38,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
  const hostCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
- let result:any
+ let result:any,guestChange:import('./audit').AuditChange|undefined
  switch(command){
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
  case 'analytics.settings':{const change=setAnalytics(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}
@@ -220,11 +220,13 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  case 'guest.update':case 'guest.profile':{
   const update=await updateGuestProfile(db,p.guestId,p,actor,version,now)
-  before.push(...update.statements);result=update.guest;break
+  before.push(...update.statements);result=update.guest;guestChange={kind:'guests',id:result.id,before:update.previous,after:structuredClone(result)};break
  }
  default:fail(400,'Unknown command.')
  }
- if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings','analytics.remove-key'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??'venue'})
+ if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings','analytics.remove-key'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??result?.booking?.id??'venue'})
+ for(const entry of s.audit)if(entry.at===now&&entry.actor===actor.id)entry.source=actor.agent?'preparation-key':'person'
+ if(guestChange)s.audit.at(-1)!.changes=[guestChange]
  await save(db,s,version,before)
  return result
 }

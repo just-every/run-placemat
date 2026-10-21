@@ -343,3 +343,7 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
   [data-original-close]{position:absolute;top:0;left:0;width:100%;border:0;box-shadow:none}
   [data-original-close] .actions{display:none}
 }
+
+.audit-values { table-layout: fixed; width: 100%; }
+.audit-values th, .audit-values td { overflow-wrap: anywhere; white-space: pre-wrap; vertical-align: top; }
+#audit-content .help { overflow-wrap: anywhere; }

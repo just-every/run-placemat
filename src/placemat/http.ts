@@ -1,3 +1,5 @@
+import {auditRows} from './audit'
+import {businessCsv} from './business-export'
 import {readCloseReport,closeReportCsv,closeReportPdf} from './service-close-report'
 import {businessExportKinds} from './business-export'
 import {readBusinessCsv} from './business-export-store'
@@ -36,7 +38,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -138,6 +140,14 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const {state}=await load(env.DB)
    const people=await guests(env.DB)
    return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
+  }
+  if((path==='/api/audit'||path==='/api/audit.csv')&&request.method==='GET'){
+   const {state}=await load(env.DB),rows=auditRows(state,url.searchParams)
+   if(path.endsWith('.csv')){
+    person(actor!,true)
+    return new Response(businessCsv({...state,audit:rows},[],'audit'),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-audit.csv"'}})
+   }
+   return json({rows,names:await actorNames(env.DB,{...state,audit:rows})})
   }
   if(path==='/api/reports/performance'){
    person(actor!)

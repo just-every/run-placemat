@@ -49,7 +49,7 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'guests':return {fields:['id','name','email','phone','notes','erased','profile_json','provenance_json','notesHistory_json','history_json'],rows:people}
   case 'inquiries':return {fields:['id','guestId','ownerId','status','partySize','serviceId','requestedStartAt','requiredArea','requiredAccessTags_json','requests_json','replyDueAt','createdAt','updatedAt','closedAt','bookingId','acceptedOfferVersion','acceptedAt','offer_json','messages_json'],rows:state.inquiries??[]}
   case 'risk-tasks':return {fields:['id','bookingId','kind','decision','actor','at','reason','dueAt','completedAt','completedBy','outcome','snapshot_json'],rows:state.riskDecisions??[]}
-  case 'audit':return {fields:['id','at','actor','action','subject','reason','before_json','after_json','pacing_json'],rows:state.audit}
+  case 'audit':return {fields:['id','at','actor','source','action','subject','reason','before_json','after_json','changes_json','pacing_json'],rows:state.audit}
   case 'service-events':return {fields:['id','bookingId','at','actor','source','reason','correctsEventId','before_json','after_json'],rows:state.serviceEvents??[]}
   case 'proposals':return {fields:['id','kind','status','preparedBy','preparedAt','approvedBy','approvedAt','reason','plan_json'],rows:state.proposals}
   case 'reminders':return {fields:['id','bookingId','guestId','message','status','approvedBy','approvedAt'],rows:state.reminders}

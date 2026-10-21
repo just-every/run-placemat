@@ -1,3 +1,4 @@
+import {eraseAudit} from './audit'
 import {normalizeBookingRequests} from './booking-requests'
 import type {State} from './model'
 import type {D1Database,D1Sql} from './import/kit'
@@ -9,6 +10,7 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  const row=await db.prepare('SELECT version,data FROM pm_state WHERE id=1').first()
  if(!row)return []
  const state=JSON.parse(row.data) as State
+ eraseAudit(state,guestId)
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan))]
  for(const b of bookings)if(b.guestId===guestId){if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
  for(const inquiry of state.inquiries??[])if(inquiry.guestId===guestId){

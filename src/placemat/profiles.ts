@@ -3,7 +3,7 @@ import { fail,type Actor,type Guest,type GuestFieldProvenance,type GuestProfile 
 export type GuestProfileUpdate = { tags?:string[]; vipLevel?:GuestProfile['vipLevel']; seatingPreference?:string; notes?:string }
 
 /** Private guest fields stay in pm_guests and share the guest-note authority. */
-export async function updateGuestProfile(db:D1Database,guestId:string,payload:GuestProfileUpdate,actor:Actor,version:number,now:string):Promise<{guest:Guest;statements:D1PreparedStatement[]}>{
+export async function updateGuestProfile(db:D1Database,guestId:string,payload:GuestProfileUpdate,actor:Actor,version:number,now:string):Promise<{guest:Guest;previous:Guest;statements:D1PreparedStatement[]}>{
  if(actor.agent||!['owner','admin'].includes(actor.role))fail(403,'A venue manager is required.')
  if(!payload||typeof payload!=='object'||Array.isArray(payload))fail(400,'Guest profile fields are required.')
  const row=await db.prepare('SELECT version,data FROM pm_guests WHERE id=?').bind(guestId).first<{version:number;data:string}>()
@@ -49,5 +49,5 @@ export async function updateGuestProfile(db:D1Database,guestId:string,payload:Gu
   db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) AND EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END').bind(guest.id,row!.version,row!.data,version),
   db.prepare('UPDATE pm_guests SET data=?,version=version+1 WHERE id=? AND version=? AND EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?)').bind(JSON.stringify(guest),guest.id,row!.version,version),
  ]
- return {guest,statements}
+ return {guest,previous:JSON.parse(row!.data),statements}
 }
