@@ -264,6 +264,7 @@ test('Counter seats and anonymous pools share overlapping-turn capacity, pacing,
   const sheet=await h.api('/api/preshift?date='+f.date),sheetText=JSON.stringify(sheet);assert.match(sheetText,/Chef counter seat 1/);assert.match(sheetText,/Lounge unassigned cover/);
   const pdf=await (await h.request('/api/preshift.pdf?date='+f.date)).text();assert.match(pdf,/Chef counter seat 1/);assert.match(pdf,/Lounge unassigned cover/);
   const report=await h.api('/api/reports/performance?serviceId='+f.service.id);assert.equal(report.report.utilization.availableSeatMinutes,14*360);assert.equal(report.report.utilization.pool.availableCoverMinutes,20*360);assert.equal(report.report.utilization.tables.length,11);
+  const {csvRecords}=await import('./business-fixture.mjs');const inventoryCsv=csvRecords(await (await h.request('/api/business-export/inventories.csv')).text());assert.deepEqual(inventoryCsv.map(r=>JSON.parse(r.data_json)),(await f.state()).inventories);
   const archive=await h.api('/api/backup');restored=await installation();await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await restored.api('/api/state')).state.inventories.length,2);
   await h.command('table.save',{...counter[0],seats:2},{status:409});await h.command('proposal.prepare',{kind:'floor.change',plan:{tableId:counter[0].id,changes:{seats:2}},reason:'Invalid inventory edit'},{status:409});
   // Counter observations retain correction history and immutable exact numeric publications.

@@ -4,7 +4,7 @@ import {analyticsSettings} from './analytics'
 /** CSV business schema; independent of the structured backup format version. */
 export const businessCsvVersion=1
 export const businessExportKinds=[
- 'venue','rooms','tables','allocation-tables','combinations','services','schedules',
+ 'venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
@@ -38,8 +38,9 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
  switch(kind) {
   case 'guest-merges':return {fields:['id','guestId','duplicateId','status','createdAt','createdBy','unmergedAt','unmergedBy','purgedAt','snapshots_json','pendingAssignment_json'],rows:merges}
   case 'venue':return {fields:['name','timezone','setup_json','hostIds_json','pacingHostIds_json','embedOrigins_json','analytics_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,embedOrigins:state.embed?.origins??[],analytics:analyticsSettings(state)}]}
+  case 'inventories':return {fields:['id','name','kind','capacity','turnMinutes','arrivalCovers','intervalMinutes','adjacent'],rows:state.inventories??[]}
   case 'rooms':return {fields:['id','name','kind'],rows:state.rooms??[]}
-  case 'tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.tables}
+  case 'tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json','inventoryId','inventoryKind','ordinal','inventoryTurnMinutes'],rows:state.tables}
   case 'allocation-tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.allocationTables??[]}
   case 'combinations':return {fields:['id','tableIds_json','capacity','accessTags_json','setupMinutes','enabled','adjacent'],rows:state.combinations??[]}
   case 'service-notes':return {fields:['id','date','kind','history_json'],rows:state.serviceNotes??[]}
