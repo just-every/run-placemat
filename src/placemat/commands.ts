@@ -26,6 +26,7 @@ import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save,guests } from './store'
 import { updateGuestProfile } from './profiles'
+import {mergeGuests,unmergeGuests} from './guest-merge'
 import {searchTables} from './reservation-search'
 import {saveCombination} from './combinations'
 import {executeStaffing} from './staffing'
@@ -41,7 +42,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
  const hostCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
- let result:any,guestChange:import('./audit').AuditChange|undefined
+ let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
  case 'service.note':case 'service.preorder-item':case 'service.preorder-active':case 'service.preorder-count':{result=executeServiceNotes(s,actor,command,p,now);break}
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
@@ -220,6 +221,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  case 'booking.stage':case 'booking.status':{
   const changed=executeServiceStatus(s,actor,{...p,stage:p.stage??p.status},now);result=command==='booking.status'?changed.booking:changed;break
  }
+ case 'guest.merge':case 'guest.unmerge':{
+  const change=await (command==='guest.merge'?mergeGuests:unmergeGuests)(db,s,version,actor,p,now)
+  before.push(...change.statements);result=change.result;mergeChanges=change.changes;break
+ }
  case 'guest.update':case 'guest.profile':{
   const update=await updateGuestProfile(db,p.guestId,p,actor,version,now)
   before.push(...update.statements);result=update.guest;guestChange={kind:'guests',id:result.id,before:update.previous,after:structuredClone(result)};break
@@ -229,6 +234,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings','analytics.remove-key'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??result?.booking?.id??'venue'})
  for(const entry of s.audit)if(entry.at===now&&entry.actor===actor.id)entry.source=actor.agent?'preparation-key':'person'
  if(guestChange)s.audit.at(-1)!.changes=[guestChange]
+ if(mergeChanges.length)s.audit.at(-1)!.changes=mergeChanges
  await save(db,s,version,before)
  return result
 }

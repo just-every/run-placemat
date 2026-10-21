@@ -37,7 +37,7 @@ export async function reviewCsv(csv:string,context:D1ImportContext){
  for(const {guest,row,sourceId} of groups.values()){
   guest.history!.sort((a,b)=>a.date.localeCompare(b.date)||a.partySize-b.partySize||a.status.localeCompare(b.status))
   const hashes=guestIdentityHashes(guest)
-  for(const hash of hashes){const prior=contacts.get(hash);if(prior&&prior!==guest.id)diagnostic('error','DUPLICATE_CONTACT','Different guest IDs share a contact detail; consolidate them before importing.',row);contacts.set(hash,guest.id)}
+  for(const hash of hashes){const prior=contacts.get(hash);if(prior&&prior!==guest.id)diagnostic('warning','DUPLICATE_CONTACT','Different guest IDs share a contact detail; they remain separate for manager duplicate review.',row);contacts.set(hash,guest.id)}
   if(hashes.length){const erased=await context.storage.database.prepare('SELECT identity_hash FROM pm_erased WHERE identity_hash IN (SELECT value FROM json_each(?)) LIMIT 1').bind(JSON.stringify(hashes)).first();if(erased)diagnostic('error','ERASED_IDENTITY','An erased contact cannot be reimported.',row)}
   const current=await context.storage.targets.read(context.storage.database,context.destination,'guest',guest.id)
   const recordId=artifactHash+':'+sourceId
@@ -46,8 +46,8 @@ export async function reviewCsv(csv:string,context:D1ImportContext){
    const claim=await context.storage.database.prepare('SELECT identity FROM ik_sources WHERE identity=?').bind(identity).first()
    if(!claim||canonicalJson(current.value)!==canonicalJson(guest))diagnostic('error','EXISTING_GUEST','This guest already exists or was edited. Move-in never overwrites an existing guest.',row)
   }
-  // Contact collisions with another native guest are fenced again by the adapter.
-  if(guest.email||guest.phone){const native=await context.storage.database.prepare(`SELECT id FROM pm_guests WHERE id!=? AND ((?!='' AND lower(trim(json_extract(data,'$.email')))=?) OR (?!='' AND ${normalizedPhoneSql}=?)) LIMIT 1`).bind(guest.id,guest.email,guest.email,guest.phone.replace(/\D/g,''),guest.phone.replace(/\D/g,'')).first();if(native)diagnostic('error','EXISTING_CONTACT','Another native guest already has this email or phone.',row)}
+  // Shared contacts are review evidence, never authority to overwrite an identity.
+  if(guest.email||guest.phone){const native=await context.storage.database.prepare(`SELECT id FROM pm_guests WHERE id!=? AND ((?!='' AND lower(trim(json_extract(data,'$.email')))=?) OR (?!='' AND ${normalizedPhoneSql}=?)) LIMIT 1`).bind(guest.id,guest.email,guest.email,guest.phone.replace(/\D/g,''),guest.phone.replace(/\D/g,'')).first();if(native)diagnostic('warning','EXISTING_CONTACT','Another native guest has this contact; identities stay separate for manager review.',row)}
   bundle.records.push({namespace:NAMESPACE,kind:'guest',sourceId:recordId,payload:guest as unknown as Json,payloadHash:sha256(canonicalJson(guest)),artifactHash,location:{artifact:'tablein-guests.csv',row}})
  }
  const plan=await planD1Import(bundle,{version:MAPPING_VERSION,map:record=>({effects:[{targetKind:'guest',targetId:(record.payload as any).id,value:record.payload}]})},context)

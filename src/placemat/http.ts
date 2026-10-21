@@ -41,11 +41,13 @@ import { reminderCsv,calendar } from './downloads'
 import { reservationReport,reportCsv } from './reports'
 import {readPerformance,publishPerformance} from './performance-store'
 import { searchGuests,duplicateReview } from './guests'
+import {mergeReview,unmergeReview} from './guest-merge'
+import {filterMergeAudit,readMergeJournal} from './guest-merge-store'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -170,7 +172,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
   }
   if((path==='/api/audit'||path==='/api/audit.csv')&&request.method==='GET'){
-   const {state}=await load(env.DB),rows=auditRows(filterNotes(state,actor!),url.searchParams)
+   const {state}=await load(env.DB),rows=auditRows(filterMergeAudit(filterNotes(state,actor!),actor!),url.searchParams)
    if(path.endsWith('.csv')){
     person(actor!,true)
     return new Response(businessCsv({...state,audit:rows},[],'audit'),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-audit.csv"'}})
@@ -187,6 +189,13 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    person(actor!);const {state}=await load(env.DB),report=reservationReport(state,url.searchParams)
    if(path.endsWith('.csv'))return new Response(reportCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-reservations.csv"'}})
    return json(report)
+  }
+  if(path.startsWith('/api/guests/')&&request.method==='GET'){
+   person(actor!)
+   if(path==='/api/guests/merges')return json({merges:await readMergeJournal(env.DB,text(url.searchParams.get('guestId'),'Guest'))})
+   const {state}=await load(env.DB)
+   if(path==='/api/guests/merge-preview')return json(await mergeReview(env.DB,state,text(url.searchParams.get('guestId'),'Guest'),text(url.searchParams.get('duplicateId'),'Duplicate')))
+   return json(await unmergeReview(env.DB,state,text(url.searchParams.get('mergeId'),'Merge')))
   }
   if(path==='/api/guests'&&request.method==='GET'){
    const people=await guests(env.DB),review=url.searchParams.get('review')
@@ -210,7 +219,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]
    const people=await guests(env.DB)
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
-   return json({state:filterNotes(state,actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){

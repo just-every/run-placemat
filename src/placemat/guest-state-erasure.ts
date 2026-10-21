@@ -16,6 +16,7 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  for(const note of state.serviceNotes??[])if(noteIds.has(note.id))for(const entry of note.history)entry.text=''
  for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='serviceNotes'&&noteIds.has(change.id)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
  eraseAudit(state,guestId)
+ for(const reminder of state.reminders)if(reminder.guestId===guestId){delete reminder.contactName;delete reminder.contactEmail;delete reminder.contactPhone}
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan))]
  for(const b of bookings)if(b.guestId===guestId){b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
  for(const inquiry of state.inquiries??[])if(inquiry.guestId===guestId){
@@ -45,7 +46,7 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  const queues=[...state.waitlist,...state.proposals.flatMap(p=>p.plan?.inputs?.waitlist??[])]
  for(const row of queues){
   if(row.guestId===guestId){
-   delete row.managementTokenHash;row.requiredAccessTags=[];row.contactConsent=false;delete row.preferredArea;delete row.preferredAt
+   delete row.managementTokenHash;delete row.contactPhone;row.requiredAccessTags=[];row.contactConsent=false;delete row.preferredArea;delete row.preferredAt
    for(const event of row.history??[])if(event.action==='party-updated'||event.action==='joined')event.details=undefined
    if(row.quote)row.quote.basis=''
    for(const event of row.history??[]){event.reason='';if(event.details&&typeof event.details==='object'&&'basis' in event.details)(event.details as {basis:string}).basis='';const quote=(event.details as any)?.quote;if(quote&&typeof quote==='object')quote.basis=''}

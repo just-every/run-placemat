@@ -9,7 +9,7 @@ export function calendar(s:State,bookingId:string){const b=s.bookings.find(b=>b.
 const cell=(v:string)=>'"'+(/^[=+\-@\t\r]/.test(v)?"'"+v:v).replaceAll('"','""')+'"'
 export async function reminderCsv(db:D1Database,s:State,version:number){
  const people=await guests(db),rows=[['booking_id','guest','email','phone','message','approved_by','approved_at']]
- for(const r of s.reminders){const g=people.find(g=>g.id===r.guestId),b=s.bookings.find(b=>b.id===r.bookingId);if(!g||g.erased||b?.status!=='booked')continue;rows.push([r.bookingId,g.name,g.email,g.phone,r.message,r.approvedBy,r.approvedAt]);r.status='exported'}
+ for(const r of s.reminders){const g=people.find(g=>g.id===r.guestId),b=s.bookings.find(b=>b.id===r.bookingId);if(!g||g.erased||b?.status!=='booked')continue;rows.push([r.bookingId,r.contactName??g.name,r.contactEmail??g.email,r.contactPhone??g.phone,r.message,r.approvedBy,r.approvedAt]);r.status='exported'}
  await save(db,s,version)
  return rows.map(r=>r.map(cell).join(',')).join('\r\n')+'\r\n'
 }

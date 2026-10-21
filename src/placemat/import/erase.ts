@@ -4,8 +4,33 @@ import { contextWithAuthority,requireOwner } from './context'
 import { guestIdentityHashes, importedGuestId } from './identity'
 import { Problem,type Actor,type Guest } from '../model'
 
+/** An active merge represents one reviewed identity; erase all its aliases together.
+ * Reversed profiles remain separate. Their shared historical snapshots are purged.
+ */
+export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Actor){
+ requireOwner(actor)
+ const rows=(await db.prepare('SELECT id,version,data FROM pm_guest_merges').all()).results
+ const journals=rows.map(row=>({...row,journal:JSON.parse(row.data)}))
+ const ids=new Set([guestId])
+ for(let changed=true;changed;){changed=false;for(const {journal:j} of journals)if(j.status==='merged'&&(ids.has(j.guestId)||ids.has(j.duplicateId)))for(const id of [j.guestId,j.duplicateId])if(!ids.has(id)){ids.add(id);changed=true}}
+ const related=journals.filter(({journal:j})=>ids.has(j.guestId)||ids.has(j.duplicateId))
+ const purge:D1Sql[]=related.flatMap(row=>{
+  const j={id:row.id,guestId:row.journal.guestId,duplicateId:row.journal.duplicateId,status:'erased',createdAt:row.journal.createdAt,createdBy:row.journal.createdBy,purgedAt:new Date().toISOString()}
+  return [{sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guest_merges WHERE id=? AND version=?) THEN 1 ELSE 0 END',params:[row.id,row.version]},
+   {sql:'UPDATE pm_guest_merges SET version=version+1,data=? WHERE id=? AND version=?',params:[canonicalJson(j),row.id,row.version]}]
+ })
+ let result={erasedRecords:0,identityHashes:[] as string[]}
+ // First erase the survivor, making every active merge immediately irreversible.
+ const ordered=[...ids].sort((a,b)=>Number(journals.some(({journal:j})=>j.status==='merged'&&j.duplicateId===a))-Number(journals.some(({journal:j})=>j.status==='merged'&&j.duplicateId===b)))
+ for(const [index,id] of ordered.entries()){
+  const erased=await eraseSingleGuest(db,id,actor,index===0?purge:[])
+  result={erasedRecords:result.erasedRecords+erased.erasedRecords,identityHashes:[...new Set([...result.identityHashes,...erased.identityHashes])]}
+ }
+ return result
+}
+
 /** Caller authorizes the native request; current operator authority is fenced in SQL. */
-export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Actor,extraStatements:D1Sql[]=[]){
+async function eraseSingleGuest(db:D1Database,guestId:string,actor:Actor,extraStatements:D1Sql[]=[]){
  requireOwner(actor)
  const owner=await db.prepare("SELECT version FROM oa_operators WHERE id=? AND role='owner' AND status='active'").bind(actor.id).first()
  if(!owner)throw new Problem(403,'An active owner is required.')

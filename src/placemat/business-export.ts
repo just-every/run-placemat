@@ -5,7 +5,7 @@ import {analyticsSettings} from './analytics'
 export const businessCsvVersion=1
 export const businessExportKinds=[
  'venue','rooms','tables','allocation-tables','combinations','services','schedules',
- 'service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
+ 'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
@@ -34,8 +34,9 @@ function cell(value:unknown):string {
  return '"'+text.replace(/"/g,'""')+'"'
 }
 
-function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[]):Dataset {
+function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[],merges:unknown[]):Dataset {
  switch(kind) {
+  case 'guest-merges':return {fields:['id','guestId','duplicateId','status','createdAt','createdBy','unmergedAt','unmergedBy','purgedAt','snapshots_json','pendingAssignment_json'],rows:merges}
   case 'venue':return {fields:['name','timezone','setup_json','hostIds_json','pacingHostIds_json','embedOrigins_json','analytics_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,embedOrigins:state.embed?.origins??[],analytics:analyticsSettings(state)}]}
   case 'rooms':return {fields:['id','name','kind'],rows:state.rooms??[]}
   case 'tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.tables}
@@ -46,22 +47,22 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'schedules':return {fields:['id','name','shift','seasonStart','seasonEnd','startTime','endTime','startOffset','endOffset','turnMinutes','coverLimit','weekdays_json','exceptions_json','version','updatedAt','updatedBy'],rows:state.schedules??[]}
   case 'service-changes':return {fields:['id','serviceId','scope','tableIds_json','startAt','endAt','reason','approvedBy','approvedAt','tasks_json'],rows:state.serviceChanges??[]}
   case 'bookings':return {fields:['id','serviceId','guestId','partySize','startAt','endAt','status','source','attribution_json','createdAt','setupStartAt','cleanupEndAt','expectedEndAt','needsBussing','assignmentLocked','tableIds_json','combination_json','requiredArea','requiredAccessTags_json','requests_json','requestsAcknowledgedAt','ruleOverride_json','pacingOverride_json','serverId','sectionId','serverName','sectionName','servingHistory_json','preorders_json'],rows:state.bookings}
-  case 'waitlist':return {fields:['id','serviceId','guestId','bookingId','partySize','status','source','createdAt','seatedAt','resolvedAt','priority','owner','preferredAt','preferredArea','requiredAccessTags_json','contactConsent','actualWaitMinutes','quote_json','history_json','followUps_json'],rows:state.waitlist}
-  case 'guests':return {fields:['id','name','email','phone','notes','erased','profile_json','provenance_json','notesHistory_json','history_json'],rows:people}
+  case 'waitlist':return {fields:['id','serviceId','guestId','bookingId','partySize','status','source','createdAt','seatedAt','resolvedAt','priority','owner','preferredAt','preferredArea','requiredAccessTags_json','contactConsent','contactPhone','actualWaitMinutes','quote_json','history_json','followUps_json'],rows:state.waitlist}
+  case 'guests':return {fields:['id','name','email','phone','notes','erased','mergedInto','contacts_json','profile_json','provenance_json','notesHistory_json','history_json'],rows:people}
   case 'inquiries':return {fields:['id','guestId','ownerId','status','partySize','serviceId','requestedStartAt','requiredArea','requiredAccessTags_json','requests_json','replyDueAt','createdAt','updatedAt','closedAt','bookingId','acceptedOfferVersion','acceptedAt','offer_json','messages_json'],rows:state.inquiries??[]}
   case 'risk-tasks':return {fields:['id','bookingId','kind','decision','actor','at','reason','dueAt','completedAt','completedBy','outcome','snapshot_json'],rows:state.riskDecisions??[]}
   case 'audit':return {fields:['id','at','actor','source','action','subject','reason','before_json','after_json','changes_json','pacing_json'],rows:state.audit}
   case 'service-events':return {fields:['id','bookingId','at','actor','source','reason','correctsEventId','before_json','after_json'],rows:state.serviceEvents??[]}
   case 'proposals':return {fields:['id','kind','status','preparedBy','preparedAt','approvedBy','approvedAt','reason','plan_json'],rows:state.proposals}
-  case 'reminders':return {fields:['id','bookingId','guestId','message','status','approvedBy','approvedAt'],rows:state.reminders}
+  case 'reminders':return {fields:['id','bookingId','guestId','contactName','contactEmail','contactPhone','message','status','approvedBy','approvedAt'],rows:state.reminders}
   case 'performance-reports':return {fields:['id','serviceId','publishedAt','publishedBy','floorVersion','report_json'],rows:reports.map(row=>({id:row.id,serviceId:row.service_id,publishedAt:row.published_at,publishedBy:row.published_by,floorVersion:row.floor_version,report:JSON.parse(row.data)}))}
  }
 }
 
 /** Current records only. Caller owns native owner authorization and snapshot loading. */
-export function businessCsv(state:State,people:Guest[],kind:string,reports:BusinessPerformanceReport[]=[]):string {
+export function businessCsv(state:State,people:Guest[],kind:string,reports:BusinessPerformanceReport[]=[],merges:unknown[]=[]):string {
  if(!businessExportKinds.includes(kind as BusinessExportKind))fail(404,'Unknown business export.')
- const {fields,rows}=dataset(state,people,kind as BusinessExportKind,reports)
+ const {fields,rows}=dataset(state,people,kind as BusinessExportKind,reports,merges)
  const lines:unknown[][]=[['csv_version',...fields,'data_json']]
  for(const source of rows) {
   const row=clean(source) as RecordValue

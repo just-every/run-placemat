@@ -12,10 +12,20 @@ Each changed field shows who recorded it and when. **Contact and note sources** 
 
 When the guest books again with the same email, their preferences and sources appear beside their booking at arrival. The profile combines imported visits with current reservations.
 
+## Review duplicates
+
+Expand a guest and press **Review possible duplicates**. Placemat suggests matching email addresses or the same full US phone and name. A shared family phone with a different name appears separately as a household. Imports preserve separate source identities even when contacts match.
+
+Owners and managers can **Preview merge**, inspect the conflicting fields, visits and original-contact permissions, then type `MERGE` to keep the selected profile. The merge journal keeps both originals and their sources. Marketing permission remains not recorded; a merge cannot grant unknown permission or remove a recorded restriction. Approved reminders keep their original recipients.
+
+**Review merge journal** offers **Preview unmerge**. Type `UNMERGE` to restore unchanged records. Later edits and newly created records stay in place and are listed for a person to assign; inspect those before reconciling visits. Reversal never restores more permissive contact consent. The owner can export the journal and its snapshots with the other portable business records.
+
 ## Erase a guest
 
 When a guest asks you to remove their details, the owner expands **Erase personal details** on that guest, types `ERASE` and presses **Erase guest**.
 
 Placemat removes the guest's name, contact details, profile preferences, dated notes and their sources, and their details held for an import. Their bookings stay, without anything that identifies them, so your covers and history still add up. The same contact details cannot be imported again. Erasure cannot reach files that were already downloaded and kept outside Placemat, such as an exported reminders CSV.
+
+For an actively merged identity, erasure includes the reviewed aliases. It removes the merge snapshots and permanently prevents reversal. Previously reversed profiles stay separate; their shared journal snapshots are still removed.
 
 Only the owner can erase guests.

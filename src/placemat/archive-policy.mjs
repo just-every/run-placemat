@@ -1,3 +1,4 @@
+import {validateGuestMerges} from './guest-merge-archive.mjs'
 import {validateServiceNotes} from './service-notes-archive.mjs'
 import {validateOnboarding} from './onboarding-archive.mjs'
 function validatePacing(s){
@@ -43,8 +44,9 @@ export default {
   if(rows.length>1)throw Error('Invalid floor state')
   const ids=new Set(guests.map(row=>row.id))
   for(const row of guests){const g=JSON.parse(row.data);if(g.id!==row.id||typeof g.name!=='string'||typeof g.email!=='string'||typeof g.notes!=='string')throw Error('Invalid guest')}
-  if(!rows.length){if(reports.length)throw Error('Published reports need their venue state');return}
+  if(!rows.length){if(reports.length||(await read('pm_guest_merges')).length)throw Error('Business journals need their venue state');return}
   const s=JSON.parse(rows[0].data)
+  validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
   validateOnboarding(s)
   if(s.rooms!==undefined&&(!Array.isArray(s.rooms)||s.rooms.some(r=>!r||typeof r.id!=='string'||typeof r.name!=='string'||!r.name.trim()||!['indoor','outdoor','bar'].includes(r.kind))||new Set(s.rooms.map(r=>r.id)).size!==s.rooms.length||new Set(s.rooms.map(r=>r.name.toLowerCase())).size!==s.rooms.length))throw Error('Invalid rooms')

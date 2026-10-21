@@ -9,7 +9,7 @@ export async function updateGuestProfile(db:D1Database,guestId:string,payload:Gu
  const row=await db.prepare('SELECT version,data FROM pm_guests WHERE id=?').bind(guestId).first<{version:number;data:string}>()
  if(!row)fail(404,'Guest not found.')
  const guest:Guest=JSON.parse(row!.data)
- if(guest.erased)fail(409,'An erased guest cannot be edited.')
+ if(guest.erased||guest.mergedInto)fail(409,'An erased or merged guest cannot be edited.')
  const origin:GuestFieldProvenance={source:'staff-observed',actor:actor.id,at:now}
  const profile:GuestProfile=guest.profile??{tags:[],vipLevel:'none',seatingPreference:'',provenance:{}}
  let profileSupplied=false

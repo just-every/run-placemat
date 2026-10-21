@@ -13,7 +13,7 @@ import {renderSchedules,scheduleEditor,parseSchedule,schedulePlan} from './place
 import {renderQueue,queueIntakeFields,queueCloseForm,intakeSettings,queueManagementLink} from './placemat-queue.js';
 import {turnPolicyFields,parseTurnPolicy} from './placemat-turns.js';
 import {bookingRuleFields,parseBookingRules} from './placemat-rules.js';
-import { guestProfile,profileSummary,duplicatePreview } from './placemat-profiles.js';
+import { guestProfile,profileSummary,duplicatePreview,mergePreview,mergeJournal,unmergePreview } from './placemat-profiles.js';
 import { renderReports } from './placemat-reports.js';
 import {assignmentEditor,hostGrant} from './placemat-assignments.js';
 import {createTimeline} from './placemat-timeline.js';
@@ -94,8 +94,8 @@ async function loadStaff(polling = false) {
   if (!state.services.some(s => s.id === serviceId)) { serviceId = state.services[0]?.id || ''; floorTime = ''; }
   if (!floorTime && service()) floorTime = floorStart(service());
   $('#venue-name').textContent = state.venue.name; $('#venue-zone').textContent = `${state.venue.timezone} · ${actor.agent ? 'Agent preparation access' : actor.role === 'member' ? 'Read-only access' : 'Live operations'}`;
-  const floorReady=renderFloor(); renderServices(); renderWaitlist(); renderInquiries({root:$('#inquiries-content'),state,people:data.people,guest,api,esc,field,select,time,localTime,instant:toUtc,canEdit:canEdit(),onChange:()=>loadStaff()}); renderGuests(); renderApprovals(polling); renderSettings(); renderMoveIn(); renderReports({state,canEdit:canEdit(),api,esc,field,select,empty,polling,who:id=>data.names?.[id]||data.people?.find(p=>p.id===id)?.displayName||id});
-  await floorReady;
+  const floorReady=renderFloor(); renderServices(); renderWaitlist(); renderInquiries({root:$('#inquiries-content'),state,people:data.people,guest,api,esc,field,select,time,localTime,instant:toUtc,canEdit:canEdit(),onChange:()=>loadStaff()}); const guestsReady=renderGuests(); renderApprovals(polling); renderSettings(); renderMoveIn(); renderReports({state,canEdit:canEdit(),api,esc,field,select,empty,polling,who:id=>data.names?.[id]||data.people?.find(p=>p.id===id)?.displayName||id});
+  await Promise.all([floorReady,guestsReady]);
   floorSync.synced(data.version);
 }
 // During its service the floor opens at the current quarter hour, otherwise at the service's start.
@@ -160,7 +160,7 @@ function expandedGuests() {return [...document.querySelectorAll('#guest-results 
 function renderGuests() {
   const expanded=expandedGuests();
   $('#guests-content').innerHTML = `<label class="search-field"><span class="search-label">${searchIcon}Find a guest</span><input type="search" id="guest-search" value="${esc(guestQuery)}" placeholder="Name, email or phone"></label><div id="guest-results"></div>`;
-  renderGuestResults(expanded).catch(error=>notice(error.message,'error'));
+  return renderGuestResults(expanded);
 }
 async function renderGuestResults(expanded=expandedGuests()) {
   const query=guestQuery;
@@ -168,8 +168,21 @@ async function renderGuestResults(expanded=expandedGuests()) {
   if(query!==guestQuery)return;
   $('#guest-results').innerHTML = rows.map(g => {
     const visits = [...(g.history || []), ...state.bookings.filter(b => b.guestId === g.id).map(b => ({date:b.startAt, partySize:b.partySize, status:b.status}))].sort((a,b) => b.date.localeCompare(a.date));
-    return `<details class="card guest"${expanded.includes(g.id)?' open':''}><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}<button type="button" data-action="guest-review" data-id="${esc(g.id)}" aria-expanded="false">Review possible duplicates</button><div data-guest-review aria-live="polite"></div></div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
+    return `<details class="card guest"${expanded.includes(g.id)?' open':''}><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}<button type="button" data-action="guest-review" data-id="${esc(g.id)}" aria-expanded="false">Review possible duplicates</button><div data-guest-review aria-live="polite"></div>${canEdit()?`<button type="button" class="secondary" data-action="guest-merge-journal" data-id="${esc(g.id)}" aria-expanded="false">Review merge journal</button><div data-merge-journal aria-live="polite"></div>`:''}</div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes, including reviewed aliases in an active merge. Merge snapshots are removed and reversal becomes unavailable. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
   }).join('') || empty(guestQuery ? 'No guests match your search.' : 'Guests appear here after a booking, walk-in, waitlist entry or import.');
+}
+async function loadGuestReview(button) {
+  const target=button.parentElement.querySelector('[data-guest-review]');
+  target.textContent='Loading current duplicate review…';button.setAttribute('aria-expanded','true');
+  try{const {review}=await api('/api/guests?review='+encodeURIComponent(button.dataset.id));target.innerHTML=duplicatePreview(review,{esc,time,canEdit:canEdit()});}
+  catch(error){target.textContent='Duplicate review unavailable. Try again with current guest records.';throw error;}
+}
+async function loadGuestMergeJournal(button) {
+  if(!canEdit())return;
+  const target=button.parentElement.querySelector('[data-merge-journal]');
+  target.textContent='Loading merge journal…';button.setAttribute('aria-expanded','true');
+  try{const {merges}=await api('/api/guests/merges?guestId='+encodeURIComponent(button.dataset.id));target.innerHTML=mergeJournal(merges,{esc,time,who});}
+  catch(error){target.textContent='Merge journal unavailable. Try again with current records.';throw error;}
 }
 function proposalDescription(p) {
   if(p.kind==='inventory.protect')return `${p.plan.action==='release'?'Release':'Protect'} direct website inventory · ${state.services.find(s=>s.id===p.plan.serviceId)?.name||'Service'}`;
@@ -240,6 +253,16 @@ async function prepare(kind, plan, reason) {
 }
 async function submitForm(el) {
   const command = el.dataset.command, payload = payloadFrom(el);
+  if(['guest.merge','guest.unmerge'].includes(command)) {
+    if(!canEdit())throw new Error('A venue manager must review guest merges.');
+    const guestId=payload.guestId;
+    if(command==='guest.unmerge')delete payload.guestId;
+    const result=await execute(command,payload);
+    await loadStaff();
+    const button=[...document.querySelectorAll('[data-action="guest-merge-journal"]')].find(el=>el.dataset.id===guestId);
+    if(button)await loadGuestMergeJournal(button);
+    notice(command==='guest.merge'?'Reviewed profiles merged. Marketing permission remains not recorded.':`Unmerge complete. ${result.laterRecords.length} later records need assignment.`,'success');return;
+  }
   if(command==='venue.onboard'){await execute(command,await onboardingPayload(el,payload));await loadStaff();notice('Restaurant setup and policy acknowledgment saved.','success');return;}
   if (command === 'floor.change') {
     const proposal=floorChangePayload(el);
@@ -320,12 +343,27 @@ document.addEventListener('click', event => {
   const el = event.target.closest('[data-action]'); if (!el) return;
   const action = el.dataset.action, id = el.dataset.id;
   if(action==='guest-review'){
-    const target=el.parentElement.querySelector('[data-guest-review]');
+    busy(async()=>{await loadGuestReview(el);notice('Duplicate review loaded. Profiles and permissions are unchanged.','success');},'Loading duplicate review…');return;
+  }
+  if(action==='guest-merge-journal'){
+    if(!canEdit())return;
+    busy(async()=>{await loadGuestMergeJournal(el);notice('Merge journal loaded.');},'Loading merge journal…');return;
+  }
+  if(action==='guest-merge-preview'){
+    if(!canEdit())return;
     busy(async()=>{
-      target.textContent='Loading current duplicate review…';el.setAttribute('aria-expanded','true');
-      try{const {review}=await api('/api/guests?review='+encodeURIComponent(id));target.innerHTML=duplicatePreview(review,{esc,time});notice('Duplicate review loaded. Profiles and permissions are unchanged.','success');}
-      catch(error){target.textContent='Duplicate review unavailable. Try again with current guest records.';throw error;}
-    },'Loading duplicate review…');return;
+      const target=el.parentElement.querySelector('[data-merge-preview]');target.innerHTML='';
+      const preview=await api('/api/guests/merge-preview?guestId='+encodeURIComponent(id)+'&duplicateId='+encodeURIComponent(el.dataset.duplicateId));
+      target.innerHTML=mergePreview(preview,{esc,field,form});target.scrollIntoView({block:'center'});notice('Review conflicts and contact permissions, then type MERGE to confirm.');
+    },'Preparing merge preview…');return;
+  }
+  if(action==='guest-unmerge-preview'){
+    if(!canEdit())return;
+    busy(async()=>{
+      const target=el.parentElement.querySelector('[data-unmerge-preview]');target.innerHTML='';
+      const preview=await api('/api/guests/unmerge-preview?mergeId='+encodeURIComponent(id));
+      target.innerHTML=unmergePreview(preview,{esc,field,form});target.scrollIntoView({block:'center'});notice('Review unchanged and later records, then type UNMERGE to confirm.');
+    },'Preparing unmerge preview…');return;
   }
   if(action==='service-status'){serviceStatusId=id;const b=state.bookings.find(b=>b.id===id);$('#service-status-editor').innerHTML=statusEditor(b,state,data.serviceStages?.[id],{esc,form,select,field,who,time});$('#service-status-editor').scrollIntoView({block:'center'});return;}
   if(action==='edit-schedule'){$('#schedule-editor').innerHTML=scheduleEditor(state.schedules.find(s=>s.id===id),{form,field,select,esc});$('#schedule-editor').scrollIntoView({block:'center'});return;}

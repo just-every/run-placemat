@@ -5,6 +5,7 @@ type QueueStatus = typeof queueStates[number]
 type Event = { at:string; actor:string; action:string; from:string; to:string; reason:string; owner:string; details?:unknown }
 type FollowUp = { id:string; kind:'no-contact'|'missed-offer'|'service-close'; reason:string; owner:string; createdAt:string; status:'open'|'completed'; completedAt?:string; completedBy?:string; outcome?:string }
 export type QueueEntry = {
+ contactPhone?:string;
  id:string; serviceId:string; guestId:string; partySize:number; status:QueueStatus|'waiting'|'cancelled';
  createdAt?:string|null; seatedAt?:string; resolvedAt?:string; bookingId?:string; priority?:number;
  quote?:{minMinutes:number;maxMinutes:number;at:string;actor:string;basis:string};

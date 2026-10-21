@@ -23,9 +23,9 @@ export const guestTargets:D1TargetAdapter={
  matchesCount(count,destination){check(destination,'guest');return sql("(SELECT COUNT(*) FROM pm_guests WHERE coalesce(json_extract(data,'$.erased'),0)!=1)=?",count)},
  write(row){
   check(row.destination,row.targetKind)
-  const version=nativeVersion(row.revision),guest=row.value as any,email=(guest.email??'').trim().toLowerCase(),phone=(guest.phone??'').replace(/\D/g,''),hashes=guestIdentityHashes(guest)
-  const allowed="NOT EXISTS(SELECT 1 FROM pm_erased WHERE identity_hash IN (SELECT value FROM json_each(?))) AND NOT EXISTS(SELECT 1 FROM pm_guests WHERE id!=? AND coalesce(json_extract(data,'$.erased'),0)!=1 AND ((?!='' AND lower(trim(json_extract(data,'$.email')))=?) OR (?!='' AND "+normalizedPhoneSql+"=?)))"
-  return [sql(`INSERT INTO pm_guests(id,version,data) SELECT ?,?,? WHERE CASE WHEN (${allowed}) THEN 1 ELSE json('IMPORT_CONTACT_OR_ERASURE_CONFLICT') END ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data`,row.targetId,version,canonicalJson(row.value),JSON.stringify(hashes),row.targetId,email,email,phone,phone),sql('INSERT INTO pm_import_guest_revisions(guest_id,revision,native_version) VALUES(?,?,?) ON CONFLICT(guest_id) DO UPDATE SET revision=excluded.revision,native_version=excluded.native_version',row.targetId,row.revision,version)]
+  const version=nativeVersion(row.revision),guest=row.value as any,hashes=guestIdentityHashes(guest)
+  const allowed="NOT EXISTS(SELECT 1 FROM pm_erased WHERE identity_hash IN (SELECT value FROM json_each(?)))"
+  return [sql(`INSERT INTO pm_guests(id,version,data) SELECT ?,?,? WHERE CASE WHEN (${allowed}) THEN 1 ELSE json('IMPORT_CONTACT_OR_ERASURE_CONFLICT') END ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data`,row.targetId,version,canonicalJson(row.value),JSON.stringify(hashes)),sql('INSERT INTO pm_import_guest_revisions(guest_id,revision,native_version) VALUES(?,?,?) ON CONFLICT(guest_id) DO UPDATE SET revision=excluded.revision,native_version=excluded.native_version',row.targetId,row.revision,version)]
  },
  remove(destination,kind,id){check(destination,kind);return [sql('DELETE FROM pm_import_guest_revisions WHERE guest_id=?',id),sql('DELETE FROM pm_guests WHERE id=?',id)]},
  async list(db,destination){check(destination,'guest');const {results}=await db.prepare(`SELECT g.id,g.data,${revisionSql} AS revision FROM pm_guests g LEFT JOIN pm_import_guest_revisions r ON r.guest_id=g.id WHERE coalesce(json_extract(g.data,'$.erased'),0)!=1`).all();return results.map(decode)}
