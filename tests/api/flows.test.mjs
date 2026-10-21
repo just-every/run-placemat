@@ -132,6 +132,52 @@ test('WAIT-001: Friday online bookings, fitting manager walk-in and no-show rele
  }finally{await h.close()}
 })
 
+test('GUEST-001: authorized guest/state reads retain contact, edited notes, imported dated visits and current completed, cancelled and no-show reservations on one guest',async()=>{
+ const h=await installation();try{
+  const {service:s}=await service(h,{covers:12}),manager=await h.signIn('history-manager@example.test','admin'),reader=await h.signIn('history-reader@example.test')
+  const csv='guest_id,name,email,phone,notes,visit_date,party_size,visit_status\nsynthetic-history-1,Alex History,alex.history@example.test,+1 415 555 0101,Imported window preference,2026-08-10,2,completed\nsynthetic-history-1,Alex History,alex.history@example.test,+1 415 555 0101,Imported window preference,2026-09-05,4,cancelled\nsynthetic-history-1,Alex History,alex.history@example.test,+1 415 555 0101,Imported window preference,2026-09-12,3,no-show\n'
+  const expectedHistory=[{date:'2026-08-10',partySize:2,status:'completed'},{date:'2026-09-05',partySize:4,status:'cancelled'},{date:'2026-09-12',partySize:3,status:'no-show'}]
+  const dry=(await h.api('/api/import/dry-run',{csv})).result
+  assert.equal(dry.canApply,true);await h.api('/api/import/apply',{csv,confirm:dry.fingerprint})
+  const guest=(await h.api('/api/guests?search=alex.history',undefined,{as:reader})).guests[0]
+  assert.equal(guest.name,'Alex History');assert.equal(guest.email,'alex.history@example.test');assert.equal(guest.phone,'+1 415 555 0101')
+  assert.equal(guest.notes,'Imported window preference');assert.deepEqual(guest.history,expectedHistory)
+  const bookings=[]
+  for(let i=0;i<3;i++)bookings.push((await h.api('/api/public/book',publicGuest(s,i,{name:guest.name,email:i===1?'ALEX.HISTORY@example.test':guest.email,phone:guest.phone,startAt:new Date(Date.parse(s.startAt)+i*15*60000).toISOString()}),{as:'',status:201})).result)
+  await h.command('booking.status',{bookingId:bookings[0].id,status:'seated'},{as:manager})
+  await h.command('booking.status',{bookingId:bookings[0].id,status:'completed'},{as:manager})
+  await h.command('booking.status',{bookingId:bookings[1].id,status:'cancelled'},{as:manager})
+  await h.command('booking.status',{bookingId:bookings[2].id,status:'no-show'},{as:manager})
+  const statuses=['completed','cancelled','no-show']
+  const assertHistory=async notes=>{
+   for(const as of [h.cookie,manager,reader]){
+    const fromDoor=(await h.api('/api/guests?search='+encodeURIComponent(guest.email),undefined,{as})).guests
+    const {state,guests}=await h.api('/api/state',undefined,{as}),stored=guests.find(g=>g.id===guest.id)
+    assert.equal(fromDoor.length,1);assert.equal(guests.length,1,'GUEST-001: repeat reservations reuse the imported guest identity')
+    for(const g of [fromDoor[0],stored]){
+     assert.equal(g.id,guest.id);assert.equal(g.name,guest.name);assert.equal(g.email,guest.email);assert.equal(g.phone,guest.phone)
+     assert.equal(g.notes,notes);assert.deepEqual(g.history,expectedHistory,'GUEST-001: editing current notes and statuses preserves every imported visit')
+    }
+    const linked=state.bookings.filter(b=>b.guestId===guest.id)
+    assert.equal(linked.length,3);assert.deepEqual(linked.map(b=>b.id).sort(),bookings.map(b=>b.id).sort())
+    for(const [i,b] of bookings.entries()){
+     const current=linked.find(v=>v.id===b.id)
+     assert.equal(current.status,statuses[i]);assert.equal(current.serviceId,s.id);assert.equal(current.startAt,b.startAt);assert.equal(current.partySize,2)
+    }
+   }
+  }
+  await assertHistory('Imported window preference')
+  for(const notes of ['Staff recorded a quiet-window request','Manager corrected the service note']){
+   await h.command('guest.update',{guestId:guest.id,notes},{as:manager})
+   await assertHistory(notes)
+  }
+  const final=await h.api('/api/state',undefined,{as:manager}),current=final.guests[0]
+  assert.deepEqual(current.notesHistory.map(n=>n.notes),['Staff recorded a quiet-window request','Manager corrected the service note'])
+  for(const revision of current.notesHistory){assert.equal(final.names[revision.provenance.actor],'Floor manager');assert.ok(Number.isFinite(Date.parse(revision.provenance.at)))}
+  await h.api('/api/guests',undefined,{as:'',status:401});await h.api('/api/state',undefined,{as:'',status:401})
+ }finally{await h.close()}
+})
+
 test('OSS-001: complete Friday service without a license/payment account; online bookings, walk-in, waitlist, no-show, reminder export and history',async()=>{
  const h=await installation();try{
   const {service:s}=await service(h),bookings=[]

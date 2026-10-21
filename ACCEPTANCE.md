@@ -24,7 +24,7 @@ Statuses below match the 21 October 2026 contract review, including candidate `a
 
 - **WAIT-001 — Staff walk-ins and waiting parties.** **Status: done.** Run the Friday HTTP journey with online bookings, a walk-in, a waiting party and a no-show; seat the waiting party and refuse completion before seating. **Current evidence:** `src/placemat/commands.ts`; `tests/api/flows.test.mjs`.
 
-- **GUEST-001 — Guest visit history.** **Status: partial.** Book a guest, change its service status, import dated visits and read guest/state through an authorized session; update notes and find both current and imported history. **Current evidence:** `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs`. **Gap:** Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done.
+- **GUEST-001 — Guest visit history.** **Status: done.** Book a guest, change its service status, import dated visits and read guest/state through an authorized session; update notes and find both current and imported history. **Current evidence:** `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs`.
 
 - **MIG-001 — Reviewed Tablein-shaped move-in.** **Status: partial.** Upload the fixture through dry-run, reject a wrong fingerprint, apply, read the journal, undo unchanged rows and refuse undo after a staff edit while keeping that edit. **Current evidence:** `src/placemat/import/index.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs`. **Gap:** Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done.
 

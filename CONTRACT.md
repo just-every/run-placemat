@@ -427,9 +427,9 @@ Judged from the code and tests at commit `a3ac7ecbcc0c0621a8e914c2a552d0c272816c
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Published | 11 | 4 | 0 | 15 |
+| Published | 12 | 3 | 0 | 15 |
 | Target and push further | 27 | 23 | 67 | 117 |
-| All | 38 | 27 | 67 | 132 |
+| All | 39 | 26 | 67 | 132 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -441,7 +441,7 @@ Judged from the code and tests at commit `a3ac7ecbcc0c0621a8e914c2a552d0c272816c
 | `PLAN-001` | Exact plans and accountable decisions | published | partial | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `MSG-001` | Approved reminder CSV custody | published | done | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/reminders.test.mjs` |  |
 | `WAIT-001` | Staff walk-ins and waiting parties | published | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` | |
-| `GUEST-001` | Guest visit history | published | partial | `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
+| `GUEST-001` | Guest visit history | published | done | `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` | |
 | `MIG-001` | Reviewed Tablein-shaped move-in | published | partial | `src/placemat/import/index.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` | Existing integration coverage does not name this clause; a clause-named test asserting every acceptance point is still required before done. |
 | `DATA-001` | Validated empty-destination backups | published | done | `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs`; `tests/api/embed.test.mjs` |  |
 | `DATA-002` | Guest erasure and restore fences | published | done | `src/placemat/import/erase.ts`; `src/placemat/backup.ts`; `tests/api/flows.test.mjs` |  |
