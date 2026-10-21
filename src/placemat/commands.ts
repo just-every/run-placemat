@@ -1,3 +1,4 @@
+import {executeServiceNotes,normalizePreorders} from './service-notes'
 import {prepareCloseReport} from './service-close-report'
 import {prepareClosure,approveClosure,followupChange} from './service-changes'
 import {normalizeBookingRequests,requestTerms} from './booking-requests'
@@ -40,6 +41,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any,guestChange:import('./audit').AuditChange|undefined
  switch(command){
+ case 'service.note':case 'service.preorder-item':case 'service.preorder-active':case 'service.preorder-count':{result=executeServiceNotes(s,actor,command,p,now);break}
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
  case 'analytics.settings':{const change=setAnalytics(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}
  case 'analytics.remove-key':{const change=removeAnalyticsKey(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}
@@ -242,11 +244,12 @@ export async function onlineBook(db:D1Database,p:any){
  if(!p.email)fail(400,'Email is required for an online booking.')
  if(p.requests!==undefined&&p.requestsAcknowledged!==true)fail(400,'Acknowledge required guarantees and requested preferences before booking.')
  const requests=p.requests===undefined?undefined:normalizeBookingRequests(p)
+ const preorders=normalizePreorders(service,p.preorders)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
+ const b:Booking={preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
- return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ return {id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
 }

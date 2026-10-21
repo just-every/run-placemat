@@ -1,3 +1,4 @@
+import {localServiceDate} from './service-notes'
 import {eraseAudit} from './audit'
 import {normalizeBookingRequests} from './booking-requests'
 import type {State} from './model'
@@ -10,9 +11,13 @@ export async function guestStateErasure(db:D1Database,guestId:string):Promise<D1
  const row=await db.prepare('SELECT version,data FROM pm_state WHERE id=1').first()
  if(!row)return []
  const state=JSON.parse(row.data) as State
+ const noteDates=new Set(state.services.filter(s=>state.bookings.some(b=>b.guestId===guestId&&b.serviceId===s.id)).map(s=>localServiceDate(s.startAt,state.venue.timezone)))
+ const noteIds=new Set((state.serviceNotes??[]).filter(n=>noteDates.has(n.date)).map(n=>n.id))
+ for(const note of state.serviceNotes??[])if(noteIds.has(note.id))for(const entry of note.history)entry.text=''
+ for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='serviceNotes'&&noteIds.has(change.id)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
  eraseAudit(state,guestId)
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan))]
- for(const b of bookings)if(b.guestId===guestId){if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
+ for(const b of bookings)if(b.guestId===guestId){b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
  for(const inquiry of state.inquiries??[])if(inquiry.guestId===guestId){
   delete inquiry.tokenHash;delete inquiry.requiredArea;inquiry.requiredAccessTags=[];inquiry.requests=normalizeBookingRequests({});inquiry.messages=[]
   if(inquiry.offer){delete inquiry.offer.requiredArea;inquiry.offer.requiredAccessTags=[];inquiry.offer.guarantees=[]}

@@ -5,7 +5,7 @@ import {analyticsSettings} from './analytics'
 export const businessCsvVersion=1
 export const businessExportKinds=[
  'venue','rooms','tables','allocation-tables','combinations','services','schedules',
- 'service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
+ 'service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
@@ -41,10 +41,11 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.tables}
   case 'allocation-tables':return {fields:['id','label','seats','area','x','y','shape','retiredAt','accessTags_json'],rows:state.allocationTables??[]}
   case 'combinations':return {fields:['id','tableIds_json','capacity','accessTags_json','setupMinutes','enabled','adjacent'],rows:state.combinations??[]}
-  case 'services':return {fields:['id','name','startAt','endAt','status','version','turnMinutes','coverLimit','publicQueuePaused','closedAt','closedBy','closeReason','scheduleSource_json','bookingRules_json','turnPolicy_json','pacing_json','staffing_json','directInventory_json'],rows:state.services}
+  case 'service-notes':return {fields:['id','date','kind','history_json'],rows:state.serviceNotes??[]}
+  case 'services':return {fields:['id','name','startAt','endAt','status','version','turnMinutes','coverLimit','publicQueuePaused','closedAt','closedBy','closeReason','scheduleSource_json','bookingRules_json','turnPolicy_json','pacing_json','staffing_json','directInventory_json','preorderItems_json','managerPreorders_json'],rows:state.services}
   case 'schedules':return {fields:['id','name','shift','seasonStart','seasonEnd','startTime','endTime','startOffset','endOffset','turnMinutes','coverLimit','weekdays_json','exceptions_json','version','updatedAt','updatedBy'],rows:state.schedules??[]}
   case 'service-changes':return {fields:['id','serviceId','scope','tableIds_json','startAt','endAt','reason','approvedBy','approvedAt','tasks_json'],rows:state.serviceChanges??[]}
-  case 'bookings':return {fields:['id','serviceId','guestId','partySize','startAt','endAt','status','source','attribution_json','createdAt','setupStartAt','cleanupEndAt','expectedEndAt','needsBussing','assignmentLocked','tableIds_json','combination_json','requiredArea','requiredAccessTags_json','requests_json','requestsAcknowledgedAt','ruleOverride_json','pacingOverride_json','serverId','sectionId','serverName','sectionName','servingHistory_json'],rows:state.bookings}
+  case 'bookings':return {fields:['id','serviceId','guestId','partySize','startAt','endAt','status','source','attribution_json','createdAt','setupStartAt','cleanupEndAt','expectedEndAt','needsBussing','assignmentLocked','tableIds_json','combination_json','requiredArea','requiredAccessTags_json','requests_json','requestsAcknowledgedAt','ruleOverride_json','pacingOverride_json','serverId','sectionId','serverName','sectionName','servingHistory_json','preorders_json'],rows:state.bookings}
   case 'waitlist':return {fields:['id','serviceId','guestId','bookingId','partySize','status','source','createdAt','seatedAt','resolvedAt','priority','owner','preferredAt','preferredArea','requiredAccessTags_json','contactConsent','actualWaitMinutes','quote_json','history_json','followUps_json'],rows:state.waitlist}
   case 'guests':return {fields:['id','name','email','phone','notes','erased','profile_json','provenance_json','notesHistory_json','history_json'],rows:people}
   case 'inquiries':return {fields:['id','guestId','ownerId','status','partySize','serviceId','requestedStartAt','requiredArea','requiredAccessTags_json','requests_json','replyDueAt','createdAt','updatedAt','closedAt','bookingId','acceptedOfferVersion','acceptedAt','offer_json','messages_json'],rows:state.inquiries??[]}

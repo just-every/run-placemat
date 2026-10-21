@@ -1,3 +1,5 @@
+import {kitchen,filterNotes} from './service-notes'
+import {kitchenPage} from './kitchen-view'
 import {preshift,serviceDate,preshiftPdf} from './preshift'
 import {preshiftPage} from './preshift-view'
 import {auditRows} from './audit'
@@ -40,7 +42,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const json=(data:any,status=200)=>Response.json(data,{status,headers})
-const paths=new Set(['/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -83,7 +85,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)
-   return json({venue:state.venue,analytics:activeProviders(state,await savedKeys(env.DB)),services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
+   return json({venue:state.venue,analytics:activeProviders(state,await savedKeys(env.DB)),services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,managerPreorders,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
   }
   if(path==='/api/public/analytics'){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
@@ -110,6 +112,11 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   const actor=await actorFor(request,env)
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
   if(!['owner','admin','member','host','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(path==='/kitchen'||path==='/api/kitchen'){
+   if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   const {state}=await load(env.DB),view=kitchen(state,actor!,text(url.searchParams.get('serviceId'),'Service'))
+   return path==='/kitchen'?kitchenPage(view):json(view)
+  }
   if(['/preshift','/api/preshift','/api/preshift.pdf'].includes(path)){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB),date=url.searchParams.get('date')??serviceDate(new Date().toISOString(),state.venue.timezone)
@@ -152,7 +159,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
   }
   if((path==='/api/audit'||path==='/api/audit.csv')&&request.method==='GET'){
-   const {state}=await load(env.DB),rows=auditRows(state,url.searchParams)
+   const {state}=await load(env.DB),rows=auditRows(filterNotes(state,actor!),url.searchParams)
    if(path.endsWith('.csv')){
     person(actor!,true)
     return new Response(businessCsv({...state,audit:rows},[],'audit'),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-audit.csv"'}})
@@ -188,7 +195,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]
    const people=await guests(env.DB)
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
-   return json({state,version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({state:filterNotes(state,actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){

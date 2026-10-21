@@ -1,3 +1,4 @@
+import {notesFor} from './service-notes'
 import {fail,type Actor,type Guest,type State} from './model'
 import {pacingReport} from './pacing'
 import {textPdf,type PdfLine} from './pdf'
@@ -8,7 +9,7 @@ export function preshift(state:State,guests:Guest[],actor:Actor,date:string,gene
  if(actor.agent||!['owner','admin','host'].includes(actor.role))fail(403,'The pre-shift sheet is for managers and owner-granted hosts.')
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T12:00:00Z'))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)fail(400,'Choose a valid service date.')
  const manager=actor.role==='owner'||actor.role==='admin'
- return {venue:state.venue.name,timezone:state.venue.timezone,date,generatedAt,audience:manager?'Manager':'Host',services:state.services.filter(s=>serviceDate(s.startAt,state.venue.timezone)===date).map(s=>{
+ return {venue:state.venue.name,timezone:state.venue.timezone,date,generatedAt,notes:notesFor(state,date),audience:manager?'Manager':'Host',services:state.services.filter(s=>serviceDate(s.startAt,state.venue.timezone)===date).map(s=>{
   const bookings=state.bookings.filter(b=>b.serviceId===s.id&&!['cancelled','no-show'].includes(b.status)).sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.id.localeCompare(b.id))
   const tableLabels=(ids:string[])=>ids.map(id=>state.tables.find(t=>t.id===id)?.label??'Unknown table')
   return {name:s.name,status:s.status,startAt:s.startAt,endAt:s.endAt,coverLimit:s.coverLimit,pacing:pacingReport(state,s.id,generatedAt),sections:(s.staffing?.sections??[]).map(section=>({name:section.name,server:s.staffing!.servers.find(server=>server.id===section.serverId)?.name??'Unassigned',tables:tableLabels(section.tableIds),expectedCovers:bookings.filter(b=>b.sectionId===section.id).reduce((n,b)=>n+b.partySize,0)})),bookings:bookings.map(b=>{
@@ -26,6 +27,10 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
  const time=(instant:string)=>new Intl.DateTimeFormat('en-US',{timeZone:sheet.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(instant))
  const lines:PdfLine[]=[{text:`${sheet.venue} - Pre-shift sheet`,bold:true,size:18},{text:`${sheet.date} | ${sheet.audience} view | ${sheet.timezone}`},{text:`Generated ${sheet.generatedAt}`},{text:'Guest-supplied requests are unverified; no allergy-safe preparation is confirmed.'}]
  const add=(text:string)=>lines.push({text})
+ for(const note of sheet.notes){
+  lines.push({text:note.kind==='shift'?'Shift notes':'Kitchen notes',bold:true,size:14})
+  for(const entry of note.history)add(`${entry.text} | ${entry.actor} | ${entry.at}`)
+ }
  for(const s of sheet.services){
   lines.push({text:`${s.name} (${s.status})`,bold:true,size:14})
   add(`Service ${time(s.startAt)} to ${time(s.endAt)}; service cover limit ${s.coverLimit}`)

@@ -1,10 +1,11 @@
+import {preorderFields,readPreorders,preorderSummary} from './placemat-service-notes.js'
 import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
 /* Guest availability and booking. Events stay inside the existing booking shell. */
 export function createPublicSearch({api, esc, field, select, notice, analytics}) {
   const root = document.querySelector('#public-content');
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
-  let areas = [], accessTags = [];
+  let areas = [], accessTags = [], menus = new Map();
   let contact = {name: '', email: '', phone: ''}, requests;
   const find = selector => root.querySelector(selector);
   const action = (label, value, disabled = false) => `<button type="button" class="secondary" data-public-action="${value}"${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
@@ -21,7 +22,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     const form = find('[data-public-command="book"]');
     if (!form) return;
     const values = new FormData(form);
-    requests=readRequests(form);
+    requests={...readRequests(form),preorders:readPreorders(form,menus.get(selected?.serviceId))};
     contact = Object.fromEntries(['name', 'email', 'phone'].map(name => [name, String(values.get(name) || '')]));
   }
   function preferences(form) {
@@ -73,7 +74,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   function renderBooking() {
     const target = find('#public-booking-form');
     if (!selected) { target.innerHTML = ''; return; }
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${requestFields(field,requests?.requests)}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${requestFields(field,requests?.requests)}${preorderFields(menus.get(selected.serviceId),{esc,field})}<div class="wide"><button type="submit">Confirm booking</button></div></div></fieldset></form></article>`;
   }
   async function search(nextQuery) {
     query = nextQuery;
@@ -110,7 +111,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
       }
       throw error;
     }
-    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(contact.name)}, your table for ${query.partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(constraints())}</p>${requestSummary(requests?.requests,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${action('Make another booking', 'another')}</article>`;
+    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${esc(contact.name)}, your table for ${query.partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(constraints())}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${action('Make another booking', 'another')}</article>`;
     notice('Your booking is confirmed.', 'success');
   }
   async function run(work, message) {
@@ -135,6 +136,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     // This endpoint also serves existing clients; only venue metadata bootstraps the search.
     const bootstrap = await api('/api/public/services?partySize=2');
     venue = bootstrap.venue;
+    menus = new Map(bootstrap.services.map(s=>[s.id,s.preorderItems||[]]));
     analytics.offer(bootstrap.analytics, venue);
     contact = {name: '', email: '', phone: ''};requests=undefined;
     await search({date: today(), partySize: 2, area: '', requiredAccessTags: []});
