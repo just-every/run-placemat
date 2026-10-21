@@ -4,7 +4,7 @@ Target edition: **17 October 2026**. [CONTRACT.md](CONTRACT.md) is the product t
 
 Each bullet is a journey through a real public door: screen/form, documented HTTP API, download, CLI or authenticated provider callback. Use isolated installations and realistic restaurant/guest records; fakes belong only at paid/network boundaries. Provider acceptance additionally needs an approved account and controlled real receipt/call/booking. No customer messages or charges are authorized by running ordinary local tests. Run mobile journeys at 390 and desktop at 1440, plus named native/tablet clients where required. Missing journey tests are future work, not proof of completion.
 
-Statuses below match the 21 October 2026 contract review, including candidate `a3ac7ecbcc0c0621a8e914c2a552d0c272816cb6`. Completion requires tests naming the clause and asserting every acceptance point. The current domain journeys run with `pnpm run test:api`; site and runtime journeys use `pnpm run test:site` and `pnpm run test:runtime`. `rer check --profile first-party` validates document shape; passing it does not prove an unimplemented behavior. CI remains the full verification wall.
+Statuses below match the 21 October 2026 contract review, including candidate `15bbc9b6d8b7a3672a36d426fd0af361f437e1cf`. Completion requires tests naming the clause and asserting every acceptance point. The current domain journeys run with `pnpm run test:api`; site and runtime journeys use `pnpm run test:site` and `pnpm run test:runtime`. `rer check --profile first-party` validates document shape; passing it does not prove an unimplemented behavior. CI remains the full verification wall.
 
 ## Published foundations
 

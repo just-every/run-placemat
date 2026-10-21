@@ -423,7 +423,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 ## Status
 
-Judged from the code and tests at commit `a3ac7ecbcc0c0621a8e914c2a552d0c272816cb6` (21 October 2026). Completion requires tests naming the clause and asserting every acceptance point. Existing unnamed integration journeys remain evidence of a partial implementation.
+Judged from the code and tests at commit `15bbc9b6d8b7a3672a36d426fd0af361f437e1cf` (21 October 2026). Completion requires tests naming the clause and asserting every acceptance point. Existing unnamed integration journeys remain evidence of a partial implementation.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
