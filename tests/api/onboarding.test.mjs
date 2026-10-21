@@ -1,4 +1,5 @@
 import {test} from 'node:test'
+import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 import {restaurant,logo,floor72,nextService} from './onboarding-fixture.mjs'
@@ -39,7 +40,15 @@ test('SETUP-001: owner onboards a 72-seat US restaurant, acknowledges editable v
   assert.deepEqual(generated.plan.candidates[0].service.bookingRules,edited)
   await h.command('venue.update',{name:restaurant.name,timezone:restaurant.timezone});assert.deepEqual((await h.api('/api/state')).state.venue.setup,revised.setup)
   const csv=await (await h.request('/api/business-export/venue.csv')).text();assert.ok(csv.includes('setup_json'));assert.ok(csv.includes(restaurant.legalName))
-  const archive=await h.api('/api/backup');await restored.api('/api/restore',{archive,confirm:'RESTORE'})
+  const archive=await h.api('/api/backup')
+  const invalid=structuredClone(archive),stateRow=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_state'),broken=JSON.parse(stateRow.row.data)
+  broken.venue.setup.acknowledgment.rules.online.maxParty++
+  stateRow.row.data=JSON.stringify(broken)
+  const content=new ContentVerifier(invalid[0]),integrity=new ArchiveVerifier(invalid[0])
+  for(let i=1;i<invalid.length-1;i++){invalid[i]=await makePart(invalid[i].index,invalid[i].items);integrity.add(invalid[i]);for(const item of invalid[i].items)content.add(item)}
+  invalid.at(-1).contentHash=content.digest();invalid.at(-1).archiveHash=integrity.digest()
+  const refused=await restored.api('/api/restore',{archive:invalid,confirm:'RESTORE'},{status:400});assert.match(refused.error,/inquiry threshold|acknowledgment/);assert.equal((await restored.api('/api/state')).state.venue.setup,undefined)
+  await restored.api('/api/restore',{archive,confirm:'RESTORE'})
   assert.deepEqual((await restored.api('/api/state')).state.venue,(await h.api('/api/state')).state.venue)
  }finally{await h.close();await restored.close()}
 })
