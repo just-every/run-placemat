@@ -208,7 +208,8 @@ test('Direct transport roles, CSRF, agent preparation and exact-draft person app
   await h.api('/api/commands',{command:'table.save',payload:{}},{as:'',status:401})
   const member=await h.signIn('host@example.test'),manager=await h.signIn('manager@example.test','admin')
   await h.api('/api/state',undefined,{as:member})
-  await h.command('table.save',{label:'T1',seats:4,x:20,y:20},{as:manager})
+  const first=await h.command('table.save',{label:'T1',seats:4,x:20,y:20},{as:manager})
+  const second=await h.command('table.save',{label:'T2',seats:4,x:60,y:20})
   await h.command('table.save',{label:'T2',seats:4,x:60,y:20},{as:member,status:403})
   await h.api('/api/commands',{command:'venue.update',payload:{name:'Forged',timezone:'UTC'}},{headers:{origin:'https://wrong.example'},status:403})
   await h.api('/api/agent-keys',{name:'Unauthorized'},{as:manager,status:403})
@@ -220,10 +221,45 @@ test('Direct transport roles, CSRF, agent preparation and exact-draft person app
   await h.command('service.save',{...draft,name:'Revised dinner'})
   await h.command('proposal.approve',{proposalId:p.id},{status:409})
   const latest=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:draft.id},reason:'Updated exact draft'},agent)
-  await h.command('proposal.approve',{proposalId:latest.id},{as:manager})
-  const state=(await h.api('/api/state')).state;assert.equal(state.services[0].status,'published');assert.equal(state.proposals.at(-1).preparedBy,key.id);assert.ok(state.proposals.at(-1).approvedBy!==key.id)
+  for(const command of ['proposal.prepare','proposal.approve'])await h.command(command,command==='proposal.prepare'?{kind:'service.publish',plan:{serviceId:draft.id},reason:'Member cannot prepare publication'}:{proposalId:latest.id},{as:member,status:403})
+  const publication=await h.command('proposal.approve',{proposalId:latest.id},{as:manager})
+  const published=await h.api('/api/state',undefined,{as:manager}),state=published.state
+  assert.equal(state.services[0].status,'published');assert.equal(state.proposals.at(-1).preparedBy,key.id);assert.ok(state.proposals.at(-1).approvedBy!==key.id)
+  assert.equal(published.names[publication.preparedBy],'Service assistant (preparation key)');assert.equal(published.names[publication.approvedBy],'Floor manager')
+  assert.equal(publication.reason,'Updated exact draft');assert.deepEqual(publication.plan,latest.plan)
+  assert.ok(Number.isFinite(Date.parse(publication.preparedAt)));assert.ok(Date.parse(publication.approvedAt)>=Date.parse(publication.preparedAt))
+  for(const opts of [{as:''},{as:member},agent]){
+   const offered=(await h.api('/api/public/services?partySize=2',undefined,opts)).services
+   assert.ok(offered.some(v=>v.id===draft.id&&v.slots.some(slot=>slot.startAt===draft.startAt)))
+  }
+  const booked=(await h.api('/api/public/book',publicGuest(draft,0),{as:'',status:201})).result
+  for(const opts of [{as:member},agent]){
+   const current=await h.api('/api/state',undefined,opts),guest=(await h.api('/api/guests?search=guest0',undefined,opts)).guests[0]
+   assert.equal(guest.email,'guest0@example.test');assert.equal(current.state.bookings.find(b=>b.id===booked.id).guestId,guest.id)
+  }
+  await h.api('/api/guests',undefined,{as:'',status:401})
+  await h.command('booking.status',{bookingId:booked.id,status:'cancelled'},{...agent,status:403})
+  const move=await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:booked.id,tableIds:[second.id]},reason:'Place the guest by the window'},agent)
+  assert.deepEqual((await h.api('/api/state')).state.bookings.find(b=>b.id===booked.id).tableIds,[first.id],'Preparation leaves the current assignment unchanged')
+  await h.command('proposal.approve',{proposalId:move.id},{...agent,status:403})
+  const moved=await h.command('proposal.approve',{proposalId:move.id},{as:manager})
+  const afterMove=await h.api('/api/state',undefined,{as:manager})
+  assert.deepEqual(afterMove.state.bookings.find(b=>b.id===booked.id).tableIds,[second.id],'Person approval commits the reviewed destination')
+  assert.equal(moved.reason,'Place the guest by the window');assert.deepEqual(moved.plan,move.plan)
+  assert.equal(afterMove.names[moved.preparedBy],'Service assistant (preparation key)');assert.equal(afterMove.names[moved.approvedBy],'Floor manager')
+  const clash=await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:booked.id,tableIds:[first.id]},reason:'Review a currently free destination'},agent)
+  await h.api('/api/public/book',publicGuest(draft,1),{as:member,status:201})
+  const occupied=(await h.api('/api/state')).state
+  await h.command('proposal.approve',{proposalId:clash.id},{as:manager,status:409})
+  assert.deepEqual((await h.api('/api/state')).state,occupied,'A competing public booking prevents the prepared move without changing either reservation')
   await h.api('/api/agent-keys/'+key.id,undefined,{method:'DELETE'})
   await h.api('/api/state',undefined,{...agent,status:401})
+  await h.api('/api/guests',undefined,{...agent,status:401})
+  await h.command('proposal.prepare',{kind:'reminders',plan:{serviceId:draft.id},reason:'Revoked key cannot prepare'},{...agent,status:401})
+  const later=new Date(Date.parse(draft.startAt)+60*60000).toISOString()
+  assert.ok((await h.api('/api/public/services?partySize=2',undefined,agent)).services.find(v=>v.id===draft.id).slots.some(v=>v.startAt===later),'Revoking a private credential does not close public availability')
+  const publicBooking=(await h.api('/api/public/book',publicGuest(draft,2,{startAt:later}),{...agent,status:201})).result
+  assert.equal(publicBooking.startAt,later);assert.equal(publicBooking.partySize,2)
   await h.api('/api/backup',undefined,{as:member,status:403})
  }finally{await h.close()}
 })
@@ -284,17 +320,40 @@ test('Tablein dry-run, exact apply, durable journal, undo and edited-row conflic
  const h=await installation();try{
   const csv=await readFile('fixtures/tablein-guests.csv','utf8'),dry=(await h.api('/api/import/dry-run',{csv})).result
   assert.equal(dry.canApply,true);assert.equal((await h.api('/api/state')).guests.length,0)
+  const emptyJournal=(await h.api('/api/import/journal')).result.jobs
+  assert.deepEqual(emptyJournal,[],'Dry-run creates no import job')
   await h.api('/api/import/apply',{csv,confirm:'wrong'},{status:409})
+  assert.equal((await h.api('/api/state')).guests.length,0,'Refused confirmation imports no guest')
+  assert.deepEqual((await h.api('/api/import/journal')).result.jobs,emptyJournal,'Refused confirmation creates no journal entry')
+  const invalid=csv+'shape-invalid,Invalid Visit,invalid@example.test,+12025550199,,2026-02-30,2,completed\n'
+  const rejected=(await h.api('/api/import/dry-run',{csv:invalid})).result
+  assert.equal(rejected.canApply,false)
+  await h.api('/api/import/apply',{csv:invalid,confirm:rejected.fingerprint},{status:422})
+  assert.equal((await h.api('/api/state')).guests.length,0,'A bad history row prevents the valid rows from being imported too')
+  assert.deepEqual((await h.api('/api/import/journal')).result.jobs,emptyJournal)
   const applied=(await h.api('/api/import/apply',{csv,confirm:dry.fingerprint})).result.job
-  assert.equal(applied.state,'completed');assert.ok((await h.api('/api/state')).guests.length>0)
+  assert.equal(applied.state,'completed')
+  const imported=(await h.api('/api/guests')).guests
+  assert.equal(imported.length,2)
+  const alex=imported.find(g=>g.email==='alex.sample@example.test'),sam=imported.find(g=>g.email==='sam.example@example.test')
+  assert.equal(alex.name,'Alex Sample');assert.equal(alex.phone,'+61 400 000 001');assert.equal(alex.notes,'Window seat preferred, historical note')
+  assert.deepEqual(alex.history,[{date:'2026-08-10',partySize:2,status:'completed'},{date:'2026-09-05',partySize:4,status:'cancelled'}])
+  assert.deepEqual(sam.history,[{date:'2026-09-12',partySize:3,status:'no-show'}])
+  for(const guest of imported)for(const field of ['name','email','phone','notes'])assert.equal(guest.provenance[field].source,'imported')
+  assert.equal((await h.api('/api/state')).state.bookings.length,0,'Historical visits never become live reservations')
   const jobs=(await h.api('/api/import/journal')).result.jobs;assert.ok(jobs.some(j=>j.id===applied.id))
+  assert.equal(jobs.length,1);assert.equal(jobs[0].state,'completed');assert.equal(jobs[0].checkpoint,jobs[0].total)
+  assert.deepEqual((await h.api('/api/import/journal/'+applied.id)).result.job,jobs[0],'The retained job is readable through its documented journal door')
   const undone=(await h.api('/api/import/undo',{jobId:applied.id,confirm:'UNDO',fingerprint:dry.fingerprint})).result.job
   assert.equal(undone.state,'undone');assert.equal((await h.api('/api/state')).guests.length,0)
+  assert.equal((await h.api('/api/import/journal/'+applied.id)).result.job.state,'undone')
   const csv2=csv.replaceAll('example.test','example.org'),dry2=(await h.api('/api/import/dry-run',{csv:csv2})).result
   const job=(await h.api('/api/import/apply',{csv:csv2,confirm:dry2.fingerprint})).result.job
   const guest=(await h.api('/api/state')).guests[0];await h.command('guest.update',{guestId:guest.id,notes:'Staff edited this record after move-in'})
+  const edited=(await h.api('/api/state')).guests
   await h.api('/api/import/undo',{jobId:job.id,confirm:'UNDO',fingerprint:dry2.fingerprint},{status:409})
   assert.ok((await h.api('/api/state')).guests.some(g=>g.notes.includes('Staff edited')))
+  assert.deepEqual((await h.api('/api/state')).guests,edited,'A conflict preserves both the staff edit and every other imported guest')
  }finally{await h.close()}
 })
 

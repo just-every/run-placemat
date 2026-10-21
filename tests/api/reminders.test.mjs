@@ -65,6 +65,7 @@ test('MSG-001: exact human-approved reminder CSV preserves custody, US venue tim
   assert.equal(approved.preparedBy,key.id)
   assert.equal(approved.preparedAt,draft.preparedAt)
   assert.equal(approved.status,'approved')
+  assert.equal(approved.reason,'Review exact booked dinner guests');assert.deepEqual(approved.plan,draft.plan)
   assert.ok(Number.isFinite(Date.parse(approved.approvedAt)))
   let snapshot=await h.api('/api/state')
   assert.equal(snapshot.state.reminders.length,3)
