@@ -535,7 +535,7 @@ test('Manager and shift lead: owner-scoped seating exceptions, report and snapsh
   const f=await delegationFixture(h);assert.equal((await h.api('/api/state',undefined,{as:f.leadCookie})).actor.role,'lead');
   const manager=await h.api('/api/state',undefined,{as:f.managerCookie});assert.equal(manager.state.managerRefundLimits[f.manager.id],10000);
   const lead=await h.api('/api/state',undefined,{as:f.leadCookie});assert.equal(lead.state.managerRefundLimits,undefined);assert.deepEqual(lead.state.reportScopes,{[f.lead.id]:[f.first.id]});assert.ok(!JSON.stringify(lead.state.audit).includes('refundLimitCents'));
-  await h.command('team.manager-limit',{operatorId:f.manager.id,refundLimitCents:20000},{as:f.managerCookie,status:403});await h.command('team.host',{operatorId:f.lead.id,enabled:true},{status:409});
+  await h.command('team.manager-limit',{operatorId:f.manager.id,refundLimitCents:20000},{as:f.managerCookie,status:403});await h.command('analytics.settings',{}, {as:f.managerCookie,status:403});await h.command('team.host',{operatorId:f.lead.id,enabled:true},{status:409});
   const payload={serviceId:f.first.id,startAt:f.first.startAt,partySize:2,name:'synthetic-placemat-lead-walkin',email:'synthetic-placemat-lead-walkin@example.test',tableIds:[f.tables[1].id]};
   const preview=await h.api('/api/pacing/preview',{command:'booking.walkin',payload},{as:f.leadCookie});assert.ok(preview.violations.some(v=>v.kind==='arrival-covers'));
   await h.command('booking.walkin',payload,{as:f.leadCookie,status:409});
