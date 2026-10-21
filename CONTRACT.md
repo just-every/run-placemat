@@ -397,7 +397,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 | 29 | 4:10 PM · Confirmations · Confirmed 25 · Awaiting reply 5 · Canceled 4 | `MSG-005`, `FLOOR-006` | partial |
 | 30 | 4:10 PM · Confirmations · "4 tables offered to the waitlist" | `WAIT-005`, `AGENT-002` | partial |
 | 31 | 4:45 PM · Pre-shift · Pre-shift sheet: guests to know with allergy and occasion, deposits held | `FLOOR-012`, `GUEST-003`, `GUEST-002` | partial |
-| 32 | 4:45 PM · Pre-shift · Server sections Ana / Ben / Cole with their tables | `FLOOR-004`, `FLOOR-012` | partial |
+| 32 | 4:45 PM · Pre-shift · Server sections Ana / Ben / Cole with their tables | `FLOOR-004`, `FLOOR-012` | done |
 | 33 | 4:45 PM · Pre-shift · Kitchen notes (halibut 12 portions, pace 16 covers per half hour, allergy at Table 12) | `FLOOR-013`, `SERVICE-005`, `GUEST-003` | partial |
 | 34 | 6:40 PM · Host stand · Floor plan by section with combined tables (21+22) | `FLOOR-002`, `FLOOR-003`, `FLOOR-004` | done |
 | 35 | 6:40 PM · Host stand · Six table states with timers (seated, mains, dessert, check dropped, reserved, needs bussing) | `FLOOR-006`, `FLOOR-005` | done |
