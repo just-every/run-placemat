@@ -90,7 +90,7 @@ try{
    await tabTo('Find available times');await page.keyboard.press('Enter')
    await frame.getByRole('status').filter({hasText:'Availability updated'}).waitFor()
    assert.match(await frame.locator('.booking-policy').innerText(),/Friday dinner.*online parties of 1–6; parties over 6 send a group inquiry; bookings open 60 days ahead; same-day bookings until 4:00 PM; book at least 30 minutes ahead; arrivals every 15 minutes/s,'the widget discloses the online booking policy')
-   await tabTo('public-result');await page.keyboard.press('ArrowDown');await frame.getByRole('heading',{name:'Your selected visit'}).waitFor()
+   await tabTo('public-result');await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');await frame.getByRole('heading',{name:'Your selected visit'}).waitFor()
    await tabTo('name');await page.keyboard.type('Priya Shah');await tabTo('email');await page.keyboard.type('priya@example.test')
    await tabTo('requestsAcknowledged');await page.keyboard.press('Space');await tabTo('Confirm booking')
    await page.evaluate(()=>document.querySelector('iframe').contentWindow.postMessage({type:'placemat:book',confirm:true},'*'))
