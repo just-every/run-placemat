@@ -9,6 +9,7 @@ import { Problem,type Actor,type Guest } from '../model'
  */
 export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Actor){
  requireOwner(actor)
+ const floor=await db.prepare('SELECT version FROM pm_state WHERE id=1').first()
  const rows=(await db.prepare('SELECT id,version,data FROM pm_guest_merges').all()).results as Array<{id:string;version:number;data:string}>
  const journals=rows.map(row=>({...row,journal:JSON.parse(row.data)}))
  const ids=new Set([guestId])
@@ -21,11 +22,12 @@ export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Acto
   for(const g of people)if(!g.erased&&(ids.has(g.id)||(g.contacts??[]).some(c=>ids.has(c.sourceGuestId))))for(const id of [g.id,...(g.contacts??[]).map(c=>c.sourceGuestId)])if(!ids.has(id)){ids.add(id);changed=true}
  }
  const related=journals.filter(({journal:j})=>ids.has(j.guestId)||ids.has(j.duplicateId))
- const purge:D1Sql[]=related.flatMap(row=>{
+ const floorGuard:D1Sql={sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN '+(floor?'EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?)':'NOT EXISTS(SELECT 1 FROM pm_state WHERE id=1)')+' THEN 1 ELSE 0 END',params:floor?[floor.version]:[]}
+ const purge:D1Sql[]=[floorGuard,...related.flatMap(row=>{
   const j={id:row.id,guestId:row.journal.guestId,duplicateId:row.journal.duplicateId,status:'erased',createdAt:row.journal.createdAt,createdBy:row.journal.createdBy,purgedAt:new Date().toISOString()}
   return [{sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guest_merges WHERE id=? AND version=?) THEN 1 ELSE 0 END',params:[row.id,row.version]},
    {sql:'UPDATE pm_guest_merges SET version=version+1,data=? WHERE id=? AND version=?',params:[canonicalJson(j),row.id,row.version]}]
- })
+ })]
  let result={erasedRecords:0,identityHashes:[] as string[]}
  // First erase the survivor, making every active merge immediately irreversible.
  const ordered=[...ids].sort((a,b)=>Number(journals.some(({journal:j})=>j.status==='merged'&&j.duplicateId===a))-Number(journals.some(({journal:j})=>j.status==='merged'&&j.duplicateId===b)))

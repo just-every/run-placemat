@@ -205,7 +205,9 @@ test('GUEST-004: merge journal exports and validated restore reconcile; erasure 
   await h.command('guest.unmerge',{mergeId:purged.id,review:preview.review,confirm:'UNMERGE'},{status:409})
   const later=await h.api('/api/backup');await erased.api('/api/restore',{archive:later,confirm:'RESTORE'})
   for(const source of [h,erased]){
-   assert.deepEqual((await source.api('/api/guests?search=alex.')).guests,[])
+   const remaining=(await source.api('/api/guests?search=alex.')).guests
+   assert.ok(remaining.every(g=>![f.a.id,f.b.id].includes(g.id)),'Both reviewed aliases are erased')
+   assert.deepEqual(remaining.map(g=>g.id),race[1].status===200?[]:[third.guestId],'A refused concurrent merge leaves the unrelated profile separate')
    const output=JSON.stringify([await source.api('/api/state'),await source.api(journalPath),await source.api('/api/backup')])
    for(const value of [f.a.email,f.b.email,'Quiet table','conflicting note'])assert.ok(!output.includes(value),'Erased personal value absent: '+value)
    const csv=await (await source.request('/api/business-export/guest-merges.csv')).text();assert.ok(csvRecords(csv).every(row=>!JSON.parse(row.data_json).snapshots))
