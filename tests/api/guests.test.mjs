@@ -79,7 +79,7 @@ test('GUEST-004: exact identity suggestions separate households; reviewed manage
   const emailPair=(await h.api('/api/guests?search=robin@example.test')).guests,emailReview=(await h.api('/api/guests?review='+emailPair[0].id)).review
   assert.deepEqual(emailReview.candidates.map(c=>c.guest.id),[emailPair[1].id]);assert.deepEqual(emailReview.candidates[0].reasons,['Same normalized email'])
   await h.api('/api/public/book',publicGuest(f.s,5,{email:'robin@example.test'}),{as:'',status:409})
-  const familyPair=(await h.api('/api/guests?search=family@example.test')).guests,familyReview=(await h.api('/api/guests?review='+familyPair[0].id)).review
+  const familyPair=(await h.api('/api/guests?search=family@example.test')).guests.filter(g=>g.email==='family@example.test'),familyReview=(await h.api('/api/guests?review='+familyPair[0].id)).review
   assert.deepEqual(familyReview.candidates,[]);assert.deepEqual(familyReview.households.map(c=>c.guest.id),[familyPair[1].id],'A shared phone with another name is a household even when email also matches')
   const before=await h.api('/api/state'),review=(await h.api('/api/guests?review='+f.a.id)).review
   assert.deepEqual(review.candidates.map(c=>c.guest.id),[f.b.id]);assert.deepEqual(review.households.map(c=>c.guest.id),[f.guest.id])
