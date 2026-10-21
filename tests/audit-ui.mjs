@@ -27,7 +27,14 @@ try {
    await page.getByRole('link',{name:'Settings',exact:true}).click()
    const root=page.locator('#audit-content');await root.getByText('Change history',{exact:true}).click()
    await root.getByText(/history entr(?:y|ies)$/).waitFor()
-   const filter=root.locator('form'),apply=async()=>{const answer=page.waitForResponse(r=>r.url().includes('/api/audit?'));await filter.getByRole('button',{name:'Filter history'}).click();assert.equal((await answer).status(),200)}
+   const filter=root.locator('form'),apply=async()=>{
+    const expected=await filter.evaluate(el=>Object.fromEntries(new FormData(el)))
+    const answer=page.waitForResponse(response=>{const url=new URL(response.url());return url.pathname==='/api/audit'&&Object.entries(expected).every(([key,value])=>url.searchParams.get(key)===value)})
+    await filter.getByRole('button',{name:'Filter history'}).click()
+    const response=await answer;assert.equal(response.status(),200)
+    const {rows}=await response.json()
+    await page.waitForFunction(ids=>JSON.stringify([...document.querySelectorAll('#audit-content [data-audit-entry]')].map(el=>el.dataset.auditEntry))===JSON.stringify(ids),rows.map(row=>row.id))
+   }
    const owner=(await h.api('/api/state')).actor.id
    await filter.locator('[name=actor]').selectOption(owner);await filter.locator('[name=action]').selectOption('guest.update');await apply()
    assert.equal(await root.locator('[data-audit-entry]').count(),1)
