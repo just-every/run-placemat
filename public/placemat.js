@@ -13,7 +13,7 @@ import {renderSchedules,scheduleEditor,parseSchedule,schedulePlan} from './place
 import {renderQueue,queueIntakeFields,queueCloseForm,intakeSettings,queueManagementLink} from './placemat-queue.js';
 import {turnPolicyFields,parseTurnPolicy} from './placemat-turns.js';
 import {bookingRuleFields,parseBookingRules} from './placemat-rules.js';
-import { guestProfile,profileSummary } from './placemat-profiles.js';
+import { guestProfile,profileSummary,duplicatePreview } from './placemat-profiles.js';
 import { renderReports } from './placemat-reports.js';
 import {assignmentEditor,hostGrant} from './placemat-assignments.js';
 import {createTimeline} from './placemat-timeline.js';
@@ -162,7 +162,7 @@ async function renderGuestResults() {
   if(query!==guestQuery)return;
   $('#guest-results').innerHTML = rows.map(g => {
     const visits = [...(g.history || []), ...state.bookings.filter(b => b.guestId === g.id).map(b => ({date:b.startAt, partySize:b.partySize, status:b.status}))].sort((a,b) => b.date.localeCompare(a.date));
-    return `<details class="card guest"><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}</div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
+    return `<details class="card guest"><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}<button type="button" data-action="guest-review" data-id="${esc(g.id)}" aria-expanded="false">Review possible duplicates</button><div data-guest-review aria-live="polite"></div></div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
   }).join('') || empty(guestQuery ? 'No guests match your search.' : 'Guests appear here after a booking, walk-in, waitlist entry or import.');
 }
 function proposalDescription(p) {
@@ -313,6 +313,14 @@ document.addEventListener('input', event => {
 document.addEventListener('click', event => {
   const el = event.target.closest('[data-action]'); if (!el) return;
   const action = el.dataset.action, id = el.dataset.id;
+  if(action==='guest-review'){
+    const target=el.parentElement.querySelector('[data-guest-review]');
+    busy(async()=>{
+      target.textContent='Loading current duplicate review…';el.setAttribute('aria-expanded','true');
+      try{const {review}=await api('/api/guests?review='+encodeURIComponent(id));target.innerHTML=duplicatePreview(review,{esc,time});notice('Duplicate review loaded. Profiles and permissions are unchanged.','success');}
+      catch(error){target.textContent='Duplicate review unavailable. Try again with current guest records.';throw error;}
+    },'Loading duplicate review…');return;
+  }
   if(action==='service-status'){serviceStatusId=id;const b=state.bookings.find(b=>b.id===id);$('#service-status-editor').innerHTML=statusEditor(b,state,data.serviceStages?.[id],{esc,form,select,field,who,time});$('#service-status-editor').scrollIntoView({block:'center'});return;}
   if(action==='edit-schedule'){$('#schedule-editor').innerHTML=scheduleEditor(state.schedules.find(s=>s.id===id),{form,field,select,esc});$('#schedule-editor').scrollIntoView({block:'center'});return;}
   if (action === 'edit-service') { $('#service-editor').innerHTML = serviceEditor(state.services.find(s => s.id === id)); $('#service-editor').scrollIntoView({block:'center'}); return; }

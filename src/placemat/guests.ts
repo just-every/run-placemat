@@ -1,4 +1,4 @@
-import { fail,id,text,type Actor,type Guest,type GuestFieldProvenance } from './model'
+import { fail,id,text,type Actor,type Guest,type State,type GuestFieldProvenance } from './model'
 import { guestIdentityHashes } from './import/index'
 export async function guestFor(db:D1Database,p:any,actor?:Actor):Promise<{guest:Guest;fresh:boolean;hashes:string[]}>{
  const name=text(p.name,'Guest name',200),email=typeof p.email==='string'?p.email.trim().toLowerCase():'',phone=typeof p.phone==='string'?p.phone.trim():''
@@ -25,4 +25,30 @@ export function guestGuard(db:D1Database,entry:{guest:{id:string};fresh:boolean;
  const contact=entry.hashes.length?`NOT EXISTS(SELECT 1 FROM pm_erased WHERE identity_hash IN (${placeholders}))`:'1'
  const native=entry.fresh?'1':"EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND COALESCE(json_extract(data,'$.erased'),0)=0)"
  return db.prepare(`INSERT INTO pm_assertions(ok) SELECT CASE WHEN ${contact} AND ${native} THEN 1 ELSE 0 END`).bind(...entry.hashes,...(entry.fresh?[]:[entry.guest.id]))
+}
+
+/** GUEST-004 review only: matching evidence never changes identity or permission. */
+export function duplicateReview(people:Guest[],state:State,guestId:string){
+ const guest=people.find(g=>g.id===guestId&&!g.erased)??fail(404,'Guest not found.')
+ const name=(value:string)=>normalized(value).trim().replace(/\s+/g,' ')
+ const email=(value:string)=>value.trim().toLowerCase()
+ const reasons=(other:Guest)=>[
+  ...(email(guest.email)&&email(guest.email)===email(other.email)?['Same normalized email']:[]),
+  ...(phoneDigits(guest.phone).length>=7&&phoneDigits(guest.phone)===phoneDigits(other.phone)?['Shared phone; may be a household']:[]),
+  ...(name(guest.name)&&name(guest.name)===name(other.name)?['Same normalized name']:[])
+ ]
+ const preview=(g:Guest)=>({
+  guest:g,
+  importedVisits:g.history??[],
+  bookings:state.bookings.filter(b=>b.guestId===g.id).map(b=>({id:b.id,serviceId:b.serviceId,startAt:b.startAt,partySize:b.partySize,status:b.status,source:b.source})),
+  queueContactPermissions:state.waitlist.filter(w=>w.guestId===g.id).map(w=>({entryId:w.id,serviceId:w.serviceId,contactConsent:w.contactConsent??null})),
+  marketingPermission:'Not recorded',spend:null
+ })
+ const facts=(g:Guest)=>({name:g.name,email:g.email,phone:g.phone,notes:g.notes,tags:g.profile?.tags??[],vipLevel:g.profile?.vipLevel??'none',seatingPreference:g.profile?.seatingPreference??''})
+ const candidates=people.filter(g=>g.id!==guest.id&&!g.erased&&reasons(g).length).map(other=>{
+  const evidence=reasons(other),left=facts(guest),right=facts(other)
+  const conflicts=(Object.keys(left) as Array<keyof typeof left>).filter(key=>JSON.stringify(left[key])!==JSON.stringify(right[key])).map(field=>({field,selected:left[field],candidate:right[field]}))
+  return {...preview(other),reasons:evidence,conflicts}
+ }).sort((a,b)=>a.guest.id.localeCompare(b.guest.id))
+ return {selected:preview(guest),candidates,notice:'Suggestions only. Shared contacts do not establish identity. Profiles, visits and permissions stay separate. Merge and reversal are not available.'}
 }

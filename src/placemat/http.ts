@@ -40,7 +40,7 @@ import { backup,restore,erasureCheckpoint } from './backup'
 import { reminderCsv,calendar } from './downloads'
 import { reservationReport,reportCsv } from './reports'
 import {readPerformance,publishPerformance} from './performance-store'
-import { searchGuests } from './guests'
+import { searchGuests,duplicateReview } from './guests'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
@@ -188,7 +188,11 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(path.endsWith('.csv'))return new Response(reportCsv(report),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-reservations.csv"'}})
    return json(report)
   }
-  if(path==='/api/guests'&&request.method==='GET')return json({guests:searchGuests(await guests(env.DB),url.searchParams.get('search')??'')})
+  if(path==='/api/guests'&&request.method==='GET'){
+   const people=await guests(env.DB),review=url.searchParams.get('review')
+   if(review!==null)return json({review:duplicateReview(people,(await load(env.DB)).state,review)})
+   return json({guests:searchGuests(people,url.searchParams.get('search')??'')})
+  }
   if(path==='/api/queue-qr'&&request.method==='GET'){
    const {state}=await load(env.DB),service=state.services.find(s=>s.id===url.searchParams.get('serviceId'))??fail(404,'Service not found.')
    return new Response(queueQr(env.AUTH_ORIGIN,service.id),{headers:{...headers,'content-type':'image/svg+xml'}})
