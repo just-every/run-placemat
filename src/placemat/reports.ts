@@ -1,6 +1,6 @@
 import { fail, type Booking, type State } from './model'
 
-const sources = ['online', 'walk-in', 'waitlist'] as const
+const sources = ['online', 'phone', 'walk-in', 'waitlist'] as const
 const statuses = ['booked', 'seated', 'completed', 'cancelled', 'no-show'] as const
 const periods = ['all', 'past', 'current', 'future'] as const
 

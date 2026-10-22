@@ -68,7 +68,7 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
  now=new Date(now).toISOString()
  const today=localDate(now,state.venue.timezone),date=dateParam(param(params,'date')??param(params,'day')??today)
  const source=param(params,'source'),status=param(params,'status')
- if(source&&!['online','walk-in','waitlist'].includes(source))fail(400,'Choose online, walk-in or waitlist as the booking source.')
+ if(source&&!['online','phone','walk-in','waitlist'].includes(source))fail(400,'Choose online, phone, walk-in or waitlist as the booking source.')
  if(status&&!['booked','seated','completed','cancelled','no-show'].includes(status))fail(400,'Choose a supported booking status.')
  const serviceId=param(params,'serviceId'),search=(param(params,'search')??'').trim(),area=param(params,'area')??param(params,'room'),serverId=param(params,'serverId')??param(params,'server')
  const zoom=number(param(params,'zoom')??30,'Timeline zoom',15,240),nextMinutes=number(param(params,'nextMinutes')??30,'Next window minutes',0,1440)

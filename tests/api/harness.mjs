@@ -7,7 +7,7 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import assert from 'node:assert/strict'
-export async function installation({entry='tests/api/worker.ts',bindings={}}={}){
+export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge}={}){
  const directory=await mkdtemp(join(tmpdir(),'placemat-api-'))
  const bundled=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
  const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),messages=[]
@@ -17,11 +17,12 @@ export async function installation({entry='tests/api/worker.ts',bindings={}}={})
  const analytics=[],answer={provider:async request=>new URL(request.url).hostname==='graph.facebook.com'?Response.json({events_received:1,messages:[],fbtrace_id:'edge-fake'}):new Response(null,{status:204})}
  const outbound=async request=>{
   const url=new URL(request.url)
+  if(url.hostname==='api.stripe.com'){assert.ok(stripeEdge,'Stripe requests require an explicit network edge fixture');return stripeEdge(request)}
   if(!['www.google-analytics.com','graph.facebook.com'].includes(url.hostname))return mail(request)
   analytics.push({url:url.href,method:request.method,headers:Object.fromEntries(request.headers),body:await request.clone().json()})
   return answer.provider(request)
  }
- const options=port=>({...convertV4MiniflareOptions({host:'127.0.0.1',upstream:origin,port,modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-network-edge',...bindings},outboundService:outbound}),resourcePersistencePath:directory})
+ const options=port=>({...convertV4MiniflareOptions({host:'127.0.0.1',upstream:origin,port,modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,HOST_PIN_PEPPER_V1:randomBytes(32).toString('hex'),HOST_PIN_PEPPER_VERSION:'v1',SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-network-edge',...bindings},outboundService:outbound}),resourcePersistencePath:directory})
  const mf=new Miniflare(options(0))
  try{
   await mf.ready

@@ -61,7 +61,7 @@ for(const width of [1440,390]){
   await h.command('team.host',{operatorId:nextId,enabled:true});
   const signIn=async token=>{await context.clearCookies();await context.addCookies(token.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}));await page.reload();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();};
   const follow=page.getByRole('region',{name:'Owned guest follow-up'}),followShot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await follow.screenshot({path:resolve(shots,`FLOOR-007-${name}-${width}.png`)})};
-  await signIn(managerCookie);
+  await signIn(cookie);
   const create=async(kind,text,ownerId)=>{
    await follow.getByText('Assign guest follow-up',{exact:true}).click();const form=follow.locator('[data-command="booking.handover"]');await form.locator('[name=bookingId]').selectOption(f.elena.id);await form.locator('[name=kind]').selectOption(kind);await form.locator('[name=ownerId]').selectOption(ownerId);await form.getByLabel('Guest follow-up',{exact:true}).fill(text);await form.getByRole('button',{name:'Assign follow-up',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();
    return (await h.api('/api/state')).state.bookings.find(b=>b.id===f.elena.id).handover.at(-1).id;

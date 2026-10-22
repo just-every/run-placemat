@@ -1,3 +1,6 @@
+import {handoverAssignees} from './host-projection'
+import {paymentAlerts,createPaymentRequest,issuePaymentLink,syncPaymentRequest} from './payment-links'
+import {executeRefund,synchronizeRefundCharge} from './refunds'
 import {authorizeReports,projectAuthority} from './delegation'
 import {sharedDeviceResponse} from './shared-device'
 import {projectHandover} from './handover'
@@ -233,7 +236,8 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const keys=actor!.role==='owner'?(await env.DB.prepare('SELECT id,name,created_at,revoked_at FROM pm_agent_keys ORDER BY created_at DESC').all()).results:[]
    const people=await guests(env.DB)
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
-   return json({state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   const handoverPeople=await handoverAssignees(env.DB,state),paymentRequests=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[],refundCharges=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT charge_id AS chargeId,booking_id AS bookingId,amount_cents AS amountCents,imported_refunded_cents AS importedRefundedCents FROM pm_refund_charges').all()).results:[],refunds=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT id,request_id AS requestId,actor_id AS actorId,booking_id AS bookingId,charge_id AS chargeId,amount_cents AS amountCents,reason,status,processor_id AS processorId,created_at AS createdAt FROM pm_refunds').all()).results:[]
+   return json({handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){
@@ -243,6 +247,11 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   if(path==='/api/commands'&&request.method==='POST'){
    const p=await jsonBody(request)
+   if(p.command==='payment.request')return json({result:await createPaymentRequest(env.DB,actor!,p.payload??{})})
+   if(p.command==='payment.link')return json({result:await issuePaymentLink(env,actor!,p.payload?.requestId)})
+   if(p.command==='payment.sync')return json({result:await syncPaymentRequest(env,actor!,p.payload?.requestId)})
+   if(p.command==='payment.charge-sync')return json({result:await synchronizeRefundCharge(env.DB,actor!,p.payload??{},env.STRIPE_SECRET_KEY)})
+   if(p.command==='payment.refund')return json({result:await executeRefund(env.DB,actor!,p.payload??{},env.STRIPE_SECRET_KEY)})
    if(p.command==='guest.erase'){
     person(actor!,true);if(p.payload?.confirm!=='ERASE')fail(400,'Confirm guest erasure with ERASE.')
     await erasureCheckpoint(env.DB)

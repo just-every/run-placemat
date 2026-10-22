@@ -63,7 +63,7 @@ export function closeReportPdf(result:CloseReport,names:Record<string,string>) {
   {text:`Attended: ${sum.attended.covers} / ${sum.booked.covers} covers (${pct(sum.rates.attended.percentage)})`},
   {text:`Cancelled: ${sum.cancelled.covers} / ${sum.booked.covers} covers (${pct(sum.rates.cancelled.percentage)})`},
   {text:`No-show: ${sum.noShow.covers} / ${sum.booked.covers} covers (${pct(sum.rates.noShow.percentage)})`},
-  {text:`By source: online ${source('online')}; walk-in ${source('walk-in')}; waitlist-seated ${source('waitlist')}`},
+  {text:`By source: online ${source('online')}; phone ${source('phone')}; walk-in ${source('walk-in')}; waitlist-seated ${source('waitlist')}`},
   {text:recovery?`Recovered from cancellations and no-shows: ${recovery.covers} / ${recovery.freedCovers} freed covers by ${recovery.replacementParties} seated replacement parties (cancellations ${recovery.fromCancellations}, no-shows ${recovery.fromNoShows})`:'Recovered covers: not recorded at close'},
   {text:`Pacing overrides (SERVICE-007): ${sum.pacingOverrides.bookings} reservations`},
   {text:`Average actual turn: ${mins(d.actualTurns.mean)} (${d.actualTurns.sampleSize} recorded / ${d.actualTurns.sampleSize+d.actualTurns.missing} possible) against expected ${mins(d.expectedTurns.mean)} (${d.expectedTurns.sampleSize} reservations)`},

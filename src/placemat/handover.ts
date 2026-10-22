@@ -6,7 +6,8 @@ export async function executeHandover(db:D1Database,s:State,actor:Actor,command:
  const booking=s.bookings.find(b=>b.id===p.bookingId)??fail(404,'Booking not found.')
  let assignment:{ownerId:string;dueAt:string}|undefined
  if(['booking.handover','booking.handover.assign'].includes(command)){
-  if(actor.agent||!['owner','admin'].includes(actor.role))fail(403,'A manager assigns handover work.')
+  if(actor.agent||!(['owner','admin'].includes(actor.role)||actor.role==='host'&&s.hostIds?.includes(actor.id)))fail(403,'An active host or manager assigns handover work.')
+  if(command==='booking.handover.assign'){const held=booking.handover?.find(t=>t.id===p.taskId)??fail(404,'Handover task not found.');if(actor.role==='host'&&held.ownerId!==actor.id)fail(403,'A host can hand over only follow-up they hold.')}
   const ownerId=text(p.ownerId,'Follow-up owner',100),operator=await db.prepare('SELECT role,status FROM oa_operators WHERE id=?').bind(ownerId).first<{role:string;status:string}>()
   if(!operator||operator.status!=='active'||!(['owner','admin'].includes(operator.role)||s.hostIds?.includes(ownerId)))fail(409,'Assign an active manager or owner-granted host.')
   assignment={ownerId,dueAt:instant(p.dueAt,'Follow-up due time')}
@@ -25,12 +26,16 @@ export async function executeHandover(db:D1Database,s:State,actor:Actor,command:
  return {id:booking.id,task}
 }
 
-/** New follow-up text never widens the existing read audience: managers or the assigned active host only. */
+/** Historical snapshots use today's assignment; hosts retain metadata without another host's free text. */
 export function projectHandover(value:any,actor?:Actor|null,visibleTaskIds:ReadonlySet<string>=new Set()):any{
  if(actor&&!actor.agent&&['owner','admin'].includes(actor.role))return value
  if(Array.isArray(value))return value.map(item=>projectHandover(item,actor,visibleTaskIds))
  if(!value||typeof value!=='object')return value
- // Historical snapshots must use today's assignment, never their former ownerId.
- const owns=(task:any)=>actor?.role==='host'&&!actor.agent&&visibleTaskIds.has(task.id)
- return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,key==='handover'&&Array.isArray(item)?item.filter(owns).map(task=>projectHandover(task,actor,visibleTaskIds)):key==='task'&&item&&typeof item==='object'&&'ownerId' in item&&!owns(item)?null:projectHandover(item,actor,visibleTaskIds)]))
+ const host=actor?.role==='host'&&!actor.agent
+ if(value.id&&value.ownerId&&['request','callback'].includes(value.kind)){
+  const owns=host&&visibleTaskIds.has(value.id)
+  if(!host)return null
+  return {...value,...owns?{}:{text:undefined},history:(value.history??[]).map((e:any)=>({...e,...owns?{}:{outcome:undefined}}))}
+ }
+ return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,key==='handover'&&Array.isArray(item)?host?item.map(task=>projectHandover(task,actor,visibleTaskIds)):[]:projectHandover(item,actor,visibleTaskIds)]))
 }

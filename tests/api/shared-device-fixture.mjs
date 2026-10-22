@@ -9,5 +9,5 @@ export async function sharedDeviceFixture(h,{enroll=true,pins=true}={}){
  }
  let registration,deviceCookie='';
  if(enroll){registration=await h.api('/api/hoststand/devices',{label:'Host iPad'},{status:201});const response=await h.request('/api/hoststand/claim',{method:'POST',body:{claimCode:registration.claimCode},as:''});assert.equal(response.status,200);deviceCookie=response.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='));assert.ok(deviceCookie);}
- return {...f,tables:f.floor,booking,guest,staff,registration,deviceCookie,unlock:async(i=0,status=200)=>h.api('/api/hoststand/unlock',{email:staff[i].email,pin:staff[i].pin},{as:deviceCookie,status}),floor:()=>h.api('/api/hoststand/floor',undefined,{as:deviceCookie})};
+ return {...f,tables:f.floor,booking,guest,staff,registration,deviceCookie,unlock:async(i=0,status=200)=>h.api('/api/hoststand/unlock',{operatorId:staff[i].id,pin:staff[i].pin},{as:deviceCookie,status}),floor:()=>h.api('/api/hoststand/floor',undefined,{as:deviceCookie})};
 }

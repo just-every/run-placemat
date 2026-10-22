@@ -500,7 +500,7 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
   await action('booking.stage',{bookingId:f.booking.id,stage:'seated'});
   const laterPersonal=await h.signIn('synthetic-placemat-later-personal@example.test','admin'),mixed=as+'; '+laterPersonal;
   await h.api('/auth/operators',undefined,{as:laterPersonal});for(const path of ['/auth/operators','/auth/request','/signin','/setup'])assert.equal((await h.request(path,{as:mixed})).status,403,path);
-  await h.api('/api/hoststand/unlock',{email:f.staff[1].email,pin:f.staff[1].pin},{as:mixed});await h.api('/auth/operators',undefined,{as:laterPersonal,status:401});
+  await h.api('/api/hoststand/unlock',{operatorId:f.staff[1].id,pin:f.staff[1].pin},{as:mixed});await h.api('/auth/operators',undefined,{as:laterPersonal,status:401});
   const lockPersonal=await h.signIn('synthetic-placemat-lock-personal@example.test','admin');await h.api('/api/hoststand/lock',{}, {as:as+'; '+lockPersonal});await h.api('/auth/operators',undefined,{as:lockPersonal,status:401});await f.unlock(1);view=await f.floor();assert.equal(view.actor.id,f.staff[1].id);
   await action('booking.move',{bookingId:f.booking.id,tableIds:[f.tables[1].id],version:view.version},409,firstGeneration);
   await action('booking.move',{bookingId:f.booking.id,tableIds:[f.tables[1].id],version:view.version});
@@ -509,28 +509,28 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
   for(const command of ['guest.erase','venue.update','proposal.approve','service.pacing'])await action(command,{bookingId:f.booking.id},403);
   await action('booking.stage',{bookingId:f.booking.id,stage:'paid'},403);
   await h.api('/api/hoststand/commands',{generation:view.generation,command:'booking.stage',payload:{bookingId:f.booking.id,stage:'ordering'}},{as,headers:{origin:'https://other.example.test'},status:403});
-  for(let i=0;i<5;i++)await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as,status:i===4?429:401});await f.unlock(0,429);assert.equal((await h.api('/api/hoststand/status',undefined,{as})).locked,true);
+  for(let i=0;i<10;i++)await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:'999999999999'},{as,status:i===9?429:401});await f.unlock(0,429);assert.equal((await h.api('/api/hoststand/status',undefined,{as})).locked,true);
   await f.unlock(1);await h.api('/auth/operator/status',{operatorId:f.staff[1].id,status:'inactive'});await h.api('/api/hoststand/floor',undefined,{as,status:423});await f.unlock(1,401);
   await h.api('/auth/operator/status',{operatorId:f.staff[1].id,status:'active'});await f.unlock(1,401);
   const renewed=await h.signIn('synthetic-placemat-renewed@example.test','member','Renewed Host'),operator=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-renewed@example.test');await h.command('team.host',{operatorId:operator.id,enabled:true});await h.api('/api/hoststand/pin',{pin:'161803398874'},{as:renewed});
-  await h.api('/api/hoststand/unlock',{email:operator.email,pin:'161803398874'},{as});await h.command('team.host',{operatorId:operator.id,enabled:false});await h.command('team.host',{operatorId:operator.id,enabled:true});await h.api('/api/hoststand/unlock',{email:operator.email,pin:'161803398874'},{as,status:401});
+  await h.api('/api/hoststand/unlock',{operatorId:operator.id,pin:'161803398874'},{as});await h.command('team.host',{operatorId:operator.id,enabled:false});await h.command('team.host',{operatorId:operator.id,enabled:true});await h.api('/api/hoststand/unlock',{operatorId:operator.id,pin:'161803398874'},{as,status:401});
   const registration=await h.api('/api/hoststand/devices',{label:'Second stand'},{status:201}),oldManager=await h.signIn('synthetic-placemat-device-manager@example.test','admin');
   const claimed=await h.request('/api/hoststand/claim',{method:'POST',body:{claimCode:registration.claimCode},as:oldManager});assert.equal(claimed.status,200);await h.api('/auth/operators',undefined,{as:oldManager,status:401});
   const other=claimed.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='));
-  for(let i=0;i<10;i++)await h.api('/api/hoststand/unlock',{email:`synthetic-placemat-unknown-${i}@example.test`,pin:'999999999999'},{as:other,status:i===9?429:401});
-  await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:other,status:429});
+  for(let i=0;i<10;i++)await h.api('/api/hoststand/unlock',{operatorId:`synthetic-placemat-unknown-${i}`,pin:'999999999999'},{as:other,status:i===9?429:401});
+  await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:f.staff[0].pin},{as:other,status:429});
   const archive=await h.api('/api/backup'),archiveText=JSON.stringify(archive);for(const table of ['pm_host_devices','pm_host_pins','pm_host_security_events'])assert.ok(archive[0].excludedTables.includes(table));for(const secret of [f.registration.claimCode,f.deviceCookie.split('=')[1],...f.staff.map(s=>s.pin)])assert.ok(!archiveText.includes(secret));
   await h.api('/api/hoststand/revoke',{deviceId:f.registration.id});await h.api('/api/hoststand/status',undefined,{as,status:403});await h.api('/api/hoststand/floor',undefined,{as,status:403});
   // A fresh stand keeps this separate from the existing per-minute work limit.
   const windowRegistration=await h.api('/api/hoststand/devices',{label:'Next shift stand'},{status:201}),windowClaim=await h.request('/api/hoststand/claim',{method:'POST',body:{claimCode:windowRegistration.claimCode},as:''}),windowAs=windowClaim.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='));assert.equal(windowClaim.status,200);
-  const wrong=()=>h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as:windowAs,status:401});
-  for(let i=0;i<4;i++)await wrong();
-  // Persisted previous-shift fixture; outcomes are asserted through the PIN door.
-  await h.db.prepare('UPDATE pm_host_pins SET failure_window_at=? WHERE operator_id=?').bind(Date.now()-16*60000,f.staff[0].id).run();
+  // Consecutive failures survive elapsed device windows and require a full-session reset.
+  for(let i=0;i<4;i++)await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:'999999999999'},{as:windowAs,status:401});
   await h.db.prepare('UPDATE pm_host_devices SET failure_window_at=? WHERE id=?').bind(Date.now()-16*60000,windowRegistration.id).run();
-  for(let i=0;i<4;i++)await wrong();await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as:windowAs,status:429});
-  await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:windowAs});
-  const previousPin=f.staff[0].pin;f.staff[0].pin='314159265358';await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/floor',undefined,{as:windowAs,status:423});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:previousPin},{as:windowAs,status:401});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:windowAs});
+  for(let i=0;i<6;i++)await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:'999999999999'},{as:windowAs,status:i===5?429:401});
+  await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:f.staff[0].pin},{as:windowAs,status:429});
+  const manager=await h.signIn('synthetic-placemat-security-manager@example.test','admin');assert.ok((await h.api('/api/hoststand/security-events',undefined,{as:manager})).events.some(e=>e.action==='pin-disabled-ten-failures'&&e.operator_id===f.staff[0].id));
+  await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:f.staff[0].pin},{as:windowAs});
+  const previousPin=f.staff[0].pin;f.staff[0].pin='314159265358';await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/floor',undefined,{as:windowAs,status:423});await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:previousPin},{as:windowAs,status:401});await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:f.staff[0].pin},{as:windowAs});
 
  }finally{await h.close()}
 })
@@ -570,4 +570,44 @@ test('Manager and shift lead: owner-scoped seating exceptions, report and snapsh
   await h.command('team.reports',{operatorId:f.lead.id,serviceIds:[]});await h.api('/api/reports/reservations?serviceId='+f.first.id,undefined,{as:f.leadCookie,status:403});
   await h.command('team.lead',{operatorId:f.lead.id,enabled:false});await h.api('/api/pacing/preview',{command:'booking.walkin',payload},{as:f.leadCookie,status:403});await h.command('booking.stage',{bookingId:seated.id,stage:'ordering'},{as:f.leadCookie,status:403});
  }finally{if(restored)await restored.close();await h.close()}
+})
+
+test('Host PIN pepper resists an unpeppered digest and upgrades its stored key version and work factor on unlock',async()=>{
+ const {pbkdf2Sync,createHmac}=await import('node:crypto'),{sharedDeviceFixture}=await import('./shared-device-fixture.mjs'),pepper='synthetic-placemat-1',h=await installation({bindings:{HOST_PIN_PEPPERS:JSON.stringify({v1:pepper,v2:'synthetic-placemat-2'}),HOST_PIN_PEPPER_VERSION:'v2'}});try{
+  const f=await sharedDeviceFixture(h);for(const pin of ['123456','111111','482482'])await h.api('/api/hoststand/pin',{pin},{as:f.staff[0].cookie,status:400});
+  const original=await h.db.prepare('SELECT * FROM pm_host_pins WHERE operator_id=?').bind(f.staff[0].id).first();
+  const withoutPepper=pbkdf2Sync(f.staff[0].pin,Buffer.from(original.salt,'hex'),original.iterations,32,'sha256').toString('hex');assert.notEqual(withoutPepper,original.digest);
+  await h.db.prepare('UPDATE pm_host_pins SET digest=? WHERE operator_id=?').bind(withoutPepper,f.staff[0].id).run();await f.unlock(0,401);
+  const older=pbkdf2Sync(createHmac('sha256',pepper).update(f.staff[0].pin).digest(),Buffer.from(original.salt,'hex'),10000,32,'sha256').toString('hex');
+  await h.db.prepare("UPDATE pm_host_pins SET digest=?,pepper_version='v1',iterations=10000 WHERE operator_id=?").bind(older,f.staff[0].id).run();await f.unlock();const upgraded=await h.db.prepare('SELECT * FROM pm_host_pins WHERE operator_id=?').bind(f.staff[0].id).first();assert.equal(upgraded.pepper_version,'v2');assert.equal(upgraded.iterations,100000);assert.notEqual(upgraded.salt,original.salt);await f.floor();
+ }finally{await h.close()}
+})
+
+test('Host stand live grants permit phone booking, walk-in and queue intake, while owner renewal extends an aged lease',async()=>{
+ const {sharedDeviceFixture}=await import('./shared-device-fixture.mjs'),h=await installation();try{
+  const f=await sharedDeviceFixture(h);await f.unlock();let view=await f.floor();const action=(command,payload,status=200)=>h.api('/api/hoststand/commands',{generation:view.generation,command,payload},{as:f.deviceCookie,status});
+  const phone=await action('booking.phone',{serviceId:f.service.id,startAt:new Date(Date.parse(f.service.startAt)+90*60000).toISOString(),name:'Phone Guest',phone:'4155550177',partySize:2});assert.equal(phone.result.source,'phone');
+  view=await f.floor();await action('booking.phone.change',{bookingId:phone.result.id,startAt:new Date(Date.parse(f.service.startAt)+105*60000).toISOString(),partySize:3,version:view.version});
+  await action('booking.walkin',{serviceId:f.service.id,startAt:f.service.startAt,name:'Walk-in Guest',partySize:2},403);await h.command('team.pacing',{operatorId:f.staff[0].id,enabled:true});await action('booking.walkin',{serviceId:f.service.id,startAt:f.service.startAt,name:'Walk-in Guest',partySize:2});
+  const queue=await action('waitlist.add',{serviceId:f.service.id,name:'Queued Guest',partySize:2,contactConsent:false});await action('waitlist.party',{waitlistId:queue.result.id,partySize:3});
+  await h.db.prepare('UPDATE pm_host_devices SET created_at=?,expires_at=? WHERE id=?').bind(Date.now()-24*86400000,Date.now()+6*86400000,f.registration.id).run();assert.equal((await h.api('/api/hoststand/status',undefined,{as:f.deviceCookie})).renewalWarning,true);
+  await h.api('/api/hoststand/renew',{deviceId:f.registration.id,days:31},{status:400});await h.api('/api/hoststand/renew',{deviceId:f.registration.id,days:30},{as:f.staff[0].cookie,status:403});
+  await h.db.prepare('UPDATE pm_host_devices SET created_at=?,expires_at=? WHERE id=?').bind(Date.now()-31*86400000,Date.now()-86400000,f.registration.id).run();await f.floor().then(()=>assert.fail('Expired stand must refuse'),()=>{});
+  await h.api('/api/hoststand/renew',{deviceId:f.registration.id,days:30});await f.unlock();assert.equal((await f.floor()).actor.id,f.staff[0].id);assert.equal((await h.api('/api/hoststand/status',undefined,{as:f.deviceCookie})).renewalWarning,false);
+ }finally{await h.close()}
+})
+
+test('Refund authority caps one person across booking charges and counts pending plus succeeded refunds before any processor call',async()=>{
+ const {paymentEdge}=await import('./payment-fixture.mjs'),edge=paymentEdge(),h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:edge.edge});try{
+  const f=await service(h,{tables:3,seats:4,covers:80}),booking=(await h.api('/api/public/book',publicGuest(f.service,0),{as:'',status:201})).result;
+  const manager=await h.signIn('synthetic-placemat-refunder@example.test','admin'),noLimit=await h.signIn('synthetic-placemat-no-limit@example.test','admin'),people=await h.api('/auth/operators'),managerId=people.find(p=>p.email==='synthetic-placemat-refunder@example.test').id;
+  const chargeId=edge.charge(booking.id),otherCharge=edge.charge(booking.id);await h.command('payment.charge-sync',{bookingId:booking.id,chargeId});await h.command('payment.charge-sync',{bookingId:booking.id,chargeId:otherCharge});
+  const refund=(amountCents,requestId,as=manager,charge=chargeId,status=200)=>h.command('payment.refund',{bookingId:booking.id,chargeId:charge,amountCents,requestId,reason:'Guest-requested deposit refund'},{as,status});
+  let count=edge.calls.length;await refund(1,'absent',noLimit,chargeId,403);assert.equal(edge.calls.length,count);await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:10000});
+  assert.equal((await refund(6000,'first')).status,'succeeded');assert.equal((await refund(4000,'second')).status,'succeeded');count=edge.calls.length;await refund(1,'excess',manager,chargeId,409);await refund(1,'split',manager,otherCharge,409);assert.equal(edge.calls.length,count);
+  await refund(6000,'first');assert.equal(edge.calls.length,count,'Successful replay makes no processor call');await refund(5000,'owner',h.cookie);assert.equal(edge.calls.length,count+1,'Owner is uncapped within the charge balance');
+  await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:11000});edge.setRefundStatus('pending');assert.equal((await refund(1000,'pending',manager,otherCharge)).status,'pending');count=edge.calls.length;await refund(1,'pending-excess',manager,otherCharge,409);assert.equal(edge.calls.length,count);
+  await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:1.5},{status:400});await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:20000},{as:manager,status:403});
+  const audit=(await h.api('/api/audit')).rows.filter(r=>r.action==='team.manager-limit');assert.ok(audit.some(r=>r.changes.some(c=>c.kind==='managerRefundLimits'&&c.after[managerId]===10000)));assert.ok(audit.some(r=>r.changes.some(c=>c.kind==='managerRefundLimits'&&c.before?.[managerId]===10000&&c.after[managerId]===11000)));
+ }finally{await h.close()}
 })

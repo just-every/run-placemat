@@ -101,24 +101,33 @@ test('FLOOR-007: phone suffix/name/email/booking/table search, combined service/
 
 
 test('Owned guest requests and callbacks pass between active hosts, preserve audit and requests, refuse unassigned writers and erase linked text',async()=>{
- const h=await installation();let restored;try{
+ const {paymentEdge}=await import('./payment-fixture.mjs'),payments=paymentEdge(),h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:payments.edge});let restored;try{
   const {searchFixture}=await import('./timeline-fixture.mjs'),f=await searchFixture(h);
   const first=await h.signIn('synthetic-placemat-first@example.test','member','Avery Host'),next=await h.signIn('synthetic-placemat-next@example.test','member','Blair Host'),reader=await h.signIn('synthetic-placemat-reader@example.test');
-  const people=await h.api('/auth/operators'),ownerId=(await h.api('/api/state')).actor.id,firstId=people.find(p=>p.email==='synthetic-placemat-first@example.test').id,nextId=people.find(p=>p.email==='synthetic-placemat-next@example.test').id;
-  for(const operatorId of [firstId,nextId])await h.command('team.host',{operatorId,enabled:true});
+  const people=await h.api('/auth/operators'),ownerId=(await h.api('/api/state')).actor.id,firstId=people.find(p=>p.email==='synthetic-placemat-first@example.test').id,nextId=people.find(p=>p.email==='synthetic-placemat-next@example.test').id,readerId=people.find(p=>p.email==='synthetic-placemat-reader@example.test').id;
+  for(const operatorId of [firstId,nextId,readerId])await h.command('team.host',{operatorId,enabled:true});
   const task={bookingId:f.elena.id,kind:'request',text:'synthetic-placemat-access <guest supplied>',ownerId:firstId,dueAt:new Date(Date.now()+3600000).toISOString()};
-  for(const as of [first,next,reader])await h.command('booking.handover',task,{as,status:403});
+  const ungranted=await h.signIn('synthetic-placemat-ungranted@example.test');await h.command('booking.handover',task,{as:ungranted,status:403});
   await h.command('booking.handover',{...task,ownerId:'missing'},{status:409});
-  const request=await h.command('booking.handover',task),callback=await h.command('booking.handover',{...task,kind:'callback',text:'synthetic-placemat-callback promise',ownerId:firstId});
-  await h.command('booking.handover.assign',{bookingId:f.elena.id,taskId:callback.task.id,ownerId:nextId,dueAt:task.dueAt});
+  const request=await h.command('booking.handover',task,{as:first}),callback=await h.command('booking.handover',{...task,kind:'callback',text:'synthetic-placemat-callback promise',ownerId:firstId},{as:first});
+  await h.command('booking.handover.assign',{bookingId:f.elena.id,taskId:callback.task.id,ownerId:nextId,dueAt:task.dueAt},{as:first});
+  await h.command('booking.handover.assign',{bookingId:f.elena.id,taskId:callback.task.id,ownerId:firstId,dueAt:task.dueAt},{as:first,status:403});
   const complete=(record,as,outcome='synthetic-placemat-outcome')=>h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:record.task.id,outcome},as?{as}:{});
   await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:callback.task.id,outcome:'Not assigned'},{as:first,status:403});
   await complete(request,first,'synthetic-placemat-step-free table checked with guest');
   let state=await h.api('/api/state'),row=state.state.bookings.find(b=>b.id===f.elena.id);assert.equal(row.handover[0].history.at(-1).actor,firstId);assert.equal(row.handover[1].ownerId,nextId);assert.equal(row.handover[1].history.length,2);assert.equal(row.handover[1].history[0].ownerId,firstId);assert.equal(row.handover[1].history[1].ownerId,nextId);assert.equal(state.names[nextId],'Blair Host');assert.equal(row.requests.wheelchair,true);assert.ok(row.requiredAccessTags.includes('step-free'));
   for(const path of ['/api/state','/api/audit','/api/timeline?date='+f.date]){const former=await h.api(path,undefined,{as:first});assert.ok(!JSON.stringify(former).includes('synthetic-placemat-callback promise'),'Reassignment removes callback text from current and historical reads at '+path);}
-  const nextView=await h.api('/api/state',undefined,{as:next});assert.deepEqual(nextView.state.bookings.find(b=>b.id===f.elena.id).handover.map(t=>t.id),[callback.task.id]);assert.ok(!JSON.stringify(nextView).includes('synthetic-placemat-access'));
+  const nextView=await h.api('/api/state',undefined,{as:next});assert.deepEqual(nextView.state.bookings.find(b=>b.id===f.elena.id).handover.map(t=>t.id),[request.task.id,callback.task.id]);assert.equal(nextView.state.bookings.find(b=>b.id===f.elena.id).handover[0].text,undefined);assert.ok(!JSON.stringify(nextView).includes('synthetic-placemat-access'));
   assert.ok(!JSON.stringify(await h.api('/api/state',undefined,{as:reader})).includes('synthetic-placemat-callback'));
-  await complete(callback,next,'synthetic-placemat-callback completed by the next host');
+  const deposit=await h.command('payment.request',{bookingId:f.elena.id,amountCents:10000,dueAt:new Date(Date.now()+7200000).toISOString(),followupOwnerId:nextId,reason:'Unpaid deposit exception callback'});
+  for(const [cookie,pin] of [[first,'141592653589'],[next,'271828182845'],[reader,'161803398874']])await h.api('/api/hoststand/pin',{pin},{as:cookie});
+  const registration=await h.api('/api/hoststand/devices',{label:'Service handover stand'},{status:201}),claimed=await h.request('/api/hoststand/claim',{method:'POST',body:{claimCode:registration.claimCode},as:''}),stand=claimed.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='));
+  await h.api('/api/hoststand/unlock',{operatorId:nextId,pin:'271828182845'},{as:stand});let floor=await h.api('/api/hoststand/floor',undefined,{as:stand});
+  const alert=floor.bookings.find(b=>b.id===f.elena.id).paymentRequests[0];assert.equal(alert.state,'unpaid');assert.equal(alert.amountCents,10000);assert.equal(alert.dueAt,deposit.dueAt);assert.equal(alert.followupOwnerId,nextId);
+  const link=await h.api('/api/hoststand/commands',{generation:floor.generation,command:'payment.link',payload:{requestId:deposit.requestId}},{as:stand});assert.match(link.result.url,/^https:\/\/checkout.stripe.com\//);assert.equal(payments.calls.filter(c=>c.method==='POST').length,1);
+  await h.api('/api/hoststand/commands',{generation:floor.generation,command:'booking.handover.complete',payload:{bookingId:f.elena.id,taskId:callback.task.id,outcome:'synthetic-placemat-callback completed by the next host'}},{as:stand});
+  await h.api('/api/hoststand/unlock',{operatorId:readerId,pin:'161803398874'},{as:stand});floor=await h.api('/api/hoststand/floor',undefined,{as:stand});assert.ok(!JSON.stringify(floor).includes('synthetic-placemat-callback'));assert.ok(floor.bookings.find(b=>b.id===f.elena.id).handover.some(t=>t.id===callback.task.id));
+
   await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:callback.task.id,outcome:'Duplicate'},{as:next,status:409});
   const pending=await h.command('booking.handover',{...task,kind:'callback',ownerId:nextId,text:'synthetic-placemat-next-shift'});
   await h.command('team.host',{operatorId:nextId,enabled:false});await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:pending.task.id,outcome:'Revoked'},{as:next,status:403});

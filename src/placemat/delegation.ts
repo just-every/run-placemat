@@ -17,7 +17,7 @@ export async function executeDelegation(db:D1Database,s:State,actor:Actor,comman
   if(operator!.role!=='admin')fail(400,'Only a native manager can receive refund authority.')
   const refundLimitCents=number(p.refundLimitCents,'Refund limit in USD cents',0,100000000)
   ;(s.managerRefundLimits??={})[operatorId]=refundLimitCents
-  return {id:operatorId,refundLimitCents,refundsAvailable:false}
+  return {id:operatorId,refundLimitCents,refundsAvailable:true}
  }
  if(operator!.role!=='admin'&&!s.leadIds?.includes(operatorId))fail(400,'Choose a manager or shift lead for report access.')
  if(!Array.isArray(p.serviceIds)||p.serviceIds.some((id:unknown)=>typeof id!=='string'||!s.services.some(v=>v.id===id))||new Set(p.serviceIds).size!==p.serviceIds.length)fail(400,'Choose distinct existing service scopes.')
