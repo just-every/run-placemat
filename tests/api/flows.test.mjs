@@ -521,6 +521,17 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
   await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:other,status:429});
   const archive=await h.api('/api/backup'),archiveText=JSON.stringify(archive);for(const table of ['pm_host_devices','pm_host_pins','pm_host_security_events'])assert.ok(archive[0].excludedTables.includes(table));for(const secret of [f.registration.claimCode,f.deviceCookie.split('=')[1],...f.staff.map(s=>s.pin)])assert.ok(!archiveText.includes(secret));
   await h.api('/api/hoststand/revoke',{deviceId:f.registration.id});await h.api('/api/hoststand/status',undefined,{as,status:403});await h.api('/api/hoststand/floor',undefined,{as,status:403});
+  // A fresh stand keeps this separate from the existing per-minute work limit.
+  const windowRegistration=await h.api('/api/hoststand/devices',{label:'Next shift stand'},{status:201}),windowClaim=await h.request('/api/hoststand/claim',{method:'POST',body:{claimCode:windowRegistration.claimCode},as:''}),windowAs=windowClaim.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='));assert.equal(windowClaim.status,200);
+  const wrong=()=>h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as:windowAs,status:401});
+  for(let i=0;i<4;i++)await wrong();
+  // Persisted previous-shift fixture; outcomes are asserted through the PIN door.
+  await h.db.prepare('UPDATE pm_host_pins SET failure_window_at=? WHERE operator_id=?').bind(Date.now()-16*60000,f.staff[0].id).run();
+  await h.db.prepare('UPDATE pm_host_devices SET failure_window_at=? WHERE id=?').bind(Date.now()-16*60000,windowRegistration.id).run();
+  for(let i=0;i<4;i++)await wrong();await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as:windowAs,status:429});
+  await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:windowAs});
+  const previousPin=f.staff[0].pin;f.staff[0].pin='314159265358';await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await h.api('/api/hoststand/floor',undefined,{as:windowAs,status:423});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:previousPin},{as:windowAs,status:401});await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:windowAs});
+
  }finally{await h.close()}
 })
 
