@@ -4,7 +4,20 @@ import assert from 'node:assert/strict'
 import {installation} from './harness.mjs'
 import {feeEdge,feePolicyInput,feeApi,feeService,feeBooking,consentBooking,feeDecision} from './fee-fixture.mjs'
 
-const configured=edge=>installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-stripe-edge'}})
+function csvRecords(csv) {
+ const rows=[],row=[];let value='',quoted=false
+ for(let i=0;i<csv.length;i++) {
+  const char=csv[i]
+  if(char==='"'){if(quoted&&csv[i+1]==='"'){value+='"';i++}else quoted=!quoted}
+  else if(char===','&&!quoted){row.push(value);value=''}
+  else if(char==='\r'&&!quoted&&csv[i+1]==='\n'){row.push(value);rows.push([...row]);row.length=0;value='';i++}
+  else value+=char
+ }
+ const [header,...data]=rows
+ return data.map(values=>Object.fromEntries(header.map((name,index)=>[name,values[index]])))
+}
+
+const configured=edge=>installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
 
 test('Fee consent records the owner attestation to exact immutable terms and a verified off-session setup; other actors cannot decide fees',async()=>{
  const edge=feeEdge(),h=await configured(edge)
@@ -50,6 +63,11 @@ test('Venue-local cancellation previews cross DST by calendar date, preserve exa
   const grace=new Date(Date.parse(startAt)+15*60000).toISOString()
   assert.equal((await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'no_show',occurredAt:grace})).amountCents,0)
   assert.equal((await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'no_show',occurredAt:new Date(Date.parse(grace)+1).toISOString()})).amountCents,3500)
+  await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'Guest cancelled before the agreed venue-local cutoff.'})
+  const onTime=await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'late_cancel'})
+  assert.equal(onTime.actionable,true);assert.equal(onTime.amountCents,0);assert.equal(onTime.chargeAllowed,false)
+  await feeApi(h,'fees',feeDecision(onTime),{status:409})
+  assert.equal((await feeApi(h,'fees',feeDecision(onTime,'waive'))).amountCents,0)
   // A separate unbound reservation reviews new policy candidates; its existing agreement is never replaced.
   const another=await feeBooking(h,service,2)
   await feeApi(h,'fee-policy',feePolicyInput({cutoffDaysBefore:0,cutoffLocalTime:'02:30'}))
@@ -97,7 +115,7 @@ test('Recorded cancellation and no-show decisions capture each violation once, w
   assert.equal(fees.chargedCents,7500);assert.equal(fees.waivedCents,4000);assert.equal(fees.refundedCents,1000);assert.equal(fees.pendingCents,0)
   assert.equal(fees.rows.find(row=>row.assessmentId===charged.id).bookingId,bookings[0].id)
   const csv=await (await h.request('/api/reports/closed.csv?serviceId='+service.id)).text()
-  assert.match(csv,/chargedFeeCents,waivedFeeCents,refundedFeeCents,pendingFeeCents/)
+  const rows=csvRecords(csv);assert.deepEqual(rows.map(r=>r.bookingId).sort(),bookings.map(b=>b.id).sort());for(const [column,total]of [['chargedFeeCents',7500],['waivedFeeCents',4000],['refundedFeeCents',1000],['pendingFeeCents',0]])assert.equal(rows.reduce((n,r)=>n+Number(r[column]),0),total)
   for(const b of bookings)assert.ok(csv.includes(b.id))
   const pdf=await h.request('/api/reports/closed.pdf?serviceId='+service.id);assert.equal(pdf.status,200);const pdfText=await pdf.text();assert.match(pdfText,/Charged \$75.00 USD/);assert.match(pdfText,/waived \$40.00 USD/);assert.match(pdfText,/refunded \$10.00 USD/)
   const state=await h.api('/api/state'),ownerId=state.actor.id
