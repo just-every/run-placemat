@@ -5,6 +5,8 @@ import {chromium,expect} from '@playwright/test'
 import {installation} from './api/harness.mjs'
 import {feeEdge,feeService} from './api/fee-fixture.mjs'
 import {browserServer} from './browser-server.mjs'
+// HTML datetime-local values omit insignificant fractional zeros and zero seconds.
+const localTimestamp=date=>date.toISOString().slice(0,-1).replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,'').replace(/:00$/,'')
 const shots=process.env.PLACEMAT_SCREENSHOTS;if(shots)await mkdir(shots,{recursive:true});
 for(const width of [1440,390]){
  const edge=feeEdge(),h=await installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}}),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true});
@@ -23,7 +25,7 @@ for(const width of [1440,390]){
   await policyForm.getByRole('button',{name:'Publish new fee policy',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
   const policy=(await h.api('/api/state')).feeWork.policies[0];
   for(const booking of bookings){
-   await root.getByText('Record agreed fee policy',{exact:true}).click();const consent=root.locator('[data-command="payment.fee-consent"]');await consent.locator('[name=bookingId]').selectOption(booking.id);await consent.locator('[name=acceptedAt]').fill(new Date().toISOString().slice(0,-1));await consent.locator('[name=evidence]').fill('Guest agreed to this exact policy during the recorded reservation call.');await consent.locator('[name=setupIntentId]').fill(edge.setup(booking.id,policy.id));await consent.locator('[name=attest]').check();await shot('recorded-agreement-review');await consent.getByRole('button',{name:'Record fee consent',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
+   await root.getByText('Record agreed fee policy',{exact:true}).click();const consent=root.locator('[data-command="payment.fee-consent"]');await consent.locator('[name=bookingId]').selectOption(booking.id);await consent.locator('[name=acceptedAt]').fill(localTimestamp(new Date()));await consent.locator('[name=evidence]').fill('Guest agreed to this exact policy during the recorded reservation call.');await consent.locator('[name=setupIntentId]').fill(edge.setup(booking.id,policy.id));await consent.locator('[name=attest]').check();await shot('recorded-agreement-review');await consent.getByRole('button',{name:'Record fee consent',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
    await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'Guest canceled after the agreed deadline.'});
   }
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor();
