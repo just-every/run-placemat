@@ -123,3 +123,5 @@ GUEST-004 adds `guest-merges.csv`: id, guestId, duplicateId, status, createdAt/c
 
 
 Refund event, follow-up and notice archives validate their refund relationships, original requester, money, states and timestamps before applying any record. Restore never calls Stripe or sends a notice. These anonymous financial facts retain booking references after guest erasure; no guest contact, request text, signing secret or raw webhook is added to them.
+
+PAY-004 fee policies, evidenced consent, previews, assessments, disputes and attributed events are portable business facts. The five `fee-*` CSVs exclude the separate execution-credential table. Archives exclude `pm_fee_credentials` entirely and normalize assessment processing leases to zero; historical consent never restores authority to charge. Guest erasure removes execution credentials and clears consent, decision, dispute and audit evidence/reasons. Service closing snapshots retain only reservation references and fixed integer-cent fee facts.

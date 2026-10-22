@@ -64,6 +64,11 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  }
  const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  {sql:'DELETE FROM pm_fee_credentials WHERE consent_id IN (SELECT id FROM pm_fee_consents WHERE booking_id IN (SELECT value FROM json_each(?)))',params:[erasedIds]},
+  {sql:"UPDATE pm_fee_consents SET evidence='' WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
+  {sql:"UPDATE pm_fee_assessments SET reason='',evidence='' WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
+  {sql:"UPDATE pm_fee_disputes SET reason='',evidence='' WHERE assessment_id IN (SELECT id FROM pm_fee_assessments WHERE booking_id IN (SELECT value FROM json_each(?)))",params:[erasedIds]},
+  {sql:"UPDATE pm_fee_events SET before_data=CASE WHEN before_data IS NULL THEN NULL ELSE json_remove(before_data,'$.reason','$.evidence','$.before.reason','$.before.evidence','$.after.reason','$.after.evidence') END,after_data=json_remove(after_data,'$.reason','$.evidence','$.before.reason','$.before.evidence','$.after.reason','$.after.evidence') WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
   {sql:'DELETE FROM pm_booking_management WHERE booking_id IN (SELECT value FROM json_each(?))',params:[erasedIds]},
   {sql:'DELETE FROM pm_booking_contacts WHERE booking_id IN (SELECT value FROM json_each(?))',params:[erasedIds]},
   {sql:"UPDATE pm_payment_requests SET reason='',provider_url=NULL WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},

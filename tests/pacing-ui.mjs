@@ -90,3 +90,5 @@ for(const width of [1440,390]){
   assert.deepEqual(errors,[]);console.log(`ROLE-002 reviewed lead seating, scoped read-only reports and owner-recorded limits passed at ${width}`);
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }
+
+await import('./fees-ui.mjs');

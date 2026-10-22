@@ -50,11 +50,11 @@ try {
    await root.getByText('No-show: 4 covers / 10 total covers · 2 parties',{exact:true}).click()
    await root.getByText('Walk-in and waitlist seating',{exact:true}).click()
    await root.getByText('Turn and wait observations',{exact:true}).click()
-   // Recovered covers drill to each no-show and the seated waitlist party that refilled its table; fees are honestly not recorded.
+   // Recovered covers drill to each no-show and the seated waitlist party that refilled its table; fees show recorded zeros.
    await root.getByText('Recovered covers: 4 / 4 freed covers · 2 seated replacement parties',{exact:true}).click()
    const recovery=root.locator('[data-close-recovery]');assert.match(await recovery.innerText(),/From cancellations: 0 covers · from no-shows: 4 covers/)
    assert.equal(await recovery.getByText('Seated replacements (staff-recorded):').count(),2)
-   assert.match(await root.locator('[data-close-fees]').innerText(),/^Fees charged, waived and refunded: Not recorded: Placemat takes no payments yet/)
+   assert.match(await root.locator('[data-close-fees]').innerText(),/Charged \$0.00 · waived \$0.00 · refunded \$0.00 USD/)
    const pdfHref=await root.getByRole('link',{name:'Download PDF',exact:true}).getAttribute('href'),pdf=await h.request(pdfHref)
    assert.equal(pdf.headers.get('content-type'),'application/pdf');assert.match(await pdf.text(),/^%PDF-1\.4[\s\S]*Recovered from cancellations and no-shows: 4 \/ 4 freed covers/)
    await shot('fixed-close')

@@ -1,3 +1,4 @@
+import {parseFeeForm} from './placemat-fees.js'
 import {managementWork} from './placemat-booking-management-staff.js'
 import {delegationSettings,leadGrant,serverGrant,financeGrant} from './placemat-delegation.js'
 import {mountGroup} from './placemat-group.js'
@@ -126,7 +127,7 @@ function renderFloor() {
   $('#service-notes').innerHTML=serviceNotes(state,s,{esc,form,field,select,canEdit:canEdit(),canReadShift:canEdit()||actor?.role==='host',who,time});
   const staffingReady=staffing.mount($('#floor-staffing'),state,s);
   timeline.mount($('#floor-timeline'),s,serviceChoices(),zone());
-  $('#shift-handover').innerHTML=managementWork(state,serviceId,{actor,esc,form,select,guest,time,bookingContacts:data.bookingContacts})+handoverWork(state,serviceId,{esc,guest,who,time,form,field,select,actor,people:data.handoverPeople||[],localTime,paymentRequests:data.paymentRequests})+paymentWork({state,actor,paymentRequests:data.paymentRequests,refundCharges:data.refundCharges,refunds:data.refunds,refundNotices:data.refundNotices,refundFollowups:data.refundFollowups,people:data.handoverPeople},{esc,form,field,select,time,guest})+shiftHandover(state,serviceId,data.serviceStages,{esc,guest,who,time,tableNames,canEdit:canOperateFloor(),button});
+  $('#shift-handover').innerHTML=managementWork(state,serviceId,{actor,esc,form,select,guest,time,bookingContacts:data.bookingContacts})+handoverWork(state,serviceId,{esc,guest,who,time,form,field,select,actor,people:data.handoverPeople||[],localTime,paymentRequests:data.paymentRequests})+paymentWork({state,actor,paymentRequests:data.paymentRequests,refundCharges:data.refundCharges,refunds:data.refunds,refundNotices:data.refundNotices,refundFollowups:data.refundFollowups,feeWork:data.feeWork,people:data.handoverPeople},{esc,form,field,select,time,guest})+shiftHandover(state,serviceId,data.serviceStages,{esc,guest,who,time,tableNames,canEdit:canOperateFloor(),button});
   const pacingServiceId=serviceId,pacingReady=api('/api/pacing?serviceId='+encodeURIComponent(serviceId)).then(report=>{const target=$('#bookings-pacing');if(target&&serviceId===pacingServiceId)target.innerHTML=renderPacing(report,state,{esc,time,guest,who});});
   return Promise.all([staffingReady,pacingReady]);
 }
@@ -258,7 +259,7 @@ function payloadFrom(formEl) {
   if ('tableIds' in values) values.tableIds = new FormData(formEl).getAll('tableIds');
   if (values.tableIds?.length === 0) delete values.tableIds;
   if (values.id === '') delete values.id;
-  return values;
+  return parseFeeForm(formEl.dataset.command,values);
 }
 async function execute(command, payload) {
   return (await api('/api/commands', {command,payload})).result;

@@ -100,7 +100,7 @@ function pdfText(pdf) {
  return [...pdf.matchAll(/\((.*)\) Tj/g)].map(m=>m[1].replace(/\\([()\\])/g,'$1').replace(/\\(\d{3})/g,(_,o)=>String.fromCharCode(parseInt(o,8)))).join('\n')
 }
 
-test('REPORT-007: seated refills of freed tables are the only recovered covers; fees are honestly not recorded; the fixed report prints as PDF and CSV and stays unchanged beside later adjustments',async()=>{
+test('REPORT-007: seated refills of freed tables are the only recovered covers; zero fee figures remain distinct from older unrecorded snapshots; the fixed report prints as PDF and CSV and stays unchanged beside later adjustments',async()=>{
  const h=await installation()
  try {
   const fixture=await closeReportService(h),s=fixture.service,q='?serviceId='+s.id
@@ -132,7 +132,7 @@ test('REPORT-007: seated refills of freed tables are the only recovered covers; 
   ].sort(),'each seated refill is credited to the reservation whose table it took; the party still booked at close is listed, never counted')
   assert.deepEqual([...recovery.bookingIds].sort(),[...fixture.noShows.map(b=>b.id),...fixture.waitlistSeats.map(b=>b.id),pairs[0].cancelled.id,pairs[0].rebooked.id].sort(),'the figure drills to its reservations')
   assert.ok(!recovery.bookingIds.includes(fixture.walkin.id),'a walk-in on a table nobody freed recovers nothing')
-  assert.deepEqual(fees,{recorded:false,note:'Not recorded: Placemat takes no payments yet, so no fee was charged, waived or refunded here. PAY-004 and PAY-005 add these figures before payments ship.'})
+  assert.equal(fees.recorded,true);assert.deepEqual([fees.chargedCents,fees.waivedCents,fees.refundedCents,fees.pendingCents,fees.rows],[0,0,0,0,[]])
   // The CSV rows reconcile to every figure, including recovered covers and what each refill recovered.
   const csv=await (await h.request('/api/reports/closed.csv'+q)).text(),records=csvRecords(csv)
   assert.equal(records.reduce((n,r)=>n+Number(r.recoveredCovers),0),recovery.covers)
@@ -142,7 +142,7 @@ test('REPORT-007: seated refills of freed tables are the only recovered covers; 
   const pdfResponse=await h.request('/api/reports/closed.pdf'+q)
   assert.equal(pdfResponse.status,200);assert.equal(pdfResponse.headers.get('content-type'),'application/pdf');assert.match(pdfResponse.headers.get('content-disposition'),/attachment; filename="placemat-service-close.pdf"/)
   const text=pdfText(await pdfResponse.text())
-  for(const line of ['End-of-service report','Cedar & Salt · Friday dinner','Booked: 18 covers (9 reservations, including cancellations and no-shows)','Attended: 8 / 18 covers (44.4%)','No-show: 4 / 18 covers (22.2%)','Cancelled: 4 / 18 covers (22.2%)','Recovered from cancellations and no-shows: 6 / 8 freed covers by 3 seated replacement parties','Fees charged, waived and refunded: Not recorded: Placemat takes no payments yet','Pacing overrides (SERVICE-007): 0 reservations','Observations after close (0)'])
+  for(const line of ['End-of-service report','Cedar & Salt · Friday dinner','Booked: 18 covers (9 reservations, including cancellations and no-shows)','Attended: 8 / 18 covers (44.4%)','No-show: 4 / 18 covers (22.2%)','Cancelled: 4 / 18 covers (22.2%)','Recovered from cancellations and no-shows: 6 / 8 freed covers by 3 seated replacement parties','Fees charged, waived and refunded: Charged $0.00 USD; waived $0.00 USD; refunded $0.00 USD; pending $0.00 USD.','Pacing overrides (SERVICE-007): 0 reservations','Observations after close (0)'])
    assert.ok(text.includes(line),`PDF shows: ${line}`)
   for(const row of coverReport.rows)assert.ok(text.includes(`ref ${row.bookingId}`),'every reservation is listed in the PDF')
   assert.match(text,/Average actual turn: .* against expected 90\.00 min/)

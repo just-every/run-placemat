@@ -1,3 +1,4 @@
+import {feeWork} from './placemat-fees.js';
 const usd = cents => new Intl.NumberFormat('en-US', {style:'currency',currency:'USD'}).format(cents / 100);
 const committed = refund => ['pending','succeeded'].includes(refund.status);
 function checkoutUrl(value) {
@@ -9,7 +10,7 @@ function checkoutUrl(value) {
 }
 
 /** Uses the same command forms as the staff app; money inputs are integer USD cents. */
-export function paymentWork({state,actor,paymentRequests=[],refundCharges=[],refunds=[],refundNotices=[],refundFollowups=[],people=[]},{esc,form,field,select,time,guest}) {
+export function paymentWork({state,actor,paymentRequests=[],refundCharges=[],refunds=[],refundNotices=[],refundFollowups=[],feeWork:fees,people=[]},{esc,form,field,select,time,guest}) {
  const fullManager = actor && !actor.agent && !actor.deviceId && ['owner','admin'].includes(actor.role);
  const host = actor && !actor.agent && actor.role === 'host' && (state.hostIds || []).includes(actor.id);
  if (!fullManager && !host) return '';
@@ -63,5 +64,5 @@ export function paymentWork({state,actor,paymentRequests=[],refundCharges=[],ref
   const followups=refundFollowups.map(t=>`<article class="card" data-refund-followup="${esc(t.refundId)}"><h4>${esc(bookingName(t.bookingId))} · ${esc(usd(t.amountCents))}</h4><p>${esc(t.state)} · ${esc(t.failureStatus)} refund<br>Follow-up owner: ${esc(personName(t.ownerId))}<br>Created ${esc(time(t.createdAt))}</p><p>${esc(t.reason)}</p><p class="help">Contact the guest and review the processor outcome. This task never submits another refund.</p></article>`).join('');
   financial = `<section aria-label="Refunds"><h3>Refunds</h3><p>${esc(authority)}</p>${chargeSync}<h4>Confirmed booking charges</h4>${charges||'<p>No Stripe charges have been synchronized.</p>'}<h4>Refund history</h4>${history||'<p>No refunds submitted.</p>'}<h4>Failed refund follow-up</h4>${followups||'<p>No failed refunds need follow-up.</p>'}</section>`;
  }
- return `<section aria-label="Deposits and refunds"><h3>Reservation deposits</h3><p class="help">Amounts are in USD. Payment links open Stripe-hosted checkout; staff copy and share them with the guest. A saved link does not record delivery or payment.</p>${createRequest}${requestRows||'<p>No deposit requests for these reservations.</p>'}${financial}</section>`;
+ return `<section aria-label="Deposits and refunds"><h3>Reservation deposits</h3><p class="help">Amounts are in USD. Payment links open Stripe-hosted checkout; staff copy and share them with the guest. A saved link does not record delivery or payment.</p>${createRequest}${requestRows||'<p>No deposit requests for these reservations.</p>'}${owner?feeWork({state,work:fees,bookingName},{esc,form,field,select,time}):''}${financial}</section>`;
 }

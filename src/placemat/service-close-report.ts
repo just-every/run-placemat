@@ -1,3 +1,4 @@
+import {closedFeeSql,feeSummary,bookingFees,type ClosedFees,type LegacyFees} from './fee-close-report'
 import {performanceReport,type PerformanceReport} from './performance'
 import {reservationReport,reportCsv,type ReservationReport} from './reports'
 import {fail,id,text,type Actor,type State} from './model'
@@ -5,18 +6,16 @@ import {load} from './store'
 import {recoveryReport,type RecoveryReport} from './recovery'
 import {textPdf,type PdfLine} from './pdf'
 
-/** No payment capability exists yet, so a close records no fee facts; PAY-004 and PAY-005 add charged, waived and refunded fees to this snapshot before they ship. */
-const noFees={recorded:false as const,note:'Not recorded: Placemat takes no payments yet, so no fee was charged, waived or refunded here. PAY-004 and PAY-005 add these figures before payments ship.'}
-type ClosedPerformance=PerformanceReport&{closure:{at:string;actor:string;coverReport:ReservationReport;recovery?:RecoveryReport;fees?:typeof noFees}}
+type ClosedPerformance=PerformanceReport&{closure:{at:string;actor:string;coverReport:ReservationReport;recovery?:RecoveryReport;fees?:ClosedFees|LegacyFees}}
 
 /** The caller batches this statement with the service.close state save. */
 export function prepareCloseReport(db:D1Database,s:State,actor:Actor,serviceId:string,version:number,now:string):{statement:D1PreparedStatement;snapshotId:string} {
  const service=s.services.find(service=>service.id===serviceId)??fail(404,'Service not found.')
  if(!service.closedAt||service.closedBy!==actor.id||service.closedAt!==now)fail(409,'Close the service before preparing its closing report.')
  const snapshotId=id(),performance=performanceReport(s,serviceId,now)
- const report:ClosedPerformance={...performance,closure:{at:now,actor:actor.id,coverReport:reservationReport(s,new URLSearchParams({serviceId}),new Date(now)),recovery:recoveryReport(s,serviceId),fees:noFees}}
- const statement=db.prepare('INSERT INTO pm_performance_reports(id,service_id,published_at,published_by,floor_version,data) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?)')
-  .bind(snapshotId,serviceId,now,actor.id,version+1,JSON.stringify(report),version)
+ const report:ClosedPerformance={...performance,closure:{at:now,actor:actor.id,coverReport:reservationReport(s,new URLSearchParams({serviceId}),new Date(now)),recovery:recoveryReport(s,serviceId)}}
+ const statement=db.prepare(`INSERT INTO pm_performance_reports(id,service_id,published_at,published_by,floor_version,data) SELECT ?,?,?,?,?,json_set(?,'$.closure.fees',json((SELECT ${closedFeeSql} FROM pm_fee_assessments f WHERE f.service_id=?))) WHERE EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?)`)
+  .bind(snapshotId,serviceId,now,actor.id,version+1,JSON.stringify(report),serviceId,version)
  return {statement,snapshotId}
 }
 
@@ -45,7 +44,7 @@ const credits=(recovery:RecoveryReport|null)=>new Map((recovery?.freed??[]).flat
 /** This CSV always exports the fixed closing population and its original statuses; recoveredCovers sums to the recovered-cover figure (blank when not recorded at close). */
 export function closeReportCsv(result:CloseReport) {
  const recovery=result.original.recovery,credit=credits(recovery)
- return reportCsv(result.original.coverReport,{header:['recoveredCovers','recoversBookingId'],values:row=>recovery?[credit.get(row.bookingId)?.covers??0,credit.get(row.bookingId)?.recovers??'']:['','']})
+ return reportCsv(result.original.coverReport,{header:['recoveredCovers','recoversBookingId','chargedFeeCents','waivedFeeCents','refundedFeeCents','pendingFeeCents'],values:row=>{const f=bookingFees(result.original.fees,row.bookingId);return [...(recovery?[credit.get(row.bookingId)?.covers??0,credit.get(row.bookingId)?.recovers??'']:['','']),...(f?[f.chargedCents,f.waivedCents,f.refundedCents,f.pendingCents]:['','','',''])]}})
 }
 
 /** The same fixed figures, each with its denominator and reservations, as a printable PDF. */
@@ -68,9 +67,9 @@ export function closeReportPdf(result:CloseReport,names:Record<string,string>) {
   {text:`Pacing overrides (SERVICE-007): ${sum.pacingOverrides.bookings} reservations`},
   {text:`Average actual turn: ${mins(d.actualTurns.mean)} (${d.actualTurns.sampleSize} recorded / ${d.actualTurns.sampleSize+d.actualTurns.missing} possible) against expected ${mins(d.expectedTurns.mean)} (${d.expectedTurns.sampleSize} reservations)`},
   {text:`Quoted waits: ${mins(d.quotedWaitMin.mean)} to ${mins(d.quotedWaitMax.mean)} (${d.quotedWaitMin.sampleSize} quotes); actual wait ${mins(d.actualWait.mean)} (${d.actualWait.sampleSize} recorded / ${d.actualWait.sampleSize+d.actualWait.missing} possible)`},
-  {text:`Fees charged, waived and refunded: ${fees?fees.note:'not recorded at close'}`},{text:''},
+  {text:`Fees charged, waived and refunded: ${feeSummary(fees)}`},{text:''},
   {text:`Reservations (${r.rows.length})`,bold:true,size:12},
-  ...r.rows.map(b=>({text:`ref ${b.bookingId} · ${b.tables.join(' + ')||'No table'} · ${b.partySize} guests · ${b.source} · ${b.status} · ${local(b.startAt)}${credit.has(b.bookingId)?` · recovers ${credit.get(b.bookingId)!.covers} covers of ref ${credit.get(b.bookingId)!.recovers}`:''}`})),{text:''},
+  ...r.rows.map(b=>({text:`ref ${b.bookingId} · ${b.tables.join(' + ')||'No table'} · ${b.partySize} guests · ${b.source} · ${b.status} · ${local(b.startAt)}${(()=>{const f=bookingFees(fees,b.bookingId);return f?` · fees charged ${f.chargedCents}c / waived ${f.waivedCents}c / refunded ${f.refundedCents}c / pending ${f.pendingCents}c`:''})()}${credit.has(b.bookingId)?` · recovers ${credit.get(b.bookingId)!.covers} covers of ref ${credit.get(b.bookingId)!.recovers}`:''}`})),{text:''},
   {text:`Observations after close (${result.adjustments.length})`,bold:true,size:12},
   ...(result.adjustments.length?result.adjustments.map(a=>({text:`ref ${a.bookingId} · ${local(a.at)} · ${who(a.actor)} · ${a.before.status} -> ${a.after.status} · reservation ${a.before.bookingStatus} -> ${a.after.bookingStatus}`})):[{text:'None. The original figures above are unchanged.'}]),
  ]

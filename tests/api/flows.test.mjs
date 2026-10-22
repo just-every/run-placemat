@@ -1,3 +1,4 @@
+import './fee-journeys.mjs'
 import {test} from 'node:test'
 import {createHmac} from 'node:crypto'
 import assert from 'node:assert/strict'

@@ -1,3 +1,4 @@
+import {validateFees} from './fee-archive.mjs'
 import {validateGuestMerges} from './guest-merge-archive.mjs'
 import {validateServiceNotes} from './service-notes-archive.mjs'
 import {validateOnboarding} from './onboarding-archive.mjs'
@@ -40,8 +41,9 @@ function validateStaffing(s,tables){
 export default {
  product:'hospitality/placemat',
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
- excludeTables:['pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
+ excludeTables:['pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
+  if(table==='pm_fee_assessments')return {...row,processing_until:0}
   if(table==='pm_refund_webhooks')return {...row,claim:''}
   if(table==='pm_payment_requests')return {...row,provider_url:null}
   return table==='pm_refunds'?{...row,processing_until:0}:row
@@ -53,7 +55,7 @@ export default {
   const ids=new Set(guests.map(row=>row.id))
   const bookingContacts=await read('pm_booking_contacts')
   for(const row of guests){const g=JSON.parse(row.data);if(g.id!==row.id||typeof g.name!=='string'||typeof g.email!=='string'||typeof g.notes!=='string')throw Error('Invalid guest')}
-  if(!rows.length){if(reports.length||(await read('pm_guest_merges')).length)throw Error('Business journals need their venue state');await validatePayments({bookings:[]},read);return}
+  if(!rows.length){if(reports.length||(await read('pm_guest_merges')).length)throw Error('Business journals need their venue state');await validatePayments({bookings:[]},read);await validateFees({bookings:[]},read);return}
   const s=JSON.parse(rows[0].data)
   validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
@@ -99,6 +101,7 @@ export default {
   const bookingIds=new Set(s.bookings.map(b=>b.id))
   for(const row of bookingContacts){const b=s.bookings.find(b=>b.id===row.booking_id),g=guests.find(g=>g.id===row.guest_id),contact=JSON.parse(row.data);if(!b||b.guestId!==row.guest_id||!g||JSON.parse(g.data).erased||!contact||['name','email','phone'].some(k=>typeof contact[k]!=='string')||!Number.isFinite(Date.parse(row.updated_at)))throw Error('Invalid reservation contact')}
   await validatePayments(s,read,new Set(guests.filter(row=>JSON.parse(row.data).erased===true).map(row=>row.id)))
+  await validateFees(s,read,new Set(guests.filter(row=>JSON.parse(row.data).erased===true).map(row=>row.id)))
   if(s.serviceEvents!==undefined&&(!Array.isArray(s.serviceEvents)||s.serviceEvents.some(e=>!bookingIds.has(e.bookingId))))throw Error('Broken service observation relationships')
   if(s.waitlist.some(w=>!ids.has(w.guestId)||!services.has(w.serviceId)))throw Error('Broken waitlist relationships')
  },

@@ -6,13 +6,13 @@ export const businessCsvVersion=1
 export const businessExportKinds=[
  'venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
- 'payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins',
+ 'fee-policies','fee-consents','fee-assessments','fee-events','fee-disputes','payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
 export type BusinessPerformanceReport={id:string;service_id:string;published_at:string;published_by:string;floor_version:number;data:string}
 type RecordValue=Record<string,unknown>
-export type BusinessFinancialRecords={paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
+export type BusinessFinancialRecords={feePolicies?:RecordValue[];feeConsents?:RecordValue[];feeAssessments?:RecordValue[];feeEvents?:RecordValue[];feeDisputes?:RecordValue[];paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
 const noFinancialRecords:BusinessFinancialRecords={paymentRequests:[],refundCharges:[],refunds:[],refundEvents:[]}
 type Dataset={fields:readonly string[];rows:readonly unknown[]}
 
@@ -66,6 +66,11 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'proposals':return {fields:['id','kind','status','preparedBy','preparedAt','approvedBy','approvedAt','reason','plan_json'],rows:state.proposals}
   case 'reminders':return {fields:['id','bookingId','guestId','contactName','contactEmail','contactPhone','message','status','approvedBy','approvedAt'],rows:state.reminders}
   case 'performance-reports':return {fields:['id','serviceId','publishedAt','publishedBy','floorVersion','report_json'],rows:reports.map(row=>({id:row.id,serviceId:row.service_id,publishedAt:row.published_at,publishedBy:row.published_by,floorVersion:row.floor_version,report:JSON.parse(row.data)}))}
+  case 'fee-policies':return {fields:['id','version','created_by','created_at','data'],rows:finance.feePolicies??[]}
+  case 'fee-consents':return {fields:['id','booking_id','policy_id','actor_id','accepted_at','recorded_at','evidence','booking_snapshot','review_text'],rows:finance.feeConsents??[]}
+  case 'fee-assessments':return {fields:['id','request_id','booking_id','service_id','policy_id','consent_id','kind','event_id','action','status','amount_cents','actor_id','reason','evidence','processor_id','charge_id','created_at','updated_at'],rows:finance.feeAssessments??[]}
+  case 'fee-events':return {fields:['id','booking_id','actor_id','at','action','subject_id','before_data','after_data'],rows:finance.feeEvents??[]}
+  case 'fee-disputes':return {fields:['id','assessment_id','actor_id','at','reason','evidence'],rows:finance.feeDisputes??[]}
   case 'payment-requests':return {fields:['id','bookingId','amountCents','currency','dueAt','followupOwnerId','createdBy','createdAt','reason','state','providerAttemptAt','providerReference','verifiedAt','paidAt'],rows:finance.paymentRequests.map(r=>({id:r.id,bookingId:r.booking_id,amountCents:r.amount_cents,currency:r.currency,dueAt:r.due_at,followupOwnerId:r.followup_owner_id,createdBy:r.created_by,createdAt:r.created_at,reason:r.reason,state:r.state,providerAttemptAt:r.provider_attempt_at,providerReference:r.provider_session_id,verifiedAt:r.verified_at,paidAt:r.paid_at}))}
   case 'refund-charges':return {fields:['chargeId','bookingId','amountCents','importedRefundedCents','currency','syncedBy','syncedAt'],rows:finance.refundCharges.map(r=>({chargeId:r.charge_id,bookingId:r.booking_id,amountCents:r.amount_cents,importedRefundedCents:r.imported_refunded_cents,currency:r.currency,syncedBy:r.synced_by,syncedAt:r.synced_at}))}
   case 'refunds':return {fields:['id','requestId','actorId','bookingId','chargeId','amountCents','reason','status','processorId','createdAt','updatedAt'],rows:finance.refunds.map(r=>({id:r.id,requestId:r.request_id,actorId:r.actor_id,bookingId:r.booking_id,chargeId:r.charge_id,amountCents:r.amount_cents,reason:r.reason,status:r.status,processorId:r.processor_id,createdAt:r.created_at,updatedAt:r.updated_at}))}
