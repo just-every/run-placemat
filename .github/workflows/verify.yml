@@ -68,6 +68,9 @@ jobs:
           key: seed-ubuntu24-${{ runner.arch }}-browser-${{ matrix.browser }}-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm run deps
+      - name: Use the official HTTPS Ubuntu mirror for browser libraries
+        if: matrix.browser
+        run: printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
       - name: Install Chromium and system libraries
         if: matrix.browser
         run: pnpm exec playwright install --with-deps chromium
