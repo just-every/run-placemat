@@ -65,7 +65,7 @@ try{
 // ROLE-002 reuses the same public warning/review/seat and report controls.
 for(const width of [1440,390]){
  const {delegationFixture}=await import('./api/delegation-fixture.mjs'),{browserServer}=await import('./browser-server.mjs');
- const {paymentEdge}=await import('./api/payment-fixture.mjs'),payments=paymentEdge(),h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:payments.edge}),transport=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true});
+ const {paymentEdge}=await import('./api/payment-fixture.mjs'),payments=paymentEdge(),h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:payments.edge}),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true});
  try{
   const f=await delegationFixture(h),cookies=token=>token.split('; ').map(v=>{const i=v.indexOf('=');return {name:v.slice(0,i),value:v.slice(i+1),url:transport.origin,secure:true,sameSite:'Lax'}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await context.addCookies(cookies(f.leadCookie));await page.goto(transport.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.getByText('Add a walk-in',{exact:true}).click();const form=page.locator('[data-command="booking.walkin"]');
