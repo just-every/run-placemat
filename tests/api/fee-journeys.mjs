@@ -108,8 +108,8 @@ test('Recorded cancellation and no-show decisions capture each violation once, w
   assert.equal(noShow.status,'succeeded');assert.equal(noShow.amountCents,3500);assert.equal(edge.intents.size,2)
   const dispute=await feeApi(h,'fees',{action:'dispute',assessmentId:charged.id,reason:'Guest queried the recorded cancellation time.',evidence:'Retained guest correspondence.'})
   assert.equal(dispute.status,'recorded');assert.equal(edge.intents.size,2)
-  await h.command('payment.charge-sync',{bookingId:bookings[0].id,chargeId:charged.chargeId})
-  await h.command('payment.refund',{bookingId:bookings[0].id,chargeId:charged.chargeId,amountCents:1000,requestId:'synthetic-fee-refund-1',reason:'Owner approved a partial goodwill fee refund.'})
+  await h.command('payment.charge-sync',{bookingId:bookings[2].id,chargeId:noShow.chargeId})
+  await h.command('payment.refund',{bookingId:bookings[2].id,chargeId:noShow.chargeId,amountCents:1000,requestId:'synthetic-fee-refund-1',reason:'Owner approved a partial goodwill fee refund.'})
   await h.command('service.close',{serviceId:service.id,reason:'All attendance and fees reviewed.'})
   const url='/api/reports/closed?serviceId='+service.id,report=await h.api(url),fees=report.original.fees
   assert.equal(fees.chargedCents,7500);assert.equal(fees.waivedCents,4000);assert.equal(fees.refundedCents,1000);assert.equal(fees.pendingCents,0)
@@ -121,7 +121,7 @@ test('Recorded cancellation and no-show decisions capture each violation once, w
   const state=await h.api('/api/state'),ownerId=state.actor.id
   assert.equal(state.feeWork.assessments.find(row=>row.id===charged.id).actorId,ownerId);assert.equal(charged.policyId,policy.id)
   const audit=await h.api('/api/audit'),auditText=JSON.stringify(audit);assert.ok(auditText.includes(charged.id));assert.ok(auditText.includes(policy.id));assert.ok(auditText.includes(ownerId))
-  await h.command('payment.refund',{bookingId:bookings[0].id,chargeId:charged.chargeId,amountCents:500,requestId:'synthetic-fee-refund-2',reason:'A later adjustment remains outside the fixed close snapshot.'})
+  await h.command('payment.refund',{bookingId:bookings[2].id,chargeId:noShow.chargeId,amountCents:500,requestId:'synthetic-fee-refund-2',reason:'A later adjustment remains outside the fixed close snapshot.'})
   assert.deepEqual((await h.api(url)).original,report.original)
  }finally{await h.close()}
 })
