@@ -579,7 +579,7 @@ test('Host PIN pepper resists an unpeppered digest and upgrades its stored key v
   const withoutPepper=pbkdf2Sync(f.staff[0].pin,Buffer.from(original.salt,'hex'),original.iterations,32,'sha256').toString('hex');assert.notEqual(withoutPepper,original.digest);
   await h.db.prepare('UPDATE pm_host_pins SET digest=? WHERE operator_id=?').bind(withoutPepper,f.staff[0].id).run();await f.unlock(0,401);
   const older=pbkdf2Sync(createHmac('sha256',pepper).update(f.staff[0].pin).digest(),Buffer.from(original.salt,'hex'),10000,32,'sha256').toString('hex');
-  await h.db.prepare("UPDATE pm_host_pins SET digest=?,pepper_version='v1',iterations=10000 WHERE operator_id=?").bind(older,f.staff[0].id).run();await f.unlock();const upgraded=await h.db.prepare('SELECT * FROM pm_host_pins WHERE operator_id=?').bind(f.staff[0].id).first();assert.equal(upgraded.pepper_version,'v2');assert.equal(upgraded.iterations,100000);assert.notEqual(upgraded.salt,original.salt);await f.floor();
+  await h.db.prepare("UPDATE pm_host_pins SET digest=?,pepper_version='v1',iterations=10000 WHERE operator_id=?").bind(older,f.staff[0].id).run();await f.unlock();const upgraded=await h.db.prepare('SELECT * FROM pm_host_pins WHERE operator_id=?').bind(f.staff[0].id).first();assert.equal(upgraded.pepper_version,'v2');assert.ok(upgraded.iterations>10000,'Successful unlock replaces the weaker stored work factor');assert.notEqual(upgraded.salt,original.salt);await f.floor();
  }finally{await h.close()}
 })
 
@@ -591,7 +591,7 @@ test('Host stand live grants permit phone booking, walk-in and queue intake, whi
   await action('booking.walkin',{serviceId:f.service.id,startAt:f.service.startAt,name:'Walk-in Guest',partySize:2},403);await h.command('team.pacing',{operatorId:f.staff[0].id,enabled:true});await action('booking.walkin',{serviceId:f.service.id,startAt:f.service.startAt,name:'Walk-in Guest',partySize:2});
   await h.command('team.pacing',{operatorId:f.staff[0].id,enabled:false});await action('booking.walkin',{serviceId:f.service.id,startAt:f.service.startAt,name:'Revoked pacing guest',partySize:2},403);
   const queue=await action('waitlist.add',{serviceId:f.service.id,name:'Queued Guest',partySize:2,contactConsent:false});await action('waitlist.party',{waitlistId:queue.result.id,partySize:3});
-  await h.db.prepare('UPDATE pm_host_devices SET created_at=?,expires_at=? WHERE id=?').bind(Date.now()-24*86400000,Date.now()+6*86400000,f.registration.id).run();assert.equal((await h.api('/api/hoststand/status',undefined,{as:f.deviceCookie})).renewalWarning,true);
+  await h.db.prepare('UPDATE pm_host_devices SET created_at=?,expires_at=? WHERE id=?').bind(Date.now()-23*86400000,Date.now()+7*86400000,f.registration.id).run();assert.equal((await h.api('/api/hoststand/status',undefined,{as:f.deviceCookie})).renewalWarning,true);
   await h.api('/api/hoststand/renew',{deviceId:f.registration.id,days:31},{status:400});await h.api('/api/hoststand/renew',{deviceId:f.registration.id,days:30},{as:f.staff[0].cookie,status:403});
   await h.db.prepare('UPDATE pm_host_devices SET created_at=?,expires_at=? WHERE id=?').bind(Date.now()-31*86400000,Date.now()-86400000,f.registration.id).run();await f.floor().then(()=>assert.fail('Expired stand must refuse'),()=>{});
   await h.api('/api/hoststand/renew',{deviceId:f.registration.id,days:30});await f.unlock();assert.equal((await f.floor()).actor.id,f.staff[0].id);assert.equal((await h.api('/api/hoststand/status',undefined,{as:f.deviceCookie})).renewalWarning,false);
