@@ -8,7 +8,12 @@ export function leadGrant(person,state,{esc,form}){
  return form('team.lead',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${enabled}">`,enabled?'Grant seating lead':'Remove seating lead',false,'inline');
 }
 export function serverGrant(person,state,{esc,form}){
- if(person.role!=='member'||person.status!=='active'||!(state.serverIds||[]).includes(person.id)&&((state.hostIds||[]).includes(person.id)||(state.leadIds||[]).includes(person.id)))return '';
+ if(person.role!=='member'||person.status!=='active'||!(state.serverIds||[]).includes(person.id)&&((state.hostIds||[]).includes(person.id)||(state.leadIds||[]).includes(person.id)||(state.financeIds||[]).includes(person.id)))return '';
  const enabled=!(state.serverIds||[]).includes(person.id);
  return form('team.server',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${enabled}">`,enabled?'Grant server access':'Remove server access',false,'inline');
+}
+export function financeGrant(person,state,{esc,form}){
+ if(person.role!=='member'||person.status!=='active'||!(state.financeIds||[]).includes(person.id)&&((state.hostIds||[]).includes(person.id)||(state.leadIds||[]).includes(person.id)||(state.serverIds||[]).includes(person.id)))return '';
+ const enabled=!(state.financeIds||[]).includes(person.id);
+ return form('team.finance',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${enabled}">`,enabled?'Grant finance access':'Remove finance access',false,'inline');
 }

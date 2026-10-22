@@ -70,7 +70,8 @@
       "hosted": false,
       "commands": [
         "PLACEMAT_FLOOR_ONLY=hoststand node tests/floor-ui.mjs",
-        "node tests/group-ui.mjs"
+        "node tests/group-ui.mjs",
+        "node tests/finance-ui.mjs"
       ]
     }
   ],

@@ -12,7 +12,7 @@ export async function actorFor(request:Request,env:Bindings):Promise<Actor|null>
  const session=await operatorAuth(env).getSession(request)
  if(!session||session.operator.status!=='active')return null
  let role:string=session.operator.role
- if(role==='member'){const {state}=await load(env.DB);role=state.leadIds?.includes(session.operator.id)?'lead':state.hostIds?.includes(session.operator.id)?'host':state.serverIds?.includes(session.operator.id)?'server':'member'}
+ if(role==='member'){const {state}=await load(env.DB);role=state.leadIds?.includes(session.operator.id)?'lead':state.hostIds?.includes(session.operator.id)?'host':state.serverIds?.includes(session.operator.id)?'server':state.financeIds?.includes(session.operator.id)?'finance':'member'}
  return {id:session.operator.id,name:session.operator.displayName,role}
 }
 export function person(actor:Actor,owner=false){if(actor.agent||!(owner?['owner']:['owner','admin']).includes(actor.role))fail(403,owner?'The venue owner must do this.':'A venue manager must do this.')}

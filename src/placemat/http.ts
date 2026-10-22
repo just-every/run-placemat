@@ -33,6 +33,8 @@ import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait
 import {sectionsDashboard} from './staffing'
 import {groupInvite,groupAccept,groupJoin,groupLeave,groupGrant,groupDisconnect,groupToken,groupStatus,isGroupAdmin} from './group'
 import {groupIntrospect,groupRead} from './group-access'
+import {financeSummary,financeExport,isFinance} from './finance'
+import {financePage} from './finance-view'
 import {timeline} from './timeline'
 import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
@@ -57,7 +59,7 @@ import {filterMergeAudit,readMergeJournal} from './guest-merge-store'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
-const paths=new Set(['/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -70,7 +72,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
- if(path!=='/api/group'&&!path.startsWith('/api/group/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
   if(path==='/manage-booking'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return managementPage(request)}
@@ -158,12 +160,23 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path==='/api/group/reports/reservations'||path==='/api/group/preshift')return json(await groupRead(env.DB,request,url))
   const actor=await actorFor(request,env);responseActor=actor
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
-  if(!['owner','admin','member','host','lead','server','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(!['owner','admin','member','host','lead','server','finance','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
   // A signed-in server reaches only their own pre-shift sheet and kitchen view; every other door is refused by default.
   if(actor!.role==='server'&&!actor!.agent){
    if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/preshift'}})
    if(request.method!=='GET'||!['/preshift','/api/preshift','/api/preshift.pdf','/kitchen','/api/kitchen','/api/floor-version'].includes(path))fail(403,'Servers open their own section sheet and kitchen view.')
   }
+  // A finance identity reads money records only: its own page, JSON and four CSV kinds; every other door is refused by default.
+  if(isFinance(actor!)){
+   if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/finance'}})
+   if(request.method!=='GET'||!(['/finance','/api/finance'].includes(path)||path.startsWith('/api/finance/export/')))fail(403,'Finance opens reconciliation and finance exports only.')
+   if(path==='/finance')return financePage(await financeSummary(env.DB),(await load(env.DB)).state.venue.name)
+   if(path==='/api/finance')return json(await financeSummary(env.DB))
+   const kind=path.slice('/api/finance/export/'.length).replace(/\.csv$/,'')
+   if(!path.endsWith('.csv'))fail(404,'Unknown finance export.')
+   return new Response(await financeExport(env.DB,kind),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="placemat-${kind}.csv"`}})
+  }
+  if(path==='/finance'||path==='/api/finance'||path.startsWith('/api/finance/'))fail(403,'The owner must grant finance access.')
   if(path.startsWith('/api/reports/'))await authorizeReports(env.DB,actor!,request,url)
   if(path==='/kitchen'||path==='/api/kitchen'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)

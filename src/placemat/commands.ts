@@ -53,7 +53,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
  case 'booking.phone':case 'booking.phone.change':{const changed=await phoneBooking(db,s,actor,command,p,version,now);before.push(...changed.statements);result=changed.booking;break}
- case 'team.lead':case 'team.server':case 'team.reports':case 'team.manager-limit':{result=await executeDelegation(db,s,actor,command,p);break}
+ case 'team.lead':case 'team.server':case 'team.finance':case 'team.reports':case 'team.manager-limit':{result=await executeDelegation(db,s,actor,command,p);break}
  case 'booking.handover':case 'booking.handover.assign':case 'booking.handover.complete':{result=await executeHandover(db,s,actor,command,p,now,before);break}
  case 'service.note':case 'service.preorder-item':case 'service.preorder-active':case 'service.preorder-count':{result=executeServiceNotes(s,actor,command,p,now);break}
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
@@ -79,7 +79,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   const operatorId=text(p.operatorId,'Team member',100)
   const operator=await db.prepare("SELECT id,role,status FROM oa_operators WHERE id=?").bind(operatorId).first<{id:string;role:string;status:string}>()
   if(!operator||operator.role!=='member'||operator.status!=='active')fail(409,'Choose an active native team member for host access.')
-  if(command==='team.host'&&p.enabled&&(s.leadIds?.includes(operatorId)||s.serverIds?.includes(operatorId)))fail(409,'Remove the separate shift-lead or server grant before granting host access.')
+  if(command==='team.host'&&p.enabled&&(s.leadIds?.includes(operatorId)||s.serverIds?.includes(operatorId)||s.financeIds?.includes(operatorId)))fail(409,'Remove the separate shift-lead, server or finance grant before granting host access.')
   if(command==='team.pacing'){
    if(!s.hostIds?.includes(operatorId))fail(409,'Grant host access before granting pacing overrides.')
    s.pacingHostIds=[...new Set([...(s.pacingHostIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
