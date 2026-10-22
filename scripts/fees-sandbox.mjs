@@ -12,7 +12,7 @@ const stripe=async(path,body)=>{
 try{
  h=await installation({bindings:{STRIPE_SECRET_KEY:secret},stripeEdge:async request=>{
   const url=new URL(request.url);assert.equal(url.hostname,'api.stripe.com');assert.match(url.pathname,/^\/v1\/(setup_intents|payment_intents|charges|refunds)(\/[^/]+)?$/);
-  const response=await fetch(request.url,{method:request.method,headers:{authorization:request.headers.get('authorization'),'stripe-version':request.headers.get('stripe-version')??'2026-09-30.endive','content-type':request.headers.get('content-type')??'application/x-www-form-urlencoded',...(request.headers.get('idempotency-key')?{'idempotency-key':request.headers.get('idempotency-key')}:{})},body:request.method==='POST'?await request.text():undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});
+  const response=await fetch(request.url,{method:request.method,headers:{authorization:request.headers.get('authorization'),'stripe-version':request.headers.get('stripe-version'),'content-type':request.headers.get('content-type')??'application/x-www-form-urlencoded',...(request.headers.get('idempotency-key')?{'idempotency-key':request.headers.get('idempotency-key')}:{})},body:request.method==='POST'?await request.text():undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});
   assert.ok(response.ok,`Stripe test transport status ${response.status}`);const body=await response.json();assert.notEqual(body.livemode,true);
   if(body.object==='payment_intent'&&body.status==='succeeded'){const charge=typeof body.latest_charge==='string'?body.latest_charge:body.latest_charge?.id;if(charge)ownedCharges.add(charge)}
   return Response.json(body,{status:response.status});

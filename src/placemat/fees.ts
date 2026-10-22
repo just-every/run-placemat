@@ -16,7 +16,7 @@ function stripeKey(env:FeeBindings){return env.STRIPE_SECRET_KEY||fail(503,'Stri
 async function stripe(env:FeeBindings,path:string,body?:URLSearchParams,key?:string):Promise<any>{
  const secret=stripeKey(env)
  let response:Response
- try{response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,...body?{'content-type':'application/x-www-form-urlencoded','idempotency-key':key!}:{}},body:body?.toString(),redirect:'manual',signal:AbortSignal.timeout(20000)})}catch{return fail(502,'Stripe did not confirm the fee. Reconcile the same saved request; do not create another charge.')}
+ try{response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,'stripe-version':'2026-09-30.endive',...body?{'content-type':'application/x-www-form-urlencoded','idempotency-key':key!}:{}},body:body?.toString(),redirect:'manual',signal:AbortSignal.timeout(20000)})}catch{return fail(502,'Stripe did not confirm the fee. Reconcile the same saved request; do not create another charge.')}
  if(!response.ok)fail(502,'Stripe did not confirm the fee. Reconcile the same saved request; provider details are private.')
  try{return await response.json()}catch{return fail(502,'Stripe returned an unreadable fee response. The saved decision remains pending.')}
 }
