@@ -45,4 +45,7 @@ root.addEventListener('submit',event=>{
   }
  })
 })
+// A newly delivered fragment can open in the same tab after history was cleared.
+// Reload to discard the old in-memory capability and open exactly the new link.
+window.addEventListener('hashchange',()=>{if(new URLSearchParams(location.hash.slice(1)).has('token'))location.reload()})
 run(async()=>{view=await api('status');render();notice.textContent='Reservation opened. Every change requires your confirmation.'})
