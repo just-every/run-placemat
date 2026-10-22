@@ -28,7 +28,7 @@ try{
    })
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
    const screenshot=async(name,locator)=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await locator.screenshot({path:resolve(shots,`FLOOR-003-${name}-${width}.png`)})}
-   await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+   await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor()
    const form=page.locator('form[data-command="combination.save"]')
    await form.locator('[name=tableIds]').selectOption([tables[0].id,tables[1].id]);await form.locator('[name=capacity]').fill('6');await form.locator('[name=accessTags]').fill('step-free');await form.locator('[name=setupMinutes]').fill('15');await form.locator('[name=adjacent]').check()
    await screenshot('approve',page.locator('[aria-label="Approved table combinations"]'))
@@ -43,18 +43,18 @@ try{
    assert.equal(await page.getByText('Setup before arrival',{exact:true}).count(),2)
    assert.equal(await page.getByText(/Setup reserved until/).count(),2)
    await screenshot('setup-floor',page.locator('#floor-content'))
-   await context.clearCookies();await context.addCookies(cookies(cookie));await page.goto(h.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+   await context.clearCookies();await context.addCookies(cookies(cookie));await page.goto(h.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor()
    await page.locator(`#bookings-list [data-action=reassign][data-id="${booked.id}"]`).click()
    await page.locator('#reassignment [name=tableIds]').selectOption([tables[0].id,tables[2].id]);await page.locator('#reassignment form[data-command="booking.move"]').getByRole('button',{name:'Move party',exact:true}).click()
    await page.getByRole('alert').filter({hasText:/manager-approved|approved.*combination/}).waitFor()
    assert.deepEqual((await h.api('/api/state')).state.bookings[0].tableIds.sort(),[tables[0].id,tables[1].id].sort())
    await screenshot('prohibited-host-move',page.locator('#reassignment'))
    const list=page.locator('[aria-label="Approved table combinations"]');assert.equal(await list.locator('[data-action=edit-combination]').count(),0)
-   await context.clearCookies();await context.addCookies(cookies(h.cookie));await page.goto(h.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+   await context.clearCookies();await context.addCookies(cookies(h.cookie));await page.goto(h.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor()
    await page.locator(`[data-action=disable-combination][data-id="${join.id}"]`).click();const editor=page.locator('#combination-editor form');await editor.locator('[name=adjacent]').check();await editor.getByRole('button',{name:'Save table combination'}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
    assert.equal((await h.api('/api/state')).state.combinations[0].enabled,false);assert.equal((await h.api('/api/state')).state.bookings[0].combination.id,join.id)
    await screenshot('disabled-retained',page.locator('[aria-label="Approved table combinations"]'));assert.deepEqual(errors,[])
    console.log(`FLOOR-003 manager approval, setup floor, prohibited host move and disabled commitment passed at ${width}`)
-  }finally{await context.close();await h.close()}
+  }finally{await context.unrouteAll({behavior:'wait'});await context.close();await h.close()}
  }
 }finally{await browser.close()}
