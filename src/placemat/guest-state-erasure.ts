@@ -61,7 +61,11 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  }
 
  }
+ const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  {sql:"UPDATE pm_payment_requests SET reason='',provider_url=NULL WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
+  {sql:"UPDATE pm_refunds SET reason='' WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
+  {sql:"UPDATE pm_refund_events SET before_data=CASE WHEN before_data IS NULL THEN NULL ELSE json_set(before_data,'$.reason','') END,after_data=json_set(after_data,'$.reason','') WHERE refund_id IN (SELECT id FROM pm_refunds WHERE booking_id IN (SELECT value FROM json_each(?)))",params:[erasedIds]},
   {sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END',params:[row.version]},
   {sql:'UPDATE pm_state SET data=?,version=version+1 WHERE id=1 AND version=?',params:[JSON.stringify(state),row.version]},
  ]

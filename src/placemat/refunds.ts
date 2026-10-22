@@ -15,7 +15,7 @@ async function authority(db:D1Database,actor:Actor,ownerOnly=false){
 function stripeKey(secret?:string){if(!secret)fail(503,'Stripe refund processing is not configured.');return secret!}
 async function stripe(secret:string,path:string,body?:URLSearchParams,key?:string){
  let response:Response
- try{response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,...(body?{'content-type':'application/x-www-form-urlencoded','idempotency-key':key!}:{})},...(body?{body:body.toString()}:{}),signal:AbortSignal.timeout(20000)})}catch{fail(502,'Stripe did not confirm the result. Retry the same refund request to reconcile it.')}
+ try{response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,...(body?{'content-type':'application/x-www-form-urlencoded','idempotency-key':key!}:{})},...(body?{body:body.toString()}:{}),redirect:'manual',signal:AbortSignal.timeout(20000)})}catch{fail(502,'Stripe did not confirm the result. Retry the same refund request to reconcile it.')}
  // Never surface provider errors: they may contain request details or credentials.
  if(!response!.ok)fail(502,'Stripe did not confirm the result. Retry the same request; its reservation remains held.')
  try{return await response!.json() as any}catch{return fail(502,'Stripe returned an unreadable response. The refund reservation remains held.')}
@@ -71,4 +71,10 @@ export async function executeRefund(db:D1Database,actor:Actor,p:any,secret?:stri
   await db.prepare('UPDATE pm_refunds SET processing_until=0 WHERE id=?').bind(refund!.id).run()
  }
  return receipt((await db.prepare('SELECT * FROM pm_refunds WHERE id=?').bind(refund!.id).first<Refund>())!)
+}
+
+/** Accountable money history joins the existing filtered audit door for full managers. */
+export async function refundAudit(db:D1Database){
+ const rows=await db.prepare('SELECT e.id,e.refund_id,e.actor_id,e.at,e.before_data,e.after_data,r.booking_id FROM pm_refund_events e JOIN pm_refunds r ON r.id=e.refund_id ORDER BY e.id').all<{id:number;refund_id:string;actor_id:string;at:string;before_data:string|null;after_data:string;booking_id:string}>()
+ return rows.results.map(e=>({id:'refund-'+e.id,at:e.at,actor:e.actor_id,action:'payment.refund',subject:e.booking_id,source:'person' as const,changes:[{kind:'refunds',id:e.refund_id,before:e.before_data?JSON.parse(e.before_data):null,after:JSON.parse(e.after_data)}]}))
 }

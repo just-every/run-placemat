@@ -1,6 +1,6 @@
 import {handoverAssignees} from './host-projection'
 import {paymentAlerts,createPaymentRequest,issuePaymentLink,syncPaymentRequest} from './payment-links'
-import {executeRefund,synchronizeRefundCharge} from './refunds'
+import {executeRefund,synchronizeRefundCharge,refundAudit} from './refunds'
 import {authorizeReports,projectAuthority} from './delegation'
 import {sharedDeviceResponse} from './shared-device'
 import {projectHandover} from './handover'
@@ -188,7 +188,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
   }
   if((path==='/api/audit'||path==='/api/audit.csv')&&request.method==='GET'){
-   const {state}=await load(env.DB),rows=auditRows(filterMergeAudit(filterNotes(state,actor!),actor!),url.searchParams)
+   const {state}=await load(env.DB);if(!actor!.agent&&['owner','admin'].includes(actor!.role))state.audit.push(...await refundAudit(env.DB));const rows=auditRows(filterMergeAudit(filterNotes(state,actor!),actor!),url.searchParams)
    if(path.endsWith('.csv')){
     person(actor!,true)
     return new Response(businessCsv({...state,audit:rows},[],'audit'),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-audit.csv"'}})
@@ -226,7 +226,8 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path==='/api/sections'&&request.method==='GET'){const {state}=await load(env.DB);return json(sectionsDashboard(state,url.searchParams))}
   if(path==='/api/timeline'&&request.method==='GET'){
    const {state}=await load(env.DB)
-   return json(timeline(state,await guests(env.DB),url.searchParams))
+   const result=timeline(state,await guests(env.DB),url.searchParams),alerts=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[]
+   return json({...result,rows:result.rows.map(row=>({...row,paymentRequests:alerts.filter(r=>r.bookingId===row.id)}))})
   }
   if(path==='/api/floor-version'&&request.method==='GET'){
    const {version}=await load(env.DB);return json({version})
