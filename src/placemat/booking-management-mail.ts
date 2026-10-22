@@ -5,9 +5,10 @@ import {fail,id,type Actor} from './model'
 import {load,save} from './store'
 import {issueManagement,revokeManagement} from './booking-management'
 
-/** Owner-requested transactional delivery. A provider acceptance is never called delivery. */
+/** Personally requested transactional delivery. A provider acceptance is never called delivery. */
 export async function sendManagement(env:Bindings,actor:Actor,p:any){
- person(actor,true)
+ person(actor)
+ if(Object.keys(p).some(key=>!['bookingId','acknowledged'].includes(key)))fail(400,'Send by email to the recorded reservation contact only; no destination or channel override is allowed.')
  if(p.acknowledged!==true)fail(400,'Confirm sending a private management link to the reservation contact.')
  const sender=operatorMail(env)
  if(!sender||!env.MAIL_FROM||env.AUTH_LOCAL==='true'||env.RER_DEMO==='1')fail(409,'Configure a production mail sender before sending private booking links.')

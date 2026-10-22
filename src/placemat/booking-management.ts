@@ -27,8 +27,9 @@ function bearer(p:any):string {
  if(!p||typeof p.token!=='string'||! /^[a-f0-9]{64}$/.test(p.token)||p.bookingId!==undefined||p.guestId!==undefined||p.serviceId!==undefined)unavailable()
  return p.token
 }
-function owner(actor:Actor){if(actor.agent||actor.deviceId||actor.role!=='owner')fail(403,'The owner must explicitly issue a management link from a personal session.')}
-const authority=(db:D1Database,actor:Actor)=>db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role='owner') THEN 1 ELSE 0 END").bind(actor.id)
+function issuer(actor:Actor){if(actor.agent||actor.deviceId||!['owner','admin'].includes(actor.role))fail(403,'An owner or reservation manager must explicitly issue a management link from a personal session.')}
+const localDay=(at:string,timezone:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at))
+const authority=(db:D1Database,actor:Actor)=>db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin')) THEN 1 ELSE 0 END").bind(actor.id)
 const stateFence=(db:D1Database,version:number)=>db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END').bind(version)
 function guestFence(db:D1Database,c:Context){return db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END').bind(c.guest.id,c.guestRow.version,c.guestRow.data)}
 function tokenFence(db:D1Database,c:Context,previewId?:string){
@@ -40,9 +41,12 @@ function contactFence(db:D1Database,c:Context){
 // Any recorded obligation or captured charge needs a manager until a fee policy exists.
 // The captured-charge ledger is pm_refund_charges; there is no pm_payment_charges table.
 function moneyFence(db:D1Database,bookingId:string){return db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) THEN 1 ELSE 0 END').bind(bookingId,bookingId,bookingId)}
-async function noMoney(db:D1Database,bookingId:string){
+async function hasMoney(db:D1Database,bookingId:string){
  const row=await db.prepare('SELECT (EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?)) AS implicated').bind(bookingId,bookingId,bookingId).first<{implicated:number}>()
- if(row?.implicated)fail(409,moneyMessage)
+ return !!row?.implicated
+}
+async function noMoney(db:D1Database,bookingId:string){
+ if(await hasMoney(db,bookingId))fail(409,moneyMessage)
 }
 function normalizeContact(value:any,current:Contact):Contact {
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['name','email','phone'].includes(k)))fail(400,'Supply reservation name, email and phone contact fields only.')
@@ -114,11 +118,13 @@ async function atomic<T>(work:()=>Promise<T>,message:string):Promise<T>{
 
 /** Server-only result: the email helper consumes this token; never serialize it in an owner HTTP response. */
 export async function issueManagement(db:D1Database,actor:Actor,p:{bookingId?:unknown}){
- owner(actor)
- // Check the live owner before reading a guest, then fence it again in the save.
- await atomic(()=>db.batch([authority(db,actor),db.prepare('DELETE FROM pm_assertions')]),'Owner authority changed. Sign in again.')
+ issuer(actor)
+ // Check the live reservation manager before reading a guest, then fence it in the save.
+ await atomic(()=>db.batch([authority(db,actor),db.prepare('DELETE FROM pm_assertions')]),'Reservation authority changed. Sign in again.')
  const {state:s,version}=await load(db),base=await reservation(db,s,version,text(p.bookingId,'Reservation',100))
  if(base.b.status!=='booked'||base.service.status!=='published'||base.service.closedAt||Date.parse(base.service.startAt)<=Date.now()||Date.parse(base.b.startAt)<=Date.now())fail(409,'Only future active reservations can receive a management link.')
+ const today=localDay(new Date().toISOString(),s.venue.timezone)
+ if(s.audit.filter(event=>event.action==='booking.management.issue'&&event.subject===base.b.id&&localDay(event.at,s.venue.timezone)===today).length>=5)fail(429,'Five management links have already been issued for this reservation today. Contact the venue manager.')
  const email=base.contact.email.trim().toLowerCase()
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)fail(409,'The existing booking guest needs a valid email before a management link can be sent.')
  const token=randomToken(),tokenHash=await hash(token),expiresAt=expiry(base.service),now=new Date().toISOString()
@@ -133,7 +139,10 @@ export async function revokeManagement(db:D1Database,token:string){
  if(!/^[a-f0-9]{64}$/.test(token))return
  await db.prepare('DELETE FROM pm_booking_management WHERE token_hash=?').bind(await hash(token)).run()
 }
-export async function readManagement(db:D1Database,p:{token?:unknown}){return projection(await context(db,p))}
+export async function readManagement(db:D1Database,p:{token?:unknown}){
+ const c=await context(db,p),managerReviewRequired=await hasMoney(db,c.b.id)
+ return {...projection(c),managerReviewRequired,...managerReviewRequired?{managerReviewMessage:moneyMessage}:{}}
+}
 
 /** A preview saves consent data only; it never changes a booking or consumes inventory. */
 export async function previewManagement(db:D1Database,p:any){
@@ -162,13 +171,14 @@ export async function commitManagement(db:D1Database,p:any){
  }
  const token=randomToken(),tokenHash=await hash(token),expiresAt=c.link.expires_at
  const contactChanged=JSON.stringify(plan.contact)!==JSON.stringify(c.contact)
+ const emailChanged=plan.contact.email!==c.contact.email
  const fingerprint=await hash(JSON.stringify({booking:c.b,service:c.service,venue:c.s.venue,guestId:c.guest.id,guestVersion:c.guestRow.version,guestData:c.guestRow.data,contact:plan.contact,stage:serviceSnapshot(c.s,c.b)}))
  const statements=[stateFence(db,c.version),guestFence(db,c),contactFence(db,c),tokenFence(db,c,p.previewId),moneyFence(db,c.b.id)]
  if(contactChanged)statements.push(db.prepare('INSERT INTO pm_booking_contacts(booking_id,guest_id,data,updated_at) VALUES(?,?,?,?) ON CONFLICT(booking_id) DO UPDATE SET guest_id=excluded.guest_id,data=excluded.data,updated_at=excluded.updated_at').bind(c.b.id,c.guest.id,JSON.stringify(plan.contact),now))
- statements.push(db.prepare('UPDATE pm_booking_management SET token_hash=?,fingerprint=?,expires_at=?,preview_id=NULL,preview_data=NULL WHERE token_hash=?').bind(tokenHash,fingerprint,expiresAt,c.link.token_hash))
- c.s.audit.push({id:id(),actor:'guest',at:now,action:'booking.management.rotate',subject:c.b.id,source:'guest-supplied'})
+ statements.push(emailChanged?db.prepare('DELETE FROM pm_booking_management WHERE token_hash=?').bind(c.link.token_hash):db.prepare('UPDATE pm_booking_management SET token_hash=?,fingerprint=?,expires_at=?,preview_id=NULL,preview_data=NULL WHERE token_hash=?').bind(tokenHash,fingerprint,expiresAt,c.link.token_hash))
+ c.s.audit.push({id:id(),actor:'guest',at:now,action:emailChanged?'booking.management.email-invalidated':'booking.management.rotate',subject:c.b.id,source:'guest-supplied'})
  c.s.audit.push({id:id(),actor:'guest',at:now,action:'booking.management.'+preview.input.action,subject:c.b.id,source:'guest-supplied',changes:[{kind:'managementConsent',id:c.b.id,before:null,after:{action:preview.input.action,acknowledged:true,consequences:consequences()}},...contactChanged?[{kind:'bookingContacts',id:c.b.id,before:c.contact,after:plan.contact}]:[]]})
  await atomic(()=>save(db,c.s,c.version,statements),'The reservation, link or payment details changed. Review a new link or contact the venue manager.')
  c.contact=plan.contact;c.link.expires_at=expiresAt
- return {...projection(c,plan),token,consequences:consequences()}
+ return {...projection(c,plan),token:emailChanged?null:token,managementAccessEnded:emailChanged,consequences:consequences()}
 }

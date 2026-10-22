@@ -78,9 +78,11 @@ for(const width of [1440,390]){
   const cookies=h.cookie.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}})
   await context.addCookies(cookies);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
   await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+  const manager=await h.signIn('synthetic-placemat-manager@example.test','admin','Riley Brooks'),managerCookies=manager.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}})
+  await context.clearCookies();await context.addCookies(managerCookies);await page.goto(transport.origin+'/app');await page.locator('#shift-handover[aria-busy]').waitFor({state:'detached'})
   const send=page.locator('[data-command="booking.management.send"]');await send.locator('xpath=..').evaluate(el=>el.open=true);await send.locator('[name=bookingId]').selectOption(booking.id);await send.locator('[name=acknowledged]').check()
   const shot=async(name,locator=page.locator('.booking-shell'))=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await locator.screenshot({path:resolve(shots,`BOOK-004-${name}-${width}.png`)})}
-  await shot('owner-send',send);await send.getByRole('button',{name:'Send private reservation link',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
+  await shot('manager-send',send);await send.getByRole('button',{name:'Send private reservation link',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
   const link=new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]),privateUrl=transport.origin+link.pathname+link.hash
   await context.clearCookies();await page.goto(privateUrl);await page.getByRole('status').filter({hasText:'Reservation opened'}).waitFor();assert.equal(new URL(page.url()).hash,'');await shot('opened')
   const change=page.locator('[data-management=change]');await change.locator('[name=partySize]').fill('4');await change.getByRole('button',{name:'Review changes',exact:true}).click();await page.getByRole('heading',{name:'Review reservation changes',exact:true}).waitFor();await shot('change-review')
@@ -89,6 +91,25 @@ for(const width of [1440,390]){
   await page.getByRole('button',{name:'Review cancellation',exact:true}).click();await page.getByRole('heading',{name:'Review cancellation',exact:true}).waitFor();await shot('cancel-review');assert.match(await page.locator('#management-preview').innerText(),/Fee: \$0.00 USD · Refund: \$0.00 USD/)
   await page.locator('[data-management=commit] [name=acknowledged]').check();await page.getByRole('button',{name:'Confirm cancellation',exact:true}).click();await page.getByRole('status').filter({hasText:'reservation is cancelled'}).waitFor();await shot('cancelled')
   await page.goto('about:blank');await page.goto(privateUrl);await page.getByRole('alert').waitFor();assert.equal(await page.locator('[data-management]').count(),0);assert.ok(!(await page.locator('#management-content').innerText()).includes('Amelia'));await shot('replay-refused')
+  // Changing the recorded email ends the capability; the manager explicitly sends to the new address.
+  const emailBooking=(await h.api('/api/public/book',publicGuest(f.service,3,{name:'Jordan Rivera',email:'jordan@example.test'}),{as:'',status:201})).result
+  const linkFromMail=()=>{const link=new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]);return transport.origin+link.pathname+link.hash}
+  await h.command('booking.management.send',{bookingId:emailBooking.id,acknowledged:true},{as:manager});const emailUrl=linkFromMail()
+  await page.goto(emailUrl);await page.getByRole('status').filter({hasText:'Reservation opened'}).waitFor()
+  await page.locator('[data-management=change] [name=email]').fill('jordan.updated@example.test');await page.getByRole('button',{name:'Review changes',exact:true}).click();await page.getByRole('heading',{name:'Review reservation changes',exact:true}).waitFor();await shot('email-review')
+  const sent=h.messages.length;await page.locator('[data-management=commit] [name=acknowledged]').check();await page.getByRole('button',{name:'Confirm changes',exact:true}).click();await page.getByRole('status').filter({hasText:'Ask the venue for a new link'}).waitFor();assert.equal(h.messages.length,sent);assert.equal(await page.locator('[data-management]').count(),0);await shot('email-closed')
+  await page.goto(emailUrl);await page.getByRole('alert').waitFor();await shot('email-old-link-refused')
+  await context.addCookies(managerCookies);await page.goto(transport.origin+'/app')
+  const resend=page.locator('[data-command="booking.management.send"]')
+  for(let i=0;i<4;i++){
+   await resend.locator('xpath=..').evaluate(el=>el.open=true);await resend.locator('[name=bookingId]').selectOption(emailBooking.id);assert.match(await resend.locator('[name=bookingId] option:checked').innerText(),/jordan.updated@example.test/);await resend.locator('[name=acknowledged]').check();await resend.getByRole('button',{name:'Send private reservation link',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('#shift-handover[aria-busy]').waitFor({state:'detached'})
+  }
+  assert.deepEqual(h.messages.at(-1).to,['jordan.updated@example.test']);const freshUrl=linkFromMail()
+  await resend.locator('xpath=..').evaluate(el=>el.open=true);await resend.locator('[name=bookingId]').selectOption(emailBooking.id);await resend.locator('[name=acknowledged]').check();await resend.getByRole('button',{name:'Send private reservation link',exact:true}).click();await page.getByRole('alert').filter({hasText:'Five management links'}).waitFor();await shot('manager-daily-limit',page.locator('#shift-handover'))
+  await context.clearCookies();await page.goto(freshUrl);await page.getByRole('status').filter({hasText:'Reservation opened'}).waitFor();assert.equal(await page.locator('[data-management=change] [name=email]').inputValue(),'jordan.updated@example.test');await shot('explicit-new-email-link')
+  const paid=(await h.api('/api/public/book',publicGuest(f.service,4,{name:'Casey Morgan',startAt:new Date(Date.parse(f.startAt)+2*3600000).toISOString()}),{as:'',status:201})).result,owner=(await h.api('/api/state')).actor.id
+  await h.command('payment.request',{bookingId:paid.id,amountCents:1000,dueAt:new Date(Date.now()+3600000).toISOString(),followupOwnerId:owner,reason:'Agreed reservation deposit'})
+  await h.command('booking.management.send',{bookingId:paid.id,acknowledged:true},{as:manager});await page.goto(linkFromMail());await page.getByRole('heading',{name:'Manager review required',exact:true}).waitFor();assert.equal(await page.locator('[data-management]').count(),0);assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===paid.id).status,'booked');await shot('paid-manager-review')
   assert.deepEqual(errors,[]);console.log(`BOOK-004 private email link, reviewed two-to-four change, unavailable preservation, explicit cancellation and replay refusal passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }
