@@ -38,11 +38,11 @@ function tokenFence(db:D1Database,c:Context,previewId?:string){
 function contactFence(db:D1Database,c:Context){
  return c.contactRow?db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_booking_contacts WHERE booking_id=? AND guest_id=? AND data=? AND updated_at=?) THEN 1 ELSE 0 END').bind(c.b.id,c.guest.id,c.contactRow.data,c.contactRow.updated_at):db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pm_booking_contacts WHERE booking_id=?) THEN 1 ELSE 0 END').bind(c.b.id)
 }
-// Any recorded obligation or captured charge needs a manager until a fee policy exists.
+// Any recorded obligation or captured charge needs a manager until fee/refund policy and execution are approved and complete.
 // The captured-charge ledger is pm_refund_charges; there is no pm_payment_charges table.
-function moneyFence(db:D1Database,bookingId:string){return db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) THEN 1 ELSE 0 END').bind(bookingId,bookingId,bookingId)}
+function moneyFence(db:D1Database,bookingId:string){return db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_fee_consents WHERE booking_id=?) THEN 1 ELSE 0 END').bind(bookingId,bookingId,bookingId,bookingId)}
 async function hasMoney(db:D1Database,bookingId:string){
- const row=await db.prepare('SELECT (EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?)) AS implicated').bind(bookingId,bookingId,bookingId).first<{implicated:number}>()
+ const row=await db.prepare('SELECT (EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_fee_consents WHERE booking_id=?)) AS implicated').bind(bookingId,bookingId,bookingId,bookingId).first<{implicated:number}>()
  return !!row?.implicated
 }
 async function noMoney(db:D1Database,bookingId:string){

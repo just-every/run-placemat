@@ -31,7 +31,9 @@ test('Fee consent records the owner attestation to exact immutable terms and a v
   await feeApi(h,'fee-consent',{...payload,attest:false},{status:409})
   const badSetup=edge.setup(booking.id,policy.id,{usage:'on_session'})
   await feeApi(h,'fee-consent',{...payload,setupIntentId:badSetup},{status:409})
+  await h.command('booking.management.send',{bookingId:booking.id,acknowledged:true});const link=h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0],token=new URLSearchParams(new URL(link).hash.slice(1)).get('token');const guestPreview=await h.api('/api/public/booking-management/preview',{token,action:'cancel'},{as:''});
   const consent=await feeApi(h,'fee-consent',payload)
+  assert.equal((await h.api('/api/public/booking-management/status',{token},{as:''})).managerReviewRequired,true);await h.api('/api/public/booking-management/commit',{token,previewId:guestPreview.previewId,acknowledged:true},{as:'',status:409});assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id).status,'booked');
   assert.equal(consent.source,'owner-attested');assert.equal(consent.reviewText,policy.reviewText);assert.equal(consent.bookingSnapshot.partySize,booking.partySize)
   const newer=await feeApi(h,'fee-policy',feePolicyInput({cancellation:{mode:'fixed',amountCents:9900}}))
   const work=(await h.api('/api/state')).feeWork
