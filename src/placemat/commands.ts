@@ -54,7 +54,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  switch(command){
  case 'booking.phone':case 'booking.phone.change':{const changed=await phoneBooking(db,s,actor,command,p,version,now);before.push(...changed.statements);result=changed.booking;break}
  case 'team.lead':case 'team.reports':case 'team.manager-limit':{result=await executeDelegation(db,s,actor,command,p);break}
- case 'booking.handover':case 'booking.handover.assign':case 'booking.handover.complete':{result=await executeHandover(db,s,actor,command,p,now);break}
+ case 'booking.handover':case 'booking.handover.assign':case 'booking.handover.complete':{result=await executeHandover(db,s,actor,command,p,now,before);break}
  case 'service.note':case 'service.preorder-item':case 'service.preorder-active':case 'service.preorder-count':{result=executeServiceNotes(s,actor,command,p,now);break}
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
  case 'analytics.settings':{const change=setAnalytics(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}

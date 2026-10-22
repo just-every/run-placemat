@@ -2,7 +2,7 @@ import {fail,id,text,type State,type Actor,type HandoverTask} from './model'
 import {instant} from './availability'
 
 /** Operational follow-up only: completion never asserts payment, delivery or allergy-safe preparation. */
-export async function executeHandover(db:D1Database,s:State,actor:Actor,command:string,p:any,now:string){
+export async function executeHandover(db:D1Database,s:State,actor:Actor,command:string,p:any,now:string,before:D1PreparedStatement[]=[]){
  const booking=s.bookings.find(b=>b.id===p.bookingId)??fail(404,'Booking not found.')
  let assignment:{ownerId:string;dueAt:string}|undefined
  if(['booking.handover','booking.handover.assign'].includes(command)){
@@ -15,13 +15,16 @@ export async function executeHandover(db:D1Database,s:State,actor:Actor,command:
  if(command==='booking.handover'){
   if(!['request','callback'].includes(p.kind))fail(400,'Choose a guest request or promised callback.')
   if((booking.handover?.length??0)>=40)fail(400,'This reservation supports forty handover tasks.')
-  const task:HandoverTask={id:id(),kind:p.kind,text:text(p.text,'Guest follow-up',1000),...assignment!,history:[{actor:actor.id,at:now,action:'assigned',...assignment!}]}
+  const paymentRequestId=typeof p.paymentRequestId==='string'&&p.paymentRequestId?p.paymentRequestId:undefined
+  if(paymentRequestId&&!await db.prepare("SELECT id FROM pm_payment_requests WHERE id=? AND booking_id=? AND state!='paid'").bind(paymentRequestId,booking.id).first())fail(409,'Choose an unpaid deposit request for this reservation.')
+  if(paymentRequestId)before.push(db.prepare('UPDATE pm_payment_requests SET followup_owner_id=? WHERE id=? AND booking_id=?').bind(assignment!.ownerId,paymentRequestId,booking.id))
+  const task:HandoverTask={id:id(),...paymentRequestId?{paymentRequestId}:{},kind:p.kind,text:text(p.text,'Guest follow-up',1000),...assignment!,history:[{actor:actor.id,at:now,action:'assigned',...assignment!}]}
   ;(booking.handover??=[]).push(task);return {id:booking.id,task}
  }
  const task=booking.handover?.find(t=>t.id===p.taskId)??fail(404,'Handover task not found.')
  if(actor.agent||!['owner','admin'].includes(actor.role)&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&task.ownerId===actor.id))fail(403,'Only a manager or this task’s active host owner can complete it.')
  if(task.history.some(e=>e.action==='completed'))fail(409,'That handover task is already complete.')
- if(command==='booking.handover.assign'){Object.assign(task,assignment);task.history.push({actor:actor.id,at:now,action:'assigned',...assignment!});return {id:booking.id,task}}
+ if(command==='booking.handover.assign'){if(task.paymentRequestId)before.push(db.prepare('UPDATE pm_payment_requests SET followup_owner_id=? WHERE id=? AND booking_id=?').bind(assignment!.ownerId,task.paymentRequestId,booking.id));Object.assign(task,assignment);task.history.push({actor:actor.id,at:now,action:'assigned',...assignment!});return {id:booking.id,task}}
  task.history.push({actor:actor.id,at:now,action:'completed',outcome:text(p.outcome,'Recorded outcome',1000)})
  return {id:booking.id,task}
 }
