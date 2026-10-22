@@ -492,12 +492,22 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
  const {sharedDeviceFixture}=await import('./shared-device-fixture.mjs'),h=await installation();try{
   const f=await sharedDeviceFixture(h),as=f.deviceCookie;
   await h.api('/api/hoststand/devices',{label:'No member enrollment'},{as:f.staff[0].cookie,status:403});
+  const manager=await h.signIn('synthetic-placemat-enrollment-manager@example.test','admin');
+  for(const path of ['/api/hoststand/devices','/api/hoststand/revoke'])await h.api(path,{deviceId:f.registration.id,label:'synthetic-placemat-denied'},{as:manager,status:403});
+  assert.ok(f.registration.claimExpiresAt>Date.now()&&f.registration.claimExpiresAt<=Date.now()+600000,'Registration expires within ten minutes');
+  const devices=await h.api('/api/hoststand/devices');assert.ok(devices.devices.every(d=>d.expires_at-d.created_at===30*86400000));
+  for(const pin of ['12345','1234567890123','abcdef',123456])await h.api('/api/hoststand/pin',{pin},{as:f.staff[0].cookie,status:400});
   await h.api('/api/hoststand/claim',{claimCode:f.registration.claimCode},{as:'',status:409});
   await h.api('/api/hoststand/floor',undefined,{as,status:423});
   await f.unlock(0);let view=await f.floor(),firstGeneration=view.generation;assert.equal(view.actor.id,f.staff[0].id);assert.equal(view.actor.name,'Avery Host');
   for(const value of [f.guest.email,'synthetic-placemat-private-note','synthetic-placemat-private-tag','synthetic-placemat-private-allergy',f.staff[0].pin,f.registration.claimCode])assert.ok(!JSON.stringify(view).includes(value));
   const action=(command,payload,status=200,generation=view.generation)=>h.api('/api/hoststand/commands',{generation,command,payload},{as,status});
   await action('booking.stage',{bookingId:f.booking.id,stage:'seated'});
+  await h.api('/api/hoststand/pin',{pin:'123456'},{as:f.staff[0].cookie});
+  await h.api('/api/hoststand/floor',undefined,{as,status:423});await f.unlock(0,401);
+  await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'123456'},{as});
+  await action('booking.stage',{bookingId:f.booking.id,stage:'ordering'},409,firstGeneration);
+  await h.api('/api/hoststand/pin',{pin:f.staff[0].pin},{as:f.staff[0].cookie});await f.unlock(0);
   const laterPersonal=await h.signIn('synthetic-placemat-later-personal@example.test','admin'),mixed=as+'; '+laterPersonal;
   await h.api('/auth/operators',undefined,{as:laterPersonal});for(const path of ['/auth/operators','/auth/request','/signin','/setup'])assert.equal((await h.request(path,{as:mixed})).status,403,path);
   await h.api('/api/hoststand/unlock',{email:f.staff[1].email,pin:f.staff[1].pin},{as:mixed});await h.api('/auth/operators',undefined,{as:laterPersonal,status:401});
@@ -506,7 +516,7 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
   await action('booking.move',{bookingId:f.booking.id,tableIds:[f.tables[1].id],version:view.version});
   const state=(await h.api('/api/state')).state,events=state.audit.filter(e=>e.subject===f.booking.id&&['booking.stage','booking.move'].includes(e.action));assert.deepEqual(events.map(e=>e.actor),f.staff.map(s=>s.id));assert.ok(events.every(e=>e.deviceId===f.registration.id));assert.deepEqual(state.bookings.find(b=>b.id===f.booking.id).tableIds,[f.tables[1].id]);
   for(const path of ['/api/state','/api/guests','/api/backup','/api/reminders.csv','/api/reports/reservations.csv','/api/agent-keys','/api/audit','/auth/operators'])assert.equal((await h.request(path,{as})).status,path.startsWith('/auth/')?403:401,path);
-  for(const command of ['guest.erase','venue.update','proposal.approve','service.pacing'])await action(command,{bookingId:f.booking.id},403);
+  for(const command of ['guest.erase','venue.update','proposal.approve','service.pacing','booking.handover','booking.handover.complete','payment.refund','payment.charge'])await action(command,{bookingId:f.booking.id},403);
   await action('booking.stage',{bookingId:f.booking.id,stage:'paid'},403);
   await h.api('/api/hoststand/commands',{generation:view.generation,command:'booking.stage',payload:{bookingId:f.booking.id,stage:'ordering'}},{as,headers:{origin:'https://other.example.test'},status:403});
   for(let i=0;i<5;i++)await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as,status:i===4?429:401});await f.unlock(0,429);assert.equal((await h.api('/api/hoststand/status',undefined,{as})).locked,true);
@@ -524,6 +534,21 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
  }finally{await h.close()}
 })
 
+
+// Opt-in real elapsed-time proof: deliberately outside the <15-minute push Verify budget.
+// Run on a committed candidate with PLACEMAT_PIN_WINDOW_PROOF=1 node --test
+// --test-name-pattern='PIN failures expire' tests/api/flows.test.mjs.
+test('Shared host stand PIN failures expire after fifteen minutes without an unlock', {skip:process.env.PLACEMAT_PIN_WINDOW_PROOF!=='1',timeout:1000000},async()=>{
+ const {sharedDeviceFixture}=await import('./shared-device-fixture.mjs'),h=await installation();try{
+  const f=await sharedDeviceFixture(h),wrong=()=>h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:'999999999999'},{as:f.deviceCookie,status:401});
+  for(let i=0;i<4;i++)await wrong();
+  const started=Date.now();
+  while(Date.now()-started<900500){await new Promise(resolve=>setTimeout(resolve,Math.min(60000,900500-(Date.now()-started))));console.log('PIN failure window proof: '+Math.floor((Date.now()-started)/1000)+' elapsed seconds');}
+  for(let i=0;i<4;i++)await wrong();
+  await h.api('/api/hoststand/unlock',{email:f.staff[0].email,pin:f.staff[0].pin},{as:f.deviceCookie});
+  assert.equal((await f.floor()).actor.id,f.staff[0].id,'Four failures in the new window do not inherit expired attempts');
+ }finally{await h.close()}
+})
 
 test('Shared host stand idle lock is enforced by the server despite background status reads', {timeout:140000},async()=>{
  const {sharedDeviceFixture}=await import('./shared-device-fixture.mjs'),h=await installation();try{
