@@ -10,7 +10,8 @@ test('ROLE-001: an owner connects two venues, grants a scoped read-only group ad
   const manager=await tap.signIn('tap-manager@example.test','admin'),homeManager=await home.signIn('home-manager@example.test','admin')
   // A venue manager is denied the owner's export, erasure, provider credentials and group authority.
   const guest=(await tap.api('/api/guests?search=guest0')).guests[0]
-  assert.equal((await tap.request('/api/business-export/guests.csv',{as:manager})).status,403)
+  for(const kind of (await tap.api('/api/state')).businessExportKinds)assert.equal((await tap.request('/api/business-export/'+kind+'.csv',{as:manager})).status,403,kind)
+  assert.equal((await tap.request('/api/backup',{as:manager})).status,403);await tap.api('/api/restore',{archive:[],confirm:'RESTORE'},{as:manager,status:403})
   await tap.command('guest.erase',{guestId:guest.id,confirm:'ERASE'},{as:manager,status:403})
   await tap.command('analytics.settings',{},{as:manager,status:403});await tap.api('/api/agent-keys',{name:'No key'},{as:manager,status:403})
   for(const [path,body] of [['/api/group/invite',{label:'Tap Room'}],['/api/group/join',{homeOrigin:'https://home.example.test',code:'gi_x',ceiling:[]}],['/api/group/admin',{operatorId:'x',venues:{}}],['/api/group/link/revoke',{linkId:'x'}]])await home.api(path,body,{as:homeManager,status:403})

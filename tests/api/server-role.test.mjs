@@ -50,7 +50,7 @@ test('ROLE-003: hosts act without approval, read-only members never mutate, and 
   }
   const app=await h.request('/app',as('ana'));assert.equal(app.status,303);assert.equal(app.headers.get('location'),'/preshift')
   // Bulk guest exports and backups are refused to a host, a server and a read-only member.
-  const exportsPaths=['/api/reminders.csv','/api/business-export/guests.csv','/api/reports/reservations.csv','/api/audit.csv','/api/backup','/api/calendar/'+elena.id,'/api/import/journal']
+  const exportsPaths=['/api/reminders.csv',...(await h.api('/api/state')).businessExportKinds.map(kind=>'/api/business-export/'+kind+'.csv'),'/api/reports/reservations.csv','/api/audit.csv','/api/backup','/api/calendar/'+elena.id,'/api/import/journal']
   for(const name of ['host','ana','member'])for(const path of exportsPaths){const r=await h.request(path,as(name));assert.equal(r.status,403,name+' '+path);const text=await r.text();assert.ok(!text.includes('guest0@example.test')&&!text.includes('Elena'),name+' '+path)}
   // A read-only member reads but never mutates; the host acts without a proposal and the server's section follows the live assignment.
   await h.api('/api/state',undefined,as('member'))
