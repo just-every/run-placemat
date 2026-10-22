@@ -2,6 +2,8 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 import {searchFixture} from './timeline-fixture.mjs'
+import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
+import {csvRecords} from './business-fixture.mjs'
 
 const at=(value,minutes)=>new Date(Date.parse(value)+minutes*60000).toISOString()
 test('FLOOR-005: late six-top, actual turn extension, collision and direct host replacement preserve both histories; day/service timeline and header open their parties',async()=>{
@@ -117,6 +119,11 @@ test('Owned guest requests and callbacks pass between active hosts, preserve aud
   let state=await h.api('/api/state'),row=state.state.bookings.find(b=>b.id===f.elena.id);assert.equal(row.handover[0].history.at(-1).actor,firstId);assert.equal(row.handover[1].ownerId,nextId);assert.equal(row.handover[1].history.length,2);assert.equal(row.handover[1].history[0].ownerId,firstId);assert.equal(row.handover[1].history[1].ownerId,nextId);assert.equal(state.names[nextId],'Blair Host');assert.equal(row.requests.wheelchair,true);assert.ok(row.requiredAccessTags.includes('step-free'));
   const nextView=await h.api('/api/state',undefined,{as:next});assert.deepEqual(nextView.state.bookings.find(b=>b.id===f.elena.id).handover.map(t=>t.id),[callback.task.id]);assert.ok(!JSON.stringify(nextView).includes('synthetic-placemat-access'));
   assert.ok(!JSON.stringify(await h.api('/api/state',undefined,{as:reader})).includes('synthetic-placemat-callback'));
+  const key=(await h.api('/api/agent-keys',{name:'synthetic-placemat-handover-reader'})).result.key;
+  for(const opts of [{as:first},{as:reader},{as:'',headers:{authorization:'Bearer '+key}}]){
+   for(const path of ['/api/state','/api/timeline?date='+f.date])assert.ok(!JSON.stringify(await h.api(path,undefined,opts)).includes('synthetic-placemat-callback'),'Unassigned state, timeline and nested audit snapshots hide callback text');
+   await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:callback.task.id,outcome:'synthetic-placemat-unassigned'}, {...opts,status:403});
+  }
   await complete(callback,next,'synthetic-placemat-callback completed by the next host');
   await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:callback.task.id,outcome:'Duplicate'},{as:next,status:409});
   const pending=await h.command('booking.handover',{...task,kind:'callback',ownerId:nextId,text:'synthetic-placemat-next-shift'});
@@ -124,7 +131,29 @@ test('Owned guest requests and callbacks pass between active hosts, preserve aud
   await complete(pending,undefined,'synthetic-placemat-manager fallback');
   state=(await h.api('/api/state')).state;const audit=state.audit.filter(e=>e.subject===f.elena.id&&e.action==='booking.handover.complete');assert.deepEqual(audit.map(e=>e.actor),[firstId,nextId,ownerId]);assert.ok(audit.every(e=>e.source==='person'&&e.changes.some(c=>c.kind==='bookings')));
   const csv=await (await h.request('/api/business-export/bookings.csv')).text();assert.match(csv,/handover_json/);assert.match(csv,/synthetic-placemat-callback/);
-  const archive=await h.api('/api/backup');restored=await installation();await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await restored.api('/api/state')).state.bookings.find(b=>b.id===f.elena.id).handover.length,3);
+  const archive=await h.api('/api/backup');restored=await installation();
+  for(const damage of [
+   task=>{task.ownerId='synthetic-placemat-wrong-owner'},
+   task=>{delete task.history[0].dueAt},
+   task=>{task.history.push({...task.history[0]})},
+  ]){
+   const invalid=structuredClone(archive),stateRow=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_state'),broken=JSON.parse(stateRow.row.data);
+   damage(broken.bookings.find(b=>b.id===f.elena.id).handover[0]);stateRow.row.data=JSON.stringify(broken);
+   const content=new ContentVerifier(invalid[0]),integrity=new ArchiveVerifier(invalid[0]);
+   for(let i=1;i<invalid.length-1;i++){invalid[i]=await makePart(invalid[i].index,invalid[i].items);integrity.add(invalid[i]);for(const item of invalid[i].items)content.add(item)}
+   invalid.at(-1).contentHash=content.digest();invalid.at(-1).archiveHash=integrity.digest();
+   const response=await restored.request('/api/restore',{method:'POST',body:{archive:invalid,confirm:'RESTORE'}});assert.equal(response.status,400,'Conflicting handover ownership/history refuses the complete restore');assert.match((await response.json()).error,/handover/);
+   assert.equal((await restored.api('/api/state')).state.bookings.length,0,'Invalid follow-up leaves no partially restored reservations');
+  }
+  await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/state')).state.bookings.find(b=>b.id===f.elena.id).handover,state.bookings.find(b=>b.id===f.elena.id).handover);
+  const csvRow=csvRecords(csv).find(r=>r.id===f.elena.id);assert.deepEqual(JSON.parse(csvRow.handover_json),state.bookings.find(b=>b.id===f.elena.id).handover);
   await h.command('guest.erase',{guestId:f.guest.id,confirm:'ERASE'});state=(await h.api('/api/state')).state;assert.deepEqual(state.bookings.find(b=>b.id===f.elena.id).handover,[]);for(const value of ['synthetic-placemat-access','synthetic-placemat-callback','synthetic-placemat-step-free'])assert.ok(!JSON.stringify(state).includes(value));
+  const later=await h.api('/api/backup'),erased=await installation(),fenced=await installation();try{
+   await erased.api('/api/restore',{archive:later,confirm:'RESTORE'});
+   const output=JSON.stringify([await erased.api('/api/state'),await erased.api('/api/backup')]);
+   for(const value of ['synthetic-placemat-access','synthetic-placemat-callback','synthetic-placemat-step-free'])assert.ok(!output.includes(value),'Erased handover text stays absent after portable restore');
+   await fenced.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400});
+   assert.equal((await fenced.api('/api/state')).state.bookings.length,0,'A later erasure journal fences the pre-erasure handover archive');
+  }finally{await erased.close();await fenced.close()}
  }finally{if(restored)await restored.close();await h.close()}
 })

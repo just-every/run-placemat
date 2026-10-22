@@ -25,11 +25,11 @@ export async function executeHandover(db:D1Database,s:State,actor:Actor,command:
  return {id:booking.id,task}
 }
 
-/** New follow-up text never widens the existing read audience: managers or the assigned active host only. */
-export function projectHandover(value:any,actor?:Actor|null):any{
+/** Current assignment governs every copy, including historical audit snapshots. Missing context denies host access. */
+export function projectHandover(value:any,actor?:Actor|null,currentTaskIds:ReadonlySet<string>=new Set()):any{
  if(actor&&!actor.agent&&['owner','admin'].includes(actor.role))return value
- if(Array.isArray(value))return value.map(item=>projectHandover(item,actor))
+ if(Array.isArray(value))return value.map(item=>projectHandover(item,actor,currentTaskIds))
  if(!value||typeof value!=='object')return value
- const owns=(task:any)=>actor?.role==='host'&&!actor.agent&&task.ownerId===actor.id
- return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,key==='handover'&&Array.isArray(item)?item.filter(owns).map(task=>projectHandover(task,actor)):key==='task'&&item&&typeof item==='object'&&'ownerId' in item&&!owns(item)?null:projectHandover(item,actor)]))
+ const owns=(task:any)=>actor?.role==='host'&&!actor.agent&&currentTaskIds.has(task.id)
+ return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,key==='handover'&&Array.isArray(item)?item.filter(owns).map(task=>projectHandover(task,actor,currentTaskIds)):key==='task'&&item&&typeof item==='object'&&'ownerId' in item&&!owns(item)?null:projectHandover(item,actor,currentTaskIds)]))
 }

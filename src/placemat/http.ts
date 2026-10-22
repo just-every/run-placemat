@@ -54,7 +54,11 @@ const paths=new Set(['/api/onboarding','/api/onboarding/preview','/kitchen','/ap
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  let responseActor:Actor|null=null
- const json=(data:any,status=200)=>Response.json(projectAuthority(projectHandover(data,responseActor),responseActor),{status,headers})
+ const json=async(data:any,status=200)=>{
+  // An old audit snapshot must not restore a former host's access after handover.
+  const currentTaskIds=responseActor?.role==='host'&&status<400?new Set((await load(env.DB)).state.bookings.flatMap(b=>(b.handover??[]).filter(t=>t.ownerId===responseActor!.id).map(t=>t.id))):new Set<string>()
+  return Response.json(projectAuthority(projectHandover(data,responseActor,currentTaskIds),responseActor),{status,headers})
+ }
  if(path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
