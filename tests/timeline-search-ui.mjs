@@ -41,6 +41,7 @@ for(const width of [1440,390]){
   assert.equal(await guestRow.locator('guest,b,script').count(),0,'FLOOR-007 guest text remains escaped')
   assert.ok(!(await timeline.innerText()).includes('Private planning note'))
   await shot('phone-alerts')
+  await expect(guestRow).toContainText('$100.00');await guestRow.locator('.timeline-alert').filter({hasText:'Deposit'}).scrollIntoViewIfNeeded();await shot('deposit-alert');await timeline.locator('.table-scroll').evaluate(el=>{el.scrollLeft=0})
   await apply({search:'+1 415 555 0191',serviceId:''},[f.elena,f.later])
   await shot('all-services')
   await apply({search:'elena garcia'},[f.elena])
