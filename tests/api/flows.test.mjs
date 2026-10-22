@@ -496,7 +496,7 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
   await h.api('/api/hoststand/floor',undefined,{as,status:423});
   await f.unlock(0);let view=await f.floor(),firstGeneration=view.generation;assert.equal(view.actor.id,f.staff[0].id);assert.equal(view.actor.name,'Avery Host');
   for(const value of [f.guest.email,'synthetic-placemat-private-note','synthetic-placemat-private-tag','synthetic-placemat-private-allergy',f.staff[0].pin,f.registration.claimCode])assert.ok(!JSON.stringify(view).includes(value));
-  const action=(command,payload,status=200,generation=view.generation)=>h.api('/api/hoststand/commands',{generation,command,payload},{as,status});
+  const action=async(command,payload,status=200,generation=view.generation)=>{const response=await h.api('/api/hoststand/commands',{generation,command,payload},{as,status});for(const value of ['synthetic-placemat-private-note','synthetic-placemat-private-allergy',f.guest.email])assert.ok(!JSON.stringify(response).includes(value));return response};
   await action('booking.stage',{bookingId:f.booking.id,stage:'seated'});
   const laterPersonal=await h.signIn('synthetic-placemat-later-personal@example.test','admin'),mixed=as+'; '+laterPersonal;
   await h.api('/auth/operators',undefined,{as:laterPersonal});for(const path of ['/auth/operators','/auth/request','/signin','/setup'])assert.equal((await h.request(path,{as:mixed})).status,403,path);
@@ -507,7 +507,7 @@ test('Shared host stand: owner enrollment, personal PIN switch, attributed seati
   const state=(await h.api('/api/state')).state,events=state.audit.filter(e=>e.subject===f.booking.id&&['booking.stage','booking.move'].includes(e.action));assert.deepEqual(events.map(e=>e.actor),f.staff.map(s=>s.id));assert.ok(events.every(e=>e.deviceId===f.registration.id));assert.deepEqual(state.bookings.find(b=>b.id===f.booking.id).tableIds,[f.tables[1].id]);
   for(const path of ['/api/state','/api/guests','/api/backup','/api/reminders.csv','/api/reports/reservations.csv','/api/agent-keys','/api/audit','/auth/operators'])assert.equal((await h.request(path,{as})).status,path.startsWith('/auth/')?403:401,path);
   for(const command of ['guest.erase','venue.update','proposal.approve','service.pacing'])await action(command,{bookingId:f.booking.id},403);
-  await action('booking.stage',{bookingId:f.booking.id,stage:'paid'},403);
+  await action('payment.refund',{bookingId:f.booking.id,amountCents:1},403);
   await h.api('/api/hoststand/commands',{generation:view.generation,command:'booking.stage',payload:{bookingId:f.booking.id,stage:'ordering'}},{as,headers:{origin:'https://other.example.test'},status:403});
   for(let i=0;i<10;i++)await h.api('/api/hoststand/unlock',{operatorId:f.staff[0].id,pin:'999999999999'},{as,status:i===9?429:401});await f.unlock(0,429);assert.equal((await h.api('/api/hoststand/status',undefined,{as})).locked,true);
   await f.unlock(1);await h.api('/auth/operator/status',{operatorId:f.staff[1].id,status:'inactive'});await h.api('/api/hoststand/floor',undefined,{as,status:423});await f.unlock(1,401);

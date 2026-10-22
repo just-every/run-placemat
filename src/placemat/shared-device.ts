@@ -5,6 +5,7 @@ import {execute} from './commands'
 import {load,guests,hash} from './store'
 import {fail,id,text,type Actor} from './model'
 import {savePersonalPin,unlockPin,roster} from './shared-device-pins'
+import {serviceStatuses,floorStatuses} from './service-status'
 import {hostFloor} from './host-projection'
 import {issuePaymentLink,syncPaymentRequest} from './payment-links'
 import {seatingPreview,issuePacingReview} from './pacing-review'
@@ -42,7 +43,7 @@ export function deviceFence(db:D1Database,actor:Actor,now:number){
  return db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_host_devices d JOIN oa_operators o ON o.id=d.operator_id JOIN pm_host_pins p ON p.operator_id=o.id WHERE d.id=? AND d.generation=? AND d.operator_id=? AND d.revoked_at IS NULL AND d.expires_at>? AND d.last_action_at>? AND o.status='active' AND o.role='member' AND o.version=d.operator_version AND p.operator_version=o.version AND p.version=d.pin_version AND p.disabled_at IS NULL AND EXISTS(SELECT 1 FROM pm_state s,json_each(s.data,'$.hostIds') h WHERE s.id=1 AND h.value=o.id)) THEN 1 ELSE 0 END").bind(actor.deviceId,actor.deviceGeneration,actor.id,now,now-DEVICE_IDLE_MS)
 }
 const allowedCommands=new Set(['booking.stage','booking.status','booking.move','booking.swap','booking.lock','booking.extend','booking.phone','booking.phone.change','booking.walkin','waitlist.add','waitlist.party','waitlist.seat','booking.handover','booking.handover.assign','booking.handover.complete','payment.link','payment.sync'])
-const allowedStages=new Set(['confirmed','reconfirmed','arrived','partially-arrived','late','seated','ordering','clearing','completed','ready','needs-bussing','mains','dessert'])
+const allowedStages=new Set<string>([...serviceStatuses,...floorStatuses])
 export async function sharedDeviceResponse(request:Request,env:Bindings):Promise<Response|null>{
  const path=new URL(request.url).pathname,now=Date.now(),db=env.DB
  if(path==='/hoststand')return ['GET','HEAD'].includes(request.method)?sharedDevicePage(request):json({error:'Method not allowed'},405)
@@ -106,10 +107,10 @@ export async function sharedDeviceResponse(request:Request,env:Bindings):Promise
  if(path==='/api/hoststand/commands'&&request.method==='POST'){
   const p=await jsonBody(request)
   if(p.generation!==row.generation)fail(409,'Staff changed. Unlock or refresh before recording an action.')
-  if(!allowedCommands.has(p.command)||['booking.stage','booking.status'].includes(p.command)&&(!allowedStages.has(p.payload?.stage??p.payload?.status)||p.payload?.correctsEventId!==undefined))fail(403,'Use your full personal session for that action.')
+  if(!allowedCommands.has(p.command)||['booking.stage','booking.status'].includes(p.command)&&(!allowedStages.has(p.payload?.stage??p.payload?.status)))fail(403,'Use your full personal session for that action.')
   if(!p.payload||typeof p.payload!=='object'||Array.isArray(p.payload))fail(400,'Send an operation payload.')
   const touched=await db.prepare('UPDATE pm_host_devices SET last_action_at=? WHERE id=? AND generation=? AND operator_id=? AND revoked_at IS NULL').bind(now,row.id,row.generation,actor.id).run();if(touched.meta.changes!==1)fail(409,'Staff changed. Unlock again.')
-  const result=p.command==='payment.link'?await issuePaymentLink(env,actor,p.payload.requestId):p.command==='payment.sync'?await syncPaymentRequest(env,actor,p.payload.requestId):await execute(db,actor,p.command,p.payload,env.SESSION_SECRET);return json({saved:true,result:{...result,...result?.providerUrl?{url:result.providerUrl}:{}}})
+  const result=p.command==='payment.link'?await issuePaymentLink(env,actor,p.payload.requestId):p.command==='payment.sync'?await syncPaymentRequest(env,actor,p.payload.requestId):await execute(db,actor,p.command,p.payload,env.SESSION_SECRET);return json({saved:true,result:p.command.startsWith('payment.')?{...result,...result?.providerUrl?{url:result.providerUrl}:{}}:{id:result.id??result.booking?.id,...result.source?{source:result.source}:{},...result.token?{token:result.token}:{}}})
  }
  return json({error:'Host stand action not available'},403)
 }
