@@ -110,16 +110,17 @@ test('Recorded cancellation and no-show decisions capture each violation once, w
   assert.equal(noShow.status,'succeeded');assert.equal(noShow.amountCents,3500);assert.equal(edge.intents.size,2)
   const dispute=await feeApi(h,'fees',{action:'dispute',assessmentId:charged.id,reason:'Guest queried the recorded cancellation time.',evidence:'Retained guest correspondence.'})
   assert.equal(dispute.status,'recorded');assert.equal(edge.intents.size,2)
+  edge.charges.get(noShow.chargeId).amount_refunded=500; // A processor-confirmed prior refund is already known when the fee is synchronized.
   await h.command('payment.charge-sync',{bookingId:bookings[2].id,chargeId:noShow.chargeId})
   await h.command('payment.refund',{bookingId:bookings[2].id,chargeId:noShow.chargeId,amountCents:1000,requestId:'synthetic-fee-refund-1',reason:'Owner approved a partial goodwill fee refund.'})
   await h.command('service.close',{serviceId:service.id,reason:'All attendance and fees reviewed.'})
   const url='/api/reports/closed?serviceId='+service.id,report=await h.api(url),fees=report.original.fees
-  assert.equal(fees.chargedCents,7500);assert.equal(fees.waivedCents,4000);assert.equal(fees.refundedCents,1000);assert.equal(fees.pendingCents,0)
+  assert.equal(fees.chargedCents,7500);assert.equal(fees.waivedCents,4000);assert.equal(fees.refundedCents,1500);assert.equal(fees.pendingCents,0)
   assert.equal(fees.rows.find(row=>row.assessmentId===charged.id).bookingId,bookings[0].id)
   const csv=await (await h.request('/api/reports/closed.csv?serviceId='+service.id)).text()
-  const rows=csvRecords(csv);assert.deepEqual(rows.map(r=>r.bookingId).sort(),bookings.map(b=>b.id).sort());for(const [column,total]of [['chargedFeeCents',7500],['waivedFeeCents',4000],['refundedFeeCents',1000],['pendingFeeCents',0]])assert.equal(rows.reduce((n,r)=>n+Number(r[column]),0),total)
+  const rows=csvRecords(csv);assert.deepEqual(rows.map(r=>r.bookingId).sort(),bookings.map(b=>b.id).sort());for(const [column,total]of [['chargedFeeCents',7500],['waivedFeeCents',4000],['refundedFeeCents',1500],['pendingFeeCents',0]])assert.equal(rows.reduce((n,r)=>n+Number(r[column]),0),total)
   for(const b of bookings)assert.ok(csv.includes(b.id))
-  const pdf=await h.request('/api/reports/closed.pdf?serviceId='+service.id);assert.equal(pdf.status,200);const pdfText=await pdf.text();assert.match(pdfText,/Charged \$75.00 USD/);assert.match(pdfText,/waived \$40.00 USD/);assert.match(pdfText,/refunded \$10.00 USD/)
+  const pdf=await h.request('/api/reports/closed.pdf?serviceId='+service.id);assert.equal(pdf.status,200);const pdfText=await pdf.text();assert.match(pdfText,/Charged \$75.00 USD/);assert.match(pdfText,/waived \$40.00 USD/);assert.match(pdfText,/refunded \$15.00 USD/)
   const state=await h.api('/api/state'),ownerId=state.actor.id
   assert.equal(state.feeWork.assessments.find(row=>row.id===charged.id).actorId,ownerId);assert.equal(charged.policyId,policy.id)
   const audit=await h.api('/api/audit'),auditText=JSON.stringify(audit);assert.ok(auditText.includes(charged.id));assert.ok(auditText.includes(policy.id));assert.ok(auditText.includes(ownerId))
