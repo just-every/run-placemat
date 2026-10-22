@@ -143,7 +143,7 @@ test('REPORT-007: seated refills of freed tables are the only recovered covers; 
   assert.equal(pdfResponse.status,200);assert.equal(pdfResponse.headers.get('content-type'),'application/pdf');assert.match(pdfResponse.headers.get('content-disposition'),/attachment; filename="placemat-service-close.pdf"/)
   const text=pdfText(await pdfResponse.text())
   for(const line of ['End-of-service report','Cedar & Salt · Friday dinner','Booked: 18 covers (9 reservations, including cancellations and no-shows)','Attended: 8 / 18 covers (44.4%)','No-show: 4 / 18 covers (22.2%)','Cancelled: 4 / 18 covers (22.2%)','Recovered from cancellations and no-shows: 6 / 8 freed covers by 3 seated replacement parties','Fees charged, waived and refunded: Charged $0.00 USD; waived $0.00 USD; refunded $0.00 USD; pending $0.00 USD.','Pacing overrides (SERVICE-007): 0 reservations','Observations after close (0)'])
-   assert.ok(text.includes(line),`PDF shows: ${line}`)
+   assert.ok(text.replaceAll("\n"," ").includes(line),`PDF shows: ${line}`)
   for(const row of coverReport.rows)assert.ok(text.includes(`ref ${row.bookingId}`),'every reservation is listed in the PDF')
   assert.match(text,/Average actual turn: .* against expected 90\.00 min/)
   // A status recorded after close is a dated adjustment beside the original; the original figures, CSV and PDF stay fixed.
