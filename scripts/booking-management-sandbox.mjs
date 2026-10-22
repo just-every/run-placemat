@@ -24,7 +24,7 @@ try{
  assert.equal(receipt.to,recipient);assert.equal(receipt.auth?.trusted,'authentication-results');assert.equal(receipt.auth?.dmarc,'pass')
  assert.match(receipt.rawUrl,/^\/receipts\/[a-zA-Z0-9_-]+\/raw$/)
  const raw=await fetch(origin+receipt.rawUrl,{headers,signal:AbortSignal.timeout(10000)});assert.equal(raw.status,200)
- const bytes=new Uint8Array(await raw.arrayBuffer()),mail=await normalizeInbound({provider:'cloudflare',message:{headers:new Headers(),from:receipt.from,to:recipient,rawSize:bytes.length,raw:new Blob([bytes]).stream()}},{})
+ const bytes=new Uint8Array(await raw.arrayBuffer()),mail=await normalizeInbound({provider:'cloudflare',message:{headers:new Headers(),from:receipt.from,to:recipient,rawSize:bytes.length,raw:new Blob([bytes]).stream()}},{maxRawBytes:1048576,maxBodyBytes:262144,maxAttachments:10,maxAttachmentBytes:1048576,maxTotalAttachmentBytes:1048576})
  const link=new URL(mail.text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]);let token=new URLSearchParams(link.hash.slice(1)).get('token')
  const api=(action,p={},status=200)=>h.api('/api/public/booking-management/'+action,{token,...p},{as:'',status})
  assert.equal((await api('status')).booking.id,booking.id)
