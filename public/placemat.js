@@ -261,10 +261,16 @@ async function execute(command, payload) {
 }
 async function busy(work, message = 'Saving…') {
   const controls = [...document.querySelectorAll('button:not(:disabled)')];
-  busyCount++; controls.forEach(el => el.disabled = true); notice(message);
+  busyCount++; controls.forEach(el => el.disabled = true);
+  document.querySelectorAll('.app-main > section').forEach(section=>section.inert=true);
+  document.querySelector('.app-main')?.setAttribute('aria-busy','true');
+  notice(message);
   try { await work(); }
   catch (error) { notice(error.message, 'error'); }
-  finally { busyCount--; controls.forEach(el => { if (el.isConnected) el.disabled = false; }); }
+  finally { busyCount--; controls.forEach(el => { if (el.isConnected) el.disabled = false; });
+    document.querySelectorAll('.app-main > section').forEach(section=>section.inert=busyCount>0);
+    document.querySelector('.app-main')?.setAttribute('aria-busy',String(busyCount>0));
+  }
 }
 async function prepare(kind, plan, reason) {
   await execute('proposal.prepare', {kind,plan,reason}); await loadStaff();
