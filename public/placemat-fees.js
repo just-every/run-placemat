@@ -21,7 +21,7 @@ export function parseFeeForm(command,values){
  if(command==='payment.fee-policy'){
   values.cutoffDaysBefore=Number(values.cutoffDaysBefore);values.graceMinutes=Number(values.graceMinutes);
   values.cancellation={mode:values.cancellationMode,amountCents:Number(values.cancellationCents)};values.noShow={mode:values.noShowMode,amountCents:Number(values.noShowCents)};
-  values.exemptions=values.exemptionLines.split('\n').filter(s=>s.trim()).map(s=>{const i=s.indexOf(':');return {code:s.slice(0,i).trim(),label:s.slice(i+1).trim()}});
+  values.exemptions=values.exemptionLines.split('\n').filter(s=>s.trim()).map(s=>{const i=s.indexOf(':');if(i<1||!s.slice(i+1).trim())throw new Error('Enter each exemption as code: explanation.');return {code:s.slice(0,i).trim(),label:s.slice(i+1).trim()}});
   for(const key of ['cancellationMode','cancellationCents','noShowMode','noShowCents','exemptionLines'])delete values[key];
  }
  if(command==='payment.fee-consent'){values.reviewedPolicyVersion=Number(values.reviewedPolicyVersion);values.attest=values.attest==='on';values.acceptedAt=new Date(values.acceptedAt+'Z').toISOString();}
