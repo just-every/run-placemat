@@ -6,13 +6,13 @@ import {feeService} from '../tests/api/fee-fixture.mjs'
 const secret=process.env.STRIPE_SECRET_KEY;assert.ok(secret?.startsWith('sk_test_'),'Only a held Stripe test secret may run this proof')
 const run='sx-placemat-c39-fees-'+randomUUID(),ownedCharges=new Set();let customer,h
 const stripe=async(path,body)=>{
- const response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,...body?{'content-type':'application/x-www-form-urlencoded'}:{}},body:body?.toString(),redirect:'manual',signal:AbortSignal.timeout(20000)});
+ const response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,'stripe-version':'2026-09-30.endive',...body?{'content-type':'application/x-www-form-urlencoded'}:{}},body:body?.toString(),redirect:'manual',signal:AbortSignal.timeout(20000)});
  const result=await response.json();if(!response.ok)console.error('Stripe test refusal',{status:response.status,type:/^[a-z_]{1,80}$/.test(result.error?.type)?result.error.type:'unknown',code:/^[a-z_]{1,80}$/.test(result.error?.code)?result.error.code:'unknown',parameter:/^[a-z_\[\]]{1,80}$/.test(result.error?.param)?result.error.param:'unknown'});assert.ok(response.ok,`Stripe test API status ${response.status}`);assert.notEqual(result.livemode,true);return result;
 }
 try{
  h=await installation({bindings:{STRIPE_SECRET_KEY:secret},stripeEdge:async request=>{
   const url=new URL(request.url);assert.equal(url.hostname,'api.stripe.com');assert.match(url.pathname,/^\/v1\/(setup_intents|payment_intents|charges|refunds)(\/[^/]+)?$/);
-  const response=await fetch(request.url,{method:request.method,headers:{authorization:request.headers.get('authorization'),'content-type':request.headers.get('content-type')??'application/x-www-form-urlencoded',...(request.headers.get('idempotency-key')?{'idempotency-key':request.headers.get('idempotency-key')}:{})},body:request.method==='POST'?await request.text():undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});
+  const response=await fetch(request.url,{method:request.method,headers:{authorization:request.headers.get('authorization'),'stripe-version':request.headers.get('stripe-version')??'2026-09-30.endive','content-type':request.headers.get('content-type')??'application/x-www-form-urlencoded',...(request.headers.get('idempotency-key')?{'idempotency-key':request.headers.get('idempotency-key')}:{})},body:request.method==='POST'?await request.text():undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});
   assert.ok(response.ok,`Stripe test transport status ${response.status}`);const body=await response.json();assert.notEqual(body.livemode,true);
   if(body.object==='payment_intent'&&body.status==='succeeded'){const charge=typeof body.latest_charge==='string'?body.latest_charge:body.latest_charge?.id;if(charge)ownedCharges.add(charge)}
   return Response.json(body,{status:response.status});
@@ -22,7 +22,7 @@ try{
  const policy=await h.command('payment.fee-policy',{cutoffDaysBefore:365,cutoffLocalTime:'12:00',graceMinutes:0,cancellation:{mode:'per_person',amountCents:2000},noShow:{mode:'fixed',amountCents:8000},exemptions:[{code:'venue','label':'Venue-caused cancellation'}],terms:'Controlled sandbox: guest agrees to the displayed cancellation fee; an owner reviews every decision.'});
  customer=await stripe('customers',new URLSearchParams({'metadata[placemat_proof_run]':run}));
  for(const b of bookings){
-  const setup=await stripe('setup_intents',new URLSearchParams({customer:customer.id,payment_method:'pm_card_visa',confirm:'true',usage:'off_session','payment_method_types[0]':'card','metadata[placemat_booking_id]':b.id,'metadata[placemat_policy_id]':policy.id,'metadata[placemat_proof_run]':run}));assert.equal(setup.status,'succeeded');
+  const setup=await stripe('setup_intents',new URLSearchParams({customer:customer.id,payment_method:'pm_card_visa',confirm:'true',usage:'off_session','allowed_payment_method_types[0]':'card',return_url:'https://example.test/fee-setup-return','metadata[placemat_booking_id]':b.id,'metadata[placemat_policy_id]':policy.id,'metadata[placemat_proof_run]':run}));assert.equal(setup.status,'succeeded');
   await h.command('payment.fee-consent',{bookingId:b.id,policyId:policy.id,reviewedPolicyVersion:policy.version,reviewedPolicyText:policy.reviewText,acceptedAt:new Date().toISOString(),evidence:'Controlled sandbox agreement to the exact displayed policy and saved-card setup',setupIntentId:setup.id,attest:true});
   if(b!==bookings[2])await h.command('booking.status',{bookingId:b.id,status:'cancelled',reason:'Guest explicitly canceled the controlled sandbox reservation'});
  }

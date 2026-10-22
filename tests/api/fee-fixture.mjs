@@ -12,7 +12,7 @@ export function feeEdge(){
    const key=request.headers.get('idempotency-key');assert.ok(key)
    if(keys.has(key))return Response.json(keys.get(key))
    const intentId=`synthetic-placemat-intent-${intents.size+1}`,chargeId=`synthetic-placemat-fee-charge-${charges.size+1}`,amount=Number(body.get('amount')),metadata={placemat_fee_id:body.get('metadata[placemat_fee_id]'),placemat_booking_id:body.get('metadata[placemat_booking_id]'),placemat_policy_id:body.get('metadata[placemat_policy_id]')}
-   assert.equal(body.get('confirm'),'true');assert.equal(body.get('off_session'),'true')
+   assert.equal(body.get('allowed_payment_method_types[0]'),'card');assert.equal(body.get('confirm'),'true');assert.equal(body.get('off_session'),'true')
    const charge={object:'charge',id:chargeId,payment_intent:intentId,customer:body.get('customer'),currency:'usd',paid:true,captured:true,amount_captured:amount,amount_refunded:0,metadata}
    const intent={object:'payment_intent',id:intentId,status:'succeeded',amount,currency:'usd',customer:body.get('customer'),payment_method:body.get('payment_method'),metadata,latest_charge:charge}
    intents.set(intentId,intent);charges.set(chargeId,charge);keys.set(key,intent)
