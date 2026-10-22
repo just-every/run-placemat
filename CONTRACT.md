@@ -423,7 +423,7 @@ Every capability claim on the built homepage (`src/site/landing/`, desk pages 01
 
 ## Status
 
-Changed rows judged from code and public-door evidence at commit `6e8e9d8` (22 October 2026, sx-placemat-c39); BOOK-004 riders, role boundaries and the fee/refund prerequisites have named assertions and live receipts below. FLOOR-007, SEC-002 and ROLE-002 retain their approved main evidence; unchanged rows retain their existing evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.
+Judged from the code and tests at commit `6e8e9d86f5ab6f99db9b7736e138b2eba5f5a895` (22 October 2026). Changed rows in sx-placemat-c39: BOOK-004 riders, role boundaries and the fee/refund prerequisites have named assertions and live receipts below. FLOOR-007, SEC-002 and ROLE-002 retain their approved main evidence; unchanged rows retain their existing evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
