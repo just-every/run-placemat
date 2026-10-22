@@ -7,12 +7,12 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import assert from 'node:assert/strict'
-export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge}={}){
+export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge,mailEdge}={}){
  const directory=await mkdtemp(join(tmpdir(),'placemat-api-'))
  const bundled=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
  const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),messages=[]
  const origin='https://venue.example.test'
- const mail=async request=>{assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}
+ const mail=async request=>{if(mailEdge)return mailEdge(request);assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}
  // GA4 Measurement Protocol answers 204 without confirming; Meta's Conversions API reports events_received. Tests may swap the answer.
  const analytics=[],answer={provider:async request=>new URL(request.url).hostname==='graph.facebook.com'?Response.json({events_received:1,messages:[],fbtrace_id:'edge-fake'}):new Response(null,{status:204})}
  const outbound=async request=>{

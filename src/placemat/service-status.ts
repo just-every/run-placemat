@@ -10,7 +10,7 @@ export type ServiceStatus = typeof serviceStatuses[number]
 export type FloorStatus = typeof floorStatuses[number]
 export type ServiceSnapshot = {status:ServiceStatus;floorStatus:FloorStatus;bookingStatus:Booking['status'];needsBussing:boolean}
 export type ServiceEvent = {
- id:string;bookingId:string;at:string;actor:string;source:'staff-recorded';reason:string;
+ id:string;bookingId:string;at:string;actor:string;source:'staff-recorded'|'guest-supplied';reason:string;
  before:ServiceSnapshot;after:ServiceSnapshot;correctsEventId?:string
 }
 
@@ -41,7 +41,7 @@ export function serviceSnapshot(s:State,b:Booking):ServiceSnapshot {
  return event&&event.after.bookingStatus===b.status?{...event.after}:initial(b)
 }
 
-/** No POS feed is connected here: every observation is explicitly staff-recorded. */
+/** Reports retain whether an observation came from a staff member or the guest. */
 export function floorStage(s:State,b:Booking,now:string) {
  const snapshot=serviceSnapshot(s,b),events=eventsFor(s,b)
  // An operational observation does not restart the course timer.
@@ -50,7 +50,7 @@ export function floorStage(s:State,b:Booking,now:string) {
  const since=consistent?(transition?.at??(events[0]?.before.floorStatus==='reserved'?b.createdAt:events[0]?.at)??null):b.status==='booked'||b.source==='walk-in'||b.source==='waitlist'?b.createdAt:null
  return {status:snapshot.floorStatus,serviceStatus:snapshot.status,since,nextStages:transitions[snapshot.status],nextFloorStages:floorTransitions[snapshot.floorStatus],
   elapsedMinutes:since?Math.max(0,Math.floor((Date.parse(now)-Date.parse(since))/60000)):null,
-  source:consistent?'staff-recorded' as const:'booking-record' as const,
+  source:consistent?(transition??events.at(-1))!.source:'booking-record' as const,
   actor:consistent?(transition??events.at(-1))!.actor:null,needsBussing:snapshot.needsBussing}
 }
 

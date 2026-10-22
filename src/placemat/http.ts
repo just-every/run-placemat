@@ -1,3 +1,6 @@
+import {readManagement,previewManagement,commitManagement} from './booking-management'
+import {managementPage} from './booking-management-view'
+import {sendManagement} from './booking-management-mail'
 import {handoverAssignees} from './host-projection'
 import {paymentAlerts,createPaymentRequest,issuePaymentLink,syncPaymentRequest} from './payment-links'
 import {executeRefund,synchronizeRefundCharge,refundAudit} from './refunds'
@@ -65,9 +68,22 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
- if(path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
+  if(path==='/manage-booking'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return managementPage(request)}
+  if(path.startsWith('/api/public/booking-management/')){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env)
+   const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':manage-booking:'+Math.floor(Date.now()/60000))
+   const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
+   if((count?.count??0)>60)fail(429,'Too many reservation-management requests. Please wait a minute.')
+   const p=await jsonBody(request)
+   if(path==='/api/public/booking-management/status')return json(await readManagement(env.DB,p))
+   if(path==='/api/public/booking-management/preview')return json(await previewManagement(env.DB,p))
+   if(path==='/api/public/booking-management/commit')return json(await commitManagement(env.DB,p))
+   return json({error:'Not found'},404)
+  }
   if(path==='/inquiry'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return inquiryPage(request)}
   if(path.startsWith('/api/public/inquiries/')){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
@@ -238,7 +254,8 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const people=await guests(env.DB)
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
    const handoverPeople=await handoverAssignees(env.DB,state),paymentRequests=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[],refundCharges=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT charge_id AS chargeId,booking_id AS bookingId,amount_cents AS amountCents,imported_refunded_cents AS importedRefundedCents FROM pm_refund_charges').all()).results:[],refunds=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT id,request_id AS requestId,actor_id AS actorId,booking_id AS bookingId,charge_id AS chargeId,amount_cents AS amountCents,reason,status,processor_id AS processorId,created_at AS createdAt FROM pm_refunds').all()).results:[]
-   return json({handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   const bookingContacts=!actor!.agent?Object.fromEntries((await env.DB.prepare('SELECT booking_id,data FROM pm_booking_contacts').all<{booking_id:string;data:string}>()).results.map(row=>[row.booking_id,JSON.parse(row.data)])):{}
+   return json({bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){
@@ -248,6 +265,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   if(path==='/api/commands'&&request.method==='POST'){
    const p=await jsonBody(request)
+   if(p.command==='booking.management.send')return json({result:await sendManagement(env,actor!,p.payload??{})})
    if(p.command==='payment.request')return json({result:await createPaymentRequest(env.DB,actor!,p.payload??{})})
    if(p.command==='payment.link')return json({result:await issuePaymentLink(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.sync')return json({result:await syncPaymentRequest(env,actor!,p.payload?.requestId)})

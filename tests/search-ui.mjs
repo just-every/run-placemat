@@ -8,7 +8,7 @@ const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try{
- for(const width of [1440,390]){
+ for(const width of process.env.PLACEMAT_BOOK_ONLY==='management'?[]:[1440,390]){
   const h=await installation(),context=await browser.newContext({viewport:{width,height:1000}})
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
@@ -68,3 +68,27 @@ try{
   }finally{await context.close();await h.close()}
  }
 }finally{await browser.close()}
+
+// Private management uses the same real guest shell, with explicit consequence review.
+for(const width of [1440,390]){
+ const {service}=await import('./api/harness.mjs'),{browserServer}=await import('./browser-server.mjs')
+ const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
+ try{
+  const f=await service(h,{tables:1,seats:4,covers:8}),booking=(await h.api('/api/public/book',publicGuest(f.service,1,{name:'Amelia Chen',email:'amelia@example.test',phone:'+1 212 555 0191'}),{as:'',status:201})).result
+  const cookies=h.cookie.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}})
+  await context.addCookies(cookies);const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
+  await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+  const send=page.locator('[data-command="booking.management.send"]');await send.locator('xpath=..').evaluate(el=>el.open=true);await send.locator('[name=bookingId]').selectOption(booking.id);await send.locator('[name=acknowledged]').check()
+  const shot=async(name,locator=page.locator('.booking-shell'))=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await locator.screenshot({path:resolve(shots,`BOOK-004-${name}-${width}.png`)})}
+  await shot('owner-send',send);await send.getByRole('button',{name:'Send private reservation link',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
+  const link=new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]),privateUrl=transport.origin+link.pathname+link.hash
+  await context.clearCookies();await page.goto(privateUrl);await page.getByRole('status').filter({hasText:'Reservation opened'}).waitFor();assert.equal(new URL(page.url()).hash,'');await shot('opened')
+  const change=page.locator('[data-management=change]');await change.locator('[name=partySize]').fill('4');await change.getByRole('button',{name:'Review changes',exact:true}).click();await page.getByRole('heading',{name:'Review reservation changes',exact:true}).waitFor();await shot('change-review')
+  await page.locator('[data-management=commit] [name=acknowledged]').check();await page.getByRole('button',{name:'Confirm changes',exact:true}).click();await page.getByRole('status').filter({hasText:'reservation has been updated'}).waitFor();await shot('changed-four')
+  await page.locator('[data-management=change] [name=partySize]').fill('5');await page.getByRole('button',{name:'Review changes',exact:true}).click();await page.getByRole('alert').waitFor();assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id).partySize,4);await shot('unavailable-keeps-four')
+  await page.getByRole('button',{name:'Review cancellation',exact:true}).click();await page.getByRole('heading',{name:'Review cancellation',exact:true}).waitFor();await shot('cancel-review');assert.match(await page.locator('#management-preview').innerText(),/Fee: \$0.00 USD · Refund: \$0.00 USD/)
+  await page.locator('[data-management=commit] [name=acknowledged]').check();await page.getByRole('button',{name:'Confirm cancellation',exact:true}).click();await page.getByRole('status').filter({hasText:'reservation is cancelled'}).waitFor();await shot('cancelled')
+  await page.goto('about:blank');await page.goto(privateUrl);await page.getByRole('alert').waitFor();assert.equal(await page.locator('[data-management]').count(),0);assert.ok(!(await page.locator('#management-content').innerText()).includes('Amelia'));await shot('replay-refused')
+  assert.deepEqual(errors,[]);console.log(`BOOK-004 private email link, reviewed two-to-four change, unavailable preservation, explicit cancellation and replay refusal passed at ${width}`)
+ }finally{await context.close();await browser.close();await transport.close();await h.close()}
+}

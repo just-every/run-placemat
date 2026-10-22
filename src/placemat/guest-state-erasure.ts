@@ -25,6 +25,7 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
   if(inquiry.offer){delete inquiry.offer.requiredArea;inquiry.offer.requiredAccessTags=[];inquiry.offer.guarantees=[]}
   if(inquiry.status!=='converted')inquiry.status='closed'
  }
+ for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='bookingContacts'&&state.bookings.some(b=>b.id===change.id&&b.guestId===guestId)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
  const bookingIds=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id))
  for(const event of state.serviceEvents??[])if(bookingIds.has(event.bookingId))event.reason=''
  for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId)))){event.reason='';if(event.pacing)event.pacing.reason=''}
@@ -63,6 +64,8 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  }
  const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  {sql:'DELETE FROM pm_booking_management WHERE booking_id IN (SELECT value FROM json_each(?))',params:[erasedIds]},
+  {sql:'DELETE FROM pm_booking_contacts WHERE booking_id IN (SELECT value FROM json_each(?))',params:[erasedIds]},
   {sql:"UPDATE pm_payment_requests SET reason='',provider_url=NULL WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
   {sql:"UPDATE pm_refunds SET reason='' WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
   {sql:"UPDATE pm_refund_events SET before_data=CASE WHEN before_data IS NULL THEN NULL ELSE json_set(before_data,'$.reason','') END,after_data=json_set(after_data,'$.reason','') WHERE refund_id IN (SELECT id FROM pm_refunds WHERE booking_id IN (SELECT value FROM json_each(?)))",params:[erasedIds]},

@@ -113,3 +113,51 @@ test('BOOK-003: accessible Friday search offers a real Saturday alternative, com
   assert.equal(booking.requiredArea,undefined);assert.deepEqual(booking.requiredAccessTags,[])
  }finally{await h.close()}
 })
+
+
+test('Private guest reservation links deliver scoped consent, atomic two-to-four changes and replay-safe cancellation',async()=>{
+ const h=await installation();try{
+  const {service}=await import('./harness.mjs'),f=await service(h,{tables:1,seats:4,covers:8})
+  const book=async(i,extra={})=>(await h.api('/api/public/book',publicGuest(f.service,i,extra),{as:'',status:201})).result
+  const booked=await book(1,{name:'Amelia Chen'}),other=await book(2,{startAt:new Date(Date.parse(f.startAt)+2*3600000).toISOString()})
+  const manager=await h.signIn('synthetic-placemat-manage-manager@example.test','admin')
+  await h.command('booking.management.send',{bookingId:booked.id,acknowledged:true},{as:manager,status:403})
+  await h.command('booking.management.send',{bookingId:booked.id},{status:400})
+  const issued=await h.command('booking.management.send',{bookingId:booked.id,acknowledged:true});assert.equal(issued.status,'accepted');assert.equal(issued.token,undefined)
+  const mail=h.messages.at(-1),link=new URL(mail.text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]);let token=new URLSearchParams(link.hash.slice(1)).get('token')
+  assert.equal(link.search,'');assert.ok(token)
+  const api=(action,p={},status=200)=>h.api('/api/public/booking-management/'+action,{token,...p},{as:'',status})
+  let view=await api('status');assert.equal(view.booking.id,booked.id);assert.equal(view.guest.name,'Amelia Chen');assert.ok(!JSON.stringify(view).includes(other.id))
+  await api('status',{token:'synthetic-placemat-foreign'},404)
+  await api('status',{token:token.slice(0,-1)+(token.at(-1)==='0'?'1':'0')},404)
+  const elsewhere=await installation();try{await elsewhere.api('/api/public/booking-management/status',{token},{as:'',status:404})}finally{await elsewhere.close()}
+  const preview=await api('preview',{action:'change',partySize:4,startAt:new Date(Date.parse(booked.startAt)+15*60000).toISOString(),contact:{name:'Amelia Chen',email:'amelia@example.test',phone:'+1 212 555 0191'}})
+  assert.equal(preview.consequences.feeCents,0);assert.equal(preview.consequences.refundCents,0)
+  await api('commit',{previewId:preview.previewId},400)
+  const changed=await api('commit',{previewId:preview.previewId,acknowledged:true});assert.equal(changed.booking.partySize,4);assert.equal(Date.parse(changed.booking.startAt),Date.parse(booked.startAt)+15*60000);assert.equal((await h.api('/api/state')).bookingContacts[booked.id].email,'amelia@example.test');{const state=await h.api('/api/state');assert.equal(state.guests.find(g=>g.id===state.state.bookings.find(b=>b.id===booked.id).guestId)?.email,'guest1@example.test')}
+  const old=token;token=changed.token;await api('status',{token:old},404);await api('commit',{token:old,previewId:preview.previewId,acknowledged:true},404)
+  const original=(await h.api('/api/state')).state.bookings.find(b=>b.id===booked.id)
+  await api('preview',{action:'change',partySize:5,startAt:booked.startAt},409)
+  assert.deepEqual((await h.api('/api/state')).state.bookings.find(b=>b.id===booked.id),original)
+  // Changed booking versions invalidate a prepared consent; unrelated guests are never returned.
+  const stale=await api('preview',{action:'reconfirm'})
+  await h.command('booking.lock',{bookingId:booked.id,locked:true,version:(await h.api('/api/state')).version})
+  await api('commit',{previewId:stale.previewId,acknowledged:true},404)
+  await h.command('booking.management.send',{bookingId:booked.id,acknowledged:true});token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+  const reconfirm=await api('preview',{action:'reconfirm'}),reconfirmed=await api('commit',{previewId:reconfirm.previewId,acknowledged:true});assert.equal(reconfirmed.booking.serviceStatus,'reconfirmed');token=reconfirmed.token
+  const cancelled=await api('preview',{action:'cancel'});assert.equal(cancelled.booking.id,booked.id)
+  await api('commit',{previewId:cancelled.previewId,acknowledged:false},400)
+  const result=await api('commit',{previewId:cancelled.previewId,acknowledged:true});assert.equal(result.booking.status,'cancelled')
+  token=result.token;assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===other.id).status,'booked')
+  const owner=(await h.api('/api/state')).actor.id
+  await h.command('payment.request',{bookingId:other.id,amountCents:1000,dueAt:new Date(Date.now()+3600000).toISOString(),followupOwnerId:owner,reason:'Guest agreed to this deposit'})
+  await h.command('booking.management.send',{bookingId:other.id,acknowledged:true});const moneyToken=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+  const refused=await api('preview',{token:moneyToken,action:'cancel'},409);assert.match(refused.error,/manager.*fees.*refunds/);assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===other.id).status,'booked')
+  const archive=await h.api('/api/backup');assert.ok(!JSON.stringify(archive).includes(token));assert.ok(!JSON.stringify(archive).includes(moneyToken));assert.match(await (await h.request('/api/business-export/bookings.csv')).text(),/amelia@example.test/)
+  const restored=await installation();try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await restored.api('/api/state')).bookingContacts[booked.id].email,'amelia@example.test');await restored.api('/api/public/booking-management/status',{token},{as:'',status:404})}finally{await restored.close()}
+  await h.db.prepare("UPDATE pm_booking_management SET expires_at='2000-01-01T00:00:00.000Z' WHERE booking_id=?").bind(booked.id).run();await api('status',{},404)
+  const state=(await h.api('/api/state')).state,audit=await h.api('/api/audit');assert.ok(JSON.stringify(audit).includes('booking.management.cancel'))
+  const guestId=state.bookings.find(b=>b.id===booked.id).guestId;await h.command('guest.erase',{guestId,confirm:'ERASE'})
+  assert.equal((await h.db.prepare('SELECT count(*) AS n FROM pm_booking_contacts WHERE guest_id=?').bind(guestId).first()).n,0)
+ }finally{await h.close()}
+})
