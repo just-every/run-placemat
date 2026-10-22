@@ -15,8 +15,8 @@ const h=await installation({bindings:{STRIPE_SECRET_KEY:secret,MAIL_PROVIDER:'se
  const response=await fetch(request.url,{method:request.method,headers:{authorization:request.headers.get('authorization'),'content-type':request.headers.get('content-type')??'application/x-www-form-urlencoded',...(request.headers.get('idempotency-key')?{'idempotency-key':request.headers.get('idempotency-key')}:{})},body:request.method==='POST'?await request.text():undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});if(!response.ok){const error=await response.clone().json().catch(()=>({}));console.error('Stripe test transport refused',{status:response.status,type:/^[a-z_]{1,80}$/.test(error.error?.type)?error.error.type:'unknown',code:/^[a-z_]{1,80}$/.test(error.error?.code)?error.error.code:'unknown'})}assert.ok(response.ok,`Stripe test transport status ${response.status}`);const headers=new Headers(response.headers);headers.delete('content-encoding');headers.delete('content-length');return new Response(await response.arrayBuffer(),{status:response.status,headers})
 },mailEdge:async request=>{
  assert.equal(new URL(request.url).hostname,'api.sendgrid.com');const wire=await request.text(),body=JSON.parse(wire)
- assert.equal(body.personalizations.length,1);assert.deepEqual(body.personalizations[0].to,[{email:recipient}])
- return fetch('https://api.sendgrid.com/v3/mail/send',{method:'POST',headers:request.headers,body:wire,redirect:'manual',signal:AbortSignal.timeout(20000)})
+ assert.equal(body.personalizations.length,1);assert.equal(body.personalizations[0].to.length,1);assert.equal(body.personalizations[0].to[0].email,recipient)
+ return fetch('https://api.sendgrid.com/v3/mail/send',{method:'POST',headers:{authorization:request.headers.get('authorization'),'content-type':request.headers.get('content-type')},body:wire,redirect:'manual',signal:AbortSignal.timeout(20000)})
 }})
 try{
  const f=await service(h),booking=(await h.api('/api/public/book',publicGuest(f.service,1,{name:'Jordan Rivera',email:recipient}),{as:'',status:201})).result
