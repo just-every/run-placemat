@@ -38,7 +38,7 @@ const badge = value => `<span class="badge" data-status="${esc(String(value).toL
 const searchIcon = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4.5 4.5"/></svg>';
 const button = (text, action, id = '', secondary = true) => `<button type="button" ${secondary ? 'class="secondary"' : ''} data-action="${action}" data-id="${esc(id)}">${esc(text)}</button>`;
 const field = (label, name, type = 'text', value = '', attributes = '') => `<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" ${attributes}></label>`;
-const select = (label, name, choices, selected = '') => `<label>${esc(label)}<select name="${name}" required>${options(choices, selected)}</select></label>`;
+const select = (label, name, choices, selected = '', attributes = 'required') => `<label>${esc(label)}<select name="${name}" ${attributes}>${options(choices, selected)}</select></label>`;
 const form = (command, content, submit, disabled = false, className = '') => `<form data-command="${command}"${className ? ` class="${className}"` : ''}><fieldset ${disabled ? 'disabled' : ''}><div class="form-grid">${content}<div class="wide"><button type="submit">${esc(submit)}</button></div></div></fieldset></form>`;
 let serviceStatusId='',assignmentId='',floorArea='',floorSection='',floorServer='',busyCount=0;
 function reviewingGuest() {
