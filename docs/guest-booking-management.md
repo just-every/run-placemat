@@ -11,3 +11,5 @@ Contact edits belong to one reservation and do not rewrite the guest profile or 
 The current zero-money path discloses a zero fee and zero refund. Any recorded payment request, captured charge or refund requires manager review before guest mutation. PAY-004/PAY-005 retain fee/refund policy and execution obligations; no payment is taken and no refund is automatically submitted here.
 
 The owner-only issue rule, 24-hour lifetime, reissue/rotation semantics and financial-review default are conservative defaults awaiting ct approval. BOOK-004 remains PARTIAL until that ruling and the remaining financial-consequence journey pass.
+
+The opt-in controlled delivery proof requires `QA_MAIL_TO` as an explicit recipient and the three named mail/receipt environment values. Use the OD-08 helper for held credentials; the proof prints only receiver metadata and outcome assertions, never a private link.
