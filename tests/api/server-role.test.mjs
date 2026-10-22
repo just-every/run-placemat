@@ -30,7 +30,7 @@ test('ROLE-003: hosts act without approval, read-only members never mutate, and 
   await place(elena,tables[0]);await place(marcus,tables[2])
   await h.command('service.note',{date:day,kind:'shift',text:'Shift note: VIP table moves at nine'});await h.command('service.note',{date:day,kind:'kitchen',text:'Halibut: 12 portions'})
   await h.command('guest.profile',{guestId:(await h.api('/api/guests?search=Elena')).guests[0].id,vipLevel:'regular',tags:['Private celebration'],seatingPreference:'Window'})
-  const secrets=['Marcus Chen','Peanut','Garden','G-21','G-22','Shift note','VIP table','role-manager@example.test','guest0@example.test','guest1@example.test','Private celebration','Deposit','checkout.stripe.com']
+  const secrets=['Marcus Chen','Peanut','Garden','G-21','G-22','Shift note','VIP table','role-manager@example.test','guest0@example.test','guest1@example.test','Private celebration','Deposit','checkout.stripe.com','service cover limit','arrivalCovers','concurrentCovers','areaArrivalCaps']
   const sheets=async(name,sheetValues,kitchenValues,absent)=>{
    for(const door of ['/api/preshift?date='+day,'/preshift?date='+day,'/api/preshift.pdf?date='+day,'/api/kitchen?serviceId='+service.id,'/kitchen?serviceId='+service.id]){
     const r=await h.request(door,as(name));assert.equal(r.status,200,door);const text=await r.text()
@@ -40,10 +40,10 @@ test('ROLE-003: hosts act without approval, read-only members never mutate, and 
   }
   const forbiddenForAna=secrets,forbiddenForBen=['Elena Torres','Shellfish','Anniversary','Window','W-12','W-14','Shift note','VIP table','guest0@example.test','Private celebration']
   await sheets('ana',['Elena Torres','Shellfish','Anniversary','Window','Halibut: 12 portions'],['Shellfish','Halibut: 12 portions'],forbiddenForAna.concat(['Marcus','Peanut']))
-  const anaSheet=await h.api('/api/preshift?date='+day,undefined,as('ana'));assert.equal(anaSheet.audience,'Server');assert.deepEqual(anaSheet.services[0].sections.map(s=>s.name),['Window']);assert.deepEqual(anaSheet.services[0].bookings.map(b=>b.name),['Elena Torres']);assert.deepEqual(anaSheet.notes.map(n=>n.kind),['kitchen']);assert.equal(anaSheet.services[0].pacing,undefined)
+  const anaSheet=await h.api('/api/preshift?date='+day,undefined,as('ana'));assert.equal(anaSheet.audience,'Server');assert.deepEqual(anaSheet.services[0].sections.map(s=>s.name),['Window']);assert.deepEqual(anaSheet.services[0].bookings.map(b=>b.name),['Elena Torres']);assert.deepEqual(anaSheet.notes.map(n=>n.kind),['kitchen']);assert.equal(anaSheet.services[0].pacing,undefined);assert.equal(anaSheet.services[0].coverLimit,undefined)
   for(const field of ['email','phone','notes','tags'])assert.ok(!(field in anaSheet.services[0].bookings[0]),field)
   await sheets('ben',['Marcus Chen','Peanut','Garden'],['Peanut'],forbiddenForBen)
-  const kitchen=await h.api('/api/kitchen?serviceId='+service.id,undefined,as('ana'));assert.equal(kitchen.audience,'Server');assert.deepEqual(kitchen.needs.map(n=>[n.tables,n.allergy]),[[['W-12'],'Shellfish']]);assert.deepEqual(kitchen.items,[]);assert.deepEqual(kitchen.intervals,[]);assert.deepEqual(kitchen.notes.map(n=>n.kind),['kitchen'])
+  const kitchen=await h.api('/api/kitchen?serviceId='+service.id,undefined,as('ana'));assert.equal(kitchen.audience,'Server');assert.deepEqual(kitchen.needs.map(n=>[n.tables,n.allergy]),[[['W-12'],'Shellfish']]);assert.deepEqual(kitchen.items,[]);assert.deepEqual(kitchen.intervals,[]);assert.equal(kitchen.policy,undefined);assert.deepEqual(kitchen.notes.map(n=>n.kind),['kitchen'])
   // Every other door is closed to a server, reads and writes alike.
   for(const [path,body] of [['/api/state'],['/api/guests?search=Elena'],['/api/timeline?serviceId='+service.id],['/api/sections?serviceId='+service.id],['/api/pacing?serviceId='+service.id],['/api/reports/reservations'],['/api/hoststand/devices'],['/api/commands',{command:'booking.move',payload:{bookingId:elena.id,tableIds:[tables[1].id],version:await version()}}],['/api/commands',{command:'booking.stage',payload:{bookingId:elena.id,stage:'seated'}}]]){
    const r=await h.request(path,{...as('ana'),...(body?{method:'POST',body}:{})});assert.equal(r.status,403,path);assert.ok(!(await r.text()).includes('Elena'),path)

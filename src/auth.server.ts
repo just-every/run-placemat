@@ -40,6 +40,7 @@ export interface Bindings {
  HOST_PIN_PEPPERS?: string
  HOST_PIN_PEPPER_VERSION?: string
  STRIPE_SECRET_KEY?: string
+ STRIPE_WEBHOOK_SECRET?: string
  SETUP_TOKEN?: string
  MAIL_PROVIDER?: 'development' | 'resend' | 'sendgrid' | 'cloudflare'
  MAIL_FROM?: string

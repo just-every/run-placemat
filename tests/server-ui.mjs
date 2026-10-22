@@ -43,7 +43,7 @@ for(const width of [1440,390]){
   const article=page.getByRole('article',{name:'Pre-shift sheet'});await article.waitFor();assert.equal(await page.title(),'Pre-shift sheet · Placemat')
   await page.getByLabel('Service date').fill(day);await page.getByRole('button',{name:'Open sheet',exact:true}).click()
   const body=await article.innerText();for(const value of ['Server view','Elena Torres','Shellfish','Window'])assert.ok(body.includes(value)||value==='Server view',value)
-  for(const value of ['Marcus Chen','Peanut','Garden','G-21','elena@example.test','Deposit'])assert.ok(!body.includes(value),value)
+  for(const value of ['Marcus Chen','Peanut','Garden','G-21','elena@example.test','Deposit','service cover limit'])assert.ok(!body.includes(value),value)
   await shot('server-sheet')
   const pending=page.waitForEvent('download');await page.getByRole('link',{name:'Download PDF',exact:true}).click();const file=await pending;assert.equal(await file.failure(),null);const pdf=await readFile(await file.path(),'utf8');assert.ok(pdf.includes('Elena Torres')&&pdf.includes('Shellfish'));for(const value of ['Marcus Chen','Peanut','elena@example.test'])assert.ok(!pdf.includes(value),value)
   await page.getByRole('link',{name:'Kitchen view · Friday dinner'}).click();const kitchen=page.getByRole('article',{name:'Kitchen view'});await kitchen.waitFor();const needs=await kitchen.innerText()

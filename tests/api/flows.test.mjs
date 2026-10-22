@@ -1,5 +1,7 @@
 import {test} from 'node:test'
+import {createHmac} from 'node:crypto'
 import assert from 'node:assert/strict'
+import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
 import {readFile} from 'node:fs/promises'
 import {installation,service,publicGuest} from './harness.mjs'
 
@@ -616,4 +618,86 @@ test('Refund authority caps one person across booking charges and counts pending
   const allAudit=(await h.api('/api/audit')).rows;assert.ok(allAudit.some(r=>r.action==='payment.refund'&&r.actor===managerId&&r.changes.some(c=>c.after.status==='succeeded'&&c.before?.status==='pending')));
   const audit=allAudit.filter(r=>r.action==='team.manager-limit');assert.ok(audit.some(r=>r.changes.some(c=>c.kind==='managerRefundLimits'&&c.after[managerId]===10000)));assert.ok(audit.some(r=>r.changes.some(c=>c.kind==='managerRefundLimits'&&c.before?.[managerId]===10000&&c.after[managerId]===11000)));
  }finally{if(restored)await restored.close();await h.close()}
+})
+
+
+test('Signed refund events reconcile current Stripe state once and assign failed refunds to the original requester without retry or mail',async()=>{
+ const signingSecret='synthetic-placemat-900001',apiSecret='synthetic-placemat-900002',chargeId='synthetic-placemat-3',requestId='synthetic-placemat-4',calls=[],refunds=new Map();
+ let bookingId,providerSequence=100,eventSequence=200,providerError=false;
+ const stripeEdge=async request=>{
+  const path=new URL(request.url).pathname;calls.push({method:request.method,path});
+  assert.equal(request.headers.get('authorization'),'Bearer '+apiSecret);
+  if(request.method==='GET'&&path==='/v1/charges/'+chargeId)return Response.json({object:'charge',id:chargeId,currency:'usd',paid:true,captured:true,amount_captured:15000,amount_refunded:0,metadata:{placemat_booking_id:bookingId}});
+  if(request.method==='POST'&&path==='/v1/refunds'){
+   const form=new URLSearchParams(await request.text()),id='synthetic-placemat-'+providerSequence++;
+   const row={object:'refund',id,charge:form.get('charge'),amount:Number(form.get('amount')),currency:'usd',metadata:{placemat_refund_id:form.get('metadata[placemat_refund_id]'),placemat_booking_id:form.get('metadata[placemat_booking_id]')},status:'pending'};
+   refunds.set(id,row);return Response.json(row);
+  }
+  if(request.method==='GET'&&path.startsWith('/v1/refunds/')){
+   if(providerError)return Response.json({error:{message:signingSecret+' '+apiSecret}},{status:503});
+   const row=refunds.get(decodeURIComponent(path.split('/').at(-1)));assert.ok(row);return Response.json(row);
+  }
+  assert.fail('Unexpected Stripe network request');
+ };
+ const h=await installation({bindings:{STRIPE_WEBHOOK_SECRET:signingSecret,STRIPE_SECRET_KEY:apiSecret},stripeEdge});let unconfigured;
+ try{
+  const f=await service(h),booking=(await h.api('/api/public/book',publicGuest(f.service,0),{as:'',status:201})).result;bookingId=booking.id;
+  const manager=await h.signIn('synthetic-placemat-5@example.test','admin'),managerId=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-5@example.test').id;
+  await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:10000});
+  await h.command('payment.charge-sync',{bookingId,chargeId});
+  const reserved=await h.command('payment.refund',{bookingId,chargeId,amountCents:6000,requestId,reason:'Original guest refund request'},{as:manager});assert.equal(reserved.status,'pending');
+  const provider=refunds.get(reserved.processorId),original=structuredClone(provider),messages=h.messages.length;
+  const event=(object=provider,type='refund.updated')=>({object:'event',id:'synthetic-placemat-'+eventSequence++,type,created:Math.floor(Date.now()/1000),data:{object:structuredClone(object)}});
+  const signed=async(value,{timestamp=Math.floor(Date.now()/1000),signature,body=JSON.stringify(value),status=200}={})=>{
+   const digest=createHmac('sha256',signingSecret).update(timestamp+'.'+JSON.stringify(value)).digest('hex');
+   // A real unauthenticated provider HTTP request: no session cookie and no browser Origin.
+   const response=await h.mf.dispatchFetch(h.origin+'/api/payments/refund-events',{method:'POST',body,headers:{'content-type':'application/json','stripe-signature':signature??`t=${timestamp},v0=${'0'.repeat(64)},v1=${'0'.repeat(64)},v1=${digest}`}});
+   const result=await response.json();assert.equal(response.status,status,JSON.stringify(result));assert.ok(!JSON.stringify(result).includes(signingSecret));assert.ok(!JSON.stringify(result).includes(apiSecret));return result;
+  };
+  const read=async()=>{const state=await h.api('/api/state',undefined,{as:manager});return {refund:state.refunds.find(r=>r.id===reserved.id),tasks:state.refundFollowups.filter(r=>r.refundId===reserved.id)}};
+  const invalid=event();let count=calls.length;
+  await signed(invalid,{signature:`t=${Math.floor(Date.now()/1000)},v0=${'0'.repeat(64)}`,status:400});
+  await signed(invalid,{timestamp:Math.floor(Date.now()/1000)-601,status:400});
+  await signed(invalid,{timestamp:Math.floor(Date.now()/1000)+601,status:400});
+  await signed(invalid,{body:JSON.stringify(invalid)+' ',status:400});assert.equal(calls.length,count,'Unauthenticated payloads never reach the paid provider');
+  for(const altered of [{id:'synthetic-placemat-6'},{amount:6001},{currency:'eur'},{charge:'synthetic-placemat-7'},{metadata:{...provider.metadata,placemat_booking_id:'synthetic-placemat-8'}}])await signed(event({...provider,...altered}),{status:409});
+  assert.equal(calls.length,count,'Identity and money mismatches cannot reconcile a different refund');
+  provider.status='requires_action';await signed(event());assert.equal((await read()).refund.status,'pending');assert.deepEqual((await read()).tasks,[]);
+  provider.status='succeeded';await signed(event());assert.equal((await read()).refund.status,'succeeded');
+  provider.status='requires_action';await signed(event(original));assert.equal((await read()).refund.status,'pending','A bank-returned refund may legitimately require action again, confirmed by GET');
+  provider.status='succeeded';await signed(event());
+  providerError=true;await signed(event(original),{status:502});providerError=false;assert.equal((await read()).refund.status,'succeeded');
+  // A refund can fail after it was initially reported as successful. The older snapshot is only a notification.
+  provider.status='failed';const failed=event(original,'refund.failed');
+  await Promise.all([signed(failed),signed(failed)]);
+  let current=await read();assert.equal(current.refund.status,'failed');assert.equal(current.tasks.length,1);
+  assert.deepEqual(Object.fromEntries(['requestId','actorId','ownerId','bookingId','amountCents','currency','state','failureStatus','reason'].map(key=>[key,current.tasks[0][key]])),{requestId,actorId:managerId,ownerId:managerId,bookingId,amountCents:6000,currency:'usd',state:'open',failureStatus:'failed',reason:'Original guest refund request'});
+  count=calls.length;assert.equal((await signed(failed)).duplicate,true);assert.equal(calls.length,count,'A duplicate receipt makes no provider call');
+  await signed(event(original));current=await read();assert.equal(current.refund.status,'failed');assert.equal(current.tasks.length,1,'An out-of-order pending snapshot creates no second follow-up');
+  assert.equal(h.messages.length,messages,'Failure reconciliation sends no mail');
+  await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',acknowledged:true},{as:manager,status:403});
+  await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'succeeded',acknowledged:true},{status:409});assert.equal(h.messages.length,messages,'A stale reviewed outcome sends no notice');
+  const notice=await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',acknowledged:true});
+  assert.equal(notice.state,'accepted');assert.equal(notice.outcome,'failed');assert.equal(notice.amountCents,6000);assert.equal(notice.remainingCents,15000);
+  assert.equal(h.messages.length,messages+1);const message=h.messages.at(-1);assert.match(message.text,/refund of \$60\.00 USD failed/);assert.match(message.text,/Remaining refundable balance on this charge: \$150\.00 USD/);
+  const duplicateNotice=await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',acknowledged:true});assert.equal(duplicateNotice.id,notice.id);assert.equal(h.messages.length,messages+1,'Duplicate owner confirmation never resends');
+
+  provider.status='pending';await signed(event(original),{status:503});assert.equal((await read()).refund.status,'failed','A terminal refund cannot regress to pending');
+  provider.status='canceled';await signed(event());current=await read();assert.equal(current.refund.status,'canceled');assert.equal(current.tasks.length,1);assert.equal(current.tasks[0].failureStatus,'canceled');
+  provider.status='succeeded';await signed(event());current=await read();assert.equal(current.refund.status,'succeeded');assert.equal(current.tasks[0].state,'resolved');assert.ok(current.tasks[0].resolvedAt);
+  const audit=(await h.api('/api/audit')).rows.filter(row=>row.action==='payment.refund'&&row.changes.some(c=>c.id===reserved.id));
+  assert.equal(audit.filter(row=>row.changes.some(c=>c.after.status==='failed')).length,1,'Concurrent duplicate delivery records one failure transition');
+  assert.equal(calls.filter(c=>c.method==='POST'&&c.path==='/v1/refunds').length,1,'Reconciliation never creates or retries a processor refund');assert.equal(h.messages.length,messages+1,'Only the explicit owner notice sends mail; reconciliation never sends one');
+  await h.api('/api/state',undefined,{as:'',status:401});
+  for(const kind of ['refund-webhooks','refund-followups','refund-notices']){const csv=await (await h.request('/api/business-export/'+kind+'.csv')).text();assert.ok(csv.includes(reserved.id));assert.ok(!csv.includes(signingSecret)&&!csv.includes(apiSecret))}
+  const archive=await h.api('/api/backup'),restored=await installation();try{
+   const invalid=structuredClone(archive),item=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_refund_followups');assert.ok(item);item.row.refund_id='synthetic-placemat-foreign';
+   const content=new ContentVerifier(invalid[0]),integrity=new ArchiveVerifier(invalid[0]);for(let i=1;i<invalid.length-1;i++){invalid[i]=await makePart(invalid[i].index,invalid[i].items);integrity.add(invalid[i]);for(const item of invalid[i].items)content.add(item)}invalid.at(-1).contentHash=content.digest();invalid.at(-1).archiveHash=integrity.digest();
+   await restored.api('/api/restore',{archive:invalid,confirm:'RESTORE'},{status:400});assert.equal((await restored.api('/api/state')).refunds.length,0);
+   await restored.api('/api/restore',{archive,confirm:'RESTORE'});const state=await restored.api('/api/state');assert.equal(state.refundFollowups[0].state,'resolved');assert.equal(state.refundNotices[0].outcome,'failed');assert.equal(state.refundNotices[0].amountCents,6000);
+  }finally{await restored.close()}
+  const guestId=(await h.api('/api/state')).state.bookings.find(b=>b.id===bookingId).guestId;
+  await h.command('guest.erase',{guestId,confirm:'ERASE'});assert.equal((await read()).tasks[0].reason,'','Follow-up reads the erased original reason instead of keeping another copy');
+  unconfigured=await installation();const denied=await unconfigured.request('/api/payments/refund-events',{method:'POST',as:'',body:failed});assert.equal(denied.status,503,'Missing webhook secret fails closed');
+ }finally{if(unconfigured)await unconfigured.close();await h.close()}
 })

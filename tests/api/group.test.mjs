@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import {installation,publicGuest,service} from './harness.mjs'
 
 test('ROLE-001: an owner connects two venues, grants a scoped read-only group admin, and revoking or disconnecting stops direct access at once',async()=>{
- let home,tap,empty
- home=await installation({origin:'https://home.example.test',peers:{'tap.example.test':()=>tap}});tap=await installation({origin:'https://tap.example.test',peers:{'home.example.test':()=>home}});empty=await installation()
+ let home,tap,empty,homeAvailable=true
+ home=await installation({origin:'https://home.example.test',peers:{'tap.example.test':()=>tap}});tap=await installation({origin:'https://tap.example.test',peers:{'home.example.test':()=>{if(!homeAvailable)throw Error('Venue network unavailable');return home}}});empty=await installation()
  try{
   for(const [h,name] of [[home,'Home Bistro'],[tap,'Tap Room']]){const {service:s}=await service(h);await h.command('venue.update',{name,timezone:'Australia/Brisbane'});await h.api('/api/public/book',publicGuest(s,0),{as:'',status:201})}
   const manager=await tap.signIn('tap-manager@example.test','admin'),homeManager=await home.signIn('home-manager@example.test','admin')
@@ -42,6 +42,12 @@ test('ROLE-001: an owner connects two venues, grants a scoped read-only group ad
   const linksCsv=await (await home.request('/api/business-export/group-links.csv')).text(),adminsCsv=await (await home.request('/api/business-export/group-admins.csv')).text()
   assert.ok(linksCsv.includes('https://tap.example.test')&&!/g[ilt]_[a-f0-9]{64}/.test(linksCsv)&&adminsCsv.includes(gaId)&&adminsCsv.includes('preshift.read'))
   assert.equal((await home.request('/api/business-export/group-admins.csv',{as:homeManager})).status,403)
+  // The member refuses when the home cannot introspect; existing tokens follow reduced rights immediately.
+  homeAvailable=false
+  try{const offline=await tap.api('/api/group/reports/reservations',undefined,{...bearer(token),status:403});assert.ok(!JSON.stringify(offline).includes('Tap Room')&&!JSON.stringify(offline).includes('guest0@example.test'))}finally{homeAvailable=true}
+  await tap.api('/api/group/reports/reservations',undefined,bearer(token))
+  await home.api('/api/group/admin',{operatorId:gaId,venues:{home:['reports.read'],[linkId]:['reports.read']}})
+  await home.api('/api/group/preshift',undefined,{...bearer(token),status:403});await tap.api('/api/group/reports/reservations',undefined,bearer(token))
   // Revocation stops access at once, at every venue, and an unrelated person never gains it.
   await home.api('/api/group/admin/revoke',{operatorId:gaId})
   for(const door of [tap,home])await door.api('/api/group/reports/reservations',undefined,{...bearer(token),status:403})

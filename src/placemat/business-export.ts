@@ -6,13 +6,13 @@ export const businessCsvVersion=1
 export const businessExportKinds=[
  'venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
- 'payment-requests','refund-charges','refunds','refund-events','group-links','group-admins',
+ 'payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
 export type BusinessPerformanceReport={id:string;service_id:string;published_at:string;published_by:string;floor_version:number;data:string}
 type RecordValue=Record<string,unknown>
-export type BusinessFinancialRecords={paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
+export type BusinessFinancialRecords={paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
 const noFinancialRecords:BusinessFinancialRecords={paymentRequests:[],refundCharges:[],refunds:[],refundEvents:[]}
 type Dataset={fields:readonly string[];rows:readonly unknown[]}
 
@@ -61,7 +61,7 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'guests':return {fields:['id','name','email','phone','notes','erased','mergedInto','contacts_json','profile_json','provenance_json','notesHistory_json','history_json'],rows:people}
   case 'inquiries':return {fields:['id','guestId','ownerId','status','partySize','serviceId','requestedStartAt','requiredArea','requiredAccessTags_json','requests_json','replyDueAt','createdAt','updatedAt','closedAt','bookingId','acceptedOfferVersion','acceptedAt','offer_json','messages_json'],rows:state.inquiries??[]}
   case 'risk-tasks':return {fields:['id','bookingId','kind','decision','actor','at','reason','dueAt','completedAt','completedBy','outcome','snapshot_json'],rows:state.riskDecisions??[]}
-  case 'audit':return {fields:['id','at','actor','deviceId','source','action','subject','reason','before_json','after_json','changes_json','pacing_json'],rows:[...state.audit,...refundHistory(finance)]}
+  case 'audit':return {fields:['id','at','actor','deviceId','source','action','subject','reason','before_json','after_json','changes_json','pacing_json'],rows:[...state.audit,...refundHistory(finance),...(finance.refundNotices??[]).map(n=>({id:'refund-notice-'+n.id,at:n.accepted_at??n.requested_at,actor:n.requested_by,action:'payment.refund-notice',subject:finance.refunds.find(r=>r.id===n.refund_id)?.booking_id,source:'person',changes:[{kind:'refundNotices',id:n.id,before:null,after:{refundId:n.refund_id,outcome:n.outcome,amountCents:n.amount_cents,remainingCents:n.remaining_cents,state:n.state}}]}))]}
   case 'service-events':return {fields:['id','bookingId','at','actor','source','reason','correctsEventId','before_json','after_json'],rows:state.serviceEvents??[]}
   case 'proposals':return {fields:['id','kind','status','preparedBy','preparedAt','approvedBy','approvedAt','reason','plan_json'],rows:state.proposals}
   case 'reminders':return {fields:['id','bookingId','guestId','contactName','contactEmail','contactPhone','message','status','approvedBy','approvedAt'],rows:state.reminders}
@@ -71,6 +71,9 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'refunds':return {fields:['id','requestId','actorId','bookingId','chargeId','amountCents','reason','status','processorId','createdAt','updatedAt'],rows:finance.refunds.map(r=>({id:r.id,requestId:r.request_id,actorId:r.actor_id,bookingId:r.booking_id,chargeId:r.charge_id,amountCents:r.amount_cents,reason:r.reason,status:r.status,processorId:r.processor_id,createdAt:r.created_at,updatedAt:r.updated_at}))}
   case 'group-links':return {fields:['id','name','origin','ceiling_json','joinedAt','revokedAt'],rows:(finance.groupLinks??[]).map(r=>({id:r.id,name:r.name,origin:r.origin,ceiling:JSON.parse(String(r.ceiling)),joinedAt:r.joined_at,revokedAt:r.revoked_at}))}
   case 'group-admins':return {fields:['operatorId','venueId','rights_json','grantedBy','grantedAt'],rows:(finance.groupAdmins??[]).map(r=>({operatorId:r.operator_id,venueId:r.venue_id,rights:JSON.parse(String(r.rights)),grantedBy:r.granted_by,grantedAt:r.granted_at}))}
+  case 'refund-webhooks':return {fields:['id','eventId','refundId','eventType','processorStatus','receivedAt'],rows:(finance.refundWebhooks??[]).map(r=>({id:r.id,eventId:r.event_id,refundId:r.refund_id,eventType:r.event_type,processorStatus:r.processor_status,receivedAt:r.received_at}))}
+  case 'refund-followups':return {fields:['refundId','ownerId','actorId','requestId','state','failureStatus','createdAt','updatedAt','resolvedAt'],rows:(finance.refundFollowups??[]).map(r=>({refundId:r.refund_id,ownerId:r.owner_id,actorId:r.actor_id,requestId:r.request_id,state:r.state,failureStatus:r.failure_status,createdAt:r.created_at,updatedAt:r.updated_at,resolvedAt:r.resolved_at}))}
+  case 'refund-notices':return {fields:['id','refundId','outcome','amountCents','remainingCents','requestedBy','requestedAt','state','providerId','acceptedAt'],rows:(finance.refundNotices??[]).map(r=>({id:r.id,refundId:r.refund_id,outcome:r.outcome,amountCents:r.amount_cents,remainingCents:r.remaining_cents,requestedBy:r.requested_by,requestedAt:r.requested_at,state:r.state,providerId:r.provider_id,acceptedAt:r.accepted_at}))}
   case 'refund-events':return {fields:['id','refundId','actorId','at','before_json','after_json'],rows:finance.refundEvents.map(r=>({id:r.id,refundId:r.refund_id,actorId:r.actor_id,at:r.at,before:r.before_data?JSON.parse(String(r.before_data)):null,after:JSON.parse(String(r.after_data))}))}
  }
 }

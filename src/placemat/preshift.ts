@@ -16,7 +16,7 @@ export function preshift(state:State,guests:Guest[],actor:Actor,date:string,gene
  return {venue:state.venue.name,timezone:state.venue.timezone,date,generatedAt,notes:notesFor(state,date,names).filter(n=>!server||n.kind==='kitchen'),audience:manager?'Manager':server?'Server':'Host',services:state.services.filter(s=>serviceDate(s.startAt,state.venue.timezone)===date&&(!server||ownServers(s).length)).map(s=>{
   const bookings=state.bookings.filter(b=>b.serviceId===s.id&&!['cancelled','no-show'].includes(b.status)&&(!server||ownSections(s).some(section=>section.id===b.sectionId))).sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.id.localeCompare(b.id))
   const tableLabels=(ids:string[])=>ids.map(id=>state.tables.find(t=>t.id===id)?.label??'Unknown table')
-  return {id:s.id,name:s.name,status:s.status,startAt:s.startAt,endAt:s.endAt,coverLimit:s.coverLimit,pacing:server?undefined:pacingReport(state,s.id,generatedAt),sections:ownSections(s).map(section=>({name:section.name,server:s.staffing!.servers.find(server=>server.id===section.serverId)?.name??'Unassigned',tables:tableLabels(section.tableIds),expectedCovers:bookings.filter(b=>b.sectionId===section.id).reduce((n,b)=>n+b.partySize,0)})),bookings:bookings.map(b=>{
+  return {id:s.id,name:s.name,status:s.status,startAt:s.startAt,endAt:s.endAt,...(!server?{coverLimit:s.coverLimit}:{}),pacing:server?undefined:pacingReport(state,s.id,generatedAt),sections:ownSections(s).map(section=>({name:section.name,server:s.staffing!.servers.find(server=>server.id===section.serverId)?.name??'Unassigned',tables:tableLabels(section.tableIds),expectedCovers:bookings.filter(b=>b.sectionId===section.id).reduce((n,b)=>n+b.partySize,0)})),bookings:bookings.map(b=>{
    const guest=guests.find(g=>g.id===b.guestId)
    const shape={name:'Erased guest',startAt:b.startAt,partySize:b.partySize,tables:tableLabels(b.tableIds)}
    if(!guest||guest.erased)return shape
@@ -40,7 +40,7 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
  }
  for(const s of sheet.services){
   lines.push({text:`${s.name} (${s.status})`,bold:true,size:14})
-  add(`Service ${time(s.startAt)} to ${time(s.endAt)}; service cover limit ${s.coverLimit}`)
+  add(`Service ${time(s.startAt)} to ${time(s.endAt)}${s.coverLimit===undefined?'':`; service cover limit ${s.coverLimit}`}`)
   if(s.pacing){
    const p=s.pacing.policy;add(`Pacing: ${p.arrivalCovers} covers / ${p.intervalMinutes} minutes; ${p.arrivalParties} parties / interval; ${p.concurrentCovers} concurrent covers`)
    for(const [area,cap] of Object.entries(p.areaArrivalCaps))add(`${area} arrival cap: ${cap}`)

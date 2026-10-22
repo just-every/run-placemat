@@ -9,7 +9,7 @@ function checkoutUrl(value) {
 }
 
 /** Uses the same command forms as the staff app; money inputs are integer USD cents. */
-export function paymentWork({state,actor,paymentRequests=[],refundCharges=[],refunds=[],people=[]},{esc,form,field,select,time,guest}) {
+export function paymentWork({state,actor,paymentRequests=[],refundCharges=[],refunds=[],refundNotices=[],refundFollowups=[],people=[]},{esc,form,field,select,time,guest}) {
  const fullManager = actor && !actor.agent && !actor.deviceId && ['owner','admin'].includes(actor.role);
  const host = actor && !actor.agent && actor.role === 'host' && (state.hostIds || []).includes(actor.id);
  if (!fullManager && !host) return '';
@@ -56,9 +56,12 @@ export function paymentWork({state,actor,paymentRequests=[],refundCharges=[],ref
    const replay = canRefund && refund.actorId === actor.id && refund.status === 'pending' ? form('payment.refund',
     hidden('bookingId',refund.bookingId)+hidden('chargeId',refund.chargeId)+hidden('requestId',refund.requestId)
     + hidden('amountCents',refund.amountCents)+hidden('reason',refund.reason),'Reconcile pending refund') : '';
-   return `<article class="card" data-refund-id="${esc(refund.id)}"><h4>${esc(bookingName(refund.bookingId))} · ${esc(usd(refund.amountCents))}</h4><p>${esc(refund.status)} · Submitted by ${esc(personName(refund.actorId))}<br>${esc(time(refund.createdAt))}<br>${esc(refund.reason)}</p>${replay}</article>`;
+   const notice=refundNotices.find(n=>n.refundId===refund.id&&n.outcome===refund.status);
+   const notification=owner?(notice?`<p>Email notice: ${esc(notice.state==='accepted'?'Provider accepted; mailbox delivery unconfirmed':notice.state==='sending'?'Attempt in progress or unconfirmed; contact the guest directly':'Acceptance unconfirmed; contact the guest directly')} · ${esc(time(notice.requestedAt))}</p>`:form('payment.refund-notice',hidden('refundId',refund.id)+hidden('outcome',refund.status)+'<label><input type="checkbox" name="acknowledged" required> Email this saved refund outcome to the recorded reservation contact.</label>','Send refund outcome email')):'';
+   return `<article class="card" data-refund-id="${esc(refund.id)}"><h4>${esc(bookingName(refund.bookingId))} · ${esc(usd(refund.amountCents))}</h4><p>${esc(refund.status)} · Submitted by ${esc(personName(refund.actorId))}<br>${esc(time(refund.createdAt))}<br>${esc(refund.reason)}</p>${replay}${notification}</article>`;
   }).join('');
-  financial = `<section aria-label="Refunds"><h3>Refunds</h3><p>${esc(authority)}</p>${chargeSync}<h4>Confirmed booking charges</h4>${charges||'<p>No Stripe charges have been synchronized.</p>'}<h4>Refund history</h4>${history||'<p>No refunds submitted.</p>'}</section>`;
+  const followups=refundFollowups.map(t=>`<article class="card" data-refund-followup="${esc(t.refundId)}"><h4>${esc(bookingName(t.bookingId))} · ${esc(usd(t.amountCents))}</h4><p>${esc(t.state)} · ${esc(t.failureStatus)} refund<br>Follow-up owner: ${esc(personName(t.ownerId))}<br>Created ${esc(time(t.createdAt))}</p><p>${esc(t.reason)}</p><p class="help">Contact the guest and review the processor outcome. This task never submits another refund.</p></article>`).join('');
+  financial = `<section aria-label="Refunds"><h3>Refunds</h3><p>${esc(authority)}</p>${chargeSync}<h4>Confirmed booking charges</h4>${charges||'<p>No Stripe charges have been synchronized.</p>'}<h4>Refund history</h4>${history||'<p>No refunds submitted.</p>'}<h4>Failed refund follow-up</h4>${followups||'<p>No failed refunds need follow-up.</p>'}</section>`;
  }
  return `<section aria-label="Deposits and refunds"><h3>Reservation deposits</h3><p class="help">Amounts are in USD. Payment links open Stripe-hosted checkout; staff copy and share them with the guest. A saved link does not record delivery or payment.</p>${createRequest}${requestRows||'<p>No deposit requests for these reservations.</p>'}${financial}</section>`;
 }

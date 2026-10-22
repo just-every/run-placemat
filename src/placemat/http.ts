@@ -1,3 +1,5 @@
+import {refundWebhook,refundFollowups} from './refund-events'
+import {sendRefundNotice,refundNotices,refundNoticeAudit} from './refund-notices'
 import {readManagement,previewManagement,commitManagement} from './booking-management'
 import {managementPage} from './booking-management-view'
 import {sendManagement} from './booking-management-mail'
@@ -72,6 +74,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
+ if(path==='/api/payments/refund-events')return refundWebhook(env,request)
  if(path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
@@ -246,7 +249,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
   }
   if((path==='/api/audit'||path==='/api/audit.csv')&&request.method==='GET'){
-   const {state}=await load(env.DB);if(!actor!.agent&&['owner','admin'].includes(actor!.role))state.audit.push(...await refundAudit(env.DB));const rows=auditRows(filterMergeAudit(filterNotes(state,actor!),actor!),url.searchParams)
+   const {state}=await load(env.DB);if(!actor!.agent&&['owner','admin'].includes(actor!.role))state.audit.push(...await refundAudit(env.DB),...await refundNoticeAudit(env.DB));const rows=auditRows(filterMergeAudit(filterNotes(state,actor!),actor!),url.searchParams)
    if(path.endsWith('.csv')){
     person(actor!,true)
     return new Response(businessCsv({...state,audit:rows},[],'audit'),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-audit.csv"'}})
@@ -297,7 +300,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
    const handoverPeople=await handoverAssignees(env.DB,state),paymentRequests=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[],refundCharges=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT charge_id AS chargeId,booking_id AS bookingId,amount_cents AS amountCents,imported_refunded_cents AS importedRefundedCents FROM pm_refund_charges').all()).results:[],refunds=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT id,request_id AS requestId,actor_id AS actorId,booking_id AS bookingId,charge_id AS chargeId,amount_cents AS amountCents,reason,status,processor_id AS processorId,created_at AS createdAt FROM pm_refunds').all()).results:[]
    const bookingContacts=!actor!.agent?Object.fromEntries((await env.DB.prepare('SELECT booking_id,data FROM pm_booking_contacts').all<{booking_id:string;data:string}>()).results.map(row=>[row.booking_id,JSON.parse(row.data)])):{}
-   return json({bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({refundFollowups:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await refundFollowups(env.DB):[],refundNotices:actor!.role==='owner'?await refundNotices(env.DB):[],bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){
@@ -312,6 +315,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(p.command==='payment.link')return json({result:await issuePaymentLink(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.sync')return json({result:await syncPaymentRequest(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.charge-sync')return json({result:await synchronizeRefundCharge(env.DB,actor!,p.payload??{},env.STRIPE_SECRET_KEY)})
+   if(p.command==='payment.refund-notice')return json({result:await sendRefundNotice(env,actor!,p.payload??{})})
    if(p.command==='payment.refund')return json({result:await executeRefund(env.DB,actor!,p.payload??{},env.STRIPE_SECRET_KEY)})
    if(p.command==='guest.erase'){
     person(actor!,true);if(p.payload?.confirm!=='ERASE')fail(400,'Confirm guest erasure with ERASE.')
