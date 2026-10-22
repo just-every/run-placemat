@@ -1,3 +1,4 @@
+import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {installation} from './harness.mjs'
@@ -116,6 +117,10 @@ test('Fee archives preserve auditable decisions without payment authority, and g
   edge.loseNextConfirmation();await feeApi(h,'fees',decision,{status:502})
   const archive=await h.api('/api/backup'),serialized=JSON.stringify(archive)
   assert.ok(!serialized.includes(payload.setupIntentId));assert.ok(!serialized.includes('synthetic-placemat-customer-'));assert.ok(!serialized.includes('synthetic-placemat-method-'))
+  const invalid=structuredClone(archive),policyRow=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_fee_policies');assert.ok(policyRow);const corrupt=JSON.parse(policyRow.row.data);corrupt.cancellation.amountCents=-1;policyRow.row.data=JSON.stringify(corrupt);
+  const content=new ContentVerifier(invalid[0]),integrity=new ArchiveVerifier(invalid[0]);for(let i=1;i<invalid.length-1;i++){invalid[i]=await makePart(invalid[i].index,invalid[i].items);integrity.add(invalid[i]);for(const item of invalid[i].items)content.add(item)}invalid.at(-1).contentHash=content.digest();invalid.at(-1).archiveHash=integrity.digest();
+  await copy.api('/api/restore',{archive:invalid,confirm:'RESTORE'},{status:400});assert.equal((await copy.api('/api/state')).feeWork.policies.length,0);
+  for(const kind of ['fee-policies','fee-consents','fee-assessments','fee-events','fee-disputes']){const csv=await (await h.request('/api/business-export/'+kind+'.csv')).text();assert.ok(!csv.includes(payload.setupIntentId)&&!csv.includes('synthetic-placemat-method-'));}
   await copy.api('/api/restore',{archive,confirm:'RESTORE'})
   assert.equal((await copy.api('/api/state')).feeWork.consents[0].reviewText,policy.reviewText)
   await feeApi(copy,'fees',decision,{status:409});assert.equal(edge.intents.size,1)
