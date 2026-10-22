@@ -7,7 +7,7 @@ const secret=process.env.STRIPE_SECRET_KEY;assert.ok(secret?.startsWith('sk_test
 const run='sx-placemat-c39-fees-'+randomUUID(),ownedCharges=new Set();let customer,h
 const stripe=async(path,body)=>{
  const response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,...body?{'content-type':'application/x-www-form-urlencoded'}:{}},body:body?.toString(),redirect:'manual',signal:AbortSignal.timeout(20000)});
- assert.ok(response.ok,`Stripe test API status ${response.status}`);const result=await response.json();assert.notEqual(result.livemode,true);return result;
+ const result=await response.json();if(!response.ok)console.error('Stripe test refusal',{status:response.status,type:/^[a-z_]{1,80}$/.test(result.error?.type)?result.error.type:'unknown',code:/^[a-z_]{1,80}$/.test(result.error?.code)?result.error.code:'unknown',parameter:/^[a-z_\[\]]{1,80}$/.test(result.error?.param)?result.error.param:'unknown'});assert.ok(response.ok,`Stripe test API status ${response.status}`);assert.notEqual(result.livemode,true);return result;
 }
 try{
  h=await installation({bindings:{STRIPE_SECRET_KEY:secret},stripeEdge:async request=>{
