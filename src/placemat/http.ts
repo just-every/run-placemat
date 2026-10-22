@@ -147,7 +147,12 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   const actor=await actorFor(request,env);responseActor=actor
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
-  if(!['owner','admin','member','host','lead','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(!['owner','admin','member','host','lead','server','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  // A signed-in server reaches only their own pre-shift sheet and kitchen view; every other door is refused by default.
+  if(actor!.role==='server'&&!actor!.agent){
+   if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/preshift'}})
+   if(request.method!=='GET'||!['/preshift','/api/preshift','/api/preshift.pdf','/kitchen','/api/kitchen','/api/floor-version'].includes(path))fail(403,'Servers open their own section sheet and kitchen view.')
+  }
   if(path.startsWith('/api/reports/'))await authorizeReports(env.DB,actor!,request,url)
   if(path==='/kitchen'||path==='/api/kitchen'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)

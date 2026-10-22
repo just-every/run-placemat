@@ -1,16 +1,23 @@
 import {fail,number,text,type Actor,type State} from './model'
 import {jsonBody} from './access'
 
-/** New delegation is owner-issued; a lead receives seating exceptions only. */
+/** New delegation is owner-issued; a lead receives seating exceptions only and a server receives own-section views only. */
 export async function executeDelegation(db:D1Database,s:State,actor:Actor,command:string,p:any){
  if(actor.agent||actor.role!=='owner')fail(403,'Only the owner can delegate authority.')
  const operatorId=text(p.operatorId,'Team member',100),operator=await db.prepare('SELECT role,status FROM oa_operators WHERE id=?').bind(operatorId).first<{role:string;status:string}>()
  if(!operator||operator.status!=='active')fail(409,'Choose an active team member.')
  if(command==='team.lead'){
   if(operator!.role!=='member'||typeof p.enabled!=='boolean')fail(400,'Choose an active native member and whether lead access is enabled.')
-  if(p.enabled&&s.hostIds?.includes(operatorId))fail(409,'Remove the host grant before choosing the separate shift-lead grant.')
+  if(p.enabled&&(s.hostIds?.includes(operatorId)||s.serverIds?.includes(operatorId)))fail(409,'Remove the host or server grant before choosing the separate shift-lead grant.')
   s.leadIds=[...new Set([...(s.leadIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
   if(!p.enabled&&s.reportScopes)delete s.reportScopes[operatorId]
+  return {id:operatorId,enabled:p.enabled}
+ }
+ if(command==='team.server'){
+  if(operator!.role!=='member'||typeof p.enabled!=='boolean')fail(400,'Choose an active native member and whether server access is enabled.')
+  if(p.enabled&&(s.hostIds?.includes(operatorId)||s.leadIds?.includes(operatorId)))fail(409,'Remove the host or shift-lead grant before choosing the separate server grant.')
+  s.serverIds=[...new Set([...(s.serverIds??[]).filter(id=>id!==operatorId),...(p.enabled?[operatorId]:[])])]
+  if(!p.enabled)for(const service of s.services)if(service.staffing?.servers.some(server=>server.operatorId===operatorId)){for(const server of service.staffing.servers)if(server.operatorId===operatorId)delete server.operatorId;service.version++}
   return {id:operatorId,enabled:p.enabled}
  }
  if(command==='team.manager-limit'){

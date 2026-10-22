@@ -7,7 +7,7 @@ function validatePacing(s){
   const p=service.pacing;if(p===undefined)continue
   if(!p||!Number.isInteger(p.intervalMinutes)||p.intervalMinutes<5||p.intervalMinutes>120||['arrivalCovers','arrivalParties','concurrentCovers'].some(k=>!Number.isInteger(p[k])||p[k]<1||p[k]>500)||!p.areaArrivalCaps||typeof p.areaArrivalCaps!=='object'||Array.isArray(p.areaArrivalCaps)||Object.entries(p.areaArrivalCaps).some(([area,n])=>!area.trim()||!Number.isInteger(n)||n<1||n>500))throw Error('Invalid service pacing')
  }
- for(const key of ['hostIds','pacingHostIds','leadIds'])if(s[key]!==undefined&&(!Array.isArray(s[key])||s[key].some(id=>typeof id!=='string')||new Set(s[key]).size!==s[key].length))throw Error('Invalid host grant')
+ for(const key of ['hostIds','pacingHostIds','leadIds','serverIds'])if(s[key]!==undefined&&(!Array.isArray(s[key])||s[key].some(id=>typeof id!=='string')||new Set(s[key]).size!==s[key].length))throw Error('Invalid host grant')
  for(const b of s.bookings){const p=b.pacingOverride;if(p===undefined)continue
   if(!p||typeof p.actor!=='string'||!Number.isFinite(Date.parse(p.at))||typeof p.reason!=='string'||!Array.isArray(p.violations)||!p.violations.length||p.violations.some(v=>!v||typeof v.kind!=='string'||typeof v.label!=='string'||['limit','current','projected','excess'].some(k=>!Number.isInteger(v[k])||v[k]<0)||v.projected-v.limit!==v.excess||v.excess<1))throw Error('Invalid pacing override')
  }
@@ -17,8 +17,10 @@ function validateStaffing(s,tables){
  for(const service of s.services){
   const policy=service.staffing;if(policy===undefined)continue
   if(!policy||!Array.isArray(policy.servers)||!Array.isArray(policy.sections)||!policy.kitchenAreaCaps||typeof policy.kitchenAreaCaps!=='object'||Array.isArray(policy.kitchenAreaCaps))throw Error('Invalid shift staffing')
-  const servers=new Set(),sections=new Set(),assigned=new Set()
+  const servers=new Set(),sections=new Set(),assigned=new Set(),linked=new Set()
   for(const server of policy.servers){
+   if(server?.operatorId!==undefined&&(typeof server.operatorId!=='string'||!s.serverIds?.includes(server.operatorId)||linked.has(server.operatorId)))throw Error('Invalid server link')
+   if(server?.operatorId!==undefined)linked.add(server.operatorId)
    if(!server||typeof server.id!=='string'||!server.id||servers.has(server.id)||typeof server.name!=='string'||!server.name.trim()||typeof server.onBreak!=='boolean'||!Number.isInteger(server.coverCap)||server.coverCap<1||server.coverCap>500)throw Error('Invalid shift server')
    servers.add(server.id)
   }
@@ -55,7 +57,7 @@ export default {
   validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
   validateOnboarding(s)
-  if(s.leadIds?.some(id=>s.hostIds?.includes(id)))throw Error('Conflicting staff grants')
+  if(s.leadIds?.some(id=>s.hostIds?.includes(id))||s.serverIds?.some(id=>s.hostIds?.includes(id)||s.leadIds?.includes(id)))throw Error('Conflicting staff grants')
   if(s.reportScopes!==undefined&&(!s.reportScopes||typeof s.reportScopes!=='object'||Array.isArray(s.reportScopes)||Object.entries(s.reportScopes).some(([id,ids])=>!id||!Array.isArray(ids)||new Set(ids).size!==ids.length||ids.some(id=>!s.services.some(service=>service.id===id)))))throw Error('Invalid report scope')
   if(s.managerRefundLimits!==undefined&&(!s.managerRefundLimits||typeof s.managerRefundLimits!=='object'||Array.isArray(s.managerRefundLimits)||Object.entries(s.managerRefundLimits).some(([id,cents])=>!id||!Number.isInteger(cents)||cents<0||cents>100000000)))throw Error('Invalid refund authority limit')
   const inventoryIds=new Set()

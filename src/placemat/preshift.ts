@@ -7,20 +7,23 @@ import type {PaymentAlert} from './payment-links'
 export const serviceDate=(instant:string,timezone:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(instant))
 /** This is the sole projection used by JSON, HTML, print and PDF. No raw state or guest is returned. */
 export function preshift(state:State,guests:Guest[],actor:Actor,date:string,generatedAt=new Date().toISOString(),names:Record<string,string>={},paymentRequests:PaymentAlert[]=[]){
- if(actor.agent||!['owner','admin','host'].includes(actor.role))fail(403,'The pre-shift sheet is for managers and owner-granted hosts.')
+ if(actor.agent||!['owner','admin','host','server'].includes(actor.role))fail(403,'The pre-shift sheet is for managers, owner-granted hosts and signed-in servers.')
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T12:00:00Z'))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)fail(400,'Choose a valid service date.')
- const manager=actor.role==='owner'||actor.role==='admin'
- return {venue:state.venue.name,timezone:state.venue.timezone,date,generatedAt,notes:notesFor(state,date,names),audience:manager?'Manager':'Host',services:state.services.filter(s=>serviceDate(s.startAt,state.venue.timezone)===date).map(s=>{
-  const bookings=state.bookings.filter(b=>b.serviceId===s.id&&!['cancelled','no-show'].includes(b.status)).sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.id.localeCompare(b.id))
+ const manager=actor.role==='owner'||actor.role==='admin',server=actor.role==='server'
+ // A server sees only the shifts they are linked to, their own sections and kitchen notes: no shift notes, contact, guest notes, tags or payments.
+ const ownServers=(s:State['services'][number])=>(s.staffing?.servers??[]).filter(v=>server&&v.operatorId===actor.id).map(v=>v.id)
+ const ownSections=(s:State['services'][number])=>(s.staffing?.sections??[]).filter(v=>!server||ownServers(s).includes(v.serverId))
+ return {venue:state.venue.name,timezone:state.venue.timezone,date,generatedAt,notes:notesFor(state,date,names).filter(n=>!server||n.kind==='kitchen'),audience:manager?'Manager':server?'Server':'Host',services:state.services.filter(s=>serviceDate(s.startAt,state.venue.timezone)===date&&(!server||ownServers(s).length)).map(s=>{
+  const bookings=state.bookings.filter(b=>b.serviceId===s.id&&!['cancelled','no-show'].includes(b.status)&&(!server||ownSections(s).some(section=>section.id===b.sectionId))).sort((a,b)=>a.startAt.localeCompare(b.startAt)||a.id.localeCompare(b.id))
   const tableLabels=(ids:string[])=>ids.map(id=>state.tables.find(t=>t.id===id)?.label??'Unknown table')
-  return {name:s.name,status:s.status,startAt:s.startAt,endAt:s.endAt,coverLimit:s.coverLimit,pacing:pacingReport(state,s.id,generatedAt),sections:(s.staffing?.sections??[]).map(section=>({name:section.name,server:s.staffing!.servers.find(server=>server.id===section.serverId)?.name??'Unassigned',tables:tableLabels(section.tableIds),expectedCovers:bookings.filter(b=>b.sectionId===section.id).reduce((n,b)=>n+b.partySize,0)})),bookings:bookings.map(b=>{
+  return {id:s.id,name:s.name,status:s.status,startAt:s.startAt,endAt:s.endAt,coverLimit:s.coverLimit,pacing:server?undefined:pacingReport(state,s.id,generatedAt),sections:ownSections(s).map(section=>({name:section.name,server:s.staffing!.servers.find(server=>server.id===section.serverId)?.name??'Unassigned',tables:tableLabels(section.tableIds),expectedCovers:bookings.filter(b=>b.sectionId===section.id).reduce((n,b)=>n+b.partySize,0)})),bookings:bookings.map(b=>{
    const guest=guests.find(g=>g.id===b.guestId)
    const shape={name:'Erased guest',startAt:b.startAt,partySize:b.partySize,tables:tableLabels(b.tableIds)}
    if(!guest||guest.erased)return shape
    const visits=(guest.history??[]).filter(v=>['completed','seated'].includes(v.status)).length+state.bookings.filter(v=>v.guestId===guest.id&&['completed','seated'].includes(v.status)).length
    // Only the server's verified paid state establishes protection. Keep payment
    // links, money and follow-up identities out of this shared host projection.
-   const payments=paymentRequests.filter(p=>p.bookingId===b.id).map(p=>({state:p.state,dueAt:p.dueAt,protection:p.state==='paid'?'protected' as const:'pending' as const}))
+   const payments=server?[]:paymentRequests.filter(p=>p.bookingId===b.id).map(p=>({state:p.state,dueAt:p.dueAt,protection:p.state==='paid'?'protected' as const:'pending' as const}))
    return {...shape,name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
   })}
  })}
@@ -38,10 +41,12 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
  for(const s of sheet.services){
   lines.push({text:`${s.name} (${s.status})`,bold:true,size:14})
   add(`Service ${time(s.startAt)} to ${time(s.endAt)}; service cover limit ${s.coverLimit}`)
-  const p=s.pacing.policy;add(`Pacing: ${p.arrivalCovers} covers / ${p.intervalMinutes} minutes; ${p.arrivalParties} parties / interval; ${p.concurrentCovers} concurrent covers`)
-  for(const [area,cap] of Object.entries(p.areaArrivalCaps))add(`${area} arrival cap: ${cap}`)
-  for(const [area,cap] of Object.entries(s.pacing.kitchenConcurrentCaps))add(`${area} kitchen concurrent cap: ${cap}`)
-  for(const i of s.pacing.intervals)add(`${time(i.startAt)}: ${i.covers} expected covers / ${i.limit}, ${i.parties} parties / ${i.partyLimit}`)
+  if(s.pacing){
+   const p=s.pacing.policy;add(`Pacing: ${p.arrivalCovers} covers / ${p.intervalMinutes} minutes; ${p.arrivalParties} parties / interval; ${p.concurrentCovers} concurrent covers`)
+   for(const [area,cap] of Object.entries(p.areaArrivalCaps))add(`${area} arrival cap: ${cap}`)
+   for(const [area,cap] of Object.entries(s.pacing.kitchenConcurrentCaps))add(`${area} kitchen concurrent cap: ${cap}`)
+   for(const i of s.pacing.intervals)add(`${time(i.startAt)}: ${i.covers} expected covers / ${i.limit}, ${i.parties} parties / ${i.partyLimit}`)
+  }
   for(const section of s.sections)add(`Section ${section.name} | ${section.server} | Tables ${section.tables.join(', ')} | ${section.expectedCovers} expected covers`)
   for(const b of s.bookings){
    lines.push({text:`${b.name} | ${time(b.startAt)} | ${b.partySize} guests | Tables ${b.tables.join(', ')}`,bold:true})

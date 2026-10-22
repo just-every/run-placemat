@@ -15,8 +15,11 @@ export function executeStaffing(s:State,actor:Actor,command:string,p:any,now:str
   const name=text(p.name,'Server name',80)
   if(staffing.servers.some(v=>v.id!==current?.id&&v.name.toLowerCase()===name.toLowerCase()))fail(409,'Server names must be distinct within this shift.')
   if(!current&&staffing.servers.length>=40)fail(400,'Use up to 40 servers per shift.')
-  result={id:current?.id??id(),name,coverCap:number(p.coverCap,'Concurrent server covers',1,500),onBreak:current?.onBreak??false}
-  if(current)Object.assign(current,result);else staffing.servers.push(result)
+  const operatorId=p.operatorId===undefined?current?.operatorId:p.operatorId===''||p.operatorId===null?undefined:text(p.operatorId,'Signed-in person',100)
+  if(operatorId!==undefined&&!s.serverIds?.includes(operatorId))fail(409,'Choose a person the owner has granted server access.')
+  if(operatorId!==undefined&&staffing.servers.some(v=>v.id!==current?.id&&v.operatorId===operatorId))fail(409,'A person can be linked to only one server in this shift.')
+  result={id:current?.id??id(),name,coverCap:number(p.coverCap,'Concurrent server covers',1,500),onBreak:current?.onBreak??false,...(operatorId!==undefined?{operatorId}:{})}
+  if(current){delete current.operatorId;Object.assign(current,result)}else staffing.servers.push(result)
  }else if(command==='server.break'){
   const server=staffing.servers.find(v=>v.id===p.serverId)??fail(404,'Shift server not found.')
   if(typeof p.onBreak!=='boolean')fail(400,'Choose whether this server is on break.')

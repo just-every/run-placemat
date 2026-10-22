@@ -7,3 +7,8 @@ export function leadGrant(person,state,{esc,form}){
  const enabled=!(state.leadIds||[]).includes(person.id);
  return form('team.lead',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${enabled}">`,enabled?'Grant seating lead':'Remove seating lead',false,'inline');
 }
+export function serverGrant(person,state,{esc,form}){
+ if(person.role!=='member'||person.status!=='active'||!(state.serverIds||[]).includes(person.id)&&((state.hostIds||[]).includes(person.id)||(state.leadIds||[]).includes(person.id)))return '';
+ const enabled=!(state.serverIds||[]).includes(person.id);
+ return form('team.server',`<input type="hidden" name="operatorId" value="${esc(person.id)}"><input type="hidden" name="enabled" value="${enabled}">`,enabled?'Grant server access':'Remove server access',false,'inline');
+}
