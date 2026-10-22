@@ -93,6 +93,7 @@ test('Recorded cancellation and no-show decisions capture each violation once, w
  try{
   const {service}=await feeService(h,{startAt:new Date(Date.now()+12000).toISOString()}),policy=await feeApi(h,'fee-policy',feePolicyInput()),bookings=[]
   for(let i=0;i<3;i++){const b=await feeBooking(h,service,i);await consentBooking(h,edge,b,policy);bookings.push(b)}
+  const unconsented=await feeBooking(h,service,4);bookings.push(unconsented);await h.command('booking.stage',{bookingId:unconsented.id,stage:'cancelled',reason:'Guest canceled without an agreed fee policy.'});const noAgreementPreview=await feeApi(h,'fee-preview',{bookingId:unconsented.id,kind:'late_cancel'});assert.equal(noAgreementPreview.chargeAllowed,false);const noAgreementWaiver=await feeApi(h,'fees',feeDecision(noAgreementPreview,'waive'));assert.equal(noAgreementWaiver.amountCents,0,'Without an agreed obligation, a waiver must not invent revenue forgone');
   await h.command('booking.stage',{bookingId:bookings[0].id,stage:'cancelled',reason:'Guest cancelled after the agreed cutoff.'})
   const preview=await feeApi(h,'fee-preview',{bookingId:bookings[0].id,kind:'late_cancel'});assert.equal(preview.chargeAllowed,true)
   const decision=feeDecision(preview)
