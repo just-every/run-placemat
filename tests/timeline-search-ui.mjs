@@ -16,7 +16,7 @@ for(const width of [1440,390]){
   const deposit=await h.command('payment.request',{bookingId:f.elena.id,amountCents:10000,dueAt:new Date(Date.now()+7200000).toISOString(),followupOwnerId:host.id,reason:'Deposit callback for arriving guest'});
   await context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message))
-  await page.goto(transport.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+  await page.goto(transport.origin+'/app');await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor()
   const timeline=page.locator('#floor-timeline'),rows=timeline.locator('.timeline-table tbody tr')
   await timeline.getByRole('button',{name:'Apply timeline filters',exact:true}).waitFor()
   const apply=async({search='',source='',status='',serviceId=f.first.id}={},expected=[])=>{
@@ -61,7 +61,7 @@ for(const width of [1440,390]){
   // Existing host search feeds a manager-owned request and a real next-host callback handover.
   const nextCookie=await h.signIn('synthetic-placemat-next-ui@example.test','member','Blair Host'),managerCookie=await h.signIn('synthetic-placemat-manager-ui@example.test','admin','Morgan Manager'),nextId=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-next-ui@example.test').id;
   await h.command('team.host',{operatorId:nextId,enabled:true});
-  const signIn=async token=>{await context.clearCookies();await context.addCookies(token.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}));await page.reload();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();};
+  const signIn=async token=>{await context.clearCookies();await context.addCookies(token.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}));await page.reload();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();};
   const follow=page.getByRole('region',{name:'Owned guest follow-up'}),followShot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await follow.screenshot({path:resolve(shots,`FLOOR-007-${name}-${width}.png`)})};
   await signIn(cookie);
   const create=async(kind,text,ownerId)=>{
