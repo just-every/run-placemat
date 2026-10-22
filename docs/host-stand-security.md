@@ -21,8 +21,8 @@ it; background status reads never extend that time.
 
 The owner renews a claimed, unrevoked device for one to thirty days from the
 renewal. A warning appears when seven days remain. A renewal retains the device
-identity; the stand refreshes its cookie to the renewed expiry on its next
-floor read. Revoking it immediately invalidates its authority.
+identity; the stand refreshes its device cookie on floor reads. Only the owner renewal
+extends server authorization; reads never extend the lease. Revoking it immediately invalidates its authority.
 
 ## PIN pepper configuration and rotation
 

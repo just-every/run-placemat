@@ -98,7 +98,7 @@ export async function sharedDeviceResponse(request:Request,env:Bindings):Promise
  const actor=await currentActor(db,row,now)
  if(path==='/api/hoststand/status'&&request.method==='GET')return json({registered:true,locked:!actor,roster:await roster(db),renewalWarning:row.expires_at-now<=7*86400000,...actor?{name:actor.name,lockAt:row.last_action_at+DEVICE_IDLE_MS}:{}})
  if(!actor)return fail(423,'Host stand locked. Unlock with your personal PIN.')
- if(path==='/api/hoststand/floor'&&request.method==='GET'){const response=json({...await hostFloor(db,actor),roster:await roster(db),device:{id:row.id,label:row.label},generation:row.generation,lockAt:row.last_action_at+DEVICE_IDLE_MS,renewalWarning:row.expires_at-now<=7*86400000});response.headers.append('set-cookie',cookie(deviceToken(request),Math.max(1,Math.ceil((row.expires_at-now)/1000))));return response}
+ if(path==='/api/hoststand/floor'&&request.method==='GET'){const response=json({...await hostFloor(db,actor),roster:await roster(db),device:{id:row.id,label:row.label},generation:row.generation,lockAt:row.last_action_at+DEVICE_IDLE_MS,renewalWarning:row.expires_at-now<=7*86400000});response.headers.append('set-cookie',cookie(deviceToken(request)));return response}
  if(path==='/api/hoststand/pacing-preview'&&request.method==='POST'){
   const p=await jsonBody(request);if(p.generation!==row.generation)fail(409,'Staff changed. Refresh before reviewing.')
   const {state,version}=await load(db),at=new Date(now).toISOString(),preview=seatingPreview(state,actor,p.command,p.payload,at)
