@@ -2,13 +2,17 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {installation} from './harness.mjs'
 import {preshiftFixture} from './preshift-fixture.mjs'
+import {paymentEdge} from './payment-fixture.mjs'
 
 test('FLOOR-012: live service-date sheet shares server-filtered manager/host HTML and PDF, sections, pacing, flags and erasure',async()=>{
- const h=await installation();try{
+ const payments=paymentEdge(),h=await installation({stripeEdge:payments.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}});try{
   const f=await preshiftFixture(h),url='/api/preshift?date='+f.date
   const manager=await h.signIn('sheet-manager@example.test','admin'),member=await h.signIn('sheet-reader@example.test'),host=await h.signIn('sheet-host@example.test')
   const hostId=(await h.api('/auth/operators')).find(p=>p.email==='sheet-host@example.test').id
   await h.command('team.host',{operatorId:hostId,enabled:true})
+  const dueAt=new Date(Math.floor((Date.now()+2*3600000)/1000)*1000).toISOString()
+  const payment=await h.command('payment.request',{bookingId:f.booking.id,amountCents:5000,dueAt,followupOwnerId:hostId,reason:'synthetic-placemat-1'})
+  const deadline=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',dateStyle:'medium',timeStyle:'short'}).format(new Date(dueAt))
   const key=(await h.api('/api/agent-keys',{name:'Sheet preparation'})).result.key
   for(const door of [url,'/preshift?date='+f.date,'/api/preshift.pdf?date='+f.date]){
    await h.request(door,{as:''}).then(r=>assert.equal(r.status,401))
@@ -19,13 +23,23 @@ test('FLOOR-012: live service-date sheet shares server-filtered manager/host HTM
   assert.equal(b.vipLevel,'regular');assert.equal(b.visitCount,1);assert.equal(b.occasion,'Anniversary');assert.equal(b.requests.allergy,'Shellfish');assert.equal(b.requests.dietary,'No dairy');assert.deepEqual(b.requests.access,['Wheelchair']);assert.deepEqual(b.requiredAccessTags,['step-free']);assert.equal(b.seatingPreference,'Window');assert.equal(b.notes,'Private anniversary planning');assert.deepEqual(b.tags,['Private celebration']);assert.equal(b.email,'elena@example.test');assert.equal(b.phone,'+1 415 555 0191');assert.equal(b.section,'Window');assert.equal(b.server,'Ana')
   assert.equal(s.sections[0].expectedCovers,10);assert.deepEqual(s.sections[0].tables,['12','14','16']);assert.equal(s.pacing.policy.arrivalCovers,16);assert.equal(s.pacing.intervals[0].covers,10);assert.equal(s.coverLimit,32)
   const hostSheet=await h.api(url,undefined,{as:host});assert.equal(hostSheet.audience,'Host')
+  for(const current of [sheet,hostSheet])assert.deepEqual(current.services[0].bookings.find(b=>b.name==='Elena Torres').paymentRequests,[{state:'unpaid',dueAt,protection:'pending'}])
   for(const privateValue of ['Private anniversary planning','Private celebration','elena@example.test','+1 415 555 0191']){
    for(const door of [url,'/preshift?date='+f.date,'/api/preshift.pdf?date='+f.date])assert.ok(!(await (await h.request(door,{as:host})).text()).includes(privateValue),privateValue)
   }
   for(const door of ['/preshift?date='+f.date,'/api/preshift.pdf?date='+f.date]){
    const r=await h.request(door,{as:manager});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');const text=await r.text()
-   for(const value of ['Elena Torres','Anniversary','Shellfish','Window','Ana','Private anniversary planning','unverified'])assert.ok(text.includes(value),value)
+   for(const value of ['Elena Torres','Anniversary','Shellfish','Window','Ana','Private anniversary planning','unverified','Deposit: unpaid','Protection pending','Deposit deadline: '+deadline])assert.ok(text.includes(value),value)
    if(door.includes('.pdf')){assert.equal(r.headers.get('content-type'),'application/pdf');assert.match(text,/^%PDF-1.4/)}
+  }
+  // An unsettled link, or a paid provider value not yet retrieved, is not protection.
+  await h.command('payment.link',{requestId:payment.requestId},{as:host})
+  const session=[...payments.sessions.values()][0];session.payment_status='paid';session.status='complete'
+  assert.equal((await h.api(url,undefined,{as:host})).services[0].bookings.find(b=>b.name==='Elena Torres').paymentRequests[0].protection,'pending')
+  await h.command('payment.sync',{requestId:payment.requestId},{as:host})
+  for(const as of [manager,host]){
+   const current=await h.api(url,undefined,{as});assert.deepEqual(current.services[0].bookings.find(b=>b.name==='Elena Torres').paymentRequests,[{state:'paid',dueAt,protection:'protected'}])
+   for(const door of ['/preshift?date='+f.date,'/api/preshift.pdf?date='+f.date]){const text=await (await h.request(door,{as})).text();assert.ok(text.includes('Deposit: paid'));assert.ok(text.includes('Protected'));assert.ok(text.includes('Deposit deadline: '+deadline));assert.ok(!text.includes('checkout.stripe.com'))}
   }
   await h.command('guest.profile',{guestId:f.guest.id,vipLevel:'vip',seatingPreference:'Quiet corner'})
   await h.command('booking.status',{bookingId:f.large.id,status:'cancelled'})

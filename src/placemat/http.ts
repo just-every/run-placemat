@@ -141,7 +141,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(['/preshift','/api/preshift','/api/preshift.pdf'].includes(path)){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB),date=url.searchParams.get('date')??serviceDate(new Date().toISOString(),state.venue.timezone)
-   const sheet=preshift(state,await guests(env.DB),actor!,date,undefined,await actorNames(env.DB,state))
+   const sheet=preshift(state,await guests(env.DB),actor!,date,undefined,await actorNames(env.DB,state),await paymentAlerts(env.DB))
    if(path==='/preshift')return preshiftPage(sheet)
    if(path.endsWith('.pdf'))return new Response(preshiftPdf(sheet),{headers:{...headers,'content-type':'application/pdf','content-disposition':`attachment; filename="placemat-preshift-${date}.pdf"`}})
    return json(sheet)

@@ -598,7 +598,7 @@ test('Host stand live grants permit phone booking, walk-in and queue intake, whi
 })
 
 test('Refund authority caps one person across booking charges and counts pending plus succeeded refunds before any processor call',async()=>{
- const {paymentEdge}=await import('./payment-fixture.mjs'),edge=paymentEdge(),h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:edge.edge});try{
+ const {paymentEdge}=await import('./payment-fixture.mjs'),edge=paymentEdge(),h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:edge.edge});let restored;try{
   const f=await service(h,{tables:3,seats:4,covers:80}),booking=(await h.api('/api/public/book',publicGuest(f.service,0),{as:'',status:201})).result;
   const manager=await h.signIn('synthetic-placemat-refunder@example.test','admin'),noLimit=await h.signIn('synthetic-placemat-no-limit@example.test','admin'),people=await h.api('/auth/operators'),managerId=people.find(p=>p.email==='synthetic-placemat-refunder@example.test').id;
   const chargeId=edge.charge(booking.id),otherCharge=edge.charge(booking.id);await h.command('payment.charge-sync',{bookingId:booking.id,chargeId});await h.command('payment.charge-sync',{bookingId:booking.id,chargeId:otherCharge});
@@ -607,9 +607,11 @@ test('Refund authority caps one person across booking charges and counts pending
   assert.equal((await refund(6000,'first')).status,'succeeded');assert.equal((await refund(4000,'second')).status,'succeeded');count=edge.calls.length;await refund(1,'excess',manager,chargeId,409);await refund(1,'split',manager,otherCharge,409);assert.equal(edge.calls.length,count);
   await refund(6000,'first');assert.equal(edge.calls.length,count,'Successful replay makes no processor call');await refund(5000,'owner',h.cookie);assert.equal(edge.calls.length,count+1,'Owner is uncapped within the charge balance');
   await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:11000});edge.setRefundStatus('pending');assert.equal((await refund(1000,'pending',manager,otherCharge)).status,'pending');count=edge.calls.length;await refund(1,'pending-excess',manager,otherCharge,409);assert.equal(edge.calls.length,count);
+  for(const kind of ['payment-requests','refund-charges','refunds','refund-events','audit']){const csv=await (await h.request('/api/business-export/'+kind+'.csv')).text();assert.ok(!csv.includes('checkout.stripe.com'));if(kind!=='payment-requests')assert.ok(csv.includes(chargeId)||kind==='audit');}
+  const financialArchive=await h.api('/api/backup');restored=await installation();await restored.api('/api/restore',{archive:financialArchive,confirm:'RESTORE'});const restoredRefunds=(await restored.api('/api/state')).refunds;assert.equal(restoredRefunds.length,4);assert.equal(restoredRefunds.filter(r=>r.actorId===managerId&&r.status==='succeeded').reduce((sum,r)=>sum+r.amountCents,0),10000);assert.ok((await restored.api('/api/audit')).rows.some(r=>r.action==='payment.refund'&&r.changes.some(c=>c.after.status==='pending')));
   const beforeErasure=JSON.stringify(await h.api('/api/backup'));assert.ok(beforeErasure.includes('Guest-requested deposit refund'));const guest=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id).guestId;await h.command('guest.erase',{guestId:guest,confirm:'ERASE'});assert.ok(!JSON.stringify(await h.api('/api/backup')).includes('Guest-requested deposit refund'));
   await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:1.5},{status:400});await h.command('team.manager-limit',{operatorId:managerId,refundLimitCents:20000},{as:manager,status:403});
   const allAudit=(await h.api('/api/audit')).rows;assert.ok(allAudit.some(r=>r.action==='payment.refund'&&r.actor===managerId&&r.changes.some(c=>c.after.status==='succeeded'&&c.before?.status==='pending')));
   const audit=allAudit.filter(r=>r.action==='team.manager-limit');assert.ok(audit.some(r=>r.changes.some(c=>c.kind==='managerRefundLimits'&&c.after[managerId]===10000)));assert.ok(audit.some(r=>r.changes.some(c=>c.kind==='managerRefundLimits'&&c.before?.[managerId]===10000&&c.after[managerId]===11000)));
- }finally{await h.close()}
+ }finally{if(restored)await restored.close();await h.close()}
 })

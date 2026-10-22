@@ -6,16 +6,20 @@ export const businessCsvVersion=1
 export const businessExportKinds=[
  'venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
+ 'payment-requests','refund-charges','refunds','refund-events',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
 export type BusinessPerformanceReport={id:string;service_id:string;published_at:string;published_by:string;floor_version:number;data:string}
 type RecordValue=Record<string,unknown>
+export type BusinessFinancialRecords={paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[]}
+const noFinancialRecords:BusinessFinancialRecords={paymentRequests:[],refundCharges:[],refunds:[],refundEvents:[]}
 type Dataset={fields:readonly string[];rows:readonly unknown[]}
 
 // Covers private links in nested proposal snapshots as well as live records.
 function credentialKey(key:string):boolean {
- return /token|secret|password|credential|bearer|authorization|cookie|apikey|privatekey|session/.test(key.replace(/[^a-z0-9]/gi,'').toLowerCase())
+ const normalized=key.replace(/[^a-z0-9]/gi,'').toLowerCase()
+ return /token|secret|password|credential|bearer|authorization|cookie|apikey|privatekey|session/.test(normalized)||['providerurl','providerreturnurl','processinguntil'].includes(normalized)
 }
 function clean(value:unknown):unknown {
  if(Array.isArray(value))return value.map(clean)
@@ -34,7 +38,12 @@ function cell(value:unknown):string {
  return '"'+text.replace(/"/g,'""')+'"'
 }
 
-function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[],merges:unknown[]):Dataset {
+/** Mirrors the financial history exposed by the audit door using this export's one read snapshot. */
+function refundHistory(finance:BusinessFinancialRecords){
+ const refunds=new Map(finance.refunds.map(row=>[row.id,row]))
+ return finance.refundEvents.map(row=>({id:'refund-'+row.id,at:row.at,actor:row.actor_id,action:'payment.refund',subject:refunds.get(row.refund_id)?.booking_id,source:'person',changes:[{kind:'refunds',id:row.refund_id,before:row.before_data?JSON.parse(String(row.before_data)):null,after:JSON.parse(String(row.after_data))}]}))
+}
+function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[],merges:unknown[],finance:BusinessFinancialRecords):Dataset {
  switch(kind) {
   case 'guest-merges':return {fields:['id','guestId','duplicateId','status','createdAt','createdBy','unmergedAt','unmergedBy','purgedAt','snapshots_json','pendingAssignment_json'],rows:merges}
   case 'venue':return {fields:['name','timezone','setup_json','hostIds_json','pacingHostIds_json','leadIds_json','reportScopes_json','managerRefundLimits_json','embedOrigins_json','analytics_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,leadIds:state.leadIds,reportScopes:state.reportScopes,managerRefundLimits:state.managerRefundLimits,embedOrigins:state.embed?.origins??[],analytics:analyticsSettings(state)}]}
@@ -52,18 +61,22 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'guests':return {fields:['id','name','email','phone','notes','erased','mergedInto','contacts_json','profile_json','provenance_json','notesHistory_json','history_json'],rows:people}
   case 'inquiries':return {fields:['id','guestId','ownerId','status','partySize','serviceId','requestedStartAt','requiredArea','requiredAccessTags_json','requests_json','replyDueAt','createdAt','updatedAt','closedAt','bookingId','acceptedOfferVersion','acceptedAt','offer_json','messages_json'],rows:state.inquiries??[]}
   case 'risk-tasks':return {fields:['id','bookingId','kind','decision','actor','at','reason','dueAt','completedAt','completedBy','outcome','snapshot_json'],rows:state.riskDecisions??[]}
-  case 'audit':return {fields:['id','at','actor','deviceId','source','action','subject','reason','before_json','after_json','changes_json','pacing_json'],rows:state.audit}
+  case 'audit':return {fields:['id','at','actor','deviceId','source','action','subject','reason','before_json','after_json','changes_json','pacing_json'],rows:[...state.audit,...refundHistory(finance)]}
   case 'service-events':return {fields:['id','bookingId','at','actor','source','reason','correctsEventId','before_json','after_json'],rows:state.serviceEvents??[]}
   case 'proposals':return {fields:['id','kind','status','preparedBy','preparedAt','approvedBy','approvedAt','reason','plan_json'],rows:state.proposals}
   case 'reminders':return {fields:['id','bookingId','guestId','contactName','contactEmail','contactPhone','message','status','approvedBy','approvedAt'],rows:state.reminders}
   case 'performance-reports':return {fields:['id','serviceId','publishedAt','publishedBy','floorVersion','report_json'],rows:reports.map(row=>({id:row.id,serviceId:row.service_id,publishedAt:row.published_at,publishedBy:row.published_by,floorVersion:row.floor_version,report:JSON.parse(row.data)}))}
+  case 'payment-requests':return {fields:['id','bookingId','amountCents','currency','dueAt','followupOwnerId','createdBy','createdAt','reason','state','providerAttemptAt','providerReference','verifiedAt','paidAt'],rows:finance.paymentRequests.map(r=>({id:r.id,bookingId:r.booking_id,amountCents:r.amount_cents,currency:r.currency,dueAt:r.due_at,followupOwnerId:r.followup_owner_id,createdBy:r.created_by,createdAt:r.created_at,reason:r.reason,state:r.state,providerAttemptAt:r.provider_attempt_at,providerReference:r.provider_session_id,verifiedAt:r.verified_at,paidAt:r.paid_at}))}
+  case 'refund-charges':return {fields:['chargeId','bookingId','amountCents','importedRefundedCents','currency','syncedBy','syncedAt'],rows:finance.refundCharges.map(r=>({chargeId:r.charge_id,bookingId:r.booking_id,amountCents:r.amount_cents,importedRefundedCents:r.imported_refunded_cents,currency:r.currency,syncedBy:r.synced_by,syncedAt:r.synced_at}))}
+  case 'refunds':return {fields:['id','requestId','actorId','bookingId','chargeId','amountCents','reason','status','processorId','createdAt','updatedAt'],rows:finance.refunds.map(r=>({id:r.id,requestId:r.request_id,actorId:r.actor_id,bookingId:r.booking_id,chargeId:r.charge_id,amountCents:r.amount_cents,reason:r.reason,status:r.status,processorId:r.processor_id,createdAt:r.created_at,updatedAt:r.updated_at}))}
+  case 'refund-events':return {fields:['id','refundId','actorId','at','before_json','after_json'],rows:finance.refundEvents.map(r=>({id:r.id,refundId:r.refund_id,actorId:r.actor_id,at:r.at,before:r.before_data?JSON.parse(String(r.before_data)):null,after:JSON.parse(String(r.after_data))}))}
  }
 }
 
 /** Current records only. Caller owns native owner authorization and snapshot loading. */
-export function businessCsv(state:State,people:Guest[],kind:string,reports:BusinessPerformanceReport[]=[],merges:unknown[]=[]):string {
+export function businessCsv(state:State,people:Guest[],kind:string,reports:BusinessPerformanceReport[]=[],merges:unknown[]=[],finance:BusinessFinancialRecords=noFinancialRecords):string {
  if(!businessExportKinds.includes(kind as BusinessExportKind))fail(404,'Unknown business export.')
- const {fields,rows}=dataset(state,people,kind as BusinessExportKind,reports,merges)
+ const {fields,rows}=dataset(state,people,kind as BusinessExportKind,reports,merges,finance)
  const lines:unknown[][]=[['csv_version',...fields,'data_json']]
  for(const source of rows) {
   const row=clean(source) as RecordValue

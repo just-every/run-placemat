@@ -28,8 +28,8 @@ async function live(db:D1Database,actor:Actor){
  try{await db.batch([await authority(db,actor),db.prepare('DELETE FROM pm_assertions')])}
  catch(error){if(error instanceof Error&&error.message.includes('pm_assertions'))fail(403,'Payment-link authority changed. Unlock or sign in again.');throw error}
 }
-async function commit(db:D1Database,actor:Actor,s:State,version:number,action:string,subject:string,statements:D1PreparedStatement[]){
- s.audit.push({id:id(),actor:actor.id,at:new Date().toISOString(),action,subject,source:'person',...actor.deviceId?{deviceId:actor.deviceId}:{}})
+async function commit(db:D1Database,actor:Actor,s:State,version:number,action:string,subject:string,statements:D1PreparedStatement[],change?:{id:string;before:unknown;after:unknown}){
+ s.audit.push({id:id(),actor:actor.id,at:new Date().toISOString(),action,subject,source:'person',...change?{changes:[{kind:'paymentRequests',...change,before:change.before&&typeof change.before==='object'?Object.fromEntries(Object.entries(change.before).filter(([key])=>key!=='providerUrl')):change.before}]}:{},...actor.deviceId?{deviceId:actor.deviceId}:{}})
  const stateFence=db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END').bind(version)
  await save(db,s,version,[await authority(db,actor),stateFence,...statements])
 }
@@ -55,7 +55,7 @@ export async function createPaymentRequest(db:D1Database,actor:Actor,p:PaymentIn
  if(!owner)fail(400,'Choose an active host or manager to own the deposit follow-up.')
  if(await db.prepare('SELECT id FROM pm_payment_requests WHERE booking_id=?').bind(bookingId).first())fail(409,'This reservation already has a deposit request.')
  const requestId=id(),now=new Date().toISOString()
- await commit(db,actor,s,version,'payment.request',bookingId,[db.prepare('INSERT INTO pm_payment_requests(id,booking_id,amount_cents,due_at,followup_owner_id,created_by,created_at,reason) VALUES(?,?,?,?,?,?,?,?)').bind(requestId,bookingId,p.amountCents,dueAt,followupOwnerId,actor.id,now,reason)])
+ await commit(db,actor,s,version,'payment.request',bookingId,[db.prepare('INSERT INTO pm_payment_requests(id,booking_id,amount_cents,due_at,followup_owner_id,created_by,created_at,reason) VALUES(?,?,?,?,?,?,?,?)').bind(requestId,bookingId,p.amountCents,dueAt,followupOwnerId,actor.id,now,reason)],{id:requestId,before:null,after:{requestId,bookingId,amountCents:p.amountCents,dueAt,followupOwnerId,state:'unpaid',reason}})
  return alert(await requestRow(db,requestId))
 }
 
@@ -103,7 +103,7 @@ async function recordSession(env:PaymentBindings,actor:Actor,row:PaymentRow,sess
  const url=valid&&next==='unpaid'&&session.status==='open'?providerUrl(session.url):null
  if(next==='unpaid'&&session.status==='open'&&!url)next='exception'
  const now=new Date().toISOString()
- await commit(env.DB,actor,s,version,fromGet?'payment.sync':'payment.link',row.booking_id,[env.DB.prepare('UPDATE pm_payment_requests SET state=?,provider_session_id=COALESCE(provider_session_id,?),provider_url=?,verified_at=?,paid_at=CASE WHEN ?=\'paid\' THEN COALESCE(paid_at,?) ELSE paid_at END WHERE id=?').bind(next,valid?session.id:null,url,fromGet&&valid?now:null,next,now,row.id)])
+ await commit(env.DB,actor,s,version,fromGet?'payment.sync':'payment.link',row.booking_id,[env.DB.prepare('UPDATE pm_payment_requests SET state=?,provider_session_id=COALESCE(provider_session_id,?),provider_url=?,verified_at=?,paid_at=CASE WHEN ?=\'paid\' THEN COALESCE(paid_at,?) ELSE paid_at END WHERE id=?').bind(next,valid?session.id:null,url,fromGet&&valid?now:null,next,now,row.id)],{id:row.id,before:alert(current),after:{requestId:row.id,bookingId:row.booking_id,amountCents:row.amount_cents,dueAt:row.due_at,followupOwnerId:row.followup_owner_id,state:next,processorReference:valid?session.id:null}})
  if(!valid||next==='exception'||next==='unpaid'&&session.status==='open'&&!url)fail(502,'Stripe payment details could not be verified. A manager must review the request.')
  return alert(await requestRow(env.DB,row.id))
 }
@@ -114,7 +114,7 @@ export async function issuePaymentLink(env:PaymentBindings,actor:Actor,requestId
  let row=await requestRow(env.DB,requestId)
  const {state:s,version}=await load(env.DB);checkBooking(s,row.booking_id)
  if(row.state!=='unpaid'||Date.parse(row.due_at)<=Date.now())fail(409,'This deposit request needs manager review before a link can be issued.')
- if(row.provider_session_id){await live(env.DB,actor);return {...alert(row),delivery:'copy-required' as const}}
+ if(row.provider_session_id){if(!row.provider_url)fail(409,'Check payment status to recover the current Stripe link before sharing it.');await live(env.DB,actor);return {...alert(row),delivery:'copy-required' as const}}
  const remaining=Date.parse(row.due_at)-Date.now()
  // Stripe requires a custom Checkout expiry 30 minutes to 24 hours ahead. Do not shorten the obligation.
  if(remaining<31*60000||remaining>24*3600000)fail(409,'Issue this link when its deadline is between 31 minutes and 24 hours away.')
@@ -123,7 +123,7 @@ export async function issuePaymentLink(env:PaymentBindings,actor:Actor,requestId
   let origin:URL
   try{origin=new URL(env.AUTH_ORIGIN)}catch{return fail(409,'The venue origin must be configured before issuing links.')}
   if(!['https:','http:'].includes(origin.protocol)||origin.username||origin.password)fail(409,'The venue origin must be configured before issuing links.')
-  await commit(env.DB,actor,s,version,'payment.link.prepare',row.booking_id,[env.DB.prepare('UPDATE pm_payment_requests SET provider_attempt_at=?,provider_return_url=? WHERE id=? AND provider_attempt_at IS NULL').bind(new Date().toISOString(),origin.origin+'/',row.id)])
+  await commit(env.DB,actor,s,version,'payment.link.prepare',row.booking_id,[env.DB.prepare('UPDATE pm_payment_requests SET provider_attempt_at=?,provider_return_url=? WHERE id=? AND provider_attempt_at IS NULL').bind(new Date().toISOString(),origin.origin+'/',row.id)],{id:row.id,before:{requestId:row.id,state:row.state},after:{requestId:row.id,state:row.state,attemptAt:new Date().toISOString()}})
   row=await requestRow(env.DB,row.id)
  }
  const body=new URLSearchParams({mode:'payment',success_url:row.provider_return_url!,cancel_url:row.provider_return_url!,client_reference_id:row.id,'metadata[request_id]':row.id,'metadata[booking_id]':row.booking_id,'payment_intent_data[metadata][request_id]':row.id,'payment_intent_data[metadata][placemat_booking_id]':row.booking_id,'line_items[0][quantity]':'1','line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':String(row.amount_cents),'line_items[0][price_data][product_data][name]':'Reservation deposit','payment_method_types[0]':'card',expires_at:String(Date.parse(row.due_at)/1000)})

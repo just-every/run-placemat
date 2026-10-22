@@ -1,6 +1,7 @@
 import {validateGuestMerges} from './guest-merge-archive.mjs'
 import {validateServiceNotes} from './service-notes-archive.mjs'
 import {validateOnboarding} from './onboarding-archive.mjs'
+import {validatePayments} from './payment-archive.mjs'
 function validatePacing(s){
  for(const service of s.services){
   const p=service.pacing;if(p===undefined)continue
@@ -38,13 +39,17 @@ export default {
  product:'hospitality/placemat',
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
  excludeTables:['pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
+ exportRow(table,row){
+  if(table==='pm_payment_requests')return {...row,provider_url:null}
+  return table==='pm_refunds'?{...row,processing_until:0}:row
+ },
  requiredConfiguration:['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM'],
  async validateStaged({read}) {
   const rows=await read('pm_state'),guests=await read('pm_guests'),reports=await read('pm_performance_reports')
   if(rows.length>1)throw Error('Invalid floor state')
   const ids=new Set(guests.map(row=>row.id))
   for(const row of guests){const g=JSON.parse(row.data);if(g.id!==row.id||typeof g.name!=='string'||typeof g.email!=='string'||typeof g.notes!=='string')throw Error('Invalid guest')}
-  if(!rows.length){if(reports.length||(await read('pm_guest_merges')).length)throw Error('Business journals need their venue state');return}
+  if(!rows.length){if(reports.length||(await read('pm_guest_merges')).length)throw Error('Business journals need their venue state');await validatePayments({bookings:[]},read);return}
   const s=JSON.parse(rows[0].data)
   validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
@@ -88,6 +93,7 @@ export default {
   validatePacing(s)
   if(s.riskDecisions!==undefined&&(!Array.isArray(s.riskDecisions)||s.riskDecisions.some(d=>!s.bookings.some(b=>b.id===d.bookingId)||!['contact','policy-review'].includes(d.kind)||!['accepted','declined'].includes(d.decision)||typeof d.id!=='string'||typeof d.actor!=='string'||typeof d.reason!=='string'||!Number.isFinite(Date.parse(d.at))||!d.snapshot||!Array.isArray(d.snapshot.flags)||d.snapshot.flags.some(f=>typeof f!=='string')||typeof d.snapshot.status!=='string'||d.decision==='accepted'&&!Number.isFinite(Date.parse(d.dueAt))||d.completedAt!==undefined&&(!Number.isFinite(Date.parse(d.completedAt))||typeof d.completedBy!=='string'||typeof d.outcome!=='string'))))throw Error('Invalid no-show review work')
   const bookingIds=new Set(s.bookings.map(b=>b.id))
+  await validatePayments(s,read,new Set(guests.filter(row=>JSON.parse(row.data).erased===true).map(row=>row.id)))
   if(s.serviceEvents!==undefined&&(!Array.isArray(s.serviceEvents)||s.serviceEvents.some(e=>!bookingIds.has(e.bookingId))))throw Error('Broken service observation relationships')
   if(s.waitlist.some(w=>!ids.has(w.guestId)||!services.has(w.serviceId)))throw Error('Broken waitlist relationships')
  },
