@@ -40,7 +40,7 @@ function validateStaffing(s,tables){
 export default {
  product:'hospitality/placemat',
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
- excludeTables:['pm_booking_management','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
+ excludeTables:['pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
   if(table==='pm_payment_requests')return {...row,provider_url:null}
   return table==='pm_refunds'?{...row,processing_until:0}:row

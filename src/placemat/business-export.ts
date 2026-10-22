@@ -6,13 +6,13 @@ export const businessCsvVersion=1
 export const businessExportKinds=[
  'venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
- 'payment-requests','refund-charges','refunds','refund-events',
+ 'payment-requests','refund-charges','refunds','refund-events','group-links','group-admins',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
 export type BusinessPerformanceReport={id:string;service_id:string;published_at:string;published_by:string;floor_version:number;data:string}
 type RecordValue=Record<string,unknown>
-export type BusinessFinancialRecords={paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];bookingContacts?:RecordValue[]}
+export type BusinessFinancialRecords={paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
 const noFinancialRecords:BusinessFinancialRecords={paymentRequests:[],refundCharges:[],refunds:[],refundEvents:[]}
 type Dataset={fields:readonly string[];rows:readonly unknown[]}
 
@@ -69,6 +69,8 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'payment-requests':return {fields:['id','bookingId','amountCents','currency','dueAt','followupOwnerId','createdBy','createdAt','reason','state','providerAttemptAt','providerReference','verifiedAt','paidAt'],rows:finance.paymentRequests.map(r=>({id:r.id,bookingId:r.booking_id,amountCents:r.amount_cents,currency:r.currency,dueAt:r.due_at,followupOwnerId:r.followup_owner_id,createdBy:r.created_by,createdAt:r.created_at,reason:r.reason,state:r.state,providerAttemptAt:r.provider_attempt_at,providerReference:r.provider_session_id,verifiedAt:r.verified_at,paidAt:r.paid_at}))}
   case 'refund-charges':return {fields:['chargeId','bookingId','amountCents','importedRefundedCents','currency','syncedBy','syncedAt'],rows:finance.refundCharges.map(r=>({chargeId:r.charge_id,bookingId:r.booking_id,amountCents:r.amount_cents,importedRefundedCents:r.imported_refunded_cents,currency:r.currency,syncedBy:r.synced_by,syncedAt:r.synced_at}))}
   case 'refunds':return {fields:['id','requestId','actorId','bookingId','chargeId','amountCents','reason','status','processorId','createdAt','updatedAt'],rows:finance.refunds.map(r=>({id:r.id,requestId:r.request_id,actorId:r.actor_id,bookingId:r.booking_id,chargeId:r.charge_id,amountCents:r.amount_cents,reason:r.reason,status:r.status,processorId:r.processor_id,createdAt:r.created_at,updatedAt:r.updated_at}))}
+  case 'group-links':return {fields:['id','name','origin','ceiling_json','joinedAt','revokedAt'],rows:(finance.groupLinks??[]).map(r=>({id:r.id,name:r.name,origin:r.origin,ceiling:JSON.parse(String(r.ceiling)),joinedAt:r.joined_at,revokedAt:r.revoked_at}))}
+  case 'group-admins':return {fields:['operatorId','venueId','rights_json','grantedBy','grantedAt'],rows:(finance.groupAdmins??[]).map(r=>({operatorId:r.operator_id,venueId:r.venue_id,rights:JSON.parse(String(r.rights)),grantedBy:r.granted_by,grantedAt:r.granted_at}))}
   case 'refund-events':return {fields:['id','refundId','actorId','at','before_json','after_json'],rows:finance.refundEvents.map(r=>({id:r.id,refundId:r.refund_id,actorId:r.actor_id,at:r.at,before:r.before_data?JSON.parse(String(r.before_data)):null,after:JSON.parse(String(r.after_data))}))}
  }
 }

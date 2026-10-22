@@ -31,6 +31,8 @@ import {queuePage} from './queue-views'
 import {queueQr} from './queue-qr'
 import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait-join'
 import {sectionsDashboard} from './staffing'
+import {groupInvite,groupAccept,groupJoin,groupLeave,groupGrant,groupDisconnect,groupToken,groupStatus,isGroupAdmin} from './group'
+import {groupIntrospect,groupRead} from './group-access'
 import {timeline} from './timeline'
 import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
@@ -68,7 +70,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
- if(path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(path!=='/api/group'&&!path.startsWith('/api/group/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
   if(path==='/manage-booking'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return managementPage(request)}
@@ -145,6 +147,15 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(visit)defer(sendAnalytics(env.DB,'booking',visit,env.AUTH_ORIGIN+'/book'))
    return json({result},201)
   }
+  if(['/api/group/join-accept','/api/group/introspect'].includes(path)){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':group:'+Math.floor(Date.now()/60000))
+   const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
+   if((count?.count??0)>60)fail(429,'Too many group requests. Please wait a minute.')
+   const p=await jsonBody(request)
+   return json(path==='/api/group/join-accept'?await groupAccept(env.DB,p):await groupIntrospect(env.DB,request.headers.get('x-group-link'),p.token))
+  }
+  if(path==='/api/group/reports/reservations'||path==='/api/group/preshift')return json(await groupRead(env.DB,request,url))
   const actor=await actorFor(request,env);responseActor=actor
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
   if(!['owner','admin','member','host','lead','server','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
@@ -169,6 +180,19 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   if(path==='/app'){if(actor!.agent)fail(403,'Agent keys use the API.');return productPage(request,env,actor!)}
   if(request.method!=='GET')originCheck(request,env)
+  if(path==='/api/group'||path.startsWith('/api/group/')){
+   if(path==='/api/group'&&request.method==='GET')return json(await groupStatus(env.DB,actor!))
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   if(path==='/api/group/token')return json({result:await groupToken(env.DB,actor!)},201)
+   const p=await jsonBody(request)
+   if(path==='/api/group/invite')return json({result:await groupInvite(env.DB,actor!,p)},201)
+   if(path==='/api/group/join')return json({result:await groupJoin(env.DB,actor!,p,env.AUTH_ORIGIN)})
+   if(path==='/api/group/leave')return json({result:await groupLeave(env.DB,actor!)})
+   if(path==='/api/group/admin')return json({result:await groupGrant(env.DB,actor!,p)})
+   if(path==='/api/group/admin/revoke')return json({result:await groupGrant(env.DB,actor!,{operatorId:p.operatorId,venues:{}})})
+   if(path==='/api/group/link/revoke')return json({result:await groupDisconnect(env.DB,actor!,p)})
+   return json({error:'Not found'},404)
+  }
   if(path==='/api/onboarding'){
    person(actor!,true);if(request.method!=='GET')return json({error:'Method not allowed'},405)
    return json({defaults:onboardingDefaults()})
@@ -260,7 +284,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
    const handoverPeople=await handoverAssignees(env.DB,state),paymentRequests=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[],refundCharges=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT charge_id AS chargeId,booking_id AS bookingId,amount_cents AS amountCents,imported_refunded_cents AS importedRefundedCents FROM pm_refund_charges').all()).results:[],refunds=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT id,request_id AS requestId,actor_id AS actorId,booking_id AS bookingId,charge_id AS chargeId,amount_cents AS amountCents,reason,status,processor_id AS processorId,created_at AS createdAt FROM pm_refunds').all()).results:[]
    const bookingContacts=!actor!.agent?Object.fromEntries((await env.DB.prepare('SELECT booking_id,data FROM pm_booking_contacts').all<{booking_id:string;data:string}>()).results.map(row=>[row.booking_id,JSON.parse(row.data)])):{}
-   return json({bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){

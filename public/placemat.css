@@ -357,3 +357,6 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
  .audit-values thead { display: none; }
  .audit-value-label { display: block; font-weight: 600; margin-bottom: .3rem; }
 }
+
+/* ROLE-001: one-time codes and tokens wrap instead of widening the phone screen. */
+#group-code pre,#group-token pre{white-space:pre-wrap;overflow-wrap:anywhere}
