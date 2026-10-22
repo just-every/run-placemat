@@ -14,7 +14,8 @@ export async function phoneBooking(db:D1Database,s:State,actor:Actor,command:str
  if(service.status!=='published'||service.closedAt||Date.parse(startAt)<Date.now())fail(409,'Choose a future time in an open published service.')
  checkBookingRules(s,service,partySize,startAt,'online')
  const without={...s,bookings:s.bookings.filter(b=>b.id!==previous?.id)},filtered=searchTables(without,p.area??previous?.requiredArea,p.requiredAccessTags??previous?.requiredAccessTags)
- const {tables,...slot}=bookingFit(filtered.state,service,partySize,startAt,'online',p.tableIds)
+ if(previous?.assignmentLocked&&p.tableIds!==undefined&&JSON.stringify(p.tableIds)!==JSON.stringify(previous.tableIds))fail(409,'Unlock this assignment before changing its tables.')
+ const {tables,...slot}=bookingFit(filtered.state,service,partySize,startAt,'online',previous?.assignmentLocked?previous.tableIds:p.tableIds)
  const entry=previous?undefined:await guestFor(db,p,actor),guestId=previous?.guestId??entry!.guest.id
  if(without.bookings.some(b=>b.guestId===guestId&&b.startAt===startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
  const booking:Booking={...previous,id:previous?.id??id(),serviceId:service.id,guestId,partySize,...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'phone',createdAt:previous?.createdAt??now,requiredAccessTags:filtered.requiredAccessTags,...filtered.requiredArea?{requiredArea:filtered.requiredArea}:{}}
