@@ -28,17 +28,17 @@ export async function sendRefundNotice(env:Bindings,actor:Actor,p:any){
  WHERE s.id=1 AND json_extract(b.value,'$.id')=?`).bind(refund.booking_id).first<{contact:string;erased:number}>()??fail(404,'Reservation contact unavailable.')
  const contact=JSON.parse(row.contact)
  if(row.erased||typeof contact.email!=='string'||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email))fail(409,'The reservation needs a recorded contact email before a refund notice can be sent.')
- const balance=await env.DB.prepare(`SELECT c.amount_cents-c.imported_refunded_cents-COALESCE((SELECT SUM(r.amount_cents) FROM pm_refunds r WHERE r.charge_id=c.charge_id AND r.status IN ('pending','succeeded')),0) AS remaining FROM pm_refund_charges c WHERE c.charge_id=?`).bind(refund.charge_id).first<{remaining:number}>()??fail(409,'Synchronize the captured charge before sending its refund outcome.')
+ const balanceSql="c.amount_cents-c.imported_refunded_cents-COALESCE((SELECT SUM(other.amount_cents) FROM pm_refunds other WHERE other.charge_id=c.charge_id AND other.status IN ('pending','succeeded')),0)"
  const noticeId=id(),now=new Date().toISOString()
  // This reservation checks live authority, the exact refund outcome and the current contact in one write.
  const inserted=await env.DB.prepare(`INSERT INTO pm_refund_notices(id,refund_id,outcome,amount_cents,remaining_cents,requested_by,requested_at,state)
- SELECT ?,r.id,r.status,r.amount_cents,?,?,?,'sending' FROM pm_refunds r JOIN oa_operators o ON o.id=?
- WHERE r.id=? AND r.status=? AND o.role='owner' AND o.status='active'
+ SELECT ?,r.id,r.status,r.amount_cents,${balanceSql},?,?,'sending' FROM pm_refunds r JOIN pm_refund_charges c ON c.charge_id=r.charge_id JOIN oa_operators o ON o.id=?
+ WHERE r.id=? AND r.status=? AND o.role='owner' AND o.status='active' AND ${balanceSql}>=0
  AND EXISTS(SELECT 1 FROM pm_guests g JOIN pm_state s ON s.id=1,json_each(s.data,'$.bookings') b WHERE json_extract(b.value,'$.id')=r.booking_id AND g.id=json_extract(b.value,'$.guestId') AND COALESCE(json_extract(g.data,'$.erased'),0)=0 AND COALESCE((SELECT c.data FROM pm_booking_contacts c WHERE c.booking_id=r.booking_id),g.data)=?)
- ON CONFLICT(refund_id,outcome) DO NOTHING RETURNING *`).bind(noticeId,Math.max(0,balance.remaining),actor.id,now,actor.id,refundId,refund.status,row.contact).first<Notice>()
- if(!inserted){const concurrent=await env.DB.prepare('SELECT * FROM pm_refund_notices WHERE refund_id=? AND outcome=?').bind(refundId,refund.status).first<Notice>();if(concurrent)return receipt(concurrent);fail(409,'The refund, authority or recorded contact changed. Review it again.')}
+ ON CONFLICT(refund_id,outcome) DO NOTHING RETURNING *`).bind(noticeId,actor.id,now,actor.id,refundId,refund.status,row.contact).first<Notice>()
+ if(!inserted){const concurrent=await env.DB.prepare('SELECT * FROM pm_refund_notices WHERE refund_id=? AND outcome=?').bind(refundId,refund.status).first<Notice>();if(concurrent)return receipt(concurrent);fail(409,'The refund, charge balance, authority or recorded contact changed. Review it again.')}
  const outcome=refund.status==='succeeded'?'succeeded':refund.status==='pending'?'is pending':refund.status==='failed'?'failed':'was canceled'
- const message=`Your refund of ${usd(refund.amount_cents)} USD ${outcome}. Remaining refundable balance on this charge: ${usd(Math.max(0,balance.remaining))} USD, after pending and succeeded refunds. A pending refund is not a completed return of funds. Contact the venue for help. Reservation reference: ${refund.booking_id}.`
+ const message=`Your refund of ${usd(refund.amount_cents)} USD ${outcome}. Remaining refundable balance on this charge: ${usd(inserted!.remaining_cents)} USD, after pending and succeeded refunds. A pending refund is not a completed return of funds. Contact the venue for help. Reservation reference: ${refund.booking_id}.`
  let accepted=false,providerId:string|null=null
  try{
   const result=await sender!.send({deliveryId:noticeId,from:env.MAIL_FROM!,to:[contact.email],subject:`Reservation refund ${refund.status} · ${refund.id}`,text:message,html:`<p>${escape(message)}</p>`,headers:{'Auto-Submitted':'auto-generated'}})
