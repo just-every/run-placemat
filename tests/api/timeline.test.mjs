@@ -115,6 +115,7 @@ test('Owned guest requests and callbacks pass between active hosts, preserve aud
   await h.command('booking.handover.complete',{bookingId:f.elena.id,taskId:callback.task.id,outcome:'Not assigned'},{as:first,status:403});
   await complete(request,first,'synthetic-placemat-step-free table checked with guest');
   let state=await h.api('/api/state'),row=state.state.bookings.find(b=>b.id===f.elena.id);assert.equal(row.handover[0].history.at(-1).actor,firstId);assert.equal(row.handover[1].ownerId,nextId);assert.equal(row.handover[1].history.length,2);assert.equal(row.handover[1].history[0].ownerId,firstId);assert.equal(row.handover[1].history[1].ownerId,nextId);assert.equal(state.names[nextId],'Blair Host');assert.equal(row.requests.wheelchair,true);assert.ok(row.requiredAccessTags.includes('step-free'));
+  for(const path of ['/api/state','/api/audit','/api/timeline?date='+f.date]){const former=await h.api(path,undefined,{as:first});assert.ok(!JSON.stringify(former).includes('synthetic-placemat-callback promise'),'Reassignment removes callback text from current and historical reads at '+path);}
   const nextView=await h.api('/api/state',undefined,{as:next});assert.deepEqual(nextView.state.bookings.find(b=>b.id===f.elena.id).handover.map(t=>t.id),[callback.task.id]);assert.ok(!JSON.stringify(nextView).includes('synthetic-placemat-access'));
   assert.ok(!JSON.stringify(await h.api('/api/state',undefined,{as:reader})).includes('synthetic-placemat-callback'));
   await complete(callback,next,'synthetic-placemat-callback completed by the next host');

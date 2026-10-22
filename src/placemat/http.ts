@@ -54,7 +54,14 @@ const paths=new Set(['/api/onboarding','/api/onboarding/preview','/kitchen','/ap
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
  let responseActor:Actor|null=null
- const json=(data:any,status=200)=>Response.json(projectAuthority(projectHandover(data,responseActor),responseActor),{status,headers})
+ const json=async(data:any,status=200)=>{
+  const visibleTaskIds=new Set<string>()
+  if(responseActor?.role==='host'&&!responseActor.agent){
+   const {state}=await load(env.DB)
+   if(state.hostIds?.includes(responseActor.id))for(const booking of state.bookings)for(const task of booking.handover??[])if(task.ownerId===responseActor.id)visibleTaskIds.add(task.id)
+  }
+  return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
+ }
  if(path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
