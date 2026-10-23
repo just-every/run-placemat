@@ -1,7 +1,8 @@
+import {toUtc} from './placemat-local-time.js'
 import {allocationPolicy} from './placemat-allocation-policy.js'
 /* Allocation advice remains conditional until a manager approves an exact plan. */
 export function renderAllocation({root,state,api,esc,select,field,empty,tableNames,time,who,onChange}) {
- const policy=allocationPolicy({esc,field,tableNames,time});
+ const policy=allocationPolicy({esc,field,tableNames,time,timezone:state.venue.timezone});
  const services=state.services;
  if(!services.length){root.innerHTML=empty('Create a service to review allocation alternatives.');return;}
  const proposals=new Map((state.proposals||[]).filter(p=>['allocation.improve','inventory.protect','service.adjust'].includes(p.kind)).map(p=>[p.id,p]));
@@ -62,7 +63,7 @@ export function renderAllocation({root,state,api,esc,select,field,empty,tableNam
   if(!reason){notify('Enter a reason for this allocation change.',true);return;}
   setBusy(true);notify('Preparing exact allocation preview…');
   try {
-   const response=await api('/api/commands',{command:'proposal.prepare',payload:{kind:form.dataset.kind,plan:{serviceId:form.dataset.serviceId,alternativeId:form.dataset.alternativeId,...form.dataset.releaseId?{releaseId:form.dataset.releaseId}:{}},reason}});
+   const response=await api('/api/commands',{command:'proposal.prepare',payload:{kind:form.dataset.kind,plan:{serviceId:form.dataset.serviceId,alternativeId:form.dataset.alternativeId,...form.elements.releaseAt?.value?{releaseAt:toUtc(form.elements.releaseAt.value,state.venue.timezone,form.elements.releaseOffset?.value)}:{},...form.dataset.releaseId?{releaseId:form.dataset.releaseId}:{}},reason}});
    proposals.set(response.result.id,response.result);renderProposals();
    notify('Allocation prepared. Review the exact plan below before approving.');
   }catch(error){notify(error.message,true);}

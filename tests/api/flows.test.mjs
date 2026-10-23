@@ -754,3 +754,129 @@ test('Late arrivals: host grace and contact log, running-late hold refuses clash
   assert.equal(seated.status,'seated');assert.equal((await h.api('/api/state')).state.serviceEvents.find(e=>e.bookingId===other.id).after.status,'no-show')
  }finally{await h.close()}
 })
+
+
+test('Scoped integration reads page anonymous records, deny private fields and fence revoked credentials and cursors',async()=>{
+ const h=await installation();try{
+  const {service:s}=await service(h,{tables:4,covers:16})
+  for(let i=0;i<3;i++)await h.api('/api/public/book',publicGuest(s,i),{as:'',status:201})
+  const expiry=new Date(Date.now()+86400000).toISOString(),grant={name:'Synthetic concierge read',scopes:['guests:read','reservations:read','availability:read'],expiresAt:expiry,acknowledged:true}
+  const reader=await h.signIn('api-reader@example.test'),manager=await h.signIn('api-manager@example.test','admin')
+  for(const as of ['',reader,manager])await h.api('/api/integration-keys',grant,{as,status:as?403:401})
+  await h.api('/api/integration-keys',{...grant,acknowledged:false},{status:400})
+  await h.api('/api/integration-keys',{...grant,scopes:['guests:write']},{status:400})
+  await h.api('/api/integration-keys',{...grant,expiresAt:new Date(Date.now()-1000).toISOString()},{status:400})
+  const key=await h.api('/api/integration-keys',grant,{status:201}),opts={as:'',headers:{authorization:'Bearer '+key.key}}
+  await h.api('/api/v1/guests',undefined,{status:401})
+  const agent=(await h.api('/api/agent-keys',{name:'Preparation only'})).result
+  await h.api('/api/v1/guests',undefined,{as:'',headers:{authorization:'Bearer '+agent.key},status:401})
+  await h.api('/api/state',undefined,{...opts,status:401})
+  const publicAvailability=await h.api('/api/public/search?date='+s.startAt.slice(0,10),undefined,{as:''})
+  const availability=await h.api('/api/v1/availability?date='+s.startAt.slice(0,10),undefined,opts)
+  assert.deepEqual(availability,{version:'1',...publicAvailability})
+  const records=[],bookings=[];let next=null,firstCursor
+  do{
+   const page=await h.api('/api/v1/guests?limit=1'+(next?'&cursor='+encodeURIComponent(next):''),undefined,opts)
+   assert.equal(page.version,'1');assert.equal(page.items.length,1);assert.deepEqual(Object.keys(page.items[0]),['id'])
+   records.push(...page.items);next=page.nextCursor;firstCursor??=next
+  }while(next)
+  assert.equal(records.length,3);assert.equal(new Set(records.map(row=>row.id)).size,3)
+  do{
+   const page=await h.api('/api/v1/reservations?limit=2'+(next?'&cursor='+encodeURIComponent(next):''),undefined,opts)
+   bookings.push(...page.items);next=page.nextCursor
+  }while(next)
+  const state=(await h.api('/api/state')).state
+  assert.deepEqual(bookings.map(b=>b.id).sort(),state.bookings.map(b=>b.id).sort())
+  assert.ok(bookings.every(b=>b.guestId===undefined&&b.contact===undefined&&b.requests===undefined))
+  for(const field of ['email','phone','name','notes','profile','requests'])await h.api('/api/v1/guests?fields=id,'+field,undefined,{...opts,status:403})
+  await h.api('/api/v1/reservations?fields=id,guestId',undefined,{...opts,status:403})
+  await h.api('/api/v1/guests?cursor='+encodeURIComponent(firstCursor+'x'),undefined,{...opts,status:400})
+  await h.api('/api/v1/reservations?cursor='+encodeURIComponent(firstCursor),undefined,{...opts,status:400})
+  const other=await h.api('/api/integration-keys',{...grant,name:'Separate reader'},{status:201}),otherOpts={as:'',headers:{authorization:'Bearer '+other.key}}
+  await h.api('/api/v1/guests?cursor='+encodeURIComponent(firstCursor),undefined,{...otherOpts,status:400})
+  const limited=await h.api('/api/integration-keys',{...grant,scopes:['availability:read']},{status:201})
+  await h.api('/api/v1/guests',undefined,{as:'',headers:{authorization:'Bearer '+limited.key},status:403})
+  await h.api('/api/v1/reservations',{serviceId:s.id},{...opts,status:405})
+  await h.api('/api/v2/guests',undefined,{...opts,status:404})
+  const listed=await h.api('/api/integration-keys')
+  assert.ok(listed.keys.every(k=>k.key===undefined&&k.digest===undefined));assert.ok(listed.events.some(event=>event.keyId===key.id&&event.action==='created'))
+  await h.api('/api/integration-keys/'+key.id+'/revoke',{})
+  await h.api('/api/integration-keys/'+key.id+'/revoke',{})
+  await h.api('/api/v1/guests?cursor='+encodeURIComponent(firstCursor),undefined,{...opts,status:401})
+  assert.equal((await h.api('/api/integration-keys')).events.filter(event=>event.keyId===key.id&&event.action==='revoked').length,1)
+  const erased=records[0].id
+  await h.command('guest.erase',{guestId:erased,confirm:'ERASE'})
+  assert.ok(!(await h.api('/api/v1/guests',undefined,otherOpts)).items.some(row=>row.id===erased),'Erasure removes even the anonymous guest read')
+ }finally{await h.close()}
+})
+
+test('Integration rate budgets are isolated per key and expired keys cannot read',async()=>{
+ const h=await installation();try{
+  const grant={name:'Synthetic integration rate check',scopes:['guests:read'],expiresAt:new Date(Date.now()+86400000).toISOString(),acknowledged:true}
+  const key=await h.api('/api/integration-keys',grant,{status:201}),opts={as:'',headers:{authorization:'Bearer '+key.key}}
+  // Align the public requests within one minute without changing the server clock.
+  const remaining=60000-Date.now()%60000
+  if(remaining<10000)await new Promise(resolve=>setTimeout(resolve,remaining+20))
+  const responses=await Promise.all(Array.from({length:61},()=>h.request('/api/v1/guests',opts)))
+  assert.equal(responses.filter(r=>r.status===200).length,60)
+  const limited=responses.filter(r=>r.status===429);assert.equal(limited.length,1);assert.ok(Number(limited[0].headers.get('retry-after'))>0)
+  const other=await h.api('/api/integration-keys',{...grant,name:'Independent rate check'},{status:201})
+  await h.api('/api/v1/guests',undefined,{as:'',headers:{authorization:'Bearer '+other.key}})
+  const expiring=await h.api('/api/integration-keys',{...grant,name:'Short lease',expiresAt:new Date(Date.now()+1000).toISOString()},{status:201})
+  await new Promise(resolve=>setTimeout(resolve,1100))
+  await h.api('/api/v1/guests',undefined,{as:'',headers:{authorization:'Bearer '+expiring.key},status:401})
+ }finally{await h.close()}
+})
+
+test('Scoped signed reservation events retain failures and explicitly replay one event without duplicate delivery',async()=>{
+ const delivered=[],mail=[];let failDelivery=true
+ const h=await installation({mailEdge:async request=>{
+  if(new URL(request.url).hostname==='api.resend.com'){mail.push(await request.json());return Response.json({id:'synthetic-placemat-1'})}
+  assert.equal(new URL(request.url).origin,'https://subscriber.example.test')
+  delivered.push({body:await request.text(),signature:request.headers.get('x-placemat-signature'),eventId:request.headers.get('x-placemat-event-id')})
+  return new Response(null,{status:failDelivery?503:204})
+ }});try{
+  const grant={name:'Synthetic reservation subscriber',scopes:['events:read'],expiresAt:new Date(Date.now()+86400000).toISOString(),acknowledged:true}
+  const key=await h.api('/api/integration-keys',grant,{status:201}),opts={as:'',headers:{authorization:'Bearer '+key.key}}
+  const input={keyId:key.id,url:'https://subscriber.example.test/events',types:['reservation.created','reservation.changed','reservation.cancelled'],acknowledged:true}
+  for(const url of ['http://subscriber.example.test/events','https://127.0.0.1/events','https://[::1]/events','https://localhost/events','https://subscriber.local/events','https://user:pass@subscriber.example.test/events'])await h.api('/api/integration-subscriptions',{...input,url},{status:400})
+  const sub=await h.api('/api/integration-subscriptions',input)
+  assert.equal(delivered.length,0,'Registering explicit consent never sends an event automatically')
+  const {service:s}=await service(h)
+  await h.command('embed.origins',{origins:['https://restaurant.example.test']})
+  const booking=(await h.api('/api/public/book',publicGuest(s,0,{embedOrigin:'https://restaurant.example.test'}),{as:'',status:201})).result
+  const original=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id)
+  await h.command('booking.management.send',{bookingId:booking.id,acknowledged:true})
+  const link=new URL(mail.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]),token=new URLSearchParams(link.hash.slice(1)).get('token')
+  const preview=await h.api('/api/public/booking-management/preview',{token,action:'change',startAt:new Date(Date.parse(s.startAt)+15*60000).toISOString()},{as:''})
+  await h.api('/api/public/booking-management/commit',{token,previewId:preview.previewId,acknowledged:true},{as:''})
+  const changed=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id)
+  assert.equal(changed.source,original.source);assert.deepEqual(changed.attribution,original.attribution,'Original widget source and exact website origin survive a guest time change')
+  await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled'})
+  const events=(await h.api('/api/v1/events?limit=100',undefined,opts)).items
+  assert.deepEqual(events.map(e=>e.type),['reservation.created','reservation.changed','reservation.cancelled'])
+  assert.equal(Date.parse(events[1].reservation.startAt)-Date.parse(events[0].reservation.startAt),15*60000)
+  assert.ok(events.every(e=>e.schemaVersion===1&&e.reservation.id===booking.id&&!JSON.stringify(e).includes('guest0@example.test')))
+  assert.equal(delivered.length,0,'Booking mutations only append durable events')
+  const endpoint='/api/integration-subscriptions/'+sub.id+'/deliver',requestId='synthetic-placemat-delivery-1'
+  await h.api(endpoint,{eventId:events[0].id,requestId,acknowledged:false},{status:400})
+  const failed=await h.api(endpoint,{eventId:events[0].id,requestId,acknowledged:true})
+  assert.equal(failed.status,'failed');assert.equal(failed.httpStatus,503);assert.equal(delivered.length,1)
+  const message=delivered[0],parts=Object.fromEntries(message.signature.split(',').map(pair=>pair.split('=')))
+  assert.equal(parts.v1,createHmac('sha256',sub.signingSecret).update(parts.t+'.'+message.body).digest('hex'))
+  assert.equal(JSON.parse(message.body).id,message.eventId)
+  const again=await h.api(endpoint,{eventId:events[0].id,requestId,acknowledged:true})
+  assert.equal(again.replayed,true);assert.equal(delivered.length,1,'A lost response retries its saved attempt without sending twice')
+  await h.api(endpoint,{eventId:events[1].id,requestId,acknowledged:true},{status:409})
+  failDelivery=false
+  const recovered=await h.api(endpoint,{eventId:events[0].id,requestId:'synthetic-placemat-delivery-2',acknowledged:true})
+  assert.equal(recovered.status,'succeeded');assert.equal(delivered.length,2);assert.equal(delivered[0].body,delivered[1].body,'Failed-event replay preserves the original event identity and payload')
+  const history=await h.api('/api/integration-subscriptions')
+  assert.deepEqual(history.attempts.map(a=>a.status),['failed','succeeded'])
+  assert.ok(history.subscriptions.every(s=>s.signingSecret===undefined&&s.sealed_secret===undefined))
+  const archive=JSON.stringify(await h.api('/api/backup'));assert.ok(!archive.includes(sub.signingSecret)&&!archive.includes(key.key)&&!archive.includes(sub.id),'Installation credentials and subscriber custody never enter a business archive')
+  await h.api('/api/integration-keys/'+key.id+'/revoke',{})
+  await h.api(endpoint,{eventId:events[1].id,requestId:'synthetic-placemat-delivery-3',acknowledged:true},{status:403})
+  await h.api('/api/v1/events',undefined,{...opts,status:401});assert.equal(delivered.length,2)
+ }finally{await h.close()}
+})

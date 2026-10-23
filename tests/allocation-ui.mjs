@@ -1,3 +1,4 @@
+import {localTime} from '../public/placemat-local-time.js'
 // AGENT-004: the shipped approval screen changes real D1 assignments at both viewport widths.
 import assert from 'node:assert/strict'
 import {readFile,mkdir} from 'node:fs/promises'
@@ -85,8 +86,10 @@ async function servicePolicyJourney(browser,width){
   await page.getByRole('link',{name:'Approvals & reminders',exact:true}).click()
   const root=page.locator('#allocation-content'),card=id=>root.locator(`[data-allocation-proposal="${id}"]`)
   const shot=async(name,locator=root)=>{await page.locator('#allocation-content[aria-busy="false"]').waitFor();if(shots)await locator.screenshot({path:resolve(shots,`AGENT-004-policy-${name}-${width}.png`)});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Service policy screen fits the viewport')}
+  const releaseAt=new Date(Date.parse(service.startAt)-3600000).toISOString()
   const prepare=async(kind,release=false)=>{
    const forms=root.locator(`[data-allocation-prepare][data-kind="${kind}"]`),form=release?forms.locator('[data-release-id]').first():forms.first()
+   if(await form.locator('[name=releaseAt]').count()){await form.locator('[name=releaseAt]').fill(localTime(releaseAt,'America/New_York'));await shot('inventory-editor',form.locator('..'))}
    await form.locator('[name=reason]').fill('Confirmed Ana and kitchen availability; preserve step-free guest commitments')
    const response=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command==='proposal.prepare')
    await form.getByRole('button',{name:'Prepare allocation',exact:true}).click();const result=await response;assert.ok(result.ok(),await result.text());return (await result.json()).result
@@ -99,7 +102,9 @@ async function servicePolicyJourney(browser,width){
   const inventory=await prepare('inventory.protect');await shot('inventory-review',card(inventory.id));await approve(inventory)
   const protection=(await h.api('/api/state')).state.services.find(s=>s.id===service.id).directInventory[0]
   assert.deepEqual(protection.tableIds,inventory.plan.protection.tableIds)
-  await root.getByRole('heading',{name:'Protected interval',exact:true}).waitFor();await shot('inventory-applied',root.locator('[data-allocation-report]'))
+  assert.equal(protection.releaseAt,releaseAt);assert.match(await card(inventory.id).innerText(),/Release deadline:/)
+  assert.equal(await root.locator('button').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()).length),0,'Allocation controls all have visible text labels')
+  await root.getByRole('heading',{name:'Protected interval',exact:true}).waitFor();await shot('inventory-applied',root.getByRole('heading',{name:'Protected interval',exact:true}).locator('..'))
   // The first inventory form now releases the retained exact interval.
   const release=await prepare('inventory.protect');assert.equal(release.plan.action,'release');await approve(release)
   assert.deepEqual((await h.api('/api/state')).state.services.find(s=>s.id===service.id).directInventory,[])

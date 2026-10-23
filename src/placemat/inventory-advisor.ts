@@ -1,3 +1,5 @@
+import {inventoryActive,type ScheduledInventory} from './direct-inventory'
+import {instant} from './availability'
 import {demandRows,evaluateDemand,serviceFor} from './allocation-advisor'
 import {candidateSets} from './combinations'
 import {occupiedEndAt} from './capacity'
@@ -19,14 +21,14 @@ export function adviseInventory(s:State,serviceId:string,now:string){
    if(partySize<rule.minParty||rule.blockedStarts.includes(startAt))continue
    const fit=fitAt(s,service,partySize,startAt,tableIds)
    const protection={id:'candidate',tableIds,startAt:fit.setupStartAt,endAt:fit.cleanupEndAt,partySize}
-   if((service.directInventory??[]).some(p=>p.startAt<protection.endAt&&p.endAt>protection.startAt&&p.tableIds.some(id=>tableIds.includes(id))))continue
+   if((service.directInventory??[]).some(p=>inventoryActive(p,now)&&p.startAt<protection.endAt&&p.endAt>protection.startAt&&p.tableIds.some(id=>tableIds.includes(id))))continue
    // No committed party can be displaced by a future channel restriction.
    if(s.bookings.some(b=>b.source!=='online'&&b.tableIds.some(id=>tableIds.includes(id))&&['booked','seated'].includes(b.status)&&(b.setupStartAt??b.startAt)<protection.endAt&&occupiedEndAt(b,now)>protection.startAt))continue
    const next={...service,directInventory:[...service.directInventory??[],protection]},staged={...s,services:s.services.map(v=>v.id===serviceId?next:v)}
    const after=evaluateDemand(staged,next,rows,now)
    if(after.feasibleQueuedCovers<before.feasibleQueuedCovers||after.requestedSlotCovers<before.requestedSlotCovers)continue
    const key=JSON.stringify([tableIds,startAt,fit.cleanupEndAt,partySize])
-   alternatives.push({id:'inventory:'+encodeURIComponent(key),serviceId,protection,before,after,explanations:[`Protect ${capacity} physical seats for direct website bookings from ${protection.startAt} through ${protection.endAt}; a fitting online party may use them.`,`${before.requestedSlotCovers} queued covers fit their requested slots before; ${after.requestedSlotCovers} after. No current booking moves.`, 'This is reserved channel inventory, not a guest reservation, guaranteed demand or a delivery. Walk-in and waitlist seating must use other inventory until explicit release or the interval ends.']})
+   alternatives.push({id:'inventory:'+encodeURIComponent(key),serviceId,protection,before,after,explanations:[`Protect ${capacity} physical seats for direct website bookings from ${protection.startAt} through ${protection.endAt}; a fitting online party may use them.`,`${before.requestedSlotCovers} queued covers fit their requested slots before; ${after.requestedSlotCovers} after. No current booking moves.`, 'This is reserved channel inventory, not a guest reservation, guaranteed demand or a delivery. Walk-in and waitlist seating must use other inventory until explicit release, an approved release deadline or the interval end.']})
   }catch(error){if(error instanceof Problem&&[400,404,409].includes(error.status))continue;throw error}
  }
  return {serviceId,generatedAt:now,before,alternatives,protected:service.directInventory??[]}
@@ -38,7 +40,9 @@ export function prepareInventory(s:State,p:any,now:string){
   return {serviceId:p.serviceId,action:'release',protection:structuredClone(protection),inputs:inputsFor(s),preview:{explanations:['Release this exact interval to all current booking channels. No booking changes.']}}
  }
  const alternative=report.alternatives.find(v=>v.id===p.alternativeId)??fail(409,'Refresh direct inventory advice and select a current alternative.')
- return {serviceId:p.serviceId,action:'protect',protection:{...structuredClone(alternative.protection),id:id()},inputs:inputsFor(s),preview:structuredClone(alternative)}
+ const releaseAt=p.releaseAt===undefined||p.releaseAt===''?undefined:instant(p.releaseAt,'Release deadline')
+ if(releaseAt&&(releaseAt<=now||releaseAt>alternative.protection.endAt))fail(400,'Release deadline must be in the future and no later than the protected interval end.')
+ return {serviceId:p.serviceId,action:'protect',protection:{...structuredClone(alternative.protection),id:id(),...releaseAt?{releaseAt}:{}},inputs:inputsFor(s),preview:structuredClone(alternative)}
 }
 export function approveInventory(s:State,actor:Actor,proposal:Proposal,now:string){
  if(actor.agent||!['owner','admin'].includes(actor.role))fail(403,'A venue manager must approve protected inventory.')
@@ -50,7 +54,9 @@ export function approveInventory(s:State,actor:Actor,proposal:Proposal,now:strin
   service.directInventory=before.filter(v=>v.id!==plan.protection.id)
  }else{
   const report=adviseInventory(s,service.id,now)
-  if(!report.alternatives.some(v=>same({...v.protection,id:plan.protection.id},plan.protection)))fail(409,'This interval is no longer feasible. Prepare fresh advice.')
+  const {releaseAt,...protection}=plan.protection as ScheduledInventory
+  if(releaseAt&&(releaseAt<=now||releaseAt>protection.endAt))fail(409,'This release deadline passed. Prepare and review a fresh protection.')
+  if(!report.alternatives.some(v=>same({...v.protection,id:protection.id},protection)))fail(409,'This interval is no longer feasible. Prepare fresh advice.')
   service.directInventory=[...before,structuredClone(plan.protection) as DirectInventory]
  }
  service.version++

@@ -1,4 +1,5 @@
 import {queueOrder} from './queue-order'
+import {integrationResponse} from './api/reads'
 import {createHold,readHold,abandonHold} from './booking-holds'
 import {createFeePolicy,recordFeeConsent,previewFee,assessFee,readFees,feeAudit} from './fees'
 import {refundWebhook,refundFollowups} from './refund-events'
@@ -80,8 +81,9 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
  if(path==='/api/payments/refund-events')return refundWebhook(env,request)
- if(!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
+  const integration=await integrationResponse(request,env);if(integration)return integration
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
   if(path==='/manage-booking'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return managementPage(request)}
   if(path.startsWith('/api/public/booking-management/')){

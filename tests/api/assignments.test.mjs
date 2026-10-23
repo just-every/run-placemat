@@ -354,3 +354,34 @@ test('Counter seats and anonymous pools share overlapping-turn capacity, pacing,
   await h.command('guest.erase',{guestId:rows[0].guestId,confirm:'ERASE'});assert.ok(!JSON.stringify(await h.api('/api/preshift?date='+f.date)).includes('synthetic-placemat-4"'));
  }finally{if(restored)await restored.close();await h.close()}
 })
+
+test('Scheduled direct protection releases staff allocation without releasing occupied physical tables',async()=>{
+ const {allocationService}=await import('./allocation-fixture.mjs')
+ const h=await installation();try{
+  const {service,tables}=await allocationService(h)
+  const advice=()=>h.api('/api/allocation-advice?serviceId='+service.id)
+  const alternative=(await advice()).inventory.alternatives.find(a=>a.protection.tableIds[0]===tables[1].id)
+  const prepare=releaseAt=>h.command('proposal.prepare',{kind:'inventory.protect',plan:{serviceId:service.id,alternativeId:alternative.id,releaseAt},reason:'Release the reviewed direct interval at the selected deadline'})
+  for(const releaseAt of ['invalid','2030-01-01T17:00:00',new Date(Date.now()-1000).toISOString(),new Date(Date.parse(alternative.protection.endAt)+1000).toISOString()]){
+   await h.command('proposal.prepare',{kind:'inventory.protect',plan:{serviceId:service.id,alternativeId:alternative.id,releaseAt},reason:'Invalid deadline must not publish'},{status:400})
+  }
+  const releaseAt=new Date(Date.now()+3000).toISOString(),proposal=await prepare(releaseAt)
+  await h.command('proposal.approve',{proposalId:proposal.id})
+  const walk={serviceId:service.id,startAt:service.startAt,name:'Scheduled release guest',email:'scheduled@example.test',partySize:2,tableIds:[tables[1].id]}
+  await h.command('booking.walkin',walk,{status:409})
+  const deadline=Date.parse(releaseAt);await new Promise(resolve=>setTimeout(resolve,Math.max(0,deadline-Date.now())+30))
+  const protection=(await advice()).inventory.protected.find(p=>p.id===proposal.plan.protection.id)
+  assert.equal(protection.releaseAt,releaseAt,'The reviewed deadline remains in operational history')
+  const booking=await h.command('booking.walkin',walk)
+  assert.deepEqual(booking.tableIds,[tables[1].id],'The wall-clock deadline opens this future interval to staff without a release command')
+  await h.api('/api/public/book',{...walk,name:'Concurrent website guest',email:'occupied@example.test'},{as:'',status:409})
+  assert.equal((await h.api('/api/state')).state.bookings.filter(b=>b.tableIds.includes(tables[1].id)).length,1,'Scheduled release never removes a physical booking')
+  const archive=await h.api('/api/backup'),restored=await installation()
+  try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await restored.api('/api/state')).state.services.find(s=>s.id===service.id).directInventory[0].releaseAt,releaseAt)}finally{await restored.close()}
+  const next=(await advice()).inventory.alternatives.find(a=>a.protection.tableIds[0]===tables[2].id)
+  assert.ok(next)
+  const expired=await h.command('proposal.prepare',{kind:'inventory.protect',plan:{serviceId:service.id,alternativeId:next.id,releaseAt:new Date(Date.now()+700).toISOString()},reason:'Do not approve an already passed deadline'})
+  await new Promise(resolve=>setTimeout(resolve,750))
+  await h.command('proposal.approve',{proposalId:expired.id},{status:409})
+ }finally{await h.close()}
+})
