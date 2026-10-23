@@ -56,7 +56,7 @@ test('Refund notices refuse changed or erased reservation contacts and send only
   const preview=await h.api('/api/public/booking-management/preview',{token,action:'change',contact:{email:'synthetic-refund-contact@example.test'}},{as:''})
   await h.api('/api/public/booking-management/commit',{token,previewId:preview.previewId,acknowledged:true},{as:''})
   const first=await refundable(h,edge,booking,'synthetic-placemat-4'),before=h.messages.length
-  const stale=await h.command('payment.refund-notice',reviewed(first,'guest0@example.test'),{status:409})
+  const stale=await h.api('/api/commands',{command:'payment.refund-notice',payload:reviewed(first,'guest0@example.test')},{status:409})
   assert.match(stale.error,/contact changed/);assert.equal(h.messages.length,before);assert.equal((await h.api('/api/state')).refundNotices.length,0)
   await h.command('payment.refund-notice',{...reviewed(first,'synthetic-refund-contact@example.test'),channel:'sms'},{status:400})
   await h.command('payment.refund-notice',{...reviewed(first,'synthetic-refund-contact@example.test'),acknowledged:false},{status:400})
@@ -65,7 +65,7 @@ test('Refund notices refuse changed or erased reservation contacts and send only
   assert.deepEqual(h.messages.at(-1).to,['synthetic-refund-contact@example.test'])
   const second=await refundable(h,edge,booking,'synthetic-placemat-5'),view=await h.api('/api/state')
   await h.command('guest.erase',{guestId:view.state.bookings.find(b=>b.id===booking.id).guestId,confirm:'ERASE'})
-  const erased=await h.command('payment.refund-notice',reviewed(second,'synthetic-refund-contact@example.test'),{status:409})
+  const erased=await h.api('/api/commands',{command:'payment.refund-notice',payload:reviewed(second,'synthetic-refund-contact@example.test')},{status:409})
   assert.match(erased.error,/contact was erased/);assert.equal(h.messages.length,before+1);assert.equal((await h.api('/api/state')).refundNotices.length,1)
  }finally{await h.close()}
 })
