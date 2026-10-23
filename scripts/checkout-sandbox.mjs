@@ -1,6 +1,8 @@
 // Opt-in Stripe test proof: inventory recovery, a real hosted Checkout and exactly one captured charge.
 import assert from 'node:assert/strict'
 import {randomBytes,randomUUID} from 'node:crypto'
+import {mkdir} from 'node:fs/promises'
+import {resolve} from 'node:path'
 import {chromium} from '@playwright/test'
 import {installation,service,publicGuest} from '../tests/api/harness.mjs'
 for(const name of ['STRIPE_SECRET_KEY','QA_MAIL_TO'])assert.ok(process.env[name],`Missing ${name}`)
@@ -36,12 +38,13 @@ try{
  phase='hosted-card-expiry';await fill(['input[name=cardExpiry]','input[autocomplete=cc-exp]'],'12/35')
  phase='hosted-card-security';await fill(['input[name=cardCvc]','input[autocomplete=cc-csc]'],'123')
  phase='hosted-billing-name';await fill(['input[name=billingName]','input[autocomplete=cc-name]'],'Elena Torres')
- const country=page.locator('select[name=billingCountry]');if(await country.count())await country.selectOption('US')
- const postal=page.locator('input[name=billingPostalCode],input[autocomplete=postal-code]');if(await postal.count())await postal.first().fill('10001')
+ const country=page.locator('select[name=billingCountry]'),postal=page.locator('input[name=billingPostalCode]');if(await country.count()){await country.selectOption('US');await postal.fill('10001')}else if(await postal.count())await postal.fill('10001')
+ const saveDetails=page.locator('input[name=enableStripePass]');if(await saveDetails.count())await saveDetails.uncheck()
  phase='hosted-submit';await page.getByTestId('hosted-payment-submit-button').click()
  phase='provider-reconciliation'
  let session
  for(let i=0;i<18;i++){session=await stripe('checkout/sessions/'+sessionId+'?expand[]=payment_intent.latest_charge');if(session.payment_status==='paid'&&session.status==='complete')break;await new Promise(resolve=>setTimeout(resolve,5000))}
+ if(session.payment_status!=='paid')console.error(JSON.stringify({providerStatus:session.status,paymentStatus:session.payment_status,intentStatus:session.payment_intent?.status,declineCode:session.payment_intent?.last_payment_error?.code}));
  assert.equal(session.payment_status,'paid');assert.equal(session.status,'complete');assert.equal(session.amount_total,10000)
  chargeId=typeof session.payment_intent.latest_charge==='string'?session.payment_intent.latest_charge:session.payment_intent.latest_charge.id
  await h.command('payment.sync',{requestId:request.requestId});await h.command('payment.sync',{requestId:request.requestId});await h.command('payment.charge-sync',{bookingId:committed.id,chargeId})
@@ -50,7 +53,7 @@ try{
  const charge=await stripe('charges/'+chargeId);assert.equal(charge.captured,true);assert.equal(charge.amount_captured,10000);assert.equal(charge.metadata.placemat_booking_id,committed.id)
  console.log(JSON.stringify({proof:'BOOK-006 real held-checkout replay, one reservation and one Stripe-hosted captured test deposit',proofRun,at:new Date().toISOString(),bookingId:committed.id,processorSession:sessionId,processorCharge:chargeId,amountCents:10000,replaySafe:true}))
  await context.close()
-}catch{if(browser){const page=browser.contexts()[0]?.pages()[0];if(page)console.error(JSON.stringify({fieldMetadata:await page.locator('input').evaluateAll(nodes=>nodes.map(n=>({name:n.name,type:n.type,autocomplete:n.autocomplete,visible:!!n.getClientRects().length}))).catch(()=>[]),frameCount:page.frames().length}))}console.error(JSON.stringify({proof:'BOOK-006 live checkout',phase,passed:false,detail:'No credentials or private payment URL logged; owned session is closed or refunded below.'}));process.exitCode=1
+}catch{if(browser){const page=browser.contexts()[0]?.pages()[0];if(page){if(process.env.PLACEMAT_SCREENSHOTS){await mkdir(process.env.PLACEMAT_SCREENSHOTS,{recursive:true});await page.screenshot({path:resolve(process.env.PLACEMAT_SCREENSHOTS,'BOOK-006-hosted-validation.png'),fullPage:true})}console.error(JSON.stringify({validationMessages:await page.locator('[role=alert],.FieldError').allTextContents(),fieldMetadata:await page.locator('input').evaluateAll(nodes=>nodes.map(n=>({name:n.name,type:n.type,autocomplete:n.autocomplete,visible:!!n.getClientRects().length}))).catch(()=>[]),frameCount:page.frames().length}))}}console.error(JSON.stringify({proof:'BOOK-006 live checkout',phase,passed:false,detail:'No credentials or private payment URL logged; owned session is closed or refunded below.'}));process.exitCode=1
 }finally{
  if(browser)await browser.close()
  try{
