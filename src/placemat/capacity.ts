@@ -3,7 +3,7 @@ import {blockedByChange} from './service-blocks'
 import {assertPacing} from './pacing'
 import {fail,type State,type Service,type Table,type Booking} from './model'
 import {assignmentFor,candidateSets} from './combinations'
-import {checkStaffing} from './staffing-capacity'
+import {activeHolds,checkStaffing} from './staffing-capacity'
 type Occupancy = {startAt:string;setupStartAt?:string;endAt:string;cleanupEndAt?:string;expectedEndAt?:string;status?:string}
 /** A changed forecast retains the original reset duration and reservation fields. */
 export function occupiedEndAt(slot:Occupancy,now=new Date().toISOString()):string {
@@ -17,7 +17,7 @@ export const occupiedInterval=(slot:Occupancy,now=new Date().toISOString())=>({s
 export const overlaps=(a:Occupancy,b:Occupancy,now=new Date().toISOString())=>Date.parse(occupiedStartAt(a))<Date.parse(occupiedEndAt(b,now))&&Date.parse(occupiedEndAt(a,now))>Date.parse(occupiedStartAt(b))
 export const active=(b:Booking)=>b.status==='booked'||b.status==='seated'||b.status==='completed'
 export function allocation(s:State,service:Service,partySize:number,slot:Occupancy,requested?:unknown,except?:string,unavailable:string[]=[],now=new Date().toISOString(),allowPacing=false):Table[] {
- const bookings=s.bookings.filter(b=>b.id!==except)
+ const bookings=s.bookings.filter(b=>b.id!==except),holds=activeHolds(s,now)
  const existing=except?s.bookings.find(b=>b.id===except):undefined
  const choices=requested===undefined?[...candidateSets(s),...inventoryChoices(s,partySize,slot.startAt,0)]:[requested]
  let best:ReturnType<typeof assignmentFor>|undefined
@@ -25,7 +25,7 @@ export function allocation(s:State,service:Service,partySize:number,slot:Occupan
   let choice:ReturnType<typeof assignmentFor>
   try{choice=assignmentFor(s,ids,partySize,slot.startAt,service.startAt,existing?.requiredAccessTags??[],existing?.requiredArea,existing)}catch(error){if(requested===undefined&&error instanceof Error&&'status' in error&&[404,409].includes(Number(error.status)))continue;throw error}
   const interval={...slot,setupStartAt:choice.setupStartAt},tableIds=choice.tables.map(t=>t.id)
-  const blocked=blockedByChange(s,tableIds,interval.setupStartAt??interval.startAt,occupiedEndAt(interval,now),interval.startAt)||tableIds.some(id=>unavailable.includes(id))||bookings.some(b=>b.tableIds.some(id=>tableIds.includes(id))&&(active(b)&&overlaps(b,interval,now)||b.needsBussing&&occupiedStartAt(interval)<=now&&occupiedEndAt(interval,now)>now))
+  const blocked=blockedByChange(s,tableIds,interval.setupStartAt??interval.startAt,occupiedEndAt(interval,now),interval.startAt)||tableIds.some(id=>unavailable.includes(id))||bookings.some(b=>b.tableIds.some(id=>tableIds.includes(id))&&(active(b)&&overlaps(b,interval,now)||b.needsBussing&&occupiedStartAt(interval)<=now&&occupiedEndAt(interval,now)>now))||holds.some(h=>h.tableIds.some(id=>tableIds.includes(id))&&overlaps(h,interval,now))
   if(blocked){if(requested!==undefined)fail(409,'A selected table is already occupied during setup, the turn or cleanup. Review the current floor; clashes cannot be overridden.');continue}
   try{checkStaffing(s,[{...existing,...interval,serviceId:service.id,partySize,tableIds,status:(slot.status??existing?.status??'booked') as Booking['status']}],now,new Set(existing?.status==='seated'?[existing.id]:[]),true)}catch(error){if(requested===undefined&&error instanceof Error&&'status'in error&&Number(error.status)===409)continue;throw error}
   if(!allowPacing)assertPacing(s,service,{...existing,...interval,partySize,tableIds,status:(slot.status??existing?.status??'booked') as Booking['status']},now)

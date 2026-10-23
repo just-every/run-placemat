@@ -38,7 +38,7 @@ export async function phoneBookingJourney(h){
  assert.equal(overridden.status,'booked');assert.equal(overridden.pacingOverride.actor,operator.id)
  state=await h.api('/api/state')
  assert.ok(state.state.audit.some(a=>a.subject===overridden.id&&a.action==='booking.pacing-override'))
- await h.api('/api/pacing/preview',{command:'booking.phone',payload:{...overflow,email:'synthetic-placemat-4@example.test',tableIds:publicBooking.tableIds}},{as:host,status:409})
+ await h.api('/api/pacing/preview',{command:'booking.phone',payload:{...overflow,email:'synthetic-placemat-4@example.test',tableIds:state.state.bookings.find(b=>b.id===publicBooking.id).tableIds}},{as:host,status:409})
  const nextDay=new Date(Date.parse(startAt)+86400000).toISOString(),rules={minParty:1,maxParty:1,horizonDays:3650,leadMinutes:0,sameDayCutoff:'23:59',slotMinutes:15,inquiryAbove:20,blockedStarts:[]}
  const restricted=await h.command('service.save',{name:'synthetic-placemat-2',startAt:nextDay,endAt:new Date(Date.parse(nextDay)+3*3600000).toISOString(),turnMinutes:60,coverLimit:40,bookingRules:{online:rules}})
  const publication=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:restricted.id},reason:'synthetic-placemat-2'})

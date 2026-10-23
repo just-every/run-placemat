@@ -7,6 +7,22 @@ type PaymentRow={id:string;booking_id:string;amount_cents:number;currency:'usd';
 type PaymentInput={bookingId?:unknown;amountCents?:unknown;dueAt?:unknown;followupOwnerId?:unknown;reason?:unknown}
 type Checkout={id:string;object:string;mode:string;client_reference_id:string;metadata:Record<string,string>;amount_total:number;currency:string;expires_at:number;payment_status:string;status:string;url:string|null}
 
+// Expiry shown by the local deadline or a POST replay cannot release a reservation.
+// Only an immutable terminal Checkout state observed by authenticated GET is safe.
+const releaseSafe="((provider_attempt_at IS NULL AND provider_session_id IS NULL AND state!='paid') OR (provider_session_id IS NOT NULL AND verified_at IS NOT NULL AND ((state='expired' AND paid_at IS NULL) OR (state='paid' AND paid_at IS NOT NULL))))"
+const releaseMessage='Keep this reservation: Checkout collection is open, processing or unconfirmed. A personal owner or manager must recover any unconfirmed saved link, then close Checkout and verify its final payment status before releasing the slot.'
+
+/** Append to the same transaction that releases active reservation capacity. */
+export function paymentReleaseFence(db:D1Database,bookingIds:string[]){
+ return db.prepare(`INSERT INTO pm_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id IN (SELECT value FROM json_each(?)) AND NOT ${releaseSafe}) THEN 1 ELSE 0 END`).bind(JSON.stringify(bookingIds))
+}
+/** Friendly preflight plus the transaction fence; the caller must append the returned statement. */
+export async function assertPaymentReleaseAllowed(db:D1Database,bookingIds:string[]){
+ const blocked=await db.prepare(`SELECT 1 FROM pm_payment_requests WHERE booking_id IN (SELECT value FROM json_each(?)) AND NOT ${releaseSafe} LIMIT 1`).bind(JSON.stringify(bookingIds)).first()
+ if(blocked)fail(409,releaseMessage)
+ return paymentReleaseFence(db,bookingIds)
+}
+
 function alert(row:PaymentRow,now=Date.now()):PaymentAlert{
  const state=row.state==='unpaid'&&Date.parse(row.due_at)<=now?'exception':row.state
  return {requestId:row.id,bookingId:row.booking_id,amountCents:row.amount_cents,dueAt:row.due_at,state,followupOwnerId:row.followup_owner_id,...state==='unpaid'&&row.provider_url?{providerUrl:row.provider_url}:{}}
@@ -94,16 +110,17 @@ function checkoutState(session:Checkout):PaymentAlert['state']{
  if(session.payment_status==='unpaid'&&['open','complete'].includes(session.status))return 'unpaid'
  return 'exception'
 }
-async function recordSession(env:PaymentBindings,actor:Actor,row:PaymentRow,session:Checkout,fromGet:boolean){
+async function recordSession(env:PaymentBindings,actor:Actor,row:PaymentRow,session:Checkout,fromGet:boolean,action=fromGet?'payment.sync':'payment.link'){
  const {state:s,version}=await load(env.DB),current=await requestRow(env.DB,row.id)
  if(!fromGet)checkBooking(s,row.booking_id)
  const valid=verified(session,current),state=valid?checkoutState(session):'exception'
  // A POST replay is not a fresh observation of payment. Only authenticated GET may establish paid.
- let next=current.state==='paid'?'paid':state==='paid'&&!fromGet?'exception':state
+ const preserved=!fromGet&&current.verified_at&&['paid','expired'].includes(current.state)
+ let next=current.state==='paid'?'paid':preserved?current.state:state==='paid'&&!fromGet?'exception':state
  const url=valid&&next==='unpaid'&&session.status==='open'?providerUrl(session.url):null
  if(next==='unpaid'&&session.status==='open'&&!url)next='exception'
  const now=new Date().toISOString()
- await commit(env.DB,actor,s,version,fromGet?'payment.sync':'payment.link',row.booking_id,[env.DB.prepare('UPDATE pm_payment_requests SET state=?,provider_session_id=COALESCE(provider_session_id,?),provider_url=?,verified_at=?,paid_at=CASE WHEN ?=\'paid\' THEN COALESCE(paid_at,?) ELSE paid_at END WHERE id=?').bind(next,valid?session.id:null,url,fromGet&&valid?now:null,next,now,row.id)],{id:row.id,before:alert(current),after:{requestId:row.id,bookingId:row.booking_id,amountCents:row.amount_cents,dueAt:row.due_at,followupOwnerId:row.followup_owner_id,state:next,processorReference:valid?session.id:null}})
+ await commit(env.DB,actor,s,version,action,row.booking_id,[env.DB.prepare('UPDATE pm_payment_requests SET state=?,provider_session_id=COALESCE(provider_session_id,?),provider_url=?,verified_at=?,paid_at=CASE WHEN ?=\'paid\' THEN COALESCE(paid_at,?) ELSE paid_at END WHERE id=?').bind(next,valid?session.id:null,url,preserved?current.verified_at:fromGet&&valid?now:null,next,now,row.id)],{id:row.id,before:alert(current),after:{requestId:row.id,bookingId:row.booking_id,amountCents:row.amount_cents,dueAt:row.due_at,followupOwnerId:row.followup_owner_id,state:next,processorReference:valid?session.id:null}})
  if(!valid||next==='exception'||next==='unpaid'&&session.status==='open'&&!url)fail(502,'Stripe payment details could not be verified. A manager must review the request.')
  return alert(await requestRow(env.DB,row.id))
 }
@@ -113,11 +130,12 @@ export async function issuePaymentLink(env:PaymentBindings,actor:Actor,requestId
  await live(env.DB,actor);stripeKey(env)
  let row=await requestRow(env.DB,requestId)
  const {state:s,version}=await load(env.DB);checkBooking(s,row.booking_id)
- if(row.state!=='unpaid'||Date.parse(row.due_at)<=Date.now())fail(409,'This deposit request needs manager review before a link can be issued.')
+ const recovering=Boolean(row.provider_attempt_at&&!row.provider_session_id)
+ if(row.state!=='unpaid'&&!(recovering&&row.state==='exception')||!recovering&&Date.parse(row.due_at)<=Date.now())fail(409,'This deposit request needs manager review before a link can be issued.')
  if(row.provider_session_id){if(!row.provider_url)fail(409,'Check payment status to recover the current Stripe link before sharing it.');await live(env.DB,actor);return {...alert(row),delivery:'copy-required' as const}}
  const remaining=Date.parse(row.due_at)-Date.now()
  // Stripe requires a custom Checkout expiry 30 minutes to 24 hours ahead. Do not shorten the obligation.
- if(remaining<31*60000||remaining>24*3600000)fail(409,'Issue this link when its deadline is between 31 minutes and 24 hours away.')
+ if(!recovering&&(remaining<31*60000||remaining>24*3600000))fail(409,'Issue this link when its deadline is between 31 minutes and 24 hours away.')
  if(row.provider_attempt_at&&Date.now()-Date.parse(row.provider_attempt_at)>=23*3600000)fail(409,'A manager must reconcile the earlier Stripe attempt before another link can be created.')
  if(!row.provider_attempt_at){
   let origin:URL
@@ -139,4 +157,30 @@ export async function syncPaymentRequest(env:PaymentBindings,actor:Actor,request
  if(!row.provider_session_id)fail(409,'No Stripe session is recorded. Review or issue this saved request first.')
  const session=await stripe(env,'/'+encodeURIComponent(row.provider_session_id!))
  return recordSession(env,actor,row,session,true)
+}
+
+/** Explicit manager action closes collection only; cancellation remains a separate decision. */
+export async function closePaymentRequest(env:PaymentBindings,actor:Actor,requestId:unknown){
+ permitted(actor,true);await live(env.DB,actor)
+ let row=await requestRow(env.DB,requestId)
+ if(!row.provider_session_id){
+  if(row.provider_attempt_at)fail(409,'Keep this reservation. A personal owner or manager must recover this saved payment link using the same request, then close Checkout before releasing the slot.')
+  return {...alert(row),releaseAllowed:true,closeState:'no-attempt' as const}
+ }
+ let session:Checkout
+ try{session=await stripe(env,'/'+encodeURIComponent(row.provider_session_id))}
+ catch{return fail(502,'Keep this reservation. A personal owner or manager must check Stripe payment status; Checkout closure is unconfirmed.')}
+ await recordSession(env,actor,row,session,true,'payment.close.review')
+ row=await requestRow(env.DB,row.id)
+ if(row.state==='paid')return {...alert(row),releaseAllowed:true,closeState:'paid' as const}
+ if(row.state==='expired')return {...alert(row),releaseAllowed:true,closeState:'expired-unpaid' as const}
+ if(session.status!=='open'||session.payment_status!=='unpaid')fail(409,'Keep this reservation. Checkout payment is processing or unconfirmed. A personal owner or manager must check its final payment status before releasing the slot.')
+ // One explicit expiry attempt. Its response is never proof; a fresh GET below is authoritative.
+ try{await stripe(env,'/'+encodeURIComponent(row.provider_session_id!)+'/expire',new URLSearchParams(),'placemat-deposit-close-'+row.id)}catch{/* A concurrent payment or lost expiry response still requires the authoritative GET. */}
+ try{session=await stripe(env,'/'+encodeURIComponent(row.provider_session_id!))}
+ catch{return fail(502,'Keep this reservation. A personal owner or manager must check Stripe payment status; Checkout closure is unconfirmed.')}
+ await recordSession(env,actor,row,session,true,'payment.close')
+ row=await requestRow(env.DB,row.id)
+ if(row.state!=='expired'&&row.state!=='paid')fail(409,'Keep this reservation. A personal owner or manager must close the still-open Checkout or resolve its processing payment in Stripe, then check payment status before releasing the slot.')
+ return {...alert(row),releaseAllowed:true,closeState:row.state==='paid'?'paid' as const:'expired-unpaid' as const}
 }

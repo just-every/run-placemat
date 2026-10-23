@@ -1,3 +1,4 @@
+import {holdForCompletion,completionResult,completionStatements} from './booking-holds'
 import {phoneBooking} from './phone-bookings'
 import {executeDelegation} from './delegation'
 import {deviceFence} from './shared-device'
@@ -252,14 +253,19 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  try{await save(db,s,version,before)}catch(error){if(actor.deviceId&&String(error).includes('CHECK constraint failed'))fail(409,'Host stand authorization changed. Unlock again.');throw error}
  return result
 }
-export async function onlineBook(db:D1Database,p:any){
+export async function onlineBook(db:D1Database,input:any):Promise<{partySize:number;[key:string]:any}>{
+ const {checkout,...p}=input
+ const held=checkout?await holdForCompletion(db,{...checkout,booking:p}):undefined
+ if(held?.replay)return Object.defineProperty(held.replay,'checkoutReplay',{value:true}) as {partySize:number;[key:string]:any}
  const {state:s,version}=await load(db),service=serviceBy(s,p.serviceId)
+ if(held)s.holds=s.holds?.filter(h=>h.id!==held.hold.id)
  if(service.status!=='published')fail(404,'This service is not open for bookings.')
  if(service.closedAt)fail(409,'This service is closed. Choose an open service; no booking has been made.')
  const partySize=number(p.partySize,'Party size',1,500),attribution=bookingAttribution(s,p.embedOrigin)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
  const {state:filtered,requiredArea,requiredAccessTags}=searchTables(s,p.area,p.requiredAccessTags)
- const fit=bookingFit(filtered,service,partySize,p.startAt,'online',p.tableIds),{tables,...slot}=fit
+ const fit=bookingFit(filtered,service,partySize,p.startAt,'online',held?.hold.tableIds??p.tableIds),{tables,...slot}=fit
+ if(held)for(const key of ['startAt','endAt','cleanupEndAt','setupStartAt'] as const)if((slot[key]??slot.startAt)!==(held.hold[key]??held.hold.startAt))fail(409,'The held turn changed. Release this checkout and choose availability again; no payment was made.')
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
  if(p.requests!==undefined&&p.requestsAcknowledged!==true)fail(400,'Acknowledge required guarantees and requested preferences before booking.')
@@ -270,6 +276,9 @@ export async function onlineBook(db:D1Database,p:any){
  const b:Booking={preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
- await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
- return {assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ const result={assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ const response=held?completionResult(result):result
+ try{await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[]),...(held?completionStatements(db,held,response,version):[])])}
+ catch(error){if(held){const recovered=await holdForCompletion(db,{...checkout,booking:p});if(recovered.replay)return Object.defineProperty(recovered.replay,'checkoutReplay',{value:true}) as {partySize:number;[key:string]:any}}throw error}
+ return response as {partySize:number;[key:string]:any}
 }

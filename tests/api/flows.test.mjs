@@ -707,3 +707,23 @@ import './refund-notice-journeys.mjs'
 
 import {phoneBookingJourney} from './phone-booking-journeys.mjs'
 test('Future staff reservations retain returning-guest identity, concierge source, declared requests and reviewed pacing without bypassing hard capacity',async()=>{const h=await installation();try{await phoneBookingJourney(h)}finally{await h.close()}})
+
+import './checkout-payment-journeys.mjs'
+import {bookingHoldsJourney} from './booking-holds-journeys.mjs'
+test('Checkout holds protect the final table across channels, expire and abandon safely, and recover one booking and one charge after interruption',async()=>{
+ const {paymentEdge}=await import('./payment-fixture.mjs'),edge=paymentEdge();let lose=true
+ const h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:async request=>{const response=await edge.edge(request);if(lose&&request.method==='POST'&&new URL(request.url).pathname==='/v1/checkout/sessions'){lose=false;return new Response(null,{status:503})}return response}})
+ try{
+  const f=await bookingHoldsJourney(h),owner=(await h.api('/api/state')).actor
+  const request=await h.command('payment.request',{bookingId:f.booking.id,amountCents:10000,dueAt:new Date(Date.now()+7200000).toISOString(),followupOwnerId:owner.id,reason:'Guest agreed to this reservation deposit'})
+  await h.command('payment.link',{requestId:request.requestId},{status:502})
+  await h.command('payment.link',{requestId:request.requestId});await h.command('payment.link',{requestId:request.requestId})
+  assert.equal(edge.sessions.size,1)
+  const session=[...edge.sessions.values()][0],charge=edge.completeCheckout(session.id);assert.equal(edge.completeCheckout(session.id),charge)
+  await h.command('payment.sync',{requestId:request.requestId});await h.command('payment.sync',{requestId:request.requestId})
+  const replay=(await h.api('/api/public/book',{...f.checkout.booking,checkout:{requestId:f.checkout.requestId,token:f.checkout.token}},{as:'',status:201})).result
+  assert.equal(replay.id,f.booking.id);assert.equal(edge.charges.size,1);assert.equal((await h.api('/api/state')).paymentRequests.find(r=>r.requestId===request.requestId).state,'paid')
+  await h.command('payment.charge-sync',{bookingId:f.booking.id,chargeId:charge})
+  const archive=JSON.stringify(await h.api('/api/backup'));assert.ok(!archive.includes(f.checkout.token));assert.ok(archive.includes('pm_booking_holds'));assert.ok(!archive.includes('request_hash'))
+ }finally{await h.close()}
+})

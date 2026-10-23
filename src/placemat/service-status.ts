@@ -1,3 +1,4 @@
+import {activeHolds} from './staffing-capacity'
 import {assertInventory} from './direct-inventory'
 import {allocation,active,occupiedStartAt,occupiedEndAt} from './capacity'
 import {checkStaffing,recordServing,servingFor} from './staffing-capacity'
@@ -67,6 +68,7 @@ function fit(s:State,b:Booking,now:string,seating:boolean) {
   assertTablesReady(s,b.tableIds,b.id)
   // Check the actual current instant separately from the protected reservation.
   // This does not invent an occupied interval between now and a future booking.
+  if(activeHolds(s,now).some(h=>(h.setupStartAt??h.startAt)<=now&&(h.cleanupEndAt??h.endAt)>now&&h.tableIds.some(id=>b.tableIds.includes(id))))fail(409,'A selected table is reserved by a live checkout hold.')
   if(s.bookings.some(other=>other.id!==b.id&&active(other)&&occupiedStartAt(other)<=now&&occupiedEndAt(other,now)>now&&other.tableIds.some(id=>b.tableIds.includes(id))))fail(409,'A selected table is occupied now. Review the current floor before seating or correcting this party.')
  }
 }

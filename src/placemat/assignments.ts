@@ -6,7 +6,7 @@ import {fail,id,text,type Actor,type Booking,type State,type AuditEntry,type Ser
 import {serviceSnapshot} from './service-status'
 import {occupiedEndAt} from './capacity'
 import {assignmentFor} from './combinations'
-import {checkStaffing,recordServing} from './staffing-capacity'
+import {activeHolds,checkStaffing,recordServing} from './staffing-capacity'
 
 export function accessTags(value:unknown,label:string):string[]{
  if(value===undefined)return []
@@ -52,6 +52,7 @@ export function validateAssignments(s:State,moves:Array<{booking:Booking;tableId
   const service=s.services.find(v=>v.id===b.serviceId)??fail(404,'Service not found.')
   const ids=tables.map(t=>t.id),interval=assignmentInterval({...b,setupStartAt},now)
   if(!preserve)assertServiceBlocks(s,ids,interval.startAt,interval.cleanupEndAt,b.startAt)
+  if(activeHolds(s,now).some(h=>h.tableIds.some(id=>ids.includes(id))&&overlaps(interval,{startAt:h.setupStartAt??h.startAt,cleanupEndAt:h.cleanupEndAt??h.endAt})))fail(409,'A selected table is reserved by a live checkout hold. Choose another table or wait for its release.')
   const stage=serviceSnapshot(s,b).status,physical=b.status==='seated'||['arrived','partially-arrived'].includes(stage)
   const occupiesNow=physical||interval.startAt<=now&&interval.cleanupEndAt>now
   const candidates=[...others,...destinations.filter(d=>d.booking.id!==b.id).map(d=>({...d.booking,tableIds:d.tables.map(t=>t.id),setupStartAt:d.setupStartAt}))]

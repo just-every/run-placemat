@@ -1,3 +1,4 @@
+import {createHold,readHold,abandonHold} from './booking-holds'
 import {createFeePolicy,recordFeeConsent,previewFee,assessFee,readFees,feeAudit} from './fees'
 import {refundWebhook,refundFollowups} from './refund-events'
 import {sendRefundNotice,refundNotices,refundNoticeAudit} from './refund-notices'
@@ -5,7 +6,7 @@ import {readManagement,previewManagement,commitManagement} from './booking-manag
 import {managementPage} from './booking-management-view'
 import {sendManagement} from './booking-management-mail'
 import {handoverAssignees} from './host-projection'
-import {paymentAlerts,createPaymentRequest,issuePaymentLink,syncPaymentRequest} from './payment-links'
+import {paymentAlerts,closePaymentRequest,createPaymentRequest,issuePaymentLink,syncPaymentRequest} from './payment-links'
 import {executeRefund,synchronizeRefundCharge,refundAudit} from './refunds'
 import {authorizeReports,projectAuthority} from './delegation'
 import {sharedDeviceResponse} from './shared-device'
@@ -76,7 +77,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
  if(path==='/api/payments/refund-events')return refundWebhook(env,request)
- if(path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
   if(path==='/manage-booking'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return managementPage(request)}
@@ -142,6 +143,18 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(providers.length)defer(sendAnalytics(env.DB,event,visit,env.AUTH_ORIGIN+'/book'))
    return json({providers},202)
   }
+  if(path.startsWith('/api/public/booking-holds')){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env)
+   const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':holds:'+Math.floor(Date.now()/60000))
+   const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
+   if((count?.count??0)>60)fail(429,'Too many checkout requests. Please wait a minute.')
+   const p=await jsonBody(request)
+   if(path==='/api/public/booking-holds')return json(await createHold(env.DB,p))
+   if(path==='/api/public/booking-holds/status')return json(await readHold(env.DB,p))
+   if(path==='/api/public/booking-holds/abandon')return json(await abandonHold(env.DB,p))
+   return json({error:'Not found'},404)
+  }
   if(path==='/api/public/book'){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    originCheck(request,env)
@@ -150,7 +163,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if((count?.count??0)>20)fail(429,'Too many booking requests. Please wait a minute.')
    await env.DB.prepare('DELETE FROM pm_public_limits WHERE rowid IN (SELECT rowid FROM pm_public_limits ORDER BY rowid DESC LIMIT -1 OFFSET 500)').run()
    const p=await jsonBody(request),result=await onlineBook(env.DB,p),visit=bookingVisit(p,result.partySize,request)
-   if(visit)defer(sendAnalytics(env.DB,'booking',visit,env.AUTH_ORIGIN+'/book'))
+   if(visit&&!result.checkoutReplay)defer(sendAnalytics(env.DB,'booking',visit,env.AUTH_ORIGIN+'/book'))
    return json({result},201)
   }
   if(['/api/group/join-accept','/api/group/introspect'].includes(path)){
@@ -320,6 +333,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path==='/api/commands'&&request.method==='POST'){
    const p=await jsonBody(request)
    if(p.command==='booking.management.send')return json({result:await sendManagement(env,actor!,p.payload??{})})
+   if(p.command==='payment.close')return json({result:await closePaymentRequest(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.request')return json({result:await createPaymentRequest(env.DB,actor!,p.payload??{})})
    if(p.command==='payment.link')return json({result:await issuePaymentLink(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.sync')return json({result:await syncPaymentRequest(env,actor!,p.payload?.requestId)})

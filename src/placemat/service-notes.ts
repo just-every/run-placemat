@@ -57,6 +57,7 @@ export function kitchen(s:State,actor:Actor,serviceId:string,now=new Date().toIS
 }
 /** Existing API readers keep existing access, but new restricted notes never reach them via snapshots. */
 export function filterNotes(s:State,actor:Actor){
+ delete s.holds
  if(canReadShift(actor))return s
  s.serviceNotes=actor.agent?[]:(s.serviceNotes??[]).filter(n=>n.kind==='kitchen')
  s.audit=s.audit.map(e=>({...e,changes:e.changes?.filter(c=>c.kind!=='serviceNotes')}))

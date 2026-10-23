@@ -1,4 +1,5 @@
 import {inventoryAssignment} from './seat-inventory'
+import {activeHolds} from './staffing-capacity'
 import {fail,id,number,type Booking,type Combination,type CombinationSnapshot,type State,type Table} from './model'
 
 export const sameTables=(a:string[],b:string[])=>a.length===b.length&&a.every(id=>b.includes(id))
@@ -64,7 +65,9 @@ export function saveCombination(s:State,p:any){
  if(combination.accessTags.some(tag=>tables.some(t=>!t.accessTags?.includes(tag))))fail(400,'Combination access tags must be supported by every constituent table.')
  assertFit(tables,combination,1,[])
  if(s.combinations?.some(c=>c.id!==combination.id&&sameTables(c.tableIds,combination.tableIds)))fail(409,'This exact table combination already exists. Edit it instead.')
- if(current&&inUse(s,current)&&(!sameTables(current.tableIds,combination.tableIds)||current.capacity!==combination.capacity||JSON.stringify([...current.accessTags].sort())!==JSON.stringify(combination.accessTags)||current.setupMinutes!==combination.setupMinutes))fail(409,'An active booked or seated party uses this combination. Keep its settings until those commitments finish; enabled may be changed for future assignments.')
+ const settingsChanged=current&&(!sameTables(current.tableIds,combination.tableIds)||current.capacity!==combination.capacity||JSON.stringify([...current.accessTags].sort())!==JSON.stringify(combination.accessTags)||current.setupMinutes!==combination.setupMinutes)
+ if(current&&activeHolds(s).some(h=>h.combination?.id===current.id||sameTables(h.tableIds,current.tableIds))&&(settingsChanged||current.enabled!==combination.enabled))fail(409,'An active checkout hold uses this combination. Keep its settings and enabled state until that hold expires or completes.')
+ if(current&&inUse(s,current)&&settingsChanged)fail(409,'An active booked or seated party uses this combination. Keep its settings until those commitments finish; enabled may be changed for future assignments.')
  if(!current&&(s.combinations?.length??0)>=200)fail(400,'This venue supports up to 200 approved combinations.')
  if(current)Object.assign(current,combination);else(s.combinations??=[]).push(combination)
  return combination

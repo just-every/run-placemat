@@ -16,7 +16,7 @@ export function captureAudit(previous:State,next:State):void {
  for(const entry of events)entry.source??=entry.actor==='guest'?'guest-supplied':'person'
  const changes:AuditChange[]=[]
  for(const kind of new Set([...Object.keys(previous),...Object.keys(next)])){
-  if(kind==='audit')continue
+  if(kind==='audit'||kind==='holds')continue
   const before=(previous as any)[kind],after=(next as any)[kind]
   if(same(before,after))continue
   if(Array.isArray(before)||Array.isArray(after)){

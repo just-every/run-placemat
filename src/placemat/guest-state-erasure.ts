@@ -64,6 +64,7 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  }
  const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  {sql:'DELETE FROM pm_booking_holds WHERE booking_id IN (SELECT value FROM json_each(?))',params:[erasedIds]},
   {sql:'DELETE FROM pm_fee_credentials WHERE consent_id IN (SELECT id FROM pm_fee_consents WHERE booking_id IN (SELECT value FROM json_each(?)))',params:[erasedIds]},
   {sql:"UPDATE pm_fee_consents SET evidence='' WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
   {sql:"UPDATE pm_fee_assessments SET reason='',evidence='' WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},

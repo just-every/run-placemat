@@ -1,6 +1,7 @@
 import {fail,id,number,text,type State,type Table,type Inventory} from './model'
 import {accessTags} from './assignments'
 import {overlaps,active} from './capacity'
+import {activeHolds} from './staffing-capacity'
 
 /** Each anonymous cover shares the ordinary serialized capacity ledger. Pool units never name a physical seat. */
 export function createInventory(s:State,p:any){
@@ -21,12 +22,12 @@ export function inventoryAssignment(tables:Table[],size:number){
  return tables[0].inventoryId!
 }
 export function inventoryChoices(s:State,size:number,startAt:string,cleanupMinutes:number){
- const result:string[][]=[]
+ const result:string[][]=[],now=new Date().toISOString(),holds=activeHolds(s,now)
  for(const inventory of s.inventories??[]){
   let units=s.tables.filter(t=>t.inventoryId===inventory.id&&!t.retiredAt).sort((a,b)=>a.ordinal!-b.ordinal!)
   const endAt=new Date(Date.parse(startAt)+inventory.turnMinutes*60000).toISOString(),cleanupEndAt=new Date(Date.parse(endAt)+cleanupMinutes*60000).toISOString()
-  // Pool and non-adjacent inventory can fill fragmented free units. Counter adjacency uses the original ordinal sequence.
-  if(inventory.kind==='pool'||!inventory.adjacent)units=units.filter(t=>!s.bookings.some(b=>b.tableIds.includes(t.id)&&(active(b)&&overlaps(b,{startAt,endAt,cleanupEndAt})||b.needsBussing&&startAt<=new Date().toISOString())))
+  // Pools can fill fragmented free units; counter adjacency retains the original ordinals.
+  units=units.filter(t=>!s.bookings.some(b=>b.tableIds.includes(t.id)&&(active(b)&&overlaps(b,{startAt,endAt,cleanupEndAt})||b.needsBussing&&startAt<=now))&&!holds.some(h=>h.tableIds.includes(t.id)&&overlaps(h,{startAt,endAt,cleanupEndAt},now)))
   for(let i=0;i+size<=units.length;i++){
    const group=units.slice(i,i+size)
    if(inventory.adjacent&&group.some((t,n)=>t.ordinal!==group[0].ordinal!+n))continue

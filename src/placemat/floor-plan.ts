@@ -1,3 +1,4 @@
+import {activeHolds} from './staffing-capacity'
 import {accessTags,applyAssignment,assignmentSnapshot,validateAssignments} from './assignments'
 import {checkStaffing} from './staffing-capacity'
 import {assignmentFor,sameTables,tableArea} from './combinations'
@@ -60,6 +61,7 @@ function replacementsFor(s:State,raw:any):Replacement[]{
 /** A preview contains all commitments and refusals; preparation never changes the floor. */
 export function prepareFloorChange(s:State,p:any,now:string):FloorPlan {
  const current=s.tables.find(t=>t.id===p.tableId)??fail(404,'Table not found.')
+ if(activeHolds(s,now).some(h=>h.tableIds.includes(current.id)))fail(409,'A live checkout holds this table. Wait for expiry or release before editing or retiring it.')
  if(current.inventoryId)fail(409,'Inventory units keep their reviewed configuration; create new inventory instead.')
  if(current.retiredAt)fail(409,'A retired table remains in history and cannot be changed.')
  if(p.retire!==undefined&&typeof p.retire!=='boolean')fail(400,'Choose whether to retire this table.')
