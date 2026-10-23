@@ -25,9 +25,10 @@ export async function reviewRetention(db:D1Database){
   const g=JSON.parse(r.data),bookings=state.bookings.filter(b=>b.guestId===r.id),queues=state.waitlist.filter(w=>w.guestId===r.id),inquiries=(state.inquiries??[]).filter(i=>i.guestId===r.id)
   const dates=[...Object.values(g.provenance??{}).map((p:any)=>p.at),...(g.notesHistory??[]).map((n:any)=>n.provenance?.at),...(g.history??[]).map((v:any)=>v.date),...bookings.flatMap(b=>[b.createdAt,b.endAt,...(b.needHistory??[]).map(e=>e.at)]),...queues.flatMap(w=>(w.history??[]).map(e=>e.at)),...inquiries.flatMap(i=>i.messages.map(m=>m.at))].filter(d=>typeof d==='string'&&Number.isFinite(Date.parse(d))).map(d=>new Date(d).toISOString()).sort()
   const lastAt=dates.at(-1)??null,active=bookings.some(b=>['booked','seated'].includes(b.status))||queues.some(w=>['waiting','queued','offered'].includes(w.status))||inquiries.some(i=>!['converted','closed'].includes(i.status))
-  const eligible=!active&&!!lastAt&&lastAt<cutoff
-  return {id:r.id,name:g.name,lastAt,eligible,reason:active?'Active service work':!lastAt?'Original date not recorded':eligible?'All personal-content periods elapsed':'Retention period has not elapsed'}
+  const undatedNotes=!!g.notes&&!g.provenance?.notes?.at
+  const eligible=!active&&!undatedNotes&&!!lastAt&&lastAt<cutoff
+  return {id:r.id,name:g.name,lastAt,eligible,reason:active?'Active service work':undatedNotes||!lastAt?'Original date not recorded':eligible?'All personal-content periods elapsed':'Retention period has not elapsed'}
  })
  const fingerprint=await hash(JSON.stringify({policyVersion:current.version,version,rows:rows.map(r=>[r.id,r.version]),guests:guests.map(g=>[g.id,g.eligible]),day:now.slice(0,10)}))
- return {policy:current,cutoff,guests,fingerprint,notice:'Review only. An explicit run erases selected eligible identities and all associated personal content; financial references remain for the recorded ground. No processor request is sent.'}
+ return {policy:current,cutoff,guests,fingerprint,floorVersion:version,guestVersions:Object.fromEntries(rows.map(r=>[r.id,r.version])),notice:'Review only. An explicit run erases selected eligible identities and all associated personal content; financial references remain for the recorded ground. No processor request is sent.'}
 }

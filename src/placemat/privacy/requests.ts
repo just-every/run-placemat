@@ -25,7 +25,7 @@ export async function eraseRequest(db:D1Database,actor:Actor,p:any,kind='deletio
  if(!current)fail(409,'Record retention grounds before completing privacy erasure.')
  if(row.guest.erased)return {completed:true,alreadyErased:true}
  const requestId=id(),at=new Date().toISOString(),refs=await processorRefs(db,row.id)
- const statements:D1Sql[]=[{sql:'INSERT INTO pm_privacy_requests(id,guest_id,kind,state,actor_id,created_at,completed_at,policy_version) VALUES(?,?,?,?,?,?,?,?)',params:[requestId,row.id,kind,'completed',actor.id,at,at,current.version]},
+ const statements:D1Sql[]=[...(p.retentionReview?[{sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) AND EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=?) AND EXISTS(SELECT 1 FROM pm_privacy_policy WHERE id=1 AND version=?) THEN 1 ELSE 0 END',params:[p.retentionReview.floorVersion,row.id,p.retentionReview.guestVersion,p.retentionReview.policyVersion]}]:[]),{sql:'INSERT INTO pm_privacy_requests(id,guest_id,kind,state,actor_id,created_at,completed_at,policy_version) VALUES(?,?,?,?,?,?,?,?)',params:[requestId,row.id,kind,'completed',actor.id,at,at,current.version]},
   {sql:'INSERT INTO pm_privacy_events(id,request_id,actor_id,action,at,details) VALUES(?,?,?,?,?,?)',params:[id(),requestId,actor.id,'guest.erased',at,JSON.stringify({policyVersion:current.version,financialGround:current.rules.financialEvidence.ground,financialDays:current.rules.financialEvidence.days})]},
   ...refs.map(ref=>({sql:'INSERT INTO pm_privacy_processors(id,request_id,provider,reference,state,actor_id,updated_at) VALUES(?,?,?,?,?,?,?)',params:[id(),requestId,ref.provider,ref.reference,'open',actor.id,at]}))]
  await erasureCheckpoint(db)
@@ -38,9 +38,9 @@ export async function runRetention(db:D1Database,actor:Actor,p:any){
  const review=await reviewRetention(db)
  if(p.fingerprint!==review.fingerprint)fail(409,'Guest data or retention settings changed. Review again.')
  if(p.guestIds.some((id:unknown)=>!review.guests.some(g=>g.id===id&&g.eligible)))fail(409,'Every selected guest must be eligible for this reviewed run.')
- const completed=[]
+ const completed=[];let floorVersion=review.floorVersion
  // Each identity erasure is atomic and resumable; a later refusal leaves prior completed requests visible.
- for(const guestId of p.guestIds)completed.push(await eraseRequest(db,actor,{guestId,confirm:'ERASE'},'retention'))
+ for(const guestId of p.guestIds){const result=await eraseRequest(db,actor,{guestId,confirm:'ERASE',retentionReview:{floorVersion,guestVersion:review.guestVersions[guestId],policyVersion:review.policy.version}},'retention');completed.push(result);if(!result.alreadyErased)floorVersion++}
  return {completed}
 }
 export async function processorTask(db:D1Database,actor:Actor,p:any){

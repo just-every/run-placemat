@@ -446,8 +446,8 @@ Judged from the code and tests at commit `6e8e9d86f5ab6f99db9b7736e138b2eba5f5a8
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 15 | 0 | 0 | 15 |
-| Target and push further | 36 | 24 | 59 | 119 |
-| All | 51 | 24 | 59 | 134 |
+| Target and push further | 36 | 25 | 58 | 119 |
+| All | 51 | 25 | 58 | 134 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
