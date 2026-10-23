@@ -23,7 +23,7 @@ for(const width of [1440,390]){
   const region=page.getByRole('region',{name:'Refunds',exact:true}),notice=region.locator('[data-command="payment.refund-notice"]').first()
   await notice.locator('[name=acknowledged]').check();await shot('review-current-contact',notice)
   await notice.locator('[name=expectedContactEmail]').evaluate(el=>el.value='stale-contact@example.test')
-  await notice.getByRole('button',{name:'Send refund outcome email',exact:true}).click();await page.getByRole('status').filter({hasText:'reservation contact changed'}).waitFor();assert.equal(sent.length,0);await shot('changed-contact-refused',page.locator('#notice'))
+  await notice.getByRole('button',{name:'Send refund outcome email',exact:true}).click();await page.getByRole('alert').filter({hasText:'reservation contact changed'}).waitFor();assert.equal(sent.length,0);await shot('changed-contact-refused',page.locator('#notice'))
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor();await notice.locator('[name=acknowledged]').check();await notice.getByRole('button',{name:'Send refund outcome email',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
   assert.equal(sent.length,1);assert.deepEqual(sent[0].to,['guest0@example.test']);assert.match(await region.innerText(),/Acceptance unconfirmed/);await shot('unconfirmed-notice',region)
   let view=await h.api('/api/state');const receipt=view.refundNotices.find(n=>n.refundId===refund.id),task=page.locator(`[data-handover-task="${receipt.followupTaskId}"]`)
