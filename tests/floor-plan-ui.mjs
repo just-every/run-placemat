@@ -65,6 +65,7 @@ try{
    await h.api('/api/public/book',publicGuest(service,1,{name:'Marco Rivera',partySize:2,area:'Patio'}),{as:'',status:201})
    await second.locator('.floor-table').filter({hasText:'Marco Rivera'}).waitFor({timeout:15000})
    await second.waitForFunction(()=>document.querySelector('[data-new-booking-count]')?.textContent.startsWith('2 new since this view opened'),null,{timeout:15000})
+   await second.locator('#floor-sync[data-state=synced]').waitFor({timeout:15000})
    assert.match(await second.locator('#floor-sync').innerText(),/Floor synced.*Checking every 3 seconds/,'FLOOR-008 names the last successful sync')
    assert.equal(await second.locator('#bookings-list [data-new-booking]').count(),2)
    assert.equal(await second.locator('.floor-table[data-shape=round]').count(),1);assert.equal(await second.locator('.floor-table[data-area=Patio]').count(),1)
