@@ -22,13 +22,13 @@ function canonical(value:unknown):string{
  return fail(400,'Checkout identity requires an exact JSON booking payload.')
 }
 async function identity(p:HoldInput,withPayload=false){
- if(typeof p.requestId!=='string'||!/^[A-Za-z0-9_-]{16,128}$/.test(p.requestId)||typeof p.token!=='string'||!randomPattern.test(p.token))fail(400,'Keep a stable checkout request identity and a random 32-byte capability.')
+ if(typeof p.requestId!=='string'||!/^[A-Za-z0-9_-]{16,128}$/.test(p.requestId)||typeof p.token!=='string'||!randomPattern.test(p.token))return fail(400,'Keep a stable checkout request identity and a random 32-byte capability.')
  if(withPayload&&(!p.booking||typeof p.booking!=='object'||Array.isArray(p.booking)))fail(400,'Send the exact booking payload reserved by this checkout.')
  return {requestHash:await hash(p.requestId),tokenHash:await hash(p.token),payloadHash:withPayload?await hash(p.token+':'+canonical(p.booking)):undefined}
 }
 async function find(db:D1Database,requestHash:string){return db.prepare('SELECT * FROM pm_booking_holds WHERE request_hash=?').bind(requestHash).first<HoldRow>()}
 function authorize(row:HoldRow|null,tokenHash:string,payloadHash?:string):HoldRow{
- if(!row||row.token_hash!==tokenHash)fail(404,'Checkout hold not found.')
+ if(!row||row.token_hash!==tokenHash)return fail(404,'Checkout hold not found.')
  if(payloadHash!==undefined&&row.payload_hash!==payloadHash)fail(409,'This checkout identity already belongs to different booking details. Start a new checkout.')
  return row
 }
