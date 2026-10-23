@@ -7,7 +7,7 @@ import { Problem,type Actor,type Guest } from '../model'
 /** An active merge represents one reviewed identity; erase all its aliases together.
  * Reversed profiles remain separate. Their shared historical snapshots are purged.
  */
-export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Actor){
+export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Actor,requestStatements:D1Sql[]=[]){
  requireOwner(actor)
  const floor=await db.prepare('SELECT version FROM pm_state WHERE id=1').first()
  const rows=(await db.prepare('SELECT id,version,data FROM pm_guest_merges').all()).results as Array<{id:string;version:number;data:string}>
@@ -28,7 +28,7 @@ export async function eraseImportedGuest(db:D1Database,guestId:string,actor:Acto
   return [{sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guest_merges WHERE id=? AND version=?) THEN 1 ELSE 0 END',params:[row.id,row.version]},
    {sql:'UPDATE pm_guest_merges SET version=version+1,data=? WHERE id=? AND version=?',params:[canonicalJson(j),row.id,row.version]}]
  })]
- return eraseGuestGroup(db,[...ids],actor,purge)
+ return eraseGuestGroup(db,[...ids],actor,[...purge,...requestStatements])
 }
 
 /** All reviewed identities and operational redactions commit in one custody batch. */

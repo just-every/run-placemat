@@ -1,3 +1,5 @@
+import {costsResponse} from './costs'
+import {privacyResponse} from './privacy/http'
 import {queueOrder} from './queue-order'
 import {integrationResponse} from './api/reads'
 import {createHold,readHold,abandonHold} from './booking-holds'
@@ -70,6 +72,8 @@ const paths=new Set(['/api/payments/fee-policy','/api/payments/fee-consent','/ap
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
+ const costs=await costsResponse(request,env);if(costs)return costs
+ const privacy=await privacyResponse(request,env);if(privacy)return privacy
  const url=new URL(request.url),path=url.pathname
  let responseActor:Actor|null=null
  const json=async(data:any,status=200)=>{

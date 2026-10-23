@@ -1,4 +1,5 @@
 import {subscriptions} from './events'
+import {checkedEvent,type StoredEvent} from './event-schema'
 import type {Bindings} from '../../auth.server'
 import {actorFor,jsonBody,originCheck,person} from '../access'
 import {Problem,fail,id,text,type Actor} from '../model'
@@ -98,10 +99,10 @@ async function integrationRoute(request:Request,env:Bindings):Promise<Response|n
  const limit=Number(limitText),after=await afterCursor(env.SESSION_SECRET,key,kind,url.searchParams.get('cursor'))
  if(kind==='events'){
   if(after&&!/^[1-9]\d*$/.test(after))fail(400,'Invalid event cursor.')
-  const rows=(await env.DB.prepare('SELECT sequence,payload FROM pm_integration_events WHERE sequence>? ORDER BY sequence LIMIT ?').bind(after?Number(after):0,limit+1).all<{sequence:number;payload:string}>()).results
+  const rows=(await env.DB.prepare('SELECT sequence,id,type,schema_version,payload,created_at FROM pm_integration_events WHERE sequence>? ORDER BY sequence LIMIT ?').bind(after?Number(after):0,limit+1).all<StoredEvent&{sequence:number}>()).results
   const items=rows.slice(0,limit),nextCursor=rows.length>limit?await cursor(env.SESSION_SECRET,key,kind,String(items.at(-1)!.sequence)):null
   if(!await env.DB.prepare(live).bind(digest).first())fail(401,'Integration key was revoked or expired.')
-  return reply({version:'1',items:items.map(row=>JSON.parse(row.payload)),nextCursor})
+  return reply({version:'1',items:items.map(checkedEvent),nextCursor})
  }
  const fields=kind==='guests'?['id']:['id','serviceId','partySize','startAt','endAt','status','source']
  if(url.searchParams.has('fields')&&url.searchParams.get('fields')!.split(',').some(field=>!fields.includes(field)))fail(403,'Requested fields are outside this read scope. Contact and private profile fields are denied.')

@@ -61,7 +61,9 @@
         "node tests/timeline-search-ui.mjs",
         "node tests/onboarding-ui.mjs",
         "node tests/guest-review-ui.mjs",
-        "node tests/schedules-ui.mjs"
+        "node tests/schedules-ui.mjs",
+        "node tests/privacy-ui.mjs",
+        "node tests/costs-ui.mjs"
       ]
     },
     {

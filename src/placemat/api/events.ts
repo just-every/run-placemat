@@ -1,5 +1,6 @@
 import {fail,id,type State,type Actor} from '../model'
 import type {Bindings} from '../../auth.server'
+import {checkedEvent,schemaReport,type StoredEvent} from './event-schema'
 
 const encode=new TextEncoder()
 export async function sign(secret:string,value:string){
@@ -43,6 +44,7 @@ type Subscription={id:string;key_id:string;url:string;types:string;sealed_secret
 export async function subscriptions(env:Bindings,actor:Actor,path:string,method:string,p:any){
  const db=env.DB
  if(method==='GET'){
+  if(path==='/api/integration-subscriptions/schema')return schemaReport(db)
   if(path!=='/api/integration-subscriptions')fail(404,'Subscription route not found.')
   return {subscriptions:(await db.prepare('SELECT id,key_id AS keyId,url,types,created_at AS createdAt,revoked_at AS revokedAt FROM pm_integration_subscriptions ORDER BY created_at,id').all()).results.map(row=>({...row,types:JSON.parse(row.types as string)})),attempts:(await db.prepare('SELECT id,subscription_id AS subscriptionId,event_id AS eventId,status,http_status AS httpStatus,created_at AS createdAt,finished_at AS finishedAt FROM pm_integration_deliveries ORDER BY created_at,id').all()).results}
  }
@@ -66,8 +68,8 @@ export async function subscriptions(env:Bindings,actor:Actor,path:string,method:
  if(typeof p.requestId!=='string'||! /^[a-zA-Z0-9-]{16,128}$/.test(p.requestId)||typeof p.eventId!=='string')fail(400,'Send an event ID and a stable request ID of 16 to 128 letters, digits or hyphens.')
  const old=await db.prepare('SELECT event_id,status,http_status FROM pm_integration_deliveries WHERE id=? AND subscription_id=?').bind(p.requestId,subscription.id).first<{event_id:string;status:string;http_status:number|null}>()
  if(old){if(old.event_id!==p.eventId)fail(409,'This request ID already names another event.');return {requestId:p.requestId,eventId:old.event_id,status:old.status,httpStatus:old.http_status,replayed:true}}
- const event=await db.prepare('SELECT type,schema_version,payload FROM pm_integration_events WHERE id=?').bind(p.eventId).first<{type:string;schema_version:number;payload:string}>()??fail(404,'Event not found.')
- if(event.schema_version!==1)fail(409,'This event schema is unsupported. Upgrade the subscriber before replaying it.')
+ const event=await db.prepare('SELECT id,type,schema_version,payload,created_at FROM pm_integration_events WHERE id=?').bind(p.eventId).first<StoredEvent>()??fail(404,'Event not found.')
+ checkedEvent(event)
  if(!JSON.parse(subscription.types).includes(event.type))fail(403,'This event type is outside the subscription.')
  const now=new Date().toISOString(),pending=db.prepare("INSERT INTO pm_integration_deliveries(id,subscription_id,event_id,status,created_at,created_by) VALUES(?,?,?,'pending',?,?)").bind(p.requestId,subscription.id,p.eventId,now,actor.id)
  try{await db.batch([ownerFence(db,actor),keyFence(db,subscription.key_id),db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_integration_subscriptions WHERE id=? AND revoked_at IS NULL) THEN 1 ELSE 0 END').bind(subscription.id),pending,db.prepare('DELETE FROM pm_assertions')])}catch(error){
