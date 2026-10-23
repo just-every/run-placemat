@@ -727,3 +727,30 @@ test('Checkout holds protect the final table across channels, expire and abandon
   const archive=await h.api('/api/backup');assert.ok(!JSON.stringify(archive).includes(f.checkout.token));assert.ok(!archive.filter(p=>p.kind==='part').flatMap(p=>p.items).some(item=>item.table==='pm_booking_holds'),'Checkout capabilities and recovery rows never travel in a business archive')
  }finally{await h.close()}
 })
+
+
+test('Late arrivals: host grace and contact log, running-late hold refuses clashes, no-show history releases capacity',async()=>{
+ const h=await installation();try{
+  const {service:s,floor}=await service(h,{tables:1,seats:4,covers:30})
+  const first=(await h.api('/api/public/book',publicGuest(s,92,{partySize:4}),{as:'',status:201})).result
+  const next=(await h.api('/api/public/book',publicGuest(s,93,{startAt:first.endAt}),{as:'',status:201})).result
+  const host=await h.signIn('late@example.test'),op=(await h.api('/auth/operators')).find(p=>p.email==='late@example.test');await h.command('team.host',{operatorId:op.id,enabled:true})
+  const command=(payload,options={})=>h.command('booking.late',{bookingId:first.id,reason:'Guest running late',...payload},{as:host,...options})
+  await command({action:'grace',minutes:15})
+  for(let i=0;i<2;i++)await command({action:'contact',method:'phone',outcome:'Unanswered call '+(i+1)})
+  const until=new Date(Date.parse(first.startAt)+15*60000).toISOString()
+  await command({action:'hold',until},{status:409})
+  assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===first.id).lateOperations.history.length,3)
+  await h.command('booking.status',{bookingId:next.id,status:'cancelled'})
+  const held=await command({action:'hold',until});assert.equal(held.startAt,first.startAt);assert.equal(held.endAt,first.endAt);assert.equal(held.expectedEndAt,new Date(Date.parse(first.endAt)+15*60000).toISOString())
+  await h.command('booking.status',{bookingId:first.id,status:'no-show'},{as:host,status:409})
+  const timeline=await h.api('/api/timeline?serviceId='+s.id+'&date='+new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane'}).format(new Date(s.startAt)))
+  assert.equal(timeline.rows.find(b=>b.id===first.id).lateOperations.history.length,4)
+  assert.ok(held.lateOperations.history.every(e=>e.actor===op.id&&Date.parse(e.at)))
+  // Another ordinary no-show retains the existing explicit staff release path.
+  const other=await h.command('booking.phone',{...publicGuest(s,94,{startAt:new Date(Date.parse(held.expectedEndAt)+15*60000).toISOString()}),staffIntake:{source:'phone',contactPreference:'none',confirmationConsent:false}})
+  await h.command('booking.status',{bookingId:other.id,status:'no-show'},{as:host})
+  const queue=await h.command('waitlist.add',publicGuest(s,95));const seated=await h.command('waitlist.seat',{waitlistId:queue.id,startAt:other.startAt,tableIds:floor.map(t=>t.id)})
+  assert.equal(seated.status,'seated');assert.equal((await h.api('/api/state')).state.serviceEvents.find(e=>e.bookingId===other.id).after.status,'no-show')
+ }finally{await h.close()}
+})

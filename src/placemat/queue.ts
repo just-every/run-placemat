@@ -8,7 +8,8 @@ export type QueueEntry = {
  contactPhone?:string;
  id:string; serviceId:string; guestId:string; partySize:number; status:QueueStatus|'waiting'|'cancelled';
  createdAt?:string|null; seatedAt?:string; resolvedAt?:string; bookingId?:string; priority?:number;
- quote?:{minMinutes:number;maxMinutes:number;at:string;actor:string;basis:string};
+ entryKind?:'reservation-request'|'walk-in';
+ quote?:{guestVisible?:boolean;minMinutes:number;maxMinutes:number;at:string;actor:string;basis:string};
  source?:'staff'|'public'; preferredAt?:string; preferredArea?:string; requiredAccessTags?:string[]; contactConsent?:boolean; managementTokenHash?:string;
  actualWaitMinutes?:number|null; owner?:string; history?:Event[]; followUps?:FollowUp[]
 }
@@ -24,7 +25,8 @@ function task(row:QueueEntry,actor:Actor,now:string,kind:FollowUp['kind'],reason
 function quote(row:QueueEntry,actor:Actor,p:any,now:string) {
  const minMinutes=number(p.quoteMin,'Minimum quoted wait',0,720),maxMinutes=number(p.quoteMax,'Maximum quoted wait',0,720)
  if(maxMinutes<minMinutes)fail(400,'The maximum quoted wait must be at least the minimum.')
- row.quote={minMinutes,maxMinutes,at:now,actor:actor.id,basis:text(p.basis,'Quote basis',500)}
+ if(p.guestVisible!==undefined&&typeof p.guestVisible!=='boolean')fail(400,'Choose whether to share this quote with the guest.')
+ row.quote={guestVisible:p.guestVisible===true,minMinutes,maxMinutes,at:now,actor:actor.id,basis:text(p.basis,'Quote basis',500)}
 }
 /** Decorate the real waitlist.add result, using the actual matched guest's phone. */
 export function initializeQueue(row:QueueEntry,actor:Actor,p:any,now:string):QueueEntry {

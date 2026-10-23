@@ -1,3 +1,5 @@
+import {executeLate} from './late-arrivals'
+import {executeNeeds} from './needs'
 import {outageSheet,outageOwner,approveOutage} from './outage'
 import {holdForCompletion,completionResult,completionStatements} from './booking-holds'
 import {phoneBooking} from './phone-bookings'
@@ -50,10 +52,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(actor.deviceId)before.push(deviceFence(db,actor,Date.parse(now)))
  if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
  const leadCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','booking.walkin','waitlist.seat']
- const hostCommands=['booking.phone','booking.phone.change','booking.handover','booking.handover.assign','booking.handover.complete','booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
+ const hostCommands=['booking.late','waitlist.quote','waitlist.priority','waitlist.status','waitlist.followup','booking.needs','booking.phone','booking.phone.change','booking.handover','booking.handover.assign','booking.handover.complete','booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='lead'&&s.leadIds?.includes(actor.id)&&leadCommands.includes(command))&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
+ case 'booking.late':{result=executeLate(s,actor,p,now);break}
+ case 'booking.needs':{result=executeNeeds(s,actor,p,now);break}
  case 'outage.sheet':{result=outageSheet(s,actor,p,version,now);break}
  case 'booking.phone':case 'booking.phone.change':{const changed=await phoneBooking(db,s,actor,command,p,version,now,pacingSecret);before.push(...changed.statements);result=changed.booking;break}
  case 'team.lead':case 'team.server':case 'team.finance':case 'team.reports':case 'team.manager-limit':{result=await executeDelegation(db,s,actor,command,p);break}

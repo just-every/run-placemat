@@ -1,3 +1,4 @@
+import {needLines} from './needs'
 import {searchGuests} from './guests'
 import {checkStaffing} from './staffing-capacity'
 import {active,overlaps} from './capacity'
@@ -85,10 +86,10 @@ export function timeline(state:State,guests:Guest[],params:TimelineParams,now=ne
   const lateMinutes=lateAt?Math.max(0,(Date.parse(lateAt)-Date.parse(booking.startAt))/60000):0
   const overdueMinutes=booking.status==='seated'?Math.max(0,(nowMs-Date.parse(expectedDepartureAt))/60000):0
   const history=(state.audit as Audit[]).filter(event=>auditFor(event,booking.id))
-  return {...booking,bookingId:booking.id,serviceName:service.name,serviceDate:localDate(service.startAt,state.venue.timezone),guestName:guest?.name??'Erased guest',vipLevel:guest?.erased?'none':guest?.profile?.vipLevel??'none',
+  return {...booking,needLines:needLines(booking),bookingId:booking.id,serviceName:service.name,serviceDate:localDate(service.startAt,state.venue.timezone),guestName:guest?.name??'Erased guest',vipLevel:guest?.erased?'none':guest?.profile?.vipLevel??'none',
    tableNames:tables.map(table=>table.label),areas:[...new Set(tables.map(table=>table.area||'Dining room'))],serverId:booking.serverId??null,serverName:booking.serverName??null,sectionName:booking.sectionName??null,servingHistory:booking.servingHistory??[],
    expectedSeatAt:booking.startAt,expectedDepartureAt,expectedResetAt:new Date(Date.parse(expectedDepartureAt)+reset).toISOString(),...actual,
-   lateMinutes,late:lateMinutes>0,overdueMinutes,overdue:overdueMinutes>0,
+   lateMinutes,late:lateMinutes>0,beyondGrace:lateMinutes>(booking.lateOperations?.graceMinutes??0),overdueMinutes,overdue:overdueMinutes>0,
    collisionIds:active(booking)?state.bookings.filter(other=>other.id!==booking.id&&active(other)&&other.tableIds.some(tableId=>booking.tableIds.includes(tableId))&&overlaps(booking,other,now)).map(other=>other.id):[],
    assignmentHistory:history.filter(event=>['booking.move','booking.swap','booking.lock','table.assign','proposal.approve'].includes(event.action)),
    serviceHistory,turnHistory:history.filter(event=>event.action==='booking.extend')}

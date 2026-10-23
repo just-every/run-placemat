@@ -92,6 +92,7 @@ export function executeServiceStatus(s:State,actor:Actor,p:any,now:string) {
  if(p.source!==undefined&&p.source!=='staff-recorded')fail(400,'This action records a staff observation, not a POS signal.')
  if(!Number.isFinite(Date.parse(now)))fail(400,'A valid service observation time is required.')
  const b=s.bookings.find(v=>v.id===p.bookingId)??fail(404,'Booking not found.')
+ if((p.stage??p.status)==='no-show'&&b.lateOperations&&(b.lateOperations.holdUntil&&b.lateOperations.holdUntil>now||new Date(Date.parse(b.startAt)+(b.lateOperations.graceMinutes??0)*60000).toISOString()>now))fail(409,'The recorded grace or running-late hold has not ended. Review the party before marking no-show.')
  const history=eventsFor(s,b),before=serviceSnapshot(s,b)
  if(history.at(-1)&&now<history.at(-1)!.at)fail(409,'An observation cannot precede the latest service event.')
  let after:ServiceSnapshot,reason=p.reason===undefined||typeof p.reason==='string'&&!p.reason.trim()?'':text(p.reason,'Service status reason',1000)

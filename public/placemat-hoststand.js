@@ -54,6 +54,7 @@ function payloadFor(values,action,form){
  if(payload.partySize!==undefined)payload.partySize=Number(payload.partySize);
  if(values.has('tableIds'))payload.tableIds=values.getAll('tableIds');
  if(action==='booking.lock')payload.locked=payload.locked==='true';
+ if(action==='waitlist.quote')payload.guestVisible=values.has('guestVisible');
  if(action==='waitlist.add')payload.contactConsent=values.has('contactConsent');
  if(action==='booking.phone'){
   payload.staffIntake={source:values.get('staffSource'),contactPreference:values.get('contactPreference'),confirmationConsent:values.has('confirmationConsent')};

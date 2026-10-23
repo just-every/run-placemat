@@ -218,3 +218,35 @@ test('GUEST-004: merge journal exports and validated restore reconcile; erasure 
   const old=await h.api('/api/restore',{archive,confirm:'RESTORE'},{status:400});assert.match(old.error,/before a guest was erased/)
  }finally{await h.close();await restored.close();await erased.close()}
 })
+
+
+test('Declared needs: exact staff review, stale clarification, dated corrections, filtered handoff and erased portable history',async()=>{
+ const h=await installation(),restored=await installation();try{
+  const {service:s,floor}=await (await import('./harness.mjs')).service(h,{tables:2,seats:4,covers:20})
+  await h.command('table.save',{...floor[0],accessTags:['step-free']})
+  const b=(await h.api('/api/public/book',{...publicGuest(s,91),requiredAccessTags:['step-free'],requests:{allergyNotes:'synthetic-placemat-nuts',dietaryNotes:'Vegetarian',wheelchair:true},requestsAcknowledged:true},{as:'',status:201})).result
+  const revision=b=>JSON.stringify([b.requests??null,b.requiredAccessTags??[],b.needHistory?.length??0])
+  const payload={bookingId:b.id,revision:revision(b),field:'allergy',action:'acknowledge',reason:'Guest discussed the declaration at check-in'}
+  const member=await h.signIn('needs@example.test'),op=(await h.api('/auth/operators')).find(p=>p.email==='needs@example.test')
+  await h.command('booking.needs',payload,{as:member,status:403});await h.command('booking.needs',payload,{as:'',status:401})
+  await h.command('team.host',{operatorId:op.id,enabled:true})
+  let current=await h.command('booking.needs',payload,{as:member});assert.equal(current.needHistory[0].actor,op.id);assert.ok(Date.parse(current.needHistory[0].at))
+  await h.command('booking.needs',payload,{as:member,status:409})
+  current=await h.command('booking.needs',{...payload,revision:revision(current),field:'access'},{as:member})
+  current=await h.command('booking.needs',{...payload,revision:revision(current),action:'clarify',reason:'Older declaration conflicts with the guest current statement'},{as:member})
+  const correction={...payload,revision:revision(current),action:'correct',value:'synthetic-placemat-peanuts',guestConfirmed:true,reason:'Guest clarified peanuts only; original declaration retained'}
+  await h.command('booking.needs',{...payload,revision:revision(current)},{as:member,status:409})
+  await h.command('booking.needs',{...correction,guestConfirmed:false},{as:member,status:400})
+  current=await h.command('booking.needs',correction,{as:member});current=await h.command('booking.needs',{...payload,revision:revision(current)},{as:member})
+  assert.equal(current.requests.allergyNotes,'synthetic-placemat-nuts');assert.equal(current.needHistory.length,5)
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane'}).format(new Date(s.startAt))
+  const sheet=await h.api('/api/preshift?date='+date,undefined,{as:member}),kitchen=await h.api('/api/kitchen?serviceId='+s.id,undefined,{as:member})
+  for(const receiver of [sheet,kitchen])assert.match(JSON.stringify(receiver),/synthetic-placemat-peanuts.*Guest clarification recorded by staff.*Staff acknowledged/)
+  const html=await (await h.request('/preshift?date='+date,{as:member})).text(),pdf=await (await h.request('/api/preshift.pdf?date='+date,{as:member})).text()
+  for(const value of [html,pdf])assert.ok(value.includes('synthetic-placemat-peanuts')&&value.includes('Staff acknowledged'))
+  const archive=await h.api('/api/backup');await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/state')).state.bookings[0].needHistory,current.needHistory)
+  assert.ok((await (await h.request('/api/business-export/bookings.csv')).text()).includes('needHistory_json'))
+  await h.command('guest.erase',{guestId:current.guestId,confirm:'ERASE'})
+  for(const value of [await h.api('/api/state'),await h.api('/api/backup'),await h.api('/api/kitchen?serviceId='+s.id)])assert.ok(!JSON.stringify(value).includes('synthetic-placemat-'))
+ }finally{await h.close();await restored.close()}
+})

@@ -19,7 +19,7 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  eraseAudit(state,guestId)
  for(const reminder of state.reminders)if(reminder.guestId===guestId){delete reminder.contactName;delete reminder.contactEmail;delete reminder.contactPhone}
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan))]
- for(const b of bookings)if(b.guestId===guestId){if(b.handover)b.handover=[];b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
+ for(const b of bookings)if(b.guestId===guestId){if(b.lateOperations)for(const e of b.lateOperations.history){e.reason='';if(e.outcome)e.outcome=''}if(b.needHistory)b.needHistory=[];if(b.handover)b.handover=[];b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
  for(const inquiry of state.inquiries??[])if(inquiry.guestId===guestId){
   delete inquiry.tokenHash;delete inquiry.requiredArea;inquiry.requiredAccessTags=[];inquiry.requests=normalizeBookingRequests({});inquiry.messages=[]
   if(inquiry.offer){delete inquiry.offer.requiredArea;inquiry.offer.requiredAccessTags=[];inquiry.offer.guarantees=[]}

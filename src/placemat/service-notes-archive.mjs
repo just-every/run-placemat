@@ -31,6 +31,18 @@ export function validateServiceNotes(s){
   }
  }
  for(const booking of s.bookings){
+  if(booking.lateOperations!==undefined){
+   const o=booking.lateOperations
+   if(!record(o)||o.graceMinutes!==undefined&&!quantity(o.graceMinutes,0,120)||o.holdUntil!==undefined&&!instant(o.holdUntil)||!Array.isArray(o.history)||o.history.some(e=>!record(e)||!label(e.id)||!['grace','contact','hold'].includes(e.action)||!instant(e.at)||!label(e.actor)||typeof e.reason!=='string'||e.action==='contact'&&(!['phone','in-person','other'].includes(e.method)||typeof e.outcome!=='string')||e.action==='hold'&&!instant(e.until)||e.action==='grace'&&!quantity(e.minutes,0,120)))invalid('Invalid late-arrival history')
+  }
+  if(booking.needHistory!==undefined){
+   if(!Array.isArray(booking.needHistory))invalid('Invalid declared needs history')
+   const ids=new Set()
+   for(const e of booking.needHistory){
+    if(!record(e)||!label(e.id)||ids.has(e.id)||!['allergy','dietary','access'].includes(e.field)||!['acknowledge','clarify','correct'].includes(e.action)||!label(e.value)||typeof e.declaration!=='string'||!label(e.reason)||!label(e.actor)||!instant(e.at))invalid('Invalid declared need event')
+    ids.add(e.id)
+   }
+  }
   if(booking.preorders===undefined)continue
   if(!Array.isArray(booking.preorders))invalid('Invalid booking preorders')
   const menu=menus.get(booking.serviceId),seen=new Set()

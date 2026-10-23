@@ -6,7 +6,7 @@ import { initializeQueue,executeQueue,type QueueEntry } from './queue'
 import { hash,load,save } from './store'
 
 export type IntakePreferences = {
- partySize:number; preferredAt?:string; preferredArea?:string;
+ entryKind:'reservation-request'|'walk-in';partySize:number; preferredAt?:string; preferredArea?:string;
  requiredAccessTags:string[]; contactConsent:boolean
 }
 export type ManagedQueueEntry = QueueEntry & Partial<IntakePreferences> & {
@@ -36,7 +36,9 @@ export function normalizeIntake(s:State,p:any,current?:ManagedQueueEntry):Intake
  const normalizedTags=(tags as unknown[]).map(tag=>text(tag,'Declared access need',80))
  const contactConsent=p.contactConsent===undefined?current?.contactConsent??false:p.contactConsent
  if(typeof contactConsent!=='boolean')fail(400,'Choose whether the venue may contact this party about its queue entry.')
- return {partySize,preferredAt,preferredArea,requiredAccessTags:[...new Set<string>(normalizedTags)].sort(),contactConsent}
+ const entryKind=p.entryKind??current?.entryKind??(preferredAt?'reservation-request':'walk-in')
+ if(!['reservation-request','walk-in'].includes(entryKind))fail(400,'Choose reservation request or walk-in.')
+ return {entryKind,partySize,preferredAt,preferredArea,requiredAccessTags:[...new Set<string>(normalizedTags)].sort(),contactConsent}
 }
 
 function openService(s:State,serviceId:unknown,now:string,intake=false):IntakeService {
@@ -50,7 +52,8 @@ function publicRules(s:State,service:Service,preferences:IntakePreferences,now:s
  checkBookingRules(s,service,preferences.partySize,requestedAt,'waitlist')
 }
 function view(row:ManagedQueueEntry) {
- return {entry:{id:row.id,serviceId:row.serviceId,partySize:row.partySize,status:status(row),preferredAt:row.preferredAt??null,preferredArea:row.preferredArea??null,requiredAccessTags:row.requiredAccessTags??[],contactConsent:row.contactConsent??false}}
+ const quote=row.quote?.guestVisible?{minMinutes:row.quote.minMinutes,maxMinutes:row.quote.maxMinutes,at:row.quote.at,basis:row.quote.basis}:null
+ return {entry:{quote,entryKind:row.entryKind??(row.preferredAt?'reservation-request':'walk-in'),id:row.id,serviceId:row.serviceId,partySize:row.partySize,status:status(row),preferredAt:row.preferredAt??null,preferredArea:row.preferredArea??null,requiredAccessTags:row.requiredAccessTags??[],contactConsent:row.contactConsent??false}}
 }
 function append(row:ManagedQueueEntry,actor:Actor,now:string,action:string,reason:string,details?:unknown):void {
  const current=status(row)

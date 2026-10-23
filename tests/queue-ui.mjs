@@ -1,3 +1,4 @@
+import {operationsBrowserJourney} from './operations-ui-journey.mjs'
 // WAIT-002: scan the real QR into the public queue, then manage and host intake.
 import assert from 'node:assert/strict'
 import {readFile,mkdir} from 'node:fs/promises'
@@ -57,4 +58,5 @@ try{
    assert.ok(await guest.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);console.log(`WAIT-002 QR, guest management and host intake passed at ${width}`)
   }finally{await ownerContext.close();await guestContext.close();await hostContext.close();await h.close()}
  }
+ await operationsBrowserJourney(browser)
 }finally{await browser.close()}

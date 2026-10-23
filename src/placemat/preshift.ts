@@ -1,3 +1,4 @@
+import {needLines} from './needs'
 import {notesFor} from './service-notes'
 import {fail,type Actor,type Guest,type State} from './model'
 import {pacingReport} from './pacing'
@@ -24,7 +25,7 @@ export function preshift(state:State,guests:Guest[],actor:Actor,date:string,gene
    // Only the server's verified paid state establishes protection. Keep payment
    // links, money and follow-up identities out of this shared host projection.
    const payments=server?[]:paymentRequests.filter(p=>p.bookingId===b.id).map(p=>({state:p.state,dueAt:p.dueAt,protection:p.state==='paid'?'protected' as const:'pending' as const}))
-   return {...shape,name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
+   return {...shape,needLines:needLines(b,names),name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
   })}
  })}
 }
@@ -56,11 +57,12 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
     add(`Deposit: ${payment.state} | ${payment.protection==='protected'?'Protected (provider verified)':'Protection pending (unprotected)'}`)
     add(`Deposit deadline: ${time(payment.dueAt)}`)
    }
+   for(const line of b.needLines)add(line)
    if(b.occasion)add(`Occasion: ${b.occasion}`)
    if(b.seatingPreference)add(`Seating preference: ${b.seatingPreference}`)
    if(b.requestedArea)add(`Requested area: ${b.requestedArea}`)
-   if(b.requests?.dietary)add(`Unverified guest-supplied dietary request: ${b.requests.dietary}`)
-   if(b.requests?.allergy)add(`Unverified guest-supplied allergy request: ${b.requests.allergy}`)
+   if(b.requests?.dietary)add(`Unverified guest-supplied dietary request (original booking declaration): ${b.requests.dietary}`)
+   if(b.requests?.allergy)add(`Unverified guest-supplied allergy request (original booking declaration): ${b.requests.allergy}`)
    const access=[...(b.requests?.access??[]),...b.requiredAccessTags];if(access.length)add(`Unverified guest-supplied access requests: ${access.join(', ')}`)
    if('notes' in b){if(b.notes)add(`Guest notes: ${b.notes}`);if(b.tags?.length)add(`Tags: ${b.tags.join(', ')}`);if(b.email||b.phone)add(`Contact: ${b.email} ${b.phone}`)}
   }

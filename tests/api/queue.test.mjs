@@ -84,3 +84,22 @@ test('WAIT-006: staff queue history, quotes, priority, seating and shift-close d
 
  }finally{await h.close()}
 })
+
+
+test('Quoted waits: explicit guest sharing, revised scoped estimate and fitting bypass retain six-top priority',async()=>{
+ const h=await installation();try{
+  const {service:s}=await service(h,{tables:1,seats:2,covers:40})
+  const six=await h.command('waitlist.add',publicGuest(s,96,{partySize:6,entryKind:'reservation-request',quoteMin:20,quoteMax:30,basis:'Private staff basis'}))
+  const two=await h.command('waitlist.add',publicGuest(s,97,{partySize:2,entryKind:'walk-in'}))
+  const status=token=>h.api('/api/public/queue/status',{token},{as:''})
+  assert.equal((await status(six.token)).entry.quote,null)
+  await h.command('waitlist.priority',{waitlistId:six.id,priority:5,reason:'Retain six-top promise'})
+  await h.command('waitlist.quote',{waitlistId:six.id,quoteMin:20,quoteMax:30,basis:'Waiting for the larger table',guestVisible:true})
+  assert.equal((await status(six.token)).entry.quote.minMinutes,20)
+  await h.command('waitlist.quote',{waitlistId:six.id,quoteMin:35,quoteMax:45,basis:'The previous turn is delayed',guestVisible:true})
+  const guest=await status(six.token);assert.equal(guest.entry.quote.minMinutes,35);assert.equal(guest.entry.quote.basis,'The previous turn is delayed');assert.equal(guest.entry.entryKind,'reservation-request');assert.ok(!JSON.stringify(guest).includes('Private staff basis'));assert.ok(!JSON.stringify(guest).includes('actor'))
+  assert.equal((await status(two.token)).entry.entryKind,'walk-in')
+  const order=(await h.api('/api/state')).queueOrder;assert.equal(order[0].id,two.id);assert.equal(order[0].fits,true);assert.match(order[0].reason,/earlier party retains priority/);assert.equal(order[1].retainedOrder,1);assert.equal(order[1].fits,false)
+  await h.command('waitlist.seat',{waitlistId:two.id,startAt:s.startAt});const retained=(await h.api('/api/state')).state.waitlist.find(w=>w.id===six.id);assert.equal(retained.priority,5);assert.equal(retained.status,'queued');assert.equal(retained.history.filter(e=>e.action==='wait-quoted').length,2)
+ }finally{await h.close()}
+})

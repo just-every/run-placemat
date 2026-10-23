@@ -176,7 +176,7 @@ function tableEditor(t) { return physicalTableEditor(t,state,{esc,field,select,f
 
 function renderWaitlist() {
   const rows = state.waitlist.filter(w => w.serviceId === serviceId),s=service();
-  $('#waitlist-content').innerHTML = `<p class="help">${esc(s?.name || 'Choose or create a service first.')} · arrival times use ${esc(zone())}</p>${renderQueue(rows,{esc,who,time,guest,canEdit:canEdit(),canSeat:canSeat(),canIntake:canIntake(),form,field,select,seatFields:()=>startField()+tableField()+field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"')})}${canIntake() && s?.status === 'published' && !s.closedAt ? `<details><summary>Add a waiting party</summary>${form('waitlist.add',serviceField()+personFields()+queueIntakeFields({field,timezone:zone()}),'Add to waitlist')}</details>` : ''}<div id="queue-management-link"></div>${canEdit()?intakeSettings(s,{esc,form}):''}${canEdit()&&s?.status==='published'?queueCloseForm(s,{esc,form,field,time}):''}`;
+  $('#waitlist-content').innerHTML = `<p class="help">${esc(s?.name || 'Choose or create a service first.')} · arrival times use ${esc(zone())}</p>${renderQueue(rows,{order:data.queueOrder,esc,who,time,guest,canEdit:canEdit(),canSeat:canSeat(),canIntake:canIntake(),form,field,select,seatFields:()=>startField()+tableField()+field('Manager rule override reason (only if needed)','overrideReason','text','','maxlength="1000"')})}${canIntake() && s?.status === 'published' && !s.closedAt ? `<details><summary>Add a waiting party</summary>${form('waitlist.add',serviceField()+personFields()+queueIntakeFields({field,timezone:zone()}),'Add to waitlist')}</details>` : ''}<div id="queue-management-link"></div>${canEdit()?intakeSettings(s,{esc,form}):''}${canEdit()&&s?.status==='published'?queueCloseForm(s,{esc,form,field,time}):''}`;
 }
 
 function expandedGuests() {return [...document.querySelectorAll('#guest-results > details[open]')].map(card=>card.querySelector('[data-action=guest-review]')?.dataset.id);}
@@ -246,6 +246,8 @@ async function loadJournal() {
 }
 function payloadFrom(formEl) {
   const values = Object.fromEntries(new FormData(formEl));
+  if(formEl.querySelector('[name=guestVisible]'))values.guestVisible=new FormData(formEl).has('guestVisible');
+  if(formEl.querySelector('[name=guestConfirmed]'))values.guestConfirmed=new FormData(formEl).has('guestConfirmed');
   if(formEl.querySelector('[name=acknowledged]'))values.acknowledged=new FormData(formEl).has('acknowledged');
   parseSchedule(formEl,values);
   if('amountCents' in values)values.amountCents=Number(values.amountCents);
