@@ -55,3 +55,5 @@ for(const width of [1440,390]){
   console.log(`ROLE-003 owner grant, shift link, server-only sheet, PDF and kitchen view passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }
+
+await import("./phone-bookings-ui.mjs");

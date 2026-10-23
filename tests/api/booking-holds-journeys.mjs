@@ -29,7 +29,7 @@ export async function bookingHoldsJourney(h){
  const floor=await h.api('/api/floor-version')
  await h.command('booking.move',{bookingId:other.id,tableIds:[table.id],version:floor.version},{status:409})
  await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:other.id,tableIds:[table.id]},reason:'Attempt to use held inventory'},{status:409})
- await h.command('table.save',{id:table.id,label:'Changed held table',seats:4,x:40,y:40},{status:409})
+ await h.command('table.save',{id:table.id,label:'Changed held table',seats:2,x:40,y:40},{status:409})
  const waiting=await h.command('waitlist.add',{serviceId:service.id,name:'Waiting party',partySize:4})
  await h.command('waitlist.seat',{waitlistId:waiting.id,startAt},{status:409})
  assert.ok(!JSON.stringify(visible).includes(first.token),'Capabilities never enter staff projections')

@@ -113,3 +113,5 @@ for(const width of [1440,390]){
   assert.deepEqual(errors,[]);console.log(`BOOK-004 private email link, reviewed two-to-four change, unavailable preservation, explicit cancellation and replay refusal passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }
+
+await import("./checkout-ui.mjs");
