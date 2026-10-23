@@ -12,7 +12,7 @@ async function signIn(context,cookie,origin){
  await context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:origin,secure:true,sameSite:'Lax'}}))
 }
 async function openGuest(page,query){
- await page.locator('#guest-search').fill(query)
+ const search=page.locator('#guest-search');await search.waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();await search.fill(query)
  const card=page.locator('#guest-results > details');await expect(card).toHaveCount(1)
  if(!await card.evaluate(el=>el.open))await card.locator(':scope > summary').click()
  return card
