@@ -1,87 +1,59 @@
-/* Placemat's tokens, defined once. Base pages (sign-in, /setup, the Lobby, the
-   Run page) read the --rer-* names; the app (placemat.css), the floor plan
-   (plan.css) and the run site read the --pm-* names. Forest green and warm
-   white from the mark; the service's light (gold afternoon to night indigo)
-   and the host stand's table states only inside the run site's drawings and
-   the app's small fills. Fonts are declared in /fonts/fonts.css. */
-:root {
-  --pm-paper: #FBF8F2;
-  --pm-surface: #FFFFFF;
-  --pm-ink: #0B2A20;
-  --pm-muted: #56605B;
-  --pm-soft: #7A827E;
-  --pm-rule: #E8E4DB;
-  --pm-head: #F5F2EB;
-  --pm-control: #8E948F;
-  --pm-plan: #22332C;
-  --pm-forest: #16583D;
-  --pm-forest-deep: #12482F;
-  --pm-night: #0C2A22;
-  --pm-cream: #FBF5EB;
-  --pm-green: #2D8C4C;
-  --pm-mint: #E4F0E2;
-  --pm-sage: #99B49C;
-  --pm-amber: #F6BF5E;
-  --pm-amber-soft: #FCEBC5;
-  --pm-amber-ink: #B9741C;
-  --pm-red: #DF5248;
-  --pm-red-soft: #FCE5E3;
-  --pm-lilac: #D3C7FB;
-  --pm-sky: #DCE8FB;
-  --pm-bussing: #D4D4D7;
-  --pm-sea-soft: #DCEBDD;
-  --pm-sea-deep: #99B49C;
-  --pm-notice: #E4F0E2;
-  --pm-shadow: 0 1px 2px rgb(11 42 32 / .05), 0 18px 40px -22px rgb(60 42 20 / .28);
-  --pm-display: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --pm-ui: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --pm-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+/* Placemat's declared theme: its --rer-* theme tokens and its faces, the one file rer's theme reader takes
+   (pnpm run onboard reads it with that reader). The installer, sign-in and its confirmation, /setup, the
+   development hand-off page, the Lobby and Base's Run, contract and not-found pages wear these tokens.
+   Placemat's own --pm-* tokens, Base's other --rer-* names and the rules that dress Base's pages are in
+   /fonts/fonts.css, which every page that links this file links too. The grammar takes no var(), so each
+   token below is a literal copy of the --pm-* token it stands for (fonts/fonts.css): change both. */
+/* Hanken Grotesk (headings, wordmark and interface, variable 100–900) and
+   JetBrains Mono (commands), both SIL Open Font License 1.1, self-hosted from
+   public/fonts; the page makes no third-party request. */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/hanken-grotesk/hanken-grotesk-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/hanken-grotesk/hanken-grotesk-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
 
-  --rer-font-heading: var(--pm-display);
-  --rer-font-body: var(--pm-ui);
-  --rer-font-mono: var(--pm-mono);
-  --rer-page: var(--pm-paper);
-  --rer-surface: var(--pm-surface);
-  --rer-text: var(--pm-ink);
-  --rer-muted: var(--pm-muted);
-  --rer-border: var(--pm-control);
-  --rer-focus: var(--pm-forest);
-  --rer-link: var(--pm-forest);
-  --rer-accent: var(--pm-forest);
+:root {
+  /* -apple-system is quoted: unquoted names in the grammar start with a letter, and system-ui, before it, is
+     the same face. */
+  --rer-font-heading: 'Hanken Grotesk', system-ui, '-apple-system', 'Segoe UI', sans-serif;
+  --rer-font-body: 'Hanken Grotesk', system-ui, '-apple-system', 'Segoe UI', sans-serif;
+  --rer-page: #FBF8F2;
+  --rer-surface: #FFFFFF;
+  --rer-text: #0B2A20;
+  --rer-muted: #56605B;
+  --rer-border: #8E948F;
+  --rer-focus: #16583D;
+  --rer-link: #16583D;
+  --rer-accent: #16583D;
   --rer-accent-text: #FFFFFF;
-  --rer-code-background: var(--pm-night);
-  --rer-code-text: #EAF2EC;
-  --rer-wordmark-tracking: -.025em;
   --rer-radius: 14px;
   --rer-logo: url('/brand/mark.svg');
 }
-
-/* Base's no-JavaScript pages (sign-in, /setup) sit on warm paper with the
-   afternoon light in one corner; the app and the guest page (body[data-page])
-   do not. */
-.rer-themed body:not([data-page]) { position: relative; isolation: isolate; background: radial-gradient(90% 70% at 100% 0%, #FCEFD8, transparent 60%), var(--pm-paper); }
-.rer-themed body:not([data-page]) main { position: relative; margin-top: 8vh; border: 1px solid var(--pm-rule); box-shadow: var(--pm-shadow); }
-.rer-themed body:not([data-page]) :is(.rer-brand, .brand) { justify-content: center; margin-bottom: 22px; color: var(--pm-ink); font-size: 24px; font-weight: 800; letter-spacing: -.025em; }
-.rer-themed body:not([data-page]) h1 { font-weight: 800; letter-spacing: -.025em; text-align: center; }
-.rer-themed body:not([data-page]) button { border-radius: 999px; }
-.rer-themed body:not([data-page]) input:not([type=checkbox]):not([type=hidden]) { border: 1px solid var(--pm-rule); border-radius: 10px; }
-.rer-themed body:not([data-page]) h1 { font-size: 36px; }
-.rer-themed body:not([data-page]) dl { grid-template-columns: 112px minmax(0, 1fr); gap: 0; border-top: 1px solid var(--pm-rule); }
-.rer-themed body:not([data-page]) :is(dt, dd) { padding: 11px 0; border-bottom: 1px solid var(--pm-rule); }
-@media (max-width: 480px) { .rer-themed body:not([data-page]) h1 { font-size: 30px; } .rer-themed body:not([data-page]) dl { grid-template-columns: 76px minmax(0, 1fr); } }
-
-/* Base's Run page and not-found page, in the run site's look: warm paper with
-   the afternoon light, the heavy grotesk, white step cards and forest numerals. */
-body:has(> .bar) { background: radial-gradient(80% 60% at 100% 0%, #FCEFD8, transparent 62%), radial-gradient(70% 50% at 0% 100%, #F3EEDF, transparent 60%), var(--pm-paper); }
-body:has(> .bar) .brand { font-weight: 800; }
-@media (min-width: 761px) { body:has(> .bar) .bar { padding-top: 22px; } body:has(> .bar) .brand { font-size: 26px; } body:has(> .bar) .brand img { width: 46px; height: 46px; } }
-body:has(> .bar) h1 { font-weight: 800; letter-spacing: -.035em; }
-body:has(> .bar) .step { background: var(--pm-surface); border-color: var(--pm-rule); box-shadow: var(--pm-shadow); backdrop-filter: none; }
-body:has(> .bar) .step h2 { font-weight: 700; }
-body:has(> .bar) .num { font-weight: 800; }
-body:has(> .bar) .code { border-radius: 14px; }
-/* A command too long for its card wraps inside the padding Base reserves for
-   Copy, so it never runs under the button, and its continuation hangs under it
-   so the rest reads as the same command, never a new one. */
-body:has(> .bar) .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-body:has(> .bar) .code pre code { display: block; padding-left: 2ch; text-indent: -2ch; }

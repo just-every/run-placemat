@@ -14,6 +14,8 @@ licence text beside the files:
 
 Every document links `/fonts/fonts.css` once (`src/base/font-head.ts` for the
 app and Base pages, `src/site/shell.ts` for the run site) and preloads only the
-Latin Hanken Grotesk face. `public/rer-theme.css` names the families as
-`--pm-display`, `--pm-ui` and `--pm-mono`; do not import this CSS from a
-component.
+Latin Hanken Grotesk face. The `@font-face` rules are in `public/rer-theme.css`
+with the `--rer-*` theme tokens, the one file rer's theme reader and the
+installer take; `fonts.css` holds the rest of the look and names the families
+as `--pm-display`, `--pm-ui` and `--pm-mono`. Do not import either CSS file
+from a component.

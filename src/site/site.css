@@ -1,5 +1,5 @@
 /* The run site's frame: page, header, footer, buttons, links and the pieces
-   every page shares. Tokens come from /rer-theme.css. */
+   every page shares. Tokens come from /fonts/fonts.css. */
 .site{margin:0;min-height:100vh;background:var(--pm-paper);color:var(--pm-ink);font:400 17px/1.55 var(--pm-ui);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:clip;font-feature-settings:'tnum' 0}
 .site *,.site *::before,.site *::after{box-sizing:border-box}
 :where(.site) :where(h1,h2,h3,p,ul,ol,figure,dl,dd,pre){margin:0}

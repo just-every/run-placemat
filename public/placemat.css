@@ -1,6 +1,6 @@
 /* The staff app (/app) and the guest booking page (/book), in Placemat's own
    register: ink on warm paper, white section cards, Gelasio headings over
-   Be Vietnam Pro, sea-glass only as small fills. Tokens: /rer-theme.css;
+   Be Vietnam Pro, sea-glass only as small fills. Tokens: /fonts/fonts.css;
    the floor itself: /plan.css. Overrides Base's frame (theme-frame.ts). */
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:24px}

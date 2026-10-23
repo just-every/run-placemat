@@ -3,7 +3,7 @@
    .floor-map is the room (double-line walls with window breaks and two door
    swings, from /brand/wall.svg as a border image drawn 1:1 over a 6px wall;
    --wall scales it down for small rooms); .floor-table a table with
-   its chairs, placed by left/top percentages. Tokens: /rer-theme.css. */
+   its chairs, placed by left/top percentages. Tokens: /fonts/fonts.css. */
 .floor-map{--wall:60px;position:relative;box-sizing:border-box;border:6px solid transparent;border-image:url('/brand/wall.svg') 60 / var(--wall) round;background:var(--pm-surface);background-clip:padding-box}
 .floor-table{--t:64px;position:absolute;left:var(--x,50%);top:var(--y,50%);isolation:isolate;width:var(--t);height:var(--t);transform:translate(-50%,-50%);color:var(--pm-ink);font:500 13px/1.25 var(--pm-ui);text-align:center}
 .floor-table::before,.floor-table::after{content:'';position:absolute;z-index:-1;box-sizing:border-box;border:1.25px solid var(--pm-plan);border-radius:calc(var(--t) * .09);background:var(--pm-surface)}
