@@ -4,7 +4,7 @@ import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
 /* Guest availability and booking. Events stay inside the existing booking shell. */
 export function createPublicSearch({api, esc, field, select, notice, analytics}) {
   const root = document.querySelector('#public-content');
-  const checkout=createCheckout({api,root,esc,notice,onConfirmed:confirmed,onReleased:()=>search(query)});
+  const checkout=createCheckout({api,root,esc,notice,onConfirmed:confirmed,onReleased:()=>run(()=>search(query),'Refreshing availability…')});
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
   let areas = [], accessTags = [], menus = new Map();

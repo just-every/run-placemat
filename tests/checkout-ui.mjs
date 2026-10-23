@@ -25,7 +25,7 @@ for(const width of [1440,390]){
   await page.goto(transport.origin+'/book');await page.locator('[name=date]').waitFor();await choose();await page.getByRole('button',{name:'Hold and review',exact:true}).click();await page.getByRole('heading',{name:'Table held for you',exact:true}).waitFor();await shot('held-expiry')
   assert.equal((await h.api('/api/state')).state.bookings.length,0)
   await page.reload();await page.getByRole('heading',{name:'Table held for you',exact:true}).waitFor();assert.match(await page.locator('#public-content').innerText(),/recovered the hold/);await shot('recovered-hold')
-  await page.getByRole('button',{name:'Release hold',exact:true}).click();await page.locator('[name=date]').waitFor();await choose()
+  await page.getByRole('button',{name:'Release hold',exact:true}).click();await page.getByRole('status').filter({hasText:'Hold released. Choose an available time.'}).waitFor();await choose()
   let interrupted,original
   await page.route('**/api/public/book',async route=>{original=route.request().postDataJSON();const response=await route.fetch();assert.equal(response.status(),201);interrupted=true;await route.abort()},{times:1})
   await page.getByRole('button',{name:'Confirm booking',exact:true}).click();await page.getByRole('alert').waitFor();assert.equal(interrupted,true);assert.equal((await h.api('/api/state')).state.bookings.length,1);await shot('uncertain-response',page.locator('#notice'))
