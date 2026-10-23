@@ -31,11 +31,11 @@ try{
  await page.goto(link.providerUrl,{waitUntil:'domcontentloaded'})
  // Stripe-hosted inputs: credentials and card values never enter Placemat.
  phase='hosted-fields';await page.locator('input[type=email]').fill(process.env.QA_MAIL_TO)
- const fill=async(selectors,value)=>{for(const selector of selectors){const input=page.locator(selector);if(await input.count()){await input.first().fill(value);return}}throw Error('A Stripe test checkout field was not available')}
- await fill(['input[name=cardNumber]','input[autocomplete=cc-number]'],'4242424242424242')
- await fill(['input[name=cardExpiry]','input[autocomplete=cc-exp]'],'12/35')
- await fill(['input[name=cardCvc]','input[autocomplete=cc-csc]'],'123')
- await fill(['input[name=billingName]','input[autocomplete=cc-name]'],'Elena Torres')
+ const fill=async(selectors,value)=>{await page.locator(selectors.join(',')).first().fill(value)}
+ phase='hosted-card-number';await fill(['input[name=cardNumber]','input[autocomplete=cc-number]'],'4242424242424242')
+ phase='hosted-card-expiry';await fill(['input[name=cardExpiry]','input[autocomplete=cc-exp]'],'12/35')
+ phase='hosted-card-security';await fill(['input[name=cardCvc]','input[autocomplete=cc-csc]'],'123')
+ phase='hosted-billing-name';await fill(['input[name=billingName]','input[autocomplete=cc-name]'],'Elena Torres')
  const country=page.locator('select[name=billingCountry]');if(await country.count())await country.selectOption('US')
  const postal=page.locator('input[name=billingPostalCode],input[autocomplete=postal-code]');if(await postal.count())await postal.first().fill('10001')
  phase='hosted-submit';await page.getByTestId('hosted-payment-submit-button').click()
@@ -50,7 +50,7 @@ try{
  const charge=await stripe('charges/'+chargeId);assert.equal(charge.captured,true);assert.equal(charge.amount_captured,10000);assert.equal(charge.metadata.placemat_booking_id,committed.id)
  console.log(JSON.stringify({proof:'BOOK-006 real held-checkout replay, one reservation and one Stripe-hosted captured test deposit',proofRun,at:new Date().toISOString(),bookingId:committed.id,processorSession:sessionId,processorCharge:chargeId,amountCents:10000,replaySafe:true}))
  await context.close()
-}catch{console.error(JSON.stringify({proof:'BOOK-006 live checkout',phase,passed:false,detail:'No credentials or private payment URL logged; owned session is closed or refunded below.'}));process.exitCode=1
+}catch{if(browser){const page=browser.contexts()[0]?.pages()[0];if(page)console.error(JSON.stringify({fieldMetadata:await page.locator('input').evaluateAll(nodes=>nodes.map(n=>({name:n.name,type:n.type,autocomplete:n.autocomplete,visible:!!n.getClientRects().length}))).catch(()=>[]),frameCount:page.frames().length}))}console.error(JSON.stringify({proof:'BOOK-006 live checkout',phase,passed:false,detail:'No credentials or private payment URL logged; owned session is closed or refunded below.'}));process.exitCode=1
 }finally{
  if(browser)await browser.close()
  try{
