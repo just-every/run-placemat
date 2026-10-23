@@ -676,12 +676,12 @@ test('Signed refund events reconcile current Stripe state once and assign failed
   count=calls.length;assert.equal((await signed(failed)).duplicate,true);assert.equal(calls.length,count,'A duplicate receipt makes no provider call');
   await signed(event(original));current=await read();assert.equal(current.refund.status,'failed');assert.equal(current.tasks.length,1,'An out-of-order pending snapshot creates no second follow-up');
   assert.equal(h.messages.length,messages,'Failure reconciliation sends no mail');
-  await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',acknowledged:true},{as:manager,status:403});
-  await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'succeeded',acknowledged:true},{status:409});assert.equal(h.messages.length,messages,'A stale reviewed outcome sends no notice');
-  const notice=await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',acknowledged:true});
+  await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',expectedContactEmail:'guest0@example.test',acknowledged:true},{as:manager,status:403});
+  await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'succeeded',expectedContactEmail:'guest0@example.test',acknowledged:true},{status:409});assert.equal(h.messages.length,messages,'A stale reviewed outcome sends no notice');
+  const notice=await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',expectedContactEmail:'guest0@example.test',acknowledged:true});
   assert.equal(notice.state,'accepted');assert.equal(notice.outcome,'failed');assert.equal(notice.amountCents,6000);assert.equal(notice.remainingCents,15000);
   assert.equal(h.messages.length,messages+1);const message=h.messages.at(-1);assert.match(message.text,/refund of \$60\.00 USD failed/);assert.match(message.text,/Remaining refundable balance on this charge: \$150\.00 USD/);
-  const duplicateNotice=await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',acknowledged:true});assert.equal(duplicateNotice.id,notice.id);assert.equal(h.messages.length,messages+1,'Duplicate owner confirmation never resends');
+  const duplicateNotice=await h.command('payment.refund-notice',{refundId:reserved.id,outcome:'failed',expectedContactEmail:'guest0@example.test',acknowledged:true});assert.equal(duplicateNotice.id,notice.id);assert.equal(h.messages.length,messages+1,'Duplicate owner confirmation never resends');
 
   provider.status='pending';await signed(event(original),{status:503});assert.equal((await read()).refund.status,'failed','A terminal refund cannot regress to pending');
   provider.status='canceled';await signed(event());current=await read();assert.equal(current.refund.status,'canceled');assert.equal(current.tasks.length,1);assert.equal(current.tasks[0].failureStatus,'canceled');
@@ -702,3 +702,5 @@ test('Signed refund events reconcile current Stripe state once and assign failed
   unconfigured=await installation();const denied=await unconfigured.request('/api/payments/refund-events',{method:'POST',as:'',body:failed});assert.equal(denied.status,503,'Missing webhook secret fails closed');
  }finally{if(unconfigured)await unconfigured.close();await h.close()}
 })
+
+import './refund-notice-journeys.mjs'

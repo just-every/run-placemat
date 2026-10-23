@@ -92,3 +92,5 @@ for(const width of [1440,390]){
 }
 
 await import('./fees-ui.mjs');
+
+await import("./refund-notices-ui.mjs");

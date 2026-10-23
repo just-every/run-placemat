@@ -29,7 +29,7 @@ try{
   const payload={bookingId:booking.id,chargeId:payment.latest_charge,amountCents,requestId:randomUUID(),reason:'Controlled sandbox partial refund'}
   const refund=await h.command('payment.refund',payload);assert.equal(refund.status,'succeeded');assert.equal(refund.amountCents,amountCents)
   assert.equal((await h.command('payment.refund',payload)).id,refund.id)
-  const notice=await h.command('payment.refund-notice',{refundId:refund.id,outcome:refund.status,acknowledged:true});assert.equal(notice.state,'accepted');assert.equal((await h.command('payment.refund-notice',{refundId:refund.id,outcome:refund.status,acknowledged:true})).id,notice.id)
+  const notice=await h.command('payment.refund-notice',{refundId:refund.id,outcome:refund.status,expectedContactEmail:recipient,acknowledged:true});assert.equal(notice.state,'accepted');assert.equal((await h.command('payment.refund-notice',{refundId:refund.id,outcome:refund.status,expectedContactEmail:recipient,acknowledged:true})).id,notice.id)
   const headers={authorization:'Bearer '+process.env.QA_INBOX_RECEIPT_TOKEN},query=new URLSearchParams({to:recipient,subject:refund.id,since,limit:'1'});let receipt
   for(let i=0;i<18;i++){const response=await fetch('https://rer-qa-inbox.runeditrun.workers.dev/receipts?'+query,{headers,signal:AbortSignal.timeout(10000)});assert.equal(response.status,200);receipt=(await response.json()).receipts?.[0];if(receipt)break;await new Promise(resolve=>setTimeout(resolve,5000))}
   assert.ok(receipt,'The controlled receiver must confirm actual delivery');assert.equal(receipt.auth?.dmarc,'pass')
