@@ -46,7 +46,7 @@ import {approveFloorChange,prepareFloorChange,saveRoom,tableShape} from './floor
 export const reminderMessage=(s:State,b:Booking)=>`Your table at ${s.venue.name} is booked for ${new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))} (${s.venue.timezone}), party of ${b.partySize}.`
 function booking(s:State,bookingId:unknown){return s.bookings.find(b=>b.id===bookingId)??fail(404,'Booking not found.')}
 const plain=(v:any)=>JSON.stringify(v)
-export async function execute(db:D1Database,actor:Actor,command:string,p:any,pacingSecret?:string){
+export async function execute(db:D1Database,actor:Actor,command:string,p:any,pacingSecret?:string,commitStatements?:(result:any)=>D1PreparedStatement[]){
  const {state:s,version}=await load(db),now=new Date().toISOString(),before:D1PreparedStatement[]=[]
  const priorAuditIds=new Set(s.audit.map(e=>e.id))
  if(actor.deviceId)before.push(deviceFence(db,actor,Date.parse(now)))
@@ -262,6 +262,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  for(const entry of s.audit)if(entry.at===now&&entry.actor===actor.id){entry.source=actor.agent?'preparation-key':'person';if(actor.deviceId&&!priorAuditIds.has(entry.id))entry.deviceId=actor.deviceId}
  if(guestChange)s.audit.at(-1)!.changes=[guestChange]
  if(mergeChanges.length)s.audit.at(-1)!.changes=mergeChanges
+ if(commitStatements)before.push(...commitStatements(result))
  try{await save(db,s,version,before)}catch(error){if(actor.deviceId&&String(error).includes('CHECK constraint failed'))fail(409,'Host stand authorization changed. Unlock again.');throw error}
  return result
 }

@@ -1,3 +1,4 @@
+import {ownerReservationResponse} from './api/reservations'
 import {costsResponse} from './costs'
 import {privacyResponse} from './privacy/http'
 import {queueOrder} from './queue-order'
@@ -87,6 +88,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
  if(path==='/api/payments/refund-events')return refundWebhook(env,request)
  if(!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
+  if(path==='/api/v1/owner-reservations')return await ownerReservationResponse(request,env)
   const integration=await integrationResponse(request,env);if(integration)return integration
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
   if(path==='/manage-booking'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return managementPage(request)}
