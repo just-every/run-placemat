@@ -1,3 +1,4 @@
+import {outageSheet,outageOwner,approveOutage} from './outage'
 import {holdForCompletion,completionResult,completionStatements} from './booking-holds'
 import {phoneBooking} from './phone-bookings'
 import {executeDelegation} from './delegation'
@@ -53,6 +54,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='lead'&&s.leadIds?.includes(actor.id)&&leadCommands.includes(command))&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
+ case 'outage.sheet':{result=outageSheet(s,actor,p,version,now);break}
  case 'booking.phone':case 'booking.phone.change':{const changed=await phoneBooking(db,s,actor,command,p,version,now,pacingSecret);before.push(...changed.statements);result=changed.booking;break}
  case 'team.lead':case 'team.server':case 'team.finance':case 'team.reports':case 'team.manager-limit':{result=await executeDelegation(db,s,actor,command,p);break}
  case 'booking.handover':case 'booking.handover.assign':case 'booking.handover.complete':{result=await executeHandover(db,s,actor,command,p,now,before);break}
@@ -206,8 +208,14 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   }
   proposal.status='approved';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break
  }
- case 'booking.walkin':case 'waitlist.seat':{
-  const preview=seatingPreview(s,actor,command,p,now),{waiting,service,partySize,requiredArea,requiredAccessTags,ruleOverride,violations,fit}=preview
+ case 'booking.outage':case 'booking.walkin':case 'waitlist.seat':{
+  if(command==='booking.outage'){
+   outageOwner(actor)
+   const prior=s.audit.find(e=>e.id===p.actionId&&e.action==='booking.outage')
+   if(prior){if(prior.actor!==actor.id)fail(409,'This pending action was already reconciled by another owner.');return {id:prior.subject,replayed:true}}
+   p=await approveOutage(s,actor,p,version,pacingSecret,now)
+  }
+  const preview=seatingPreview(s,actor,command==='booking.outage'?'booking.walkin':command,p,now),{waiting,service,partySize,requiredArea,requiredAccessTags,ruleOverride,violations,fit}=preview
   const pacingOverride=await approvePacing(pacingSecret,actor,command,p,version,now,violations),{tables,...slot}=fit
   const entry=waiting?{guest:{id:waiting.guestId},fresh:false,hashes:[]}:await guestFor(db,p,actor)
   before.push(guestGuard(db,entry))
@@ -246,7 +254,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  default:fail(400,'Unknown command.')
  }
- if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings','analytics.remove-key'].includes(command)?result.audit:{id:id(),at:now,actor:actor.id,action:command,subject:result?.id??result?.booking?.id??'venue'})
+ if(command!=='booking.extend')s.audit.push(['booking.move','booking.swap','booking.lock','embed.origins','analytics.settings','analytics.remove-key'].includes(command)?result.audit:{id:command==='booking.outage'?p.actionId:id(),at:now,actor:actor.id,action:command,subject:result?.id??result?.booking?.id??'venue'})
  for(const entry of s.audit)if(entry.at===now&&entry.actor===actor.id){entry.source=actor.agent?'preparation-key':'person';if(actor.deviceId&&!priorAuditIds.has(entry.id))entry.deviceId=actor.deviceId}
  if(guestChange)s.audit.at(-1)!.changes=[guestChange]
  if(mergeChanges.length)s.audit.at(-1)!.changes=mergeChanges

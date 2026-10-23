@@ -1,3 +1,4 @@
+import {createOutage} from './placemat-outage.js'
 import {phoneIntake,parsePhone,selectReturningGuest} from './placemat-phone.js'
 import {parseFeeForm} from './placemat-fees.js'
 import {managementWork} from './placemat-booking-management-staff.js'
@@ -57,6 +58,7 @@ let openingBookingIds, bookOpenedAt;
 const isNewBooking = booking => openingBookingIds && !openingBookingIds.has(booking.id);
 const newBookingMarker = booking => isNewBooking(booking) ? '<span class="badge" data-new-booking>New</span>' : '';
 let data, state, actor, serviceId = '', floorTime = '', guestQuery = '', importPlan, importCsv = '';
+const outage=createOutage({api,esc,field,select});
 const isPublic = document.body.dataset.page === 'public';
 const publicSearch = isPublic ? createPublicSearch({api,esc,field,select,notice,analytics:createAnalyticsConsent({api,esc})}) : null;
 const canEdit = () => actor && !actor.agent && ['owner', 'admin'].includes(actor.role);
@@ -111,6 +113,7 @@ async function loadStaff(polling = false) {
   const floorReady=renderFloor(); renderServices(); renderWaitlist(); renderInquiries({root:$('#inquiries-content'),state,people:data.people,guest,api,esc,field,select,time,localTime,instant:toUtc,canEdit:canEdit(),onChange:()=>loadStaff()}); const guestsReady=renderGuests(); renderApprovals(polling); renderSettings(); renderMoveIn(); renderReports({state:{...state,services:state.reportScopes?.[actor.id]?state.services.filter(s=>state.reportScopes[actor.id].includes(s.id)):state.services},canEdit:canEdit(),canRead:actor.role==='lead'&&(state.reportScopes?.[actor.id]?.length||0)>0,readOnly:actor.role==='lead',scoped:state.reportScopes?.[actor.id]!==undefined,api,esc,field,select,empty,polling,who:id=>data.names?.[id]||data.people?.find(p=>p.id===id)?.displayName||id});
   await Promise.all([floorReady,guestsReady]);
   floorSync.synced(data.version);
+  outage.mount(state,actor);
 }
 // During its service the floor opens at the current quarter hour, otherwise at the service's start.
 function floorStart(s) { const now = Date.now(); return localTime(now >= Date.parse(s.startAt) && now < Date.parse(s.endAt) ? now - now % 900000 : s.startAt); }

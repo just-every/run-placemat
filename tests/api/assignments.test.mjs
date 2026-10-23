@@ -2,6 +2,73 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 
+async function outageFixture(h){
+ const tables=[]
+ for(const [label,tags] of [['Outage A',['step-free']],['Outage B',['step-free']],['Stairs',[]]])tables.push(await h.command('table.save',{label,seats:4,area:'Dining room',accessTags:tags,x:20+tables.length*25,y:30}))
+ const day=new Date(Date.now()+86400000).toISOString().slice(0,10)
+ const service=await h.command('service.save',{name:'Outage dinner',startAt:day+'T17:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:90,coverLimit:40})
+ const proposal=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Reviewed outage fixture'})
+ await h.command('proposal.approve',{proposalId:proposal.id})
+ const server=await h.command('server.save',{serviceId:service.id,name:'Outage server',coverCap:20})
+ await h.command('section.save',{serviceId:service.id,name:'Outage section',serverId:server.id,tableIds:tables.map(t=>t.id)})
+ return {tables,service,server}
+}
+
+test('Outage preparation requires personal-owner consent and returns only an expiring anonymous service snapshot',async()=>{
+ const h=await installation();try{
+  const {tables,service}=await outageFixture(h)
+  await h.api('/api/public/book',publicGuest(service,0,{name:'synthetic-placemat-101',email:'private-outage@example.test',requiredAccessTags:['step-free']}),{as:'',status:201})
+  const member=await h.signIn('outage-reader@example.test'),manager=await h.signIn('outage-manager@example.test','admin'),host=await h.signIn('outage-host@example.test')
+  const hostId=(await h.api('/auth/operators')).find(p=>p.email==='outage-host@example.test').id;await h.command('team.host',{operatorId:hostId,enabled:true})
+  const key=(await h.api('/api/agent-keys',{name:'Outage cannot use preparation keys'})).result
+  const payload={serviceId:service.id,consent:'SAVE ANONYMOUS SHEET'}
+  await h.command('outage.sheet',payload,{as:'',status:401})
+  for(const as of [member,manager,host])await h.command('outage.sheet',payload,{as,status:403})
+  await h.command('outage.sheet',payload,{as:'',headers:{authorization:'Bearer '+key.key},status:403})
+  await h.command('outage.sheet',{serviceId:service.id},{status:400})
+  const before=await h.api('/api/state'),sheet=await h.command('outage.sheet',payload),after=await h.api('/api/state')
+  assert.equal(sheet.version,after.version);assert.ok(Date.parse(sheet.expiresAt)>Date.parse(sheet.generatedAt));assert.ok(Date.parse(sheet.expiresAt)-Date.parse(sheet.generatedAt)<=12*3600000)
+  assert.equal(sheet.tables.length,3);assert.equal(sheet.bookings.length,1);assert.deepEqual(sheet.bookings[0].tableIds,[tables[0].id])
+  for(const value of ['synthetic-placemat-101','private-outage@example.test','guestId','requiredAccessTags','notes','requests','serverName'])assert.ok(!JSON.stringify(sheet).includes(value),value)
+  assert.deepEqual(after.state.bookings,before.state.bookings);assert.deepEqual(after.guests,before.guests);assert.deepEqual(after.state.services,before.state.services);assert.deepEqual(after.state.proposals,before.state.proposals)
+  const consent=after.state.audit.find(e=>e.action==='outage.consent');assert.equal(consent.actor,after.actor.id);assert.equal(consent.subject,sheet.id);assert.ok(consent.at)
+ }finally{await h.close()}
+})
+
+test('Outage reconnect reviews sold-table conflicts, binds exact live fit and commits a pending walk-in once',async()=>{
+ const h=await installation();try{
+  const {tables,service,server}=await outageFixture(h),pending={actionId:crypto.randomUUID(),serviceId:service.id,partySize:4,startAt:service.startAt,capturedAt:new Date().toISOString(),tableIds:[tables[0].id],requiredAccessTags:['step-free']}
+  const path='/api/outage/review',before=await h.api('/api/state')
+  const initial=await h.api(path,pending);assert.equal(initial.conflict,'');assert.ok(initial.alternatives.some(a=>a.payload.tableIds[0]===tables[0].id));assert.ok(!initial.alternatives.some(a=>a.payload.tableIds.includes(tables[2].id)))
+  assert.equal((await h.api('/api/state')).version,before.version,'Review never writes')
+  await h.command('booking.outage',pending,{status:409})
+  const admin=await h.signIn('outage-reviewer@example.test','admin')
+  await h.api(path,pending,{as:'',status:401});await h.api(path,pending,{as:admin,status:403});await h.api(path,pending,{headers:{origin:'https://other.example.test'},status:403})
+  const sold=(await h.api('/api/public/book',publicGuest(service,0,{partySize:4,tableIds:[tables[0].id]}),{as:'',status:201})).result
+  const old=initial.alternatives[0],commit=(review,alternative=review.alternatives[0])=>({...alternative.payload,version:review.version,review:alternative.review,confirm:'SEAT REVIEWED WALK-IN'})
+  await h.command('booking.outage',commit(initial,old),{status:409})
+  const review=await h.api(path,pending);assert.ok(review.conflict);assert.equal(review.alternatives.length,1);assert.deepEqual(review.alternatives[0].payload.tableIds,[tables[1].id]);assert.ok(review.alternatives[0].review)
+  await h.command('booking.outage',{...commit(review),confirm:''},{status:409})
+  await h.command('booking.outage',{...commit(review),partySize:2},{status:409})
+  await h.command('booking.outage',{...commit(review),tableIds:[tables[0].id]},{status:409})
+  await h.command('booking.outage',{...commit(review),review:review.alternatives[0].review.replace(/^\d+/,String(Date.now()-1))},{status:409})
+  // A staffing edit is a new floor version; an earlier review cannot silently pass it.
+  await h.command('server.break',{serviceId:service.id,serverId:server.id,onBreak:true,reason:'Recorded break during outage'})
+  await h.command('booking.outage',commit(review),{status:409})
+  assert.equal((await h.api(path,pending)).alternatives.length,0,'A server break prevents outage seating')
+  await h.command('server.break',{serviceId:service.id,serverId:server.id,onBreak:false,reason:'Returned for reconciliation'})
+  const current=await h.api(path,pending),payload=commit(current)
+  const responses=await Promise.all([h.request('/api/commands',{method:'POST',body:{command:'booking.outage',payload}}),h.request('/api/commands',{method:'POST',body:{command:'booking.outage',payload}})])
+  assert.ok(responses.some(r=>r.status===200));for(const response of responses)assert.ok([200,409].includes(response.status))
+  const state=await h.api('/api/state'),created=state.state.bookings.find(b=>b.id!==sold.id)
+  assert.equal(state.state.bookings.length,2);assert.deepEqual(created.tableIds,[tables[1].id]);assert.deepEqual(state.state.bookings.find(b=>b.id===sold.id).tableIds,[tables[0].id]);assert.equal(created.status,'seated');assert.deepEqual(created.requiredAccessTags,['step-free'])
+  const audit=state.state.audit.filter(e=>e.action==='booking.outage');assert.equal(audit.length,1);assert.equal(audit[0].id,pending.actionId);assert.equal(audit[0].actor,state.actor.id);assert.equal(audit[0].subject,created.id)
+  assert.equal((await h.api(path,pending)).applied.id,created.id,'Review recovers a lost commit response even when every fitting table is sold')
+  const replay=await h.command('booking.outage',payload);assert.equal(replay.id,created.id);assert.equal(replay.replayed,true);assert.equal((await h.api('/api/state')).version,state.version)
+  await h.command('guest.erase',{guestId:created.guestId,confirm:'ERASE'});assert.equal((await h.command('booking.outage',payload)).id,created.id);assert.equal((await h.api('/api/state')).state.bookings.length,2,'Erasure never enables duplicate replay')
+ }finally{await h.close()}
+})
+
 test('FLOOR-009: native host makes atomic versioned moves, swaps and locks; live fit, access, clashes, audit and preparation-only keys hold',async()=>{
  const h=await installation();try{
   const tables=[]

@@ -22,7 +22,7 @@ try{
      const r=await h.mf.dispatchFetch(req.url(),{method:req.method(),headers:{...req.headers(),host:url.host},...(req.postDataBuffer()?{body:req.postDataBuffer()}:{})});await route.fulfill({status:r.status,headers:Object.fromEntries(r.headers),body:Buffer.from(await r.arrayBuffer())})
     });return c
    }
-   const page=await(await context(h.cookie)).newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
+   const page=await(await context(h.cookie)).newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install()
    await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
    const save=async command=>{const pending=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command===command);await page.locator(`form[data-command="${command}"]`).getByRole('button',{name:command==='room.save'?'Save room':'Save table',exact:true}).click();assert.ok((await pending).ok());await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()}
    for(const [name,kind] of [['Dining room','indoor'],['Patio','outdoor']]){
@@ -90,8 +90,84 @@ try{
    assert.equal(await second.locator('#bookings-list [data-new-booking]').count(),0)
    assert.match(await page.locator('#services-content').innerText(),/Retired/)
    await page.locator(`#bookings-list [data-action=reassign][data-id="${booked.id}"]`).click();await page.locator('#reassignment summary').filter({hasText:'Assignment and turn history'}).click();assert.match(await page.locator('#reassignment').innerText(),/Before[\s\S]*12[\s\S]*After[\s\S]*14/);await capture('retained-history',page,page.locator('#reassignment'))
+   // FLOOR-008 outage slice: the disconnected owner's anonymous draft never holds inventory.
+   const outageTables=[]
+   for(const label of ['Outage A','Outage B'])outageTables.push(await h.command('table.save',{label,seats:4,area:'Dining room',accessTags:['step-free'],x:20+outageTables.length*50,y:60}))
+   await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor()
+   const outage=page.locator('#outage-preparation'),captureOutage=async name=>{await capture('outage-'+name,page,outage)}
+   await outage.locator('summary').click()
+   await outage.getByLabel('Outage service',{exact:true}).selectOption(service.id)
+   await outage.getByLabel('New outage passphrase',{exact:true}).fill('synthetic-placemat-204')
+   await outage.locator('[name=consent]').check();await outage.getByRole('button',{name:'Prepare encrypted sheet',exact:true}).click()
+   await outage.getByText('Encrypted anonymous snapshot saved. No inventory changed.',{exact:true}).waitFor()
+   assert.match(await outage.locator('[data-outage-timestamp]').innerText(),/Saved.*expires.*America\/New_York/)
+   assert.ok(!(await outage.innerText()).includes('Priya Shah'));assert.ok(!(await outage.innerText()).includes('Marco Rivera'))
+   const encrypted=await page.evaluate(()=>localStorage.getItem('placemat.outage.v1'));for(const value of ['Priya','Marco','Outage A','Friday dinner','synthetic-placemat-204'])assert.ok(!encrypted.includes(value))
+   assert.deepEqual(Object.keys(JSON.parse(encrypted)).sort(),['data','expiresAt','format','iv','salt'])
+   await captureOutage('snapshot')
+   await page.route('**/api/**',route=>route.abort('internetdisconnected'))
+   await page.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await page.locator('#floor-sync').innerText(),/unavailable/)
+   const beforePending=(await h.api('/api/state')).state.bookings.length
+   const pendingForm=outage.locator('[data-outage-form=capture]')
+   await pendingForm.getByLabel('Pending party size',{exact:true}).fill('4')
+   const localParts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(service.startAt)).map(p=>[p.type,p.value]))
+   await pendingForm.getByLabel('Pending arrival (venue local)',{exact:true}).fill(`${localParts.year}-${localParts.month}-${localParts.day}T${localParts.hour}:${localParts.minute}`)
+   const offset=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',timeZoneName:'longOffset'}).formatToParts(new Date(service.startAt)).find(p=>p.type==='timeZoneName').value.replace('GMT','')
+   await pendingForm.getByLabel('UTC offset for arrival',{exact:true}).fill(offset)
+   await pendingForm.getByLabel('Proposed table',{exact:true}).selectOption(outageTables[0].id)
+   await pendingForm.getByRole('button',{name:'Save pending walk-in on this device',exact:true}).click()
+   await outage.getByText('Pending walk-in saved on this device only. No table or booking is confirmed.',{exact:true}).waitFor()
+   assert.equal((await h.api('/api/state')).state.bookings.length,beforePending)
+   await captureOutage('disconnected-pending')
+   const persistedPending=await page.evaluate(()=>localStorage.getItem('placemat.outage.v1'))
+   await outage.getByRole('button',{name:'Lock outage sheet',exact:true}).click();assert.equal(await outage.locator('[data-pending-id]').count(),0)
+   await outage.locator('summary').click();await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-wrong');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click()
+   await outage.getByRole('alert').filter({hasText:'Passphrase incorrect or saved sheet damaged'}).waitFor();assert.equal(await outage.locator('[data-pending-id]').count(),0)
+   await page.evaluate(()=>{const stored=JSON.parse(localStorage.getItem('placemat.outage.v1'));stored.data=(stored.data[0]==='A'?'B':'A')+stored.data.slice(1);localStorage.setItem('placemat.outage.v1',JSON.stringify(stored))})
+   await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click()
+   await outage.getByRole('alert').filter({hasText:'Passphrase incorrect or saved sheet damaged'}).waitFor();assert.equal(await outage.locator('[data-pending-id]').count(),0,'Authenticated encryption refuses altered ciphertext')
+   await page.evaluate(value=>localStorage.setItem('placemat.outage.v1',value),persistedPending)
+   await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click()
+   await outage.locator('[data-pending-id]').waitFor();assert.match(await outage.innerText(),/Unconfirmed; no table held/)
+   const otherSeat=await h.command('booking.walkin',{serviceId:service.id,startAt:service.startAt,partySize:4,name:'synthetic-placemat-205',tableIds:[outageTables[0].id]})
+   await page.unroute('**/api/**');assert.equal((await h.api('/api/state')).state.bookings.length,beforePending+1,'Reconnection alone never submits a draft')
+   await outage.getByRole('button',{name:'Review current floor',exact:true}).click()
+   const reconnect=outage.getByRole('region',{name:'Outage reconciliation'})
+   await reconnect.getByText('Original table refused:',{exact:false}).waitFor();assert.equal((await h.api('/api/state')).state.bookings.length,beforePending+1)
+   await captureOutage('conflict-review')
+   const alternative=await reconnect.locator('[name=choice] option').evaluateAll(options=>options.find(o=>o.textContent.includes('Outage B'))?.value);assert.notEqual(alternative,undefined)
+   await reconnect.getByLabel('Reviewed replacement',{exact:true}).selectOption(alternative);await reconnect.locator('[name=confirm]').check()
+   // A second tablet changes the floor after review. The current draft and the sold table survive.
+   await h.command('room.save',{name:'Outage changed floor',kind:'bar'})
+   await reconnect.getByRole('button',{name:'Seat reviewed walk-in',exact:true}).click();await outage.getByRole('alert').filter({hasText:'floor changed'}).waitFor();assert.equal(await outage.locator('[data-pending-id]').count(),1)
+   await captureOutage('stale-review-refused')
+   await outage.getByRole('button',{name:'Review current floor',exact:true}).click();await reconnect.locator('[name=choice]').waitFor()
+   const freshAlternative=await reconnect.locator('[name=choice] option').evaluateAll(options=>options.find(o=>o.textContent.includes('Outage B'))?.value)
+   await reconnect.getByLabel('Reviewed replacement',{exact:true}).selectOption(freshAlternative);await reconnect.locator('[name=confirm]').check()
+   // The Worker commits, but its response is lost on the network. The draft remains until explicit recovery.
+   await page.route('**/api/commands',async route=>{
+    const req=route.request();if(req.postDataJSON()?.command!=='booking.outage'){await route.fallback();return;}
+    const response=await h.mf.dispatchFetch(req.url(),{method:req.method(),headers:{...req.headers(),host:new URL(req.url()).host},body:req.postDataBuffer()});assert.equal(response.status,200);await response.arrayBuffer();await route.abort('connectionreset');
+   })
+   await reconnect.getByRole('button',{name:'Seat reviewed walk-in',exact:true}).click();await outage.getByRole('alert').filter({hasText:/fetch|network|request/i}).waitFor();assert.equal(await outage.locator('[data-pending-id]').count(),1)
+   await page.unroute('**/api/commands');await outage.getByRole('button',{name:'Review current floor',exact:true}).click();await outage.getByText('was already reconciled. No additional seating was created.',{exact:false}).waitFor()
+   const reconciled=(await h.api('/api/state')).state
+   assert.equal(reconciled.bookings.length,beforePending+2);assert.deepEqual(reconciled.bookings.find(b=>b.id===otherSeat.id).tableIds,[outageTables[0].id]);assert.ok(reconciled.bookings.some(b=>b.status==='seated'&&b.tableIds.includes(outageTables[1].id)))
+   assert.equal(await outage.locator('[data-pending-id]').count(),0);await captureOutage('reconciled')
+   // All custom controls on the changed screen have visible word labels; no icon-only controls need tooltips.
+   assert.deepEqual(await page.locator('#floor button, #floor a, #bookings button, #bookings a').evaluateAll(controls=>controls.filter(c=>!c.textContent.trim()).map(c=>c.outerHTML)),[])
+   await page.clock.fastForward(5*60000+15000)
+   assert.equal(await outage.locator('[data-outage-timestamp]').count(),0,'An idle unlocked sheet removes its plaintext view');assert.ok(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')))
+   await outage.locator('summary').click();await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click();await outage.locator('[data-outage-timestamp]').waitFor()
+   const expires=await page.evaluate(()=>JSON.parse(localStorage.getItem('placemat.outage.v1')).expiresAt)
+   await page.clock.setSystemTime(new Date(Date.parse(expires)+1));await page.clock.fastForward(15000)
+   assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null,'A running page deletes the expired ciphertext');assert.equal(await outage.locator('[data-outage-timestamp]').count(),0)
+   await page.clock.setSystemTime(new Date());await outage.locator('summary').click()
+   await outage.getByLabel('New outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.locator('[name=consent]').check();await outage.getByRole('button',{name:'Prepare encrypted sheet',exact:true}).click();await outage.locator('[data-outage-timestamp]').waitFor()
+   page.once('dialog',dialog=>dialog.accept());await outage.getByRole('button',{name:'Delete saved outage sheet',exact:true}).click()
+   assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null)
    await contexts[1].clearCookies();await second.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await second.locator('#floor-sync').innerText(),/Sign in again/)
-   assert.deepEqual(errors,[]);console.log(`FLOOR-002 / FLOOR-008 rooms, retirement/history, live guest booking count/markers and focused-edit deferral passed at ${width}`)
+   assert.deepEqual(errors,[]);console.log(`FLOOR-002 / FLOOR-008 rooms, live guest booking markers, stale edits, encrypted outage capture and reviewed reconnect passed at ${width}`)
   }finally{for(const c of contexts){await c.unrouteAll({behavior:'wait'});await c.close()}await h.close()}
  }
 }finally{await browser.close()}

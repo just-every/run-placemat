@@ -43,6 +43,7 @@ import {timeline} from './timeline'
 import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
 import { Problem,fail,id,text,type Actor } from './model'
+import {outageReview} from './outage'
 import { actorFor,person,originCheck,jsonBody } from './access'
 import { load,guests,hash,save } from './store'
 import { slots } from './availability'
@@ -64,6 +65,7 @@ import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 const paths=new Set(['/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -210,6 +212,11 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   if(path==='/app'){if(actor!.agent)fail(403,'Agent keys use the API.');return productPage(request,env,actor!)}
   if(request.method!=='GET')originCheck(request,env)
+  if(path==='/api/outage/review'){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   const {state,version}=await load(env.DB)
+   return json(await outageReview(state,actor!,await jsonBody(request),version,env.SESSION_SECRET,new Date().toISOString()))
+  }
   if(path.startsWith('/api/payments/fee')){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    const p=await jsonBody(request)
