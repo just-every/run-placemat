@@ -28,7 +28,8 @@ export async function bookingHoldsJourney(h){
  const other=await h.command('booking.phone',{...booking(9),partySize:2,tableIds:[spare.id]})
  const floor=await h.api('/api/floor-version')
  await h.command('booking.move',{bookingId:other.id,tableIds:[table.id],version:floor.version},{status:409})
- await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:other.id,tableIds:[table.id]},reason:'Attempt to use held inventory'},{status:409})
+ const key=(await h.api('/api/agent-keys',{name:'Checkout-aware assignment preparer'})).result
+ await h.command('proposal.prepare',{kind:'table.assign',plan:{bookingId:other.id,tableIds:[table.id]},reason:'Attempt to use held inventory'},{as:'',headers:{authorization:'Bearer '+key.key},status:409})
  await h.command('table.save',{id:table.id,label:'Changed held table',seats:2,x:40,y:40},{status:409})
  const waiting=await h.command('waitlist.add',{serviceId:service.id,name:'Waiting party',partySize:4})
  await h.command('waitlist.seat',{waitlistId:waiting.id,startAt},{status:409})
