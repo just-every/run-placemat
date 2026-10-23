@@ -1,4 +1,4 @@
-import {fail,type Booking} from '../model'
+import {Problem,type Booking} from '../model'
 
 export type StoredEvent={id:string;type:string;schema_version:number;payload:string;created_at:string}
 type Envelope={id:string;type:string;schemaVersion:1;createdAt:string;reservation:Pick<Booking,'id'|'serviceId'|'partySize'|'startAt'|'endAt'|'status'|'source'>}
@@ -26,7 +26,7 @@ export function inspectEvent(row:StoredEvent):Check{
 
 export function checkedEvent(row:StoredEvent):Envelope{
  const result=inspectEvent(row)
- if(result.status!=='compatible')fail(409,`Event ${row.id} has ${result.status} stored schema ${row.schema_version}. ${result.reason} Inspect the owner subscription schema report.`)
+ if(result.status!=='compatible')throw new Problem(409,`Event ${row.id} has ${result.status} stored schema ${row.schema_version}. ${result.reason} Inspect the owner subscription schema report.`)
  return result.envelope
 }
 

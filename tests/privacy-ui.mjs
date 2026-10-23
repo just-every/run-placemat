@@ -13,7 +13,7 @@ for(const width of [1440,390]){
   await h.api('/api/public/book',publicGuest(s,1,{name:'Marcus Chen'}),{as:'',status:201})
   const guest=(await h.api('/api/state')).guests.find(g=>g.name==='Elena Torres'),errors=[]
   await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
-  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(transport.origin+'/privacy')
+  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.getByRole('link',{name:'Settings',exact:true}).click();await page.getByText('Backup & restore',{exact:true}).click();if(shots)await page.locator('#settings').screenshot({path:resolve(shots,`DATA-004-settings-${width}.png`)});await page.getByRole('link',{name:'Guest privacy and retention',exact:true}).click()
   await page.locator('#privacy-guest option').first().waitFor({state:'attached'});await page.locator('#privacy-guest').selectOption(guest.id)
   const shot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await page.screenshot({path:resolve(shots,`DATA-004-${name}-${width}.png`),fullPage:true})}
   await page.getByText('Retention settings',{exact:true}).click()
