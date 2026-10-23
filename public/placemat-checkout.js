@@ -43,5 +43,5 @@ export function createCheckout({api,root,esc,notice,onConfirmed,onReleased}){
   }catch(error){notice(error.message,'error')}
   finally{controls.forEach(b=>{if(b.isConnected)b.disabled=false})}
  })
- return {finish,async review(booking){const view=await reserve(booking);if(view.status==='active')held(view)},recover,clear,async release(){if(!capability)return;const view=await api('/api/public/booking-holds/abandon',capability);if(view.status==='completed')return view.result;clear()}}
+ return {finish,async review(booking){const view=await reserve(booking);if(view.status==='active')held(view)},recover,clear,async release(){if(!capability)return;let view;try{view=await api('/api/public/booking-holds/abandon',capability)}catch(error){if(error.status!==404)throw error;clear();return}if(view.status==='completed')return view.result;clear()}}
 }
