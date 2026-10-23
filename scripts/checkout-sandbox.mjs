@@ -30,7 +30,7 @@ try{
  phase='hosted-checkout';browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});const context=await browser.newContext(),page=await context.newPage()
  await page.goto(link.providerUrl,{waitUntil:'domcontentloaded'})
  // Stripe-hosted inputs: credentials and card values never enter Placemat.
- phase='hosted-fields';await page.locator('input[type=email]').fill(process.env.QA_MAIL_TO)
+ phase='hosted-fields';await page.locator('input[name=email]').fill(process.env.QA_MAIL_TO)
  const fill=async(selectors,value)=>{await page.locator(selectors.join(',')).first().fill(value)}
  phase='hosted-card-number';await fill(['input[name=cardNumber]','input[autocomplete=cc-number]'],'4242424242424242')
  phase='hosted-card-expiry';await fill(['input[name=cardExpiry]','input[autocomplete=cc-exp]'],'12/35')
