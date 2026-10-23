@@ -1,3 +1,4 @@
+import {validateCosts} from './costs-archive.mjs'
 import {validatePrivacy} from './privacy/archive.mjs'
 import {validateFees} from './fee-archive.mjs'
 import {validateGuestMerges} from './guest-merge-archive.mjs'
@@ -53,6 +54,7 @@ export default {
  async validateStaged({read}) {
   const rows=await read('pm_state'),guests=await read('pm_guests'),reports=await read('pm_performance_reports')
   await validatePrivacy(read,guests)
+  await validateCosts(read)
   if(rows.length>1)throw Error('Invalid floor state')
   const ids=new Set(guests.map(row=>row.id))
   const bookingContacts=await read('pm_booking_contacts')

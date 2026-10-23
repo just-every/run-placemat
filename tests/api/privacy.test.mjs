@@ -55,7 +55,7 @@ test('PRIVACY-001: signed-out availability and confirmations isolate guest conta
 test('Privacy requests export only one guest, record corrections and processor follow-up, and restore retained money without erased text',async()=>{
  const {paymentEdge}=await import('./payment-fixture.mjs'),edge=paymentEdge(),h=await installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}}),empty=await installation(),old=await installation()
  try{
-  const {service:s}=await service(h),booking=(await h.api('/api/public/book',publicGuest(s,0,{requests:{dietaryNotes:'No dairy please'}}),{as:'',status:201})).result
+  const {service:s}=await service(h),booking=(await h.api('/api/public/book',publicGuest(s,0,{requests:{dietaryNotes:'No dairy please'},requestsAcknowledged:true}),{as:'',status:201})).result
   await h.api('/api/public/book',publicGuest(s,1,{name:'Private Other Guest',email:'other-private@example.test'}),{as:'',status:201})
   const before=await h.api('/api/state'),guest=before.guests.find(g=>g.email==='guest0@example.test'),member=await h.signIn('privacy-reader@example.test'),admin=await h.signIn('privacy-manager@example.test','admin')
   await h.api('/api/privacy',undefined,{as:'',status:401});await h.api('/api/privacy',undefined,{as:member,status:403});await h.api('/api/privacy',undefined,{as:admin,status:403})

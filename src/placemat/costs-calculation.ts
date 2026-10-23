@@ -1,8 +1,8 @@
 import {fail,text} from './model'
 export const costSources=[
- {name:'Twilio US SMS',url:'https://www.twilio.com/en-us/sms/pricing/us',checked:'2026-10-24',note:'Published base $0.0083 per segment. Carrier fees, number rental and registration are extra. Encoding and message length change segment counts.'},
- {name:'Stripe US online cards',url:'https://stripe.com/pricing',checked:'2026-10-24',note:'Domestic cards 2.9% + $0.30 per successful transaction. International cards +1.5%, currency conversion +1%, manually entered cards +0.5%; custom contracts and other fees can differ. Refunds do not generally return original processing fees.'},
- {name:'Cloudflare Workers',url:'https://developers.cloudflare.com/workers/platform/pricing/',checked:'2026-10-24',note:'Paid plan starts at $5/month plus request/CPU overages and other services including D1. Allowances are account-wide. Enter your installation allocation; no hosting bill is connected.'}
+ {name:'Twilio US SMS',url:'https://www.twilio.com/en-us/sms/pricing/us',checked:'2026-10-23',note:'Published base $0.0083 per segment. Carrier fees, number rental and registration are extra. Encoding and message length change segment counts.'},
+ {name:'Stripe US online cards',url:'https://stripe.com/pricing',checked:'2026-10-23',note:'Domestic cards 2.9% + $0.30 per successful transaction. International cards +1.5%, currency conversion +1%, manually entered cards +0.5%; custom contracts and other fees can differ. Refunds do not generally return original processing fees.'},
+ {name:'Cloudflare Workers',url:'https://developers.cloudflare.com/workers/platform/pricing/',checked:'2026-10-23',note:'Paid plan starts at $5/month plus requests and CPU overages and other services including D1. Allowances are account-wide. Enter your installation allocation; no hosting bill is connected.'}
 ]
 export function integer(v:unknown,label:string,max=100000000){if(typeof v!=='number'||!Number.isSafeInteger(v)||v<0||v>max)fail(400,`${label} must be a nonnegative integer up to ${max}.`);return v as number}
 export function month(v:unknown){if(typeof v!=='string'||!/^20\d{2}-(0[1-9]|1[0-2])$/.test(v))fail(400,'Use a month in YYYY-MM format.');return v as string}
