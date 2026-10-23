@@ -52,7 +52,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='lead'&&s.leadIds?.includes(actor.id)&&leadCommands.includes(command))&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
- case 'booking.phone':case 'booking.phone.change':{const changed=await phoneBooking(db,s,actor,command,p,version,now);before.push(...changed.statements);result=changed.booking;break}
+ case 'booking.phone':case 'booking.phone.change':{const changed=await phoneBooking(db,s,actor,command,p,version,now,pacingSecret);before.push(...changed.statements);result=changed.booking;break}
  case 'team.lead':case 'team.server':case 'team.finance':case 'team.reports':case 'team.manager-limit':{result=await executeDelegation(db,s,actor,command,p);break}
  case 'booking.handover':case 'booking.handover.assign':case 'booking.handover.complete':{result=await executeHandover(db,s,actor,command,p,now,before);break}
  case 'service.note':case 'service.preorder-item':case 'service.preorder-active':case 'service.preorder-count':{result=executeServiceNotes(s,actor,command,p,now);break}

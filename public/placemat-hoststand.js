@@ -1,6 +1,7 @@
 import {esc,hidden,field,paymentLink} from './placemat-hoststand-forms.js';
 import {floorMarkup} from './placemat-hoststand-floor.js';
 import {toUtc} from './placemat-local-time.js';
+import {readRequests} from './placemat-requests.js';
 import {renderPacingWarning} from './placemat-pacing.js';
 
 const root=document.querySelector('#host-stand'),notice=document.querySelector('#host-notice');
@@ -48,19 +49,26 @@ async function lockNow(){
  catch(error){if(at!==epoch)return;lockPending=false;if([401,403].includes(error.status))register();else locked();message(error.message,true)}
  finally{if(at===epoch){lockPending=false;for(const button of root.querySelectorAll('button'))button.disabled=false}}
 }
-function payloadFor(values,action){
+function payloadFor(values,action,form){
  const payload=Object.fromEntries(values);
  if(payload.partySize!==undefined)payload.partySize=Number(payload.partySize);
  if(values.has('tableIds'))payload.tableIds=values.getAll('tableIds');
  if(action==='booking.lock')payload.locked=payload.locked==='true';
  if(action==='waitlist.add')payload.contactConsent=values.has('contactConsent');
+ if(action==='booking.phone'){
+  payload.staffIntake={source:values.get('staffSource'),contactPreference:values.get('contactPreference'),confirmationConsent:values.has('confirmationConsent')};
+  Object.assign(payload,readRequests(form));
+  for(const key of ['staffSource','contactPreference','confirmationConsent','occasion','requestedArea','seatingPreference','dietaryNotes','allergyNotes','stroller','highchair','wheelchair'])delete payload[key];
+  if(payload.guestId){delete payload.name;delete payload.email;delete payload.phone}else delete payload.guestId;
+  if(!payload.overrideReason)delete payload.overrideReason;
+ }
  for(const key of ['startAt','dueAt'])if(payload[key])payload[key]=toUtc(payload[key],data.venue.timezone,payload.startOffset||undefined);
  delete payload.startOffset;
  if(['move','booking.swap','booking.lock','booking.phone.change'].includes(action))payload.version=data.version;
  return payload;
 }
 async function reviewPacing(form,command,payload,at){
- if(!['booking.walkin','waitlist.seat'].includes(command))return true;
+ if(!['booking.walkin','waitlist.seat','booking.phone','booking.phone.change'].includes(command)||command.startsWith('booking.phone')&&!data.pacingGranted)return true;
  const base={...payload};delete base.pacingConfirm;delete base.pacingReason;
  const stamp=JSON.stringify(base),previous=pacingReviews.get(form);
  if(previous?.stamp===stamp&&payload.pacingConfirm==='yes'){payload.pacingReview=previous.review;return true}
@@ -71,7 +79,12 @@ async function reviewPacing(form,command,payload,at){
  form.querySelector('[data-pacing-warning]').innerHTML=renderPacingWarning(preview.violations,{esc,field});
  message('Review the pacing warning, add a reason and confirm before submitting again.');return false;
 }
-root.addEventListener('change',e=>{if(e.target.name==='deviceService'&&data&&!working){serviceId=e.target.value;message('');renderFloor()}});
+root.addEventListener('change',e=>{
+ if(e.target.name==='guestId'){
+  const form=e.target.closest('form');
+  for(const key of ['name','email','phone']){const input=form.elements.namedItem(key);if(input){input.disabled=Boolean(e.target.value);if(key==='name')input.required=!e.target.value}}
+ }
+ if(e.target.name==='deviceService'&&data&&!working){serviceId=e.target.value;message('');renderFloor()}});
 root.addEventListener('click',async e=>{
  if(e.target.closest('[data-host-action="lock"]')){void lockNow();return}
  const operator=e.target.closest('[data-host-operator]');
@@ -92,7 +105,7 @@ root.addEventListener('submit',async e=>{
   if(action==='claim'){const payload=Object.fromEntries(values);form.reset();await api('claim',payload);if(at!==epoch)return;await load(at);}
   else if(action==='unlock'){const payload=Object.fromEntries(values);form.reset();await api('unlock',payload);if(at!==epoch)return;if(await refresh(at))message('Host stand unlocked.');}
   else{
-   const payload=payloadFor(values,action),command=action==='move'?'booking.move':action==='stage'?'booking.stage':action;
+   const payload=payloadFor(values,action,form),command=action==='move'?'booking.move':action==='stage'?'booking.stage':action;
    if(!await reviewPacing(form,command,payload,at)||at!==epoch)return;
    const saved=await api('commands',{generation,command,payload});if(at!==epoch)return;
    if(await refresh(at)){

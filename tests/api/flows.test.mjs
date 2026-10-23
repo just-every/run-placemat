@@ -704,3 +704,6 @@ test('Signed refund events reconcile current Stripe state once and assign failed
 })
 
 import './refund-notice-journeys.mjs'
+
+import {phoneBookingJourney} from './phone-booking-journeys.mjs'
+test('Future staff reservations retain returning-guest identity, concierge source, declared requests and reviewed pacing without bypassing hard capacity',async()=>{const h=await installation();try{await phoneBookingJourney(h)}finally{await h.close()}})

@@ -71,6 +71,7 @@ export default {
    if(units.length!==i.capacity||new Set(units.map(t=>t.ordinal)).size!==i.capacity||units.some(t=>t.inventoryKind!==i.kind||t.inventoryTurnMinutes!==i.turnMinutes||t.seats!==1||!Number.isInteger(t.ordinal)||t.ordinal<1||t.ordinal>i.capacity||t.area!==i.name||t.retiredAt))throw Error('Invalid inventory units')
   }
   if(s.tables.some(t=>(t.inventoryId!==undefined||t.inventoryKind!==undefined)&&!inventoryIds.has(t.inventoryId)))throw Error('Unknown seat inventory')
+  if(s.bookings.some(b=>b.staffIntake!==undefined&&(!b.staffIntake||!['phone','concierge','offline'].includes(b.staffIntake.source)||!['email','sms','none'].includes(b.staffIntake.contactPreference)||typeof b.staffIntake.confirmationConsent!=='boolean'||b.source!=='phone')))throw Error('Invalid staff reservation intake')
   for(const b of s.bookings){
    const units=b.tableIds.map(id=>s.tables.find(t=>t.id===id))
    if(!units.some(t=>t?.inventoryId))continue

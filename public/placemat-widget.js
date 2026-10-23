@@ -1,5 +1,5 @@
 /* BOOK-002: website booking widget. The framed page only reports its height to the allowlisted website; it accepts no messages. */
-export const sourceLabel = b => b.attribution?.door === 'widget' ? `${b.source} · website widget on ${b.attribution.origin}` : b.attribution?.door === 'booking-page' ? `${b.source} · booking page` : b.source;
+export const sourceLabel = b => b.staffIntake ? `${b.staffIntake.source} · ${b.staffIntake.contactPreference} contact preference` : b.attribution?.door === 'widget' ? `${b.source} · website widget on ${b.attribution.origin}` : b.attribution?.door === 'booking-page' ? `${b.source} · booking page` : b.source;
 export function reportHeight(origin) {
   if (window.parent === window) return;
   const main = document.querySelector('main');
