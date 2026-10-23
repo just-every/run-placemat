@@ -58,7 +58,7 @@ test('SERVICE-005 / REPORT-002: two channels race the final arrival allocation; 
  }finally{await h.close()}
 })
 
-test('SERVICE-007: owner grants hosts explicit pacing authority; signed exact review, revocation, public/agent refusal, physical clashes, history and erasure guard overrides',async()=>{
+test('ROLE-003 / SERVICE-007: owner grants hosts explicit pacing authority; signed exact review, revocation, public/agent refusal, physical clashes, history and erasure guard overrides',async()=>{
  const h=await installation();try{
   const {service,tables}=await prepare(h)
   for(let i=0;i<3;i++)await h.api('/api/public/book',publicGuest(service,i,{partySize:4}),{as:'',status:201})
