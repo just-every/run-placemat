@@ -124,6 +124,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
         catch { throw new Error('No booking has been made. Availability could not be refreshed. Search again, then choose a new time. Your contact details are kept for your next selection.'); }
         throw new Error(`No booking has been made. ${error.message} Review the refreshed availability and choose a time again. Your contact details are kept for your next selection.`);
       }
+      if(!error.status||error.status>=500)throw new Error('Booking confirmation was interrupted. Keep this tab and reload to recover the same reservation before starting another booking.');
       throw error;
     }
     confirmed(result);
@@ -155,6 +156,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     // This endpoint also serves existing clients; only venue metadata bootstraps the search.
     const bootstrap = await api('/api/public/services?partySize=2');
     venue = bootstrap.venue;
+    document.querySelector('#venue-line').textContent = `${venue.name} · All times in ${venue.timezone}`;
     menus = new Map(bootstrap.services.map(s=>[s.id,s.preorderItems||[]]));
     analytics.offer(bootstrap.analytics, venue);
     contact = {name: '', email: '', phone: ''};requests=undefined;
