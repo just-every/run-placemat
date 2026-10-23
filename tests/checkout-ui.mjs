@@ -24,6 +24,9 @@ for(const width of [1440,390]){
   }
   await page.goto(transport.origin+'/book');await page.locator('[name=date]').waitFor();await choose();await page.getByRole('button',{name:'Hold and review',exact:true}).click();await page.getByRole('heading',{name:'Table held for you',exact:true}).waitFor();await shot('held-expiry')
   assert.equal((await h.api('/api/state')).state.bookings.length,0)
+  const ownerContext=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true});await ownerContext.addCookies(h.cookie.split('; ').map(v=>{const i=v.indexOf('=');return {name:v.slice(0,i),value:v.slice(i+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
+  try{const ownerPage=await ownerContext.newPage();await ownerPage.goto(transport.origin+'/setup');await ownerPage.getByRole('checkbox').check();await ownerPage.getByRole('button',{name:'Finish setup',exact:true}).click();await ownerPage.locator('.app-main[aria-busy=false]').waitFor();await ownerPage.locator('#bookings-pacing').getByText(/4 checkout-held/).first().waitFor();assert.ok(await ownerPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await shot('held-pacing',ownerPage.locator('#bookings-pacing'))}finally{await ownerContext.close()}
+
   await page.reload();await page.getByRole('heading',{name:'Table held for you',exact:true}).waitFor();assert.match(await page.locator('#public-content').innerText(),/recovered the hold/);await shot('recovered-hold')
   await page.getByRole('button',{name:'Release hold',exact:true}).click();await page.getByRole('status').filter({hasText:'Hold released. Choose an available time.'}).waitFor();await choose()
   let interrupted,original
@@ -34,7 +37,7 @@ for(const width of [1440,390]){
   const request=await h.command('payment.request',{bookingId:recovered.id,amountCents:10000,dueAt:new Date(Date.now()+7200000).toISOString(),followupOwnerId:view.actor.id,reason:'Guest agreed to the reservation deposit'})
   await h.command('payment.link',{requestId:request.requestId});assert.equal(edge.sessions.size,1)
   const cookies=h.cookie.split('; ').map(v=>{const i=v.indexOf('=');return {name:v.slice(0,i),value:v.slice(i+1),url:transport.origin,secure:true,sameSite:'Lax'}});await context.addCookies(cookies)
-  await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.locator('.app-main[aria-busy=false]').waitFor()
+  await page.goto(transport.origin+'/app');await page.locator('.app-main[aria-busy=false]').waitFor()
   const payment=page.locator(`[data-payment-request="${request.requestId}"]`);await shot('protected-checkout',payment)
   await payment.getByRole('button',{name:'Close unpaid Checkout',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();assert.equal((await h.api('/api/state')).paymentRequests.find(r=>r.requestId===request.requestId).state,'expired');await shot('confirmed-checkout-closed',payment)
   await h.command('booking.status',{bookingId:recovered.id,status:'cancelled'});await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor();await shot('released-after-closure',page.locator('#bookings-list'))
