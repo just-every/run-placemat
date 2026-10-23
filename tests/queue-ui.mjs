@@ -56,7 +56,7 @@ try{
    await guest.getByRole('button',{name:'Leave queue',exact:true}).click();await guest.getByRole('status').filter({hasText:'Your party left the queue'}).waitFor();assert.match(await guest.locator('.booking-confirmation').innerText(),/declined/);assert.equal(await guest.getByRole('button',{name:'Replace private link',exact:true}).count(),0)
    if(shots)await guest.screenshot({path:resolve(shots,`WAIT-002-left-${width}.png`),fullPage:true})
    assert.ok(await guest.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);console.log(`WAIT-002 QR, guest management and host intake passed at ${width}`)
-  }finally{await ownerContext.close();await guestContext.close();await hostContext.close();await h.close()}
+  }finally{for(const context of [ownerContext,guestContext,hostContext])await context.unrouteAll({behavior:'wait'});await ownerContext.close();await guestContext.close();await hostContext.close();await h.close()}
  }
  await operationsBrowserJourney(browser)
 }finally{await browser.close()}

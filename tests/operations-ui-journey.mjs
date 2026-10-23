@@ -61,6 +61,6 @@ export async function operationsBrowserJourney(browser){
    const stand=await deviceContext.newPage();await stand.goto(h.origin+'/hoststand');await stand.getByRole('heading',{name:'Operations stand',exact:true}).waitFor();assert.ok(!(await stand.locator('body').innerText()).includes('Peanuts only'));assert.match(await stand.locator('body').innerText(),/Held until/);await shot('hoststand',stand)
    for(const p of [guest,page,stand])assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No page overflow')
    assert.deepEqual(errors,[]);console.log(`Declared needs, late-arrival operations and quoted waits passed at ${width}`)
-  }catch(error){console.error('Operations journey failed',error);throw error}finally{await context.close();await guestContext.close();await deviceContext.close();await h.close()}
+  }catch(error){console.error('Operations journey failed',error);throw error}finally{for(const current of [context,guestContext,deviceContext])await current.unrouteAll({behavior:'wait'});await context.close();await guestContext.close();await deviceContext.close();await h.close()}
  }
 }
