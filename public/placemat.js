@@ -83,7 +83,8 @@ function notice(message, kind = '') {
 async function api(path, body, method = 'POST') {
   const response = await fetch(path, {credentials:'same-origin', headers:body === undefined ? {} : {'Content-Type':'application/json'}, ...(body === undefined ? {} : {method, body:JSON.stringify(body)})});
   const json = await response.json().catch(() => null);
-  if (!response.ok) { const error = new Error(json?.error || `Request failed (${response.status}). Please try again.`); error.status = response.status; throw error; }
+  if (!response.ok) { if(['/api/state','/api/floor-version'].includes(path)&&[401,403].includes(response.status))outage.revoke(); const error = new Error(json?.error || `Request failed (${response.status}). Please try again.`); error.status = response.status; throw error; }
+  if(path==='/api/floor-version'&&json?.outageAllowed===false)outage.revoke();
   if (!json) throw new Error('The server returned an unreadable response. Please refresh.');
   return json;
 }

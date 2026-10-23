@@ -14,24 +14,47 @@ async function outageFixture(h){
  return {tables,service,server}
 }
 
-test('Outage preparation requires personal-owner consent and returns only an expiring anonymous service snapshot',async()=>{
+test('Outage preparation enforces audited owner opt-in, personal staff authority and an expiring minimised service snapshot',async()=>{
  const h=await installation();try{
   const {tables,service}=await outageFixture(h)
-  await h.api('/api/public/book',publicGuest(service,0,{name:'synthetic-placemat-101',email:'private-outage@example.test',requiredAccessTags:['step-free']}),{as:'',status:201})
+  await h.api('/api/public/book',publicGuest(service,0,{name:'synthetic-placemat-101',email:'private-outage@example.test',phone:'+1 (212) 555-0134',requiredAccessTags:['step-free'],requests:{allergyNotes:'synthetic-placemat-301',dietaryNotes:'synthetic-placemat-302',wheelchair:true,occasion:'private-occasion',seatingPreference:'private-preference'},requestsAcknowledged:true}),{as:'',status:201})
+  const other=await h.command('service.save',{name:'Other outage service',startAt:new Date(Date.parse(service.startAt)+86400000).toISOString(),endAt:new Date(Date.parse(service.endAt)+86400000).toISOString(),turnMinutes:90,coverLimit:40})
+  const publish=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:other.id},reason:'Reviewed separate-service scope'});await h.command('proposal.approve',{proposalId:publish.id})
+  await h.api('/api/public/book',publicGuest(other,1,{name:'synthetic-placemat-304'}),{as:'',status:201})
   const member=await h.signIn('outage-reader@example.test'),manager=await h.signIn('outage-manager@example.test','admin'),host=await h.signIn('outage-host@example.test')
   const hostId=(await h.api('/auth/operators')).find(p=>p.email==='outage-host@example.test').id;await h.command('team.host',{operatorId:hostId,enabled:true})
   const key=(await h.api('/api/agent-keys',{name:'Outage cannot use preparation keys'})).result
-  const payload={serviceId:service.id,consent:'SAVE ANONYMOUS SHEET'}
+  const payload={serviceId:service.id,consent:'SAVE SERVICE SHEET',deviceId:crypto.randomUUID()}
   await h.command('outage.sheet',payload,{as:'',status:401})
   for(const as of [member,manager,host])await h.command('outage.sheet',payload,{as,status:403})
   await h.command('outage.sheet',payload,{as:'',headers:{authorization:'Bearer '+key.key},status:403})
   await h.command('outage.sheet',{serviceId:service.id},{status:400})
   const before=await h.api('/api/state'),sheet=await h.command('outage.sheet',payload),after=await h.api('/api/state')
-  assert.equal(sheet.version,after.version);assert.ok(Date.parse(sheet.expiresAt)>Date.parse(sheet.generatedAt));assert.ok(Date.parse(sheet.expiresAt)-Date.parse(sheet.generatedAt)<=12*3600000)
-  assert.equal(sheet.tables.length,3);assert.equal(sheet.bookings.length,1);assert.deepEqual(sheet.bookings[0].tableIds,[tables[0].id])
-  for(const value of ['synthetic-placemat-101','private-outage@example.test','guestId','requiredAccessTags','notes','requests','serverName'])assert.ok(!JSON.stringify(sheet).includes(value),value)
+  assert.equal(sheet.expiresAt,new Date(Math.min(Date.parse(sheet.generatedAt)+12*3600000,Date.parse(service.endAt)+3600000)).toISOString());assert.equal(sheet.version,after.version);assert.ok(Date.parse(sheet.expiresAt)>Date.parse(sheet.generatedAt));assert.ok(Date.parse(sheet.expiresAt)-Date.parse(sheet.generatedAt)<=12*3600000)
+  assert.ok(!JSON.stringify(sheet).includes('synthetic-placemat-304'));assert.ok(!JSON.stringify(sheet).includes(other.id));assert.equal(sheet.tables.length,3);assert.equal(sheet.bookings.length,1);assert.deepEqual(sheet.bookings[0].tableIds,[tables[0].id])
+  assert.equal(sheet.bookings[0].name,'synthetic-placemat-101');assert.equal(sheet.bookings[0].phoneLastFour,'0134');assert.deepEqual(sheet.bookings[0].requiredAccessTags,['step-free']);assert.equal(sheet.bookings[0].server,'Outage server')
+  assert.deepEqual(sheet.bookings[0].requests,{unverified:true,allergy:'synthetic-placemat-301',dietary:'synthetic-placemat-302',access:['Wheelchair']})
+  for(const value of ['private-outage@example.test','guestId','notes','occasion','seatingPreference','payment','vipLevel','visitCount','private-preference','212'])assert.ok(!JSON.stringify(sheet.bookings).includes(value),value)
+  assert.deepEqual(Object.keys(sheet.bookings[0]).sort(),['reference','name','phoneLastFour','tableIds','section','server','partySize','startAt','endAt','status','needsBussing','requiredAccessTags','requests'].sort())
+  assert.equal(sheet.preparedBy,before.actor.id);assert.equal(sheet.deviceId,payload.deviceId);assert.equal(sheet.fieldScope,2)
   assert.deepEqual(after.state.bookings,before.state.bookings);assert.deepEqual(after.guests,before.guests);assert.deepEqual(after.state.services,before.state.services);assert.deepEqual(after.state.proposals,before.state.proposals)
-  const consent=after.state.audit.find(e=>e.action==='outage.consent');assert.equal(consent.actor,after.actor.id);assert.equal(consent.subject,sheet.id);assert.ok(consent.at)
+  const consent=after.state.audit.find(e=>e.action==='outage.consent');assert.equal(consent.actor,after.actor.id);assert.equal(consent.subject,sheet.id);assert.ok(consent.at);assert.equal(consent.deviceId,payload.deviceId);assert.ok(consent.reason.includes('field scope 2'))
+  assert.equal(after.state.audit.filter(e=>e.action==='outage.enrolment').length,1)
+  const lead=await h.signIn('outage-lead@example.test'),server=await h.signIn('outage-server@example.test'),finance=await h.signIn('outage-finance@example.test')
+  const operators=await h.api('/auth/operators'),operatorId=email=>operators.find(o=>o.email===email).id
+  await h.command('team.lead',{operatorId:operatorId('outage-lead@example.test'),enabled:true});await h.command('team.server',{operatorId:operatorId('outage-server@example.test'),enabled:true});await h.command('team.finance',{operatorId:operatorId('outage-finance@example.test'),enabled:true})
+  for(const as of [manager,host,lead,member,server,finance])await h.command('outage.settings',{enabled:true,confirm:'CHANGE OUTAGE ACCESS'},{as,status:403})
+  await h.command('outage.settings',{enabled:true},{status:400})
+  await h.command('outage.settings',{enabled:true,confirm:'CHANGE OUTAGE ACCESS'})
+  for(const as of [manager,host,lead]){const allowed=await h.command('outage.sheet',payload,{as});assert.equal(allowed.bookings[0].name,'synthetic-placemat-101');assert.equal((await h.api('/api/floor-version',undefined,{as})).outageAllowed,true)}
+  for(const as of [member,server,finance])await h.command('outage.sheet',payload,{as,status:403})
+  await h.command('team.host',{operatorId:hostId,enabled:false});await h.command('outage.sheet',payload,{as:host,status:403});assert.equal((await h.api('/api/floor-version',undefined,{as:host})).outageAllowed,false)
+  await h.command('guest.erase',{guestId:after.state.bookings[0].guestId,confirm:'ERASE'})
+  const erased=await h.command('outage.sheet',payload,{as:manager});assert.equal(erased.bookings[0].name,'Erased guest');assert.equal(erased.bookings[0].phoneLastFour,'');assert.equal(erased.bookings[0].requests,null)
+  await h.command('outage.settings',{enabled:false,confirm:'CHANGE OUTAGE ACCESS'})
+  for(const as of [manager,lead])await h.command('outage.sheet',payload,{as,status:403})
+  await h.command('outage.sheet',payload)
+  const setting=(await h.api('/api/state')).state.audit.filter(e=>e.action==='outage.settings');assert.equal(setting.length,2);assert.deepEqual(setting[1].changes.find(c=>c.kind==='outage').before,{staffEnabled:true});assert.deepEqual(setting[1].changes.find(c=>c.kind==='outage').after,{staffEnabled:false})
  }finally{await h.close()}
 })
 
@@ -49,7 +72,7 @@ test('Outage reconnect reviews sold-table conflicts, binds exact live fit and co
   await h.command('booking.outage',commit(initial,old),{status:409})
   const review=await h.api(path,pending);assert.ok(review.conflict);assert.equal(review.alternatives.length,1);assert.deepEqual(review.alternatives[0].payload.tableIds,[tables[1].id]);assert.ok(review.alternatives[0].review)
   await h.command('booking.outage',{...commit(review),confirm:''},{status:409})
-  await h.command('booking.outage',{...commit(review),partySize:2},{status:409})
+  await h.command('booking.outage',{...commit(review),partySize:2},{status:409});await h.command('booking.outage',{...commit(review),capturedBy:'synthetic-placemat-305'},{status:409})
   await h.command('booking.outage',{...commit(review),tableIds:[tables[0].id]},{status:409})
   await h.command('booking.outage',{...commit(review),review:review.alternatives[0].review.replace(/^\d+/,String(Date.now()-1))},{status:409})
   // A staffing edit is a new floor version; an earlier review cannot silently pass it.
@@ -57,12 +80,17 @@ test('Outage reconnect reviews sold-table conflicts, binds exact live fit and co
   await h.command('booking.outage',commit(review),{status:409})
   assert.equal((await h.api(path,pending)).alternatives.length,0,'A server break prevents outage seating')
   await h.command('server.break',{serviceId:service.id,serverId:server.id,onBreak:false,reason:'Returned for reconciliation'})
+  await h.command('outage.settings',{enabled:true,confirm:'CHANGE OUTAGE ACCESS'})
+  const host=await h.signIn('outage-reconcile-host@example.test'),hostId=(await h.api('/auth/operators')).find(o=>o.email==='outage-reconcile-host@example.test').id
+  await h.command('team.host',{operatorId:hostId,enabled:true});await h.command('team.pacing',{operatorId:hostId,enabled:true})
+  const hostReview=await h.api(path,pending,{as:host});await h.command('booking.outage',commit(hostReview),{status:409})
+  await h.command('outage.settings',{enabled:false,confirm:'CHANGE OUTAGE ACCESS'});await h.command('booking.outage',commit(hostReview),{as:host,status:403})
   const current=await h.api(path,pending),payload=commit(current)
   const responses=await Promise.all([h.request('/api/commands',{method:'POST',body:{command:'booking.outage',payload}}),h.request('/api/commands',{method:'POST',body:{command:'booking.outage',payload}})])
   assert.ok(responses.some(r=>r.status===200));for(const response of responses)assert.ok([200,409].includes(response.status))
   const state=await h.api('/api/state'),created=state.state.bookings.find(b=>b.id!==sold.id)
   assert.equal(state.state.bookings.length,2);assert.deepEqual(created.tableIds,[tables[1].id]);assert.deepEqual(state.state.bookings.find(b=>b.id===sold.id).tableIds,[tables[0].id]);assert.equal(created.status,'seated');assert.deepEqual(created.requiredAccessTags,['step-free'])
-  const audit=state.state.audit.filter(e=>e.action==='booking.outage');assert.equal(audit.length,1);assert.equal(audit[0].id,pending.actionId);assert.equal(audit[0].actor,state.actor.id);assert.equal(audit[0].subject,created.id)
+  const audit=state.state.audit.filter(e=>e.action==='booking.outage');assert.equal(audit.length,1);assert.equal(audit[0].id,pending.actionId);assert.equal(audit[0].actor,state.actor.id);assert.equal(audit[0].subject,created.id);const observed=JSON.parse(state.state.audit.find(e=>e.action==='outage.reconciled').reason);assert.deepEqual(observed.originalTableIds,[tables[0].id]);assert.deepEqual(observed.finalTableIds,[tables[1].id]);assert.equal(observed.attribution,'device-attributed');assert.equal(observed.capturedAt,pending.capturedAt)
   assert.equal((await h.api(path,pending)).applied.id,created.id,'Review recovers a lost commit response even when every fitting table is sold')
   const replay=await h.command('booking.outage',payload);assert.equal(replay.id,created.id);assert.equal(replay.replayed,true);assert.equal((await h.api('/api/state')).version,state.version)
   await h.command('guest.erase',{guestId:created.guestId,confirm:'ERASE'});assert.equal((await h.command('booking.outage',payload)).id,created.id);assert.equal((await h.api('/api/state')).state.bookings.length,2,'Erasure never enables duplicate replay')

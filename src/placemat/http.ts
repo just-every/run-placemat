@@ -43,7 +43,7 @@ import {timeline} from './timeline'
 import {floorStage} from './service-status'
 import type { Bindings } from '../auth.server'
 import { Problem,fail,id,text,type Actor } from './model'
-import {outageReview} from './outage'
+import {outageReview,outageAccess} from './outage'
 import { actorFor,person,originCheck,jsonBody } from './access'
 import { load,guests,hash,save } from './store'
 import { slots } from './availability'
@@ -320,7 +320,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({...result,rows:result.rows.map(row=>({...row,paymentRequests:alerts.filter(r=>r.bookingId===row.id)}))})
   }
   if(path==='/api/floor-version'&&request.method==='GET'){
-   const {version}=await load(env.DB);return json({version})
+   const {state,version}=await load(env.DB);let outageAllowed=true;try{outageAccess(state,actor!)}catch{outageAllowed=false}return json({version,outageAllowed})
   }
   if(path==='/api/state'&&request.method==='GET'){
    const {state,version}=await load(env.DB)

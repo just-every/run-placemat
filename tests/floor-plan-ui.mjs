@@ -18,7 +18,7 @@ try{
     await c.route('**/*',async route=>{
      const req=route.request(),url=new URL(req.url());if(url.origin!==h.origin){await route.abort();return}
      const file=resolve('public','.'+url.pathname)
-     if(file.startsWith(resolve('public')+'/')&&extname(file)){try{const body=await readFile(file);await route.fulfill({status:200,contentType:{'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream',body});return}catch{}}
+     if(file.startsWith(resolve('public')+'/')&&extname(file)){let body;try{body=await readFile(file)}catch(error){if(!['ENOENT','EISDIR'].includes(error.code))throw error}if(body){await route.fulfill({status:200,contentType:{'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream',body});return}}
      const r=await h.mf.dispatchFetch(req.url(),{method:req.method(),headers:{...req.headers(),host:url.host},...(req.postDataBuffer()?{body:req.postDataBuffer()}:{})});await route.fulfill({status:r.status,headers:Object.fromEntries(r.headers),body:Buffer.from(await r.arrayBuffer())})
     });return c
    }
@@ -95,15 +95,15 @@ try{
    for(const label of ['Outage A','Outage B'])outageTables.push(await h.command('table.save',{label,seats:4,area:'Dining room',accessTags:['step-free'],x:20+outageTables.length*50,y:60}))
    await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor()
    const outage=page.locator('#outage-preparation'),captureOutage=async name=>{await capture('outage-'+name,page,outage)}
-   await outage.locator('summary').click()
+   if(!await outage.locator('details').evaluate(d=>d.open))await outage.locator('summary').click()
    await outage.getByLabel('Outage service',{exact:true}).selectOption(service.id)
    await outage.getByLabel('New outage passphrase',{exact:true}).fill('synthetic-placemat-204')
    await outage.locator('[name=consent]').check();await outage.getByRole('button',{name:'Prepare encrypted sheet',exact:true}).click()
-   await outage.getByText('Encrypted anonymous snapshot saved. No inventory changed.',{exact:true}).waitFor()
+   await outage.getByText('Encrypted service snapshot saved. No inventory changed.',{exact:true}).waitFor()
    assert.match(await outage.locator('[data-outage-timestamp]').innerText(),/Saved.*expires.*America\/New_York/)
-   assert.ok(!(await outage.innerText()).includes('Priya Shah'));assert.ok(!(await outage.innerText()).includes('Marco Rivera'))
+   assert.ok((await outage.innerText()).includes('Priya Shah'));assert.ok((await outage.innerText()).includes('Marco Rivera'));assert.ok((await outage.innerText()).includes('Unverified guest requests'))
    const encrypted=await page.evaluate(()=>localStorage.getItem('placemat.outage.v1'));for(const value of ['Priya','Marco','Outage A','Friday dinner','synthetic-placemat-204'])assert.ok(!encrypted.includes(value))
-   assert.deepEqual(Object.keys(JSON.parse(encrypted)).sort(),['data','expiresAt','format','iv','salt'])
+   assert.deepEqual(Object.keys(JSON.parse(encrypted)).sort(),['data','expiresAt','format','iv','personId','salt','wrappedKey'])
    await captureOutage('snapshot')
    await page.route('**/api/**',route=>route.abort('internetdisconnected'))
    await page.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await page.locator('#floor-sync').innerText(),/unavailable/)
@@ -120,8 +120,22 @@ try{
    assert.equal((await h.api('/api/state')).state.bookings.length,beforePending)
    await captureOutage('disconnected-pending')
    const persistedPending=await page.evaluate(()=>localStorage.getItem('placemat.outage.v1'))
+   // An existing anonymous sheet survives the format upgrade without losing its pending action.
+   await page.evaluate(async()=>{
+    const saved=JSON.parse(localStorage.getItem('placemat.outage.v1')),decode=v=>Uint8Array.from(atob(v),c=>c.charCodeAt(0)),encode=v=>btoa(String.fromCharCode(...new Uint8Array(v)))
+    const material=await crypto.subtle.importKey('raw',new TextEncoder().encode('synthetic-placemat-204'),'PBKDF2',false,['deriveKey']),parameters={name:'PBKDF2',salt:decode(saved.salt),iterations:310000,hash:'SHA-256'}
+    const wrapper=await crypto.subtle.deriveKey(parameters,material,{name:'AES-KW',length:256},false,['unwrapKey']),key=await crypto.subtle.unwrapKey('raw',decode(saved.wrappedKey),wrapper,'AES-KW',{name:'AES-GCM',length:256},false,['decrypt'])
+    const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:decode(saved.iv)},key,decode(saved.data)),draft=JSON.parse(new TextDecoder().decode(plain))
+    for(const b of draft.sheet.bookings)for(const field of ['reference','name','phoneLastFour','section','server','requiredAccessTags','requests'])delete b[field]
+    const legacy=await crypto.subtle.deriveKey(parameters,material,{name:'AES-GCM',length:256},false,['encrypt']),iv=crypto.getRandomValues(new Uint8Array(12)),data=await crypto.subtle.encrypt({name:'AES-GCM',iv},legacy,new TextEncoder().encode(JSON.stringify(draft)))
+    localStorage.setItem('placemat.outage.v1',JSON.stringify({format:1,salt:saved.salt,iv:encode(iv),data:encode(data),expiresAt:saved.expiresAt}))
+   })
+   await outage.getByRole('button',{name:'Lock outage sheet',exact:true}).click();if(!await outage.locator('details').evaluate(d=>d.open))await outage.locator('summary').click()
+   await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click();await outage.locator('[data-pending-id]').waitFor();assert.ok((await outage.innerText()).includes('Anonymous party'))
+   await outage.getByRole('button',{name:'Lock outage sheet',exact:true}).click();await page.evaluate(value=>localStorage.setItem('placemat.outage.v1',value),persistedPending);if(!await outage.locator('details').evaluate(d=>d.open))await outage.locator('summary').click()
+   await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click();await outage.locator('[data-pending-id]').waitFor()
    await outage.getByRole('button',{name:'Lock outage sheet',exact:true}).click();assert.equal(await outage.locator('[data-pending-id]').count(),0)
-   await outage.locator('summary').click();await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-wrong');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click()
+   if(!await outage.locator('details').evaluate(d=>d.open))await outage.locator('summary').click();await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-wrong');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click()
    await outage.getByRole('alert').filter({hasText:'Passphrase incorrect or saved sheet damaged'}).waitFor();assert.equal(await outage.locator('[data-pending-id]').count(),0)
    await page.evaluate(()=>{const stored=JSON.parse(localStorage.getItem('placemat.outage.v1'));stored.data=(stored.data[0]==='A'?'B':'A')+stored.data.slice(1);localStorage.setItem('placemat.outage.v1',JSON.stringify(stored))})
    await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click()
@@ -153,19 +167,32 @@ try{
    await page.unroute('**/api/commands');await outage.getByRole('button',{name:'Review current floor',exact:true}).click();await outage.getByText('was already reconciled. No additional seating was created.',{exact:false}).waitFor()
    const reconciled=(await h.api('/api/state')).state
    assert.equal(reconciled.bookings.length,beforePending+2);assert.deepEqual(reconciled.bookings.find(b=>b.id===otherSeat.id).tableIds,[outageTables[0].id]);assert.ok(reconciled.bookings.some(b=>b.status==='seated'&&b.tableIds.includes(outageTables[1].id)))
-   assert.equal(await outage.locator('[data-pending-id]').count(),0);await captureOutage('reconciled')
+   assert.equal(await outage.locator('[data-pending-id]').count(),0);assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null,'The final reconciled action deletes its sheet');await captureOutage('reconciled')
+   await outage.getByLabel('New outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.locator('[name=consent]').check();await outage.getByRole('button',{name:'Prepare encrypted sheet',exact:true}).click();await outage.locator('[data-outage-timestamp]').waitFor()
    // All custom controls on the changed screen have visible word labels; no icon-only controls need tooltips.
    assert.deepEqual(await page.locator('#floor button, #floor a, #bookings button, #bookings a').evaluateAll(controls=>controls.filter(c=>!c.textContent.trim()).map(c=>c.outerHTML)),[])
    await page.clock.fastForward(5*60000+15000)
    assert.equal(await outage.locator('[data-outage-timestamp]').count(),0,'An idle unlocked sheet removes its plaintext view');assert.ok(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')))
-   await outage.locator('summary').click();await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click();await outage.locator('[data-outage-timestamp]').waitFor()
+   if(!await outage.locator('details').evaluate(d=>d.open))await outage.locator('summary').click();await outage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click();await outage.locator('[data-outage-timestamp]').waitFor()
    const expires=await page.evaluate(()=>JSON.parse(localStorage.getItem('placemat.outage.v1')).expiresAt)
-   await page.clock.setSystemTime(new Date(Date.parse(expires)+1));await page.clock.fastForward(15000)
+   await page.clock.setSystemTime(new Date(Date.parse(expires)+1));await page.keyboard.press('Escape')
    assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null,'A running page deletes the expired ciphertext');assert.equal(await outage.locator('[data-outage-timestamp]').count(),0)
-   await page.clock.setSystemTime(new Date());await outage.locator('summary').click()
+   await page.clock.setSystemTime(new Date());if(!await outage.locator('details').evaluate(d=>d.open))await outage.locator('summary').click()
    await outage.getByLabel('New outage passphrase',{exact:true}).fill('synthetic-placemat-204');await outage.locator('[name=consent]').check();await outage.getByRole('button',{name:'Prepare encrypted sheet',exact:true}).click();await outage.locator('[data-outage-timestamp]').waitFor()
    page.once('dialog',dialog=>dialog.accept());await outage.getByRole('button',{name:'Delete saved outage sheet',exact:true}).click()
    assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null)
+   // Staff access uses a distinct personal passphrase and disappears on live revocation.
+   if(!await outage.locator('details').evaluate(d=>d.open))await outage.locator('summary').click()
+   const staffCookie=await h.signIn('outage-staff@example.test'),staffId=(await h.api('/auth/operators')).find(o=>o.email==='outage-staff@example.test').id
+   await h.command('team.host',{operatorId:staffId,enabled:true})
+   await outage.locator('[name=enabled]').check();await outage.getByRole('button',{name:'Save staff outage access',exact:true}).click();await outage.getByText('Staff outage access saved and audited.',{exact:true}).waitFor()
+   const staffPage=await(await context(staffCookie)).newPage();staffPage.on('pageerror',e=>errors.push(e.message));await staffPage.goto(h.origin+'/app');const staffOutage=staffPage.locator('#outage-preparation');await staffOutage.locator('summary').click()
+   await staffOutage.getByLabel('Outage service',{exact:true}).selectOption(service.id);await staffOutage.getByLabel('New outage passphrase',{exact:true}).fill('synthetic-placemat-303');await staffOutage.locator('[name=consent]').check();await staffOutage.getByRole('button',{name:'Prepare encrypted sheet',exact:true}).click();await staffOutage.locator('[data-outage-timestamp]').waitFor()
+   assert.ok((await staffOutage.innerText()).includes('Priya Shah'));assert.equal(await staffOutage.locator('[data-outage-form=settings]').count(),0);await staffOutage.getByLabel('Pending party size',{exact:true}).fill('3');await capture('outage-personal-host',staffPage,staffOutage)
+   await staffOutage.getByRole('button',{name:'Lock outage sheet',exact:true}).click();await staffOutage.locator('summary').click()
+   await staffPage.evaluate(()=>{const unwrap=crypto.subtle.unwrapKey.bind(crypto.subtle);crypto.subtle.unwrapKey=async(...args)=>{await new Promise(resolve=>{window.releaseOutageUnlock=resolve});return unwrap(...args)}})
+   await staffOutage.getByLabel('Outage passphrase',{exact:true}).fill('synthetic-placemat-303');await staffOutage.getByRole('button',{name:'Unlock saved outage sheet',exact:true}).click();await staffPage.waitForFunction(()=>typeof window.releaseOutageUnlock==='function')
+   await h.command('outage.settings',{enabled:false,confirm:'CHANGE OUTAGE ACCESS'});await staffPage.waitForFunction(()=>!localStorage.getItem('placemat.outage.v1'),null,{timeout:15000});await staffPage.evaluate(()=>window.releaseOutageUnlock());await staffOutage.getByRole('alert').filter({hasText:'Outage access changed'}).waitFor();assert.equal(await staffOutage.locator('[data-outage-timestamp]').count(),0);assert.equal(await staffPage.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null);await capture('outage-host-revoked',staffPage)
    await contexts[1].clearCookies();await second.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await second.locator('#floor-sync').innerText(),/Sign in again/)
    assert.deepEqual(errors,[]);console.log(`FLOOR-002 / FLOOR-008 rooms, live guest booking markers, stale edits, encrypted outage capture and reviewed reconnect passed at ${width}`)
   }finally{for(const c of contexts){await c.unrouteAll({behavior:'wait'});await c.close()}await h.close()}

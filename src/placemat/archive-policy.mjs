@@ -4,6 +4,7 @@ import {validateServiceNotes} from './service-notes-archive.mjs'
 import {validateOnboarding} from './onboarding-archive.mjs'
 import {validatePayments} from './payment-archive.mjs'
 function validatePacing(s){
+ if(s.outage!==undefined&&(!s.outage||typeof s.outage!=='object'||Array.isArray(s.outage)||typeof s.outage.staffEnabled!=='boolean'))throw Error('Invalid outage access setting')
  for(const service of s.services){
   const p=service.pacing;if(p===undefined)continue
   if(!p||!Number.isInteger(p.intervalMinutes)||p.intervalMinutes<5||p.intervalMinutes>120||['arrivalCovers','arrivalParties','concurrentCovers'].some(k=>!Number.isInteger(p[k])||p[k]<1||p[k]>500)||!p.areaArrivalCaps||typeof p.areaArrivalCaps!=='object'||Array.isArray(p.areaArrivalCaps)||Object.entries(p.areaArrivalCaps).some(([area,n])=>!area.trim()||!Number.isInteger(n)||n<1||n>500))throw Error('Invalid service pacing')
