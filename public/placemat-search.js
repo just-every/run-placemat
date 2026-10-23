@@ -4,7 +4,7 @@ import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
 /* Guest availability and booking. Events stay inside the existing booking shell. */
 export function createPublicSearch({api, esc, field, select, notice, analytics}) {
   const root = document.querySelector('#public-content');
-  const checkout=createCheckout({api,root,esc,notice,onConfirmed:confirmed,onReleased:()=>run(()=>search(query),'Refreshing availability…')});
+  const checkout=createCheckout({api,root,esc,notice,formatTime:fullTime,onConfirmed:confirmed,onReleased:()=>run(()=>search(query),'Refreshing availability…')});
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
   let areas = [], accessTags = [], menus = new Map();
@@ -159,8 +159,9 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     analytics.offer(bootstrap.analytics, venue);
     contact = {name: '', email: '', phone: ''};requests=undefined;
     query??={date:today(),partySize:2,area:'',requiredAccessTags:[]};
-    if(await checkout.recover())return;
+    if(await checkout.recover())return true;
     await search({date: today(), partySize: 2, area: '', requiredAccessTags: []});
+    return false;
   }
   root.addEventListener('submit', event => {
     const form = event.target.closest('form[data-public-command]');
@@ -210,5 +211,5 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if(value==='another')checkout.clear();
     run(async () => { await load(); notice('Choose your next visit.'); }, 'Loading availability…');
   });
-  return {load: () => run(async () => { await load(); notice('Choose an available arrival time.'); }, 'Loading availability…')};
+  return {load: () => run(async () => { if(!await load())notice('Choose an available arrival time.'); }, 'Loading availability…')};
 }
