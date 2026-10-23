@@ -724,6 +724,6 @@ test('Checkout holds protect the final table across channels, expire and abandon
   const replay=(await h.api('/api/public/book',{...f.checkout.booking,checkout:{requestId:f.checkout.requestId,token:f.checkout.token}},{as:'',status:201})).result
   assert.equal(replay.id,f.booking.id);assert.equal(edge.charges.size,1);assert.equal((await h.api('/api/state')).paymentRequests.find(r=>r.requestId===request.requestId).state,'paid')
   await h.command('payment.charge-sync',{bookingId:f.booking.id,chargeId:charge})
-  const archive=JSON.stringify(await h.api('/api/backup'));assert.ok(!archive.includes(f.checkout.token));assert.ok(archive.includes('pm_booking_holds'));assert.ok(!archive.includes('request_hash'))
+  const archive=await h.api('/api/backup');assert.ok(!JSON.stringify(archive).includes(f.checkout.token));assert.ok(!archive.filter(p=>p.kind==='part').flatMap(p=>p.items).some(item=>item.table==='pm_booking_holds'),'Checkout capabilities and recovery rows never travel in a business archive')
  }finally{await h.close()}
 })
