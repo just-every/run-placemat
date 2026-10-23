@@ -68,7 +68,7 @@ const canIntake = () => canEdit() || actor && !actor.agent && actor.role === 'ho
 const canSeat = () => canEdit() || actor?.role==='lead' || actor?.role === 'host' && state.pacingHostIds?.includes(actor.id);
 const pacingReviews = new WeakMap();
 const canPrepare = () => canEdit() || actor?.agent;
-const timeline=createTimeline({api,esc,field,select,form,button,time,localTime,canOperate:canOperateFloor});
+const timeline=createTimeline({api,who:id=>who(id),esc,field,select,form,button,time,localTime,canOperate:canOperateFloor});
 const audit=createAudit({api,esc,field,select,time,isOwner});
 const guest = id => data.guests.find(g => g.id === id);
 const who = id => data.names?.[id] || 'Unknown person';
