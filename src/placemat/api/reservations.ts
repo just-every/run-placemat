@@ -24,8 +24,8 @@ const ownerFence=(db:D1Database,actor:Actor)=>db.prepare("INSERT INTO pm_asserti
 
 function input(body:Record<string,unknown>){
  if(Object.keys(body).some(key=>!['requestId','action','payload'].includes(key)))fail(400,'Send only requestId, action and payload.')
- if(typeof body.requestId!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.requestId))fail(400,'Use a stable UUID requestId for this owner action.')
- if(!['create','change','cancel'].includes(String(body.action))||typeof body.action!=='string'||!object(body.payload))fail(400,'Choose create, change or cancel with a reservation payload.')
+ if(typeof body.requestId!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.requestId))return fail(400,'Use a stable UUID requestId for this owner action.')
+ if(!['create','change','cancel'].includes(String(body.action))||typeof body.action!=='string'||!object(body.payload))return fail(400,'Choose create, change or cancel with a reservation payload.')
  const action=body.action,p={...body.payload}
  const allowed=action==='cancel'?['bookingId','status','reason']:action==='change'?['bookingId','startAt','partySize','version']:['serviceId','startAt','partySize','guestId','name','email','phone','staffIntake','requests','requestsAcknowledged','area','requiredAccessTags','tableIds']
  if(Object.keys(p).some(key=>!allowed.includes(key)))fail(400,'This owner reservation action contains unsupported fields. Use the existing venue workflow for reviewed exceptions.')
