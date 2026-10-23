@@ -10,10 +10,11 @@ async function stripe(path,body){
  const response=await fetch('https://api.stripe.com/v1/'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,...body?{'content-type':'application/x-www-form-urlencoded'}:{}},body:body?.toString(),redirect:'manual',signal:AbortSignal.timeout(20000)})
  assert.ok(response.ok,`Stripe test request failed with HTTP ${response.status}`);const value=await response.json();assert.notEqual(value.livemode,true);return value
 }
-let sessionId,chargeId,browser,phase='hold'
+let sessionId,chargeId,browser,phase='hold',loseCheckout=true
 const h=await installation({bindings:{STRIPE_SECRET_KEY:secret},stripeEdge:async request=>{
  const url=new URL(request.url);assert.equal(url.hostname,'api.stripe.com');assert.match(url.pathname,/^\/v1\/(checkout\/sessions|charges)(\/[^/]+)?(\/expire)?$/)
  const response=await fetch(request.url,{method:request.method,headers:{authorization:request.headers.get('authorization'),'content-type':request.headers.get('content-type')??'application/x-www-form-urlencoded',...(request.headers.get('idempotency-key')?{'idempotency-key':request.headers.get('idempotency-key')}:{})},body:request.method==='POST'?await request.text():undefined,redirect:'manual',signal:AbortSignal.timeout(20000)})
+ if(loseCheckout&&request.method==='POST'&&url.pathname==='/v1/checkout/sessions'&&response.ok){loseCheckout=false;sessionId=(await response.clone().json()).id;return new Response(null,{status:503})}
  const headers=new Headers(response.headers);headers.delete('content-encoding');headers.delete('content-length');return new Response(await response.arrayBuffer(),{status:response.status,headers})
 }})
 try{
@@ -22,7 +23,9 @@ try{
  const committed=(await h.api('/api/public/book',{...booking,checkout},{as:'',status:201})).result
  assert.equal((await h.api('/api/public/book',{...booking,checkout},{as:'',status:201})).result.id,committed.id)
  const owner=(await h.api('/api/state')).actor,request=await h.command('payment.request',{bookingId:committed.id,amountCents:10000,dueAt:new Date(Date.now()+7200000).toISOString(),followupOwnerId:owner.id,reason:'Controlled Stripe test deposit for checkout recovery'})
+ await h.command('payment.link',{requestId:request.requestId},{status:502});const interruptedSession=sessionId
  const link=await h.command('payment.link',{requestId:request.requestId});sessionId=(await h.api('/api/backup')).filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_payment_requests'&&i.row.id===request.requestId).row.provider_session_id
+ assert.equal(sessionId,interruptedSession,'A real lost create response recovers the original Stripe session')
  const duplicate=await h.command('payment.link',{requestId:request.requestId});assert.equal(duplicate.providerUrl,link.providerUrl)
  phase='hosted-checkout';browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']});const context=await browser.newContext(),page=await context.newPage()
  await page.goto(link.providerUrl,{waitUntil:'domcontentloaded'})
