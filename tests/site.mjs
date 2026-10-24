@@ -12,11 +12,14 @@ assert.equal(build.status, 0, 'SITE-001: rer build --site succeeds\n' + build.st
 const page = path => readFile(new URL(`../dist/site/${path}`, import.meta.url), 'utf8')
 const links = html => [...html.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map(match => match[1])
 const text = html => html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-const commands = html => [...html.matchAll(/<code\b[^>]*>([\s\S]*?)<\/code>/g)].map(match => text(match[1].replace(/<span\b[^>]*(?:aria-hidden="true"|class="cm")[^>]*>[\s\S]*?<\/span>/g, '')).trim())
+// A prompt or comment span is dropped with the word spans nested in it.
+const commands = html => [...html.matchAll(/<code\b[^>]*>([\s\S]*?)<\/code>/g)].map(match => text(match[1].replace(/<span\b[^>]*(?:aria-hidden="true"|class="cm")[^>]*>(?:[^<]|<(?!\/?span\b)[^>]*>|<span\b[^>]*>[^<]*<\/span>)*?<\/span>/g, '')).trim())
 const actions = html => [...html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(match => ({ href: match[1], label: text(match[2]).trim() }))
 
 const home = await page('index.html')
 const run = JSON.parse(await readFile(new URL('../src/site/run.json', import.meta.url), 'utf8'))
+// The one start line every Run Edit Run page shows: the installer, then the same rer dev the npx line runs.
+const startLine = `curl -fsSL https://runeditrun.com/install.sh | sh -s -- ${run.clone.slice('npx -y @runeditrun/rer '.length)}`
 const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8')
 for (const [label, href] of [[`Run ${run.name}`, '/run'], ['Read the docs', '/docs']]) {
   const matches = actions(home).filter(action => action.label === label)
@@ -24,7 +27,7 @@ for (const [label, href] of [[`Run ${run.name}`, '/run'], ['Read the docs', '/do
   assert.ok(matches.every(action => action.href === href), `SITE-001: every ${label} action opens ${href}`)
 }
 assert.match(home, /<a class="btn" href="\/run">/, 'SITE-001: homepage main action opens /run')
-assert.ok(commands(home).includes(run.clone), 'SITE-001: homepage Run it yourself command equals run.json clone')
+assert.ok(commands(home).includes(startLine), 'SITE-001: homepage Run it yourself command is the one start line')
 assert.ok(commands(await page('run.html')).includes(run.clone), 'SITE-001: /run command equals run.json clone')
 assert.ok(readme.includes('`' + run.clone + '`') || readme.includes('\n' + run.clone + '\n'), 'SITE-001: README command equals run.json clone')
 const manifest = JSON.parse(await readFile(new URL('../docs/site.json', import.meta.url), 'utf8'))
