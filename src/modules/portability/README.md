@@ -165,7 +165,7 @@ if (nativeApply) {
     '--local', '--persist-to', '.wrangler/state', '--config', 'wrangler.jsonc',
   ], { cwd: root, signal });
 }
-// Continue the seed's archive/attachment checks and localPortability transfer.
+// Continue the seed's archive and attachment checks and localPortability transfer.
 ```
 
 Use the seed's actual binding, database and deployment prefix, with the same
@@ -195,7 +195,7 @@ provider operation.
 | Legacy `_rer_deploy_migrations` alone | `migration_ledger:runner`; use its owning runner, which can adopt the history. |
 | Invalid ledger shape, row or binding | `migration_ledger:incompatible` or `migration_ledger:binding`. |
 | Partial Platform batch or non-applied tracked row | `migration_ledger:uncertain`; resolve the incomplete operation first. |
-| Unknown hash/name, ambiguous hash/alias or conflicting name/hash | `migration_ledger:unknown`, `:ambiguous` or `:conflict`; use the matching checkout and declaration. |
+| Unknown hash and name, ambiguous hash and alias or conflicting name and hash | `migration_ledger:unknown`, `:ambiguous` or `:conflict`; use the matching checkout and declaration. |
 
 Refusals throw `PortabilityError` with status 409 and a constant `code`;
 ledger values never enter these diagnostics. Propagate failures and stop before
@@ -208,10 +208,10 @@ history again for transfer.
 
 The implementation ships in the RER CLI, not the Worker portability module.
 Package-mode seeds need a future `@runeditrun/rer` release containing this
-export and an exact pin/lock update; version 0.2.77 does not expose it.
+export and an exact pin and lock update; version 0.2.77 does not expose it.
 Vendored seeds need a reviewed Base CLI-copy refresh with
 `node scripts/export-cli.mjs SEED_ROOT` from the selected Base source and their
-normal copy/provenance checks. Copy the complete CLI dependency inventory,
+normal copy and provenance checks. Copy the complete CLI dependency inventory,
 not this file alone. Either route also needs the seed-owned adapter call above
 before its earlier native apply. This Base change releases no package and
 adopts no seed.
@@ -282,7 +282,7 @@ export default {
 ```
 
 The hook is called only for tables declared in `importSafety`, after staging
-and before `validateStaged` or apply. Mandatory development/provider-data refusals
+and before `validateStaged` or apply. Mandatory development and provider data refusals
 run first; normalization cannot bypass them. It must return exactly the writable columns
 of its input row, preserve primary keys and every undeclared column, and change
 declared columns only to their listed safe values. Unchanged values need not be
@@ -406,7 +406,7 @@ contain only `CREATE TABLE` (not `AS SELECT`), `CREATE INDEX` and
 restorable tables. A later migration with any other statement that names a
 restorable table, such as an `INSERT`, `UPDATE` or `DELETE` that purges or
 backfills rows, is refused with `schema_mismatch` unless admitted or replayed
-below. Bounded trigger and view creation/removal changes only schema. Statements that
+below. Bounded trigger and view creation and removal changes only schema. Statements that
 touch only excluded tables are allowed. A data statement (`INSERT`, `REPLACE`,
 `UPDATE` or `DELETE`, including `INSERT ... SELECT` and a leading `WITH`) is
 judged by the table it writes: when that table is outside the restorable
@@ -636,7 +636,7 @@ Product writes to source tables can continue. Import upload, finalize and abort
 requests are serialized by a durable request claim.
 
 Imports hold a **five-minute inactivity lease**, created with the job and renewed
-by every upload/finalize request, then every 30 seconds while that request is
+by every upload and finalize request, then every 30 seconds while that request is
 working (including verification, R2 transfers and product callbacks). This is a
 recovery window, not a total restore limit: the measured 20,000-row round trip
 below already takes 171 seconds, and callbacks have no wall-time bound. A fresh
@@ -645,7 +645,7 @@ can find its active job with `GET /api/portability/imports` (`{active:status}`
 or `{active:null}`), and inspect `GET .../imports/:id`: `abortableAt` and `stale` describe
 its lease. The existing authenticated `POST .../imports/:id/abort` (or CLI
 `abort --resume ID`) discards stale staging and owned objects. A live request
-cannot be aborted through that route. An expired upload/finalize returns
+cannot be aborted through that route. An expired upload and finalize returns
 `409 import_lease_expired`; start the restore again.
 
 The next import automatically aborts a stale job through that same cleanup path

@@ -84,8 +84,12 @@
       "label": "Mail provider",
       "kind": "select",
       "required": true,
-      "default": "rer",
+      "default": "development",
       "options": [
+        {
+          "value": "development",
+          "label": "Local development only"
+        },
         {
           "value": "rer",
           "label": "RER managed mail"
@@ -103,7 +107,8 @@
           "label": "Cloudflare Email Sending"
         }
       ],
-      "group": "mail"
+      "group": "mail",
+      "help": "Local development suppresses external mail. Choose and configure a production provider before hosting."
     },
     {
       "name": "MAIL_FROM",

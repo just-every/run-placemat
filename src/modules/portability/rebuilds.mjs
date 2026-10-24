@@ -98,7 +98,7 @@ export function preservingRebuilds(later,manifest,known,statements) {
     const foreignKeys=statements.filter(sql=>{const t=lex(sql);return (word(t[0],'create') || word(t[0],'alter')) && word(t[1],'table');});
     if(table.count && reachingTables(foreignKeys,manifest.filter(t=>t!==table).map(t=>t.name)).includes(folded(table.name)))continue;
     // CHECK-only changes are verified against the archived definition too;
-    // dropping/changing a column never earns a definition exemption.
+    // dropping or changing a column never earns a definition exemption.
     if(!checkRebuild(table.sql,block[2].sql))continue;
     block.forEach(s=>admitted.add(s));tables.add(folded(table.name));i+=4;
   }

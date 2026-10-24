@@ -9,7 +9,7 @@ const active=row=>['staging','applying'].includes(row.phase);
 
 // Private transfer bookkeeping can be added to already-installed destinations
 // without changing product migrations or the archive's schema identity. Keep
-// it separate from metadata: staging/normalization compare that JSON by CAS.
+// it separate from metadata: staging and normalization compare that JSON by CAS.
 export async function ensureImportLeases(db) {
   await db.prepare(`CREATE TABLE IF NOT EXISTS rer_portability_import_leases (
     job TEXT PRIMARY KEY REFERENCES rer_portability_jobs(id) ON DELETE CASCADE,
@@ -41,7 +41,7 @@ export async function withImportLease(context,id,operation,{abort=false,staleOnl
   if(staleOnly && lease.expires_at>now)throw await importRunning(db,id);
   if(!abort && lease.expires_at<=now)throw new PortabilityError('import_lease_expired',409);
   if(!soleOperator && lease.holder && lease.expires_at>now)throw await importRunning(db,id);
-  // Like staging/publication, claim by a transactional SQL guard. Transport
+  // Like staging and publication, claim by a transactional SQL guard. Transport
   // adapters need not expose provider-specific UPDATE result metadata.
   try {
     await db.batch([guard(db,`EXISTS(SELECT 1 FROM rer_portability_import_leases WHERE job=? AND expires_at=? AND holder IS ?)

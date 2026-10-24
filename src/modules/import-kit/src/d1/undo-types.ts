@@ -41,7 +41,7 @@ export interface D1UndoSnapshot {
   /** Domain-required atomic reversal units, e.g. required MANY owner + joins.
    * Overlapping groups are united. Retaining any member retains the unit. */
   atomicGroups?: string[][];
-  /** Nonempty scalar predicates fencing the WHOLE observed native/dependency
+  /** Nonempty scalar predicates fencing the WHOLE observed native or dependency
    * set, including absent/incoming edges and cardinalities. No mutations. */
   guards: D1Sql[];
 }

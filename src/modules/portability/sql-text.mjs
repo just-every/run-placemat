@@ -18,7 +18,7 @@ const transitions=[
   [6,5,5,5,5,5,5,5],// 5 trigger
   [6,6,5,5,5,5,5,7],// 6 semicolon in a trigger
   [1,7,5,5,5,5,5,5],// 7 end in a trigger
-];// columns: semicolon, space, other, EXPLAIN, CREATE, TEMP/TEMPORARY, TRIGGER, END
+];// columns: semicolon, space, other, EXPLAIN, CREATE, TEMP or TEMPORARY, TRIGGER, END
 const kinds={explain:3,create:4,temp:5,temporary:5,trigger:6,end:7};
 export function splitStatements(sql) {
   const result=[];let state=0,start=0,code=false;
@@ -42,7 +42,7 @@ export function splitStatements(sql) {
 const keywords=new Set(`abort action add after all alter always analyze and as asc attach autoincrement before begin between by cascade case cast check collate column commit conflict constraint create cross current current_date current_time current_timestamp database default deferrable deferred delete desc detach distinct do drop each else end escape except exclude exclusive exists explain fail filter first following for foreign from full generated glob group groups having if ignore immediate in index indexed initially inner insert instead intersect into is isnull join key last left like limit match materialized natural no not nothing notnull null nulls of offset on or order others outer over partition plan pragma preceding primary query raise range recursive references regexp reindex release rename replace restrict returning right rollback row rows savepoint select set table temp temporary then ties to transaction trigger unbounded union unique update using vacuum values view virtual when where window with without new old excluded true false`.split(' '));
 const pseudo=new Set(['new','old','excluded']);
 // Words that can follow a keyword naming a table without being one: UPDATE OR,
-// AFTER UPDATE ON/OF, DO UPDATE SET, TABLE IF [NOT] EXISTS.
+// AFTER UPDATE ON or OF, DO UPDATE SET, TABLE IF [NOT] EXISTS.
 const grammar=new Set(['or','on','of','set','if']);
 
 // Every name in a token list (tokens()) that can be a table: identifiers in

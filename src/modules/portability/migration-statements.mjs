@@ -37,7 +37,7 @@ function statementChanges(sql,reached,empty) {
 }
 // The restorable tables and every table whose writes reach one through a
 // trigger any of `statements` creates, or through a foreign key action (ON
-// DELETE/UPDATE CASCADE or SET) declared by a reached table: a write to such a
+// DELETE or UPDATE CASCADE or SET) declared by a reached table: a write to such a
 // table during a later migration changes restorable rows the archive lacks. A
 // bounded trigger with a writing body counts when its statement names a reached
 // table anywhere; a read-only body (including SELECT RAISE) writes nothing.

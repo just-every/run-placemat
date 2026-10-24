@@ -12,7 +12,7 @@ export async function recoverLegacyArchive({db,buckets,policy:input,migrations},
  insist(acknowledged===true,'legacy_acknowledgement_required',409);
  insist(typeof output==='string' && output!==path,'legacy_output_required',409);
  insist(!(await lstat(output).catch(error=>{if(error.code==='ENOENT')return null;throw error;})),'legacy_output_exists',409);
- // Whole-file verification precedes even staging/audit schema writes. It also
+ // Whole-file verification precedes even staging and audit schema writes. It also
  // reads the archive's own migration ledger, if any, for placement (bridge.mjs).
  const ledger=ledgerReader();
  for await(const record of fileRecords(path,readLegacyArchive))ledger.add(record);
