@@ -15,3 +15,6 @@ dist/
 exports/
 test-results/
 playwright-report/
+
+rer-package/
+delivery-artifact/

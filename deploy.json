@@ -14,7 +14,9 @@
   "vars": {
     "AUTH_LOCAL": "false",
     "MAIL_PROVIDER": "resend",
-    "MAIL_FROM": "auth@example.invalid"
+    "MAIL_FROM": "auth@example.invalid",
+    "MAIL_RELAY_URL": "",
+    "MAIL_ACCOUNT_ID": ""
   },
   "secrets": [
     {
@@ -32,6 +34,10 @@
     {
       "binding": "MAIL_API_KEY",
       "environment": "MAIL_API_KEY"
+    },
+    {
+      "binding": "HOST_PIN_PEPPER_V1",
+      "environment": "HOST_PIN_PEPPER_V1"
     }
   ]
 }

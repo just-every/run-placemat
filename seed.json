@@ -9,14 +9,7 @@
     "record": "A restaurant booking assigned to physical tables"
   },
   "description": "Restaurant tables, service bookings, waitlist and guest history.",
-  "capabilities": [
-    {
-      "id": "http-dispatch",
-      "clauses": [
-        "HTTP-001"
-      ]
-    }
-  ],
+  "capabilities": [],
   "nonGoals": [
     "Deposits and card holds",
     "POS, ordering and delivery",

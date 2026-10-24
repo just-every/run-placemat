@@ -65,3 +65,28 @@ instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account sc
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
 health.
+
+## Hosted installation
+
+`packaging.json` declares Placemat's build, verification, recovery, D1 migration
+sources and production mail inputs. After `pnpm run build`, run
+`pnpm delivery:spec` to update the committed deployment specification and
+`pnpm check:deployment-spec` to check it against the real output. The delivery
+producer packages the Worker and assets without deploying or publishing them:
+
+```sh
+node scripts/delivery/base/cli.mjs package --config packaging.json --output rer-package
+node scripts/delivery/base/cli.mjs artifact --config packaging.json
+```
+
+Generated packages and delivery artifacts are disposable. The committed project
+identifier remains `just-every/run-placemat`. Managed installations retain only
+the dispatch-only workflow `.github/workflows/rer-managed.yml`.
+
+Production mail supports RER managed mail, Resend, SendGrid and Cloudflare.
+Assisted setup asks for the selected provider's sender address and private API
+key, plus the relay URL for RER or account ID for Cloudflare. Managed hosting
+supplies `MAIL_PROVIDER`, `MAIL_FROM`, `MAIL_RELAY_URL` and the private
+`MAIL_API_KEY`. The application passes the assigned relay URL to the RER sender.
+Development and demo sessions continue to suppress external mail. A provider's
+acceptance is distinct from delivery; preserve uncertain results for human review.

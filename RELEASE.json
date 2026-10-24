@@ -1,0 +1,7 @@
+{
+  "version": "0.1.0",
+  "publicReleaseNotes": "Prepare Placemat for hosted installation with explicit deployment operations, provider setup and source provenance. The native release follows qualification.",
+  "migrations": [],
+  "breaking": false,
+  "agentUpdateInstructions": "Review OPERATIONS.md and configure the chosen production mail provider. This metadata prepares the first native release; it does not publish one."
+}

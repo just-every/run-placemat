@@ -42,9 +42,10 @@ export interface Bindings {
  STRIPE_SECRET_KEY?: string
  STRIPE_WEBHOOK_SECRET?: string
  SETUP_TOKEN?: string
- MAIL_PROVIDER?: 'development' | 'resend' | 'sendgrid' | 'cloudflare'
+ MAIL_PROVIDER?: 'development' | 'rer' | 'resend' | 'sendgrid' | 'cloudflare'
  MAIL_FROM?: string
  MAIL_API_KEY?: string
+ MAIL_RELAY_URL?: string
  MAIL_ACCOUNT_ID?: string
 }
 
