@@ -44,10 +44,10 @@
         "MAIL_RELAY_URL",
         "MAIL_ACCOUNT_ID",
         "IDENTITY_PROVIDER",
-        "HOST_PIN_PEPPER_VERSION"
+        "HOST_PIN_PEPPER_VERSION",
+        "OWNER_EMAIL"
       ],
       "secretNames": [
-        "OWNER_EMAIL",
         "SESSION_SECRET",
         "SETUP_TOKEN",
         "HOST_PIN_PEPPER_V1"
