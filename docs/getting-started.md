@@ -6,18 +6,17 @@ Not in Placemat: online ordering, gift cards or the POS itself. Placemat sells n
 
 ## Run it on your computer
 
-You need Git and an internet connection, on macOS, Linux or Windows with WSL2. Placemat uses its own pinned Node 22 and pnpm 10.12.4, so you do not need to change the versions you already have.
+You need an internet connection, on macOS, Linux or Windows with WSL2. Git is required; rer brings Node and pnpm. Placemat uses its own pinned Node 22 and pnpm 10.12.4, so you do not need to change the versions you already have.
 
-Install `rer`, the Run Edit Run command, then start Placemat. These are the same two lines as the [Run page](https://run-placemat.com/run):
+This line installs `rer`, the Run Edit Run command, then starts Placemat. It is the same line as the [Run page](https://run-placemat.com/run):
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
-rer dev just-every/run-placemat
+curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-placemat
 ```
 
-The installer adds `rer` for you alone, with its own Node if you have no Node 22 or later. It changes no shell settings: if it prints an `export PATH=…` line, run that line before the second one. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-placemat` does both steps in one line.
+The installer adds `rer` for you alone, with its own Node if you have no Node 22 or later. If it prints an `export PATH=…` line, run that line too. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-placemat` does the same.
 
-To start it again later, run `cd run-placemat && rer dev`.
+To start it again later, run the same line from the same folder, or `cd run-placemat && rer dev`.
 
 The first start installs everything, prepares the local database and makes you the owner. Give it a few minutes. When it is ready it prints two lines:
 

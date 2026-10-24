@@ -12,6 +12,8 @@ import { chromium, expect } from '@playwright/test'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'), site = join(root, 'dist/site')
 const run = JSON.parse(await readFile(join(root, 'src/site/run.json'), 'utf8'))
+// The one start line every Run Edit Run page shows: the installer, then the same rer dev the npx line runs.
+const startLine = `curl -fsSL https://runeditrun.com/install.sh | sh -s -- ${run.clone.slice('npx -y @runeditrun/rer '.length)}`
 const docs = JSON.parse(await readFile(join(root, 'docs/site.json'), 'utf8'))
 const readme = await readFile(join(root, 'README.md'), 'utf8')
 await readFile(join(site, 'index.html')) // Fail before launching anything if not built.
@@ -130,7 +132,7 @@ try {
     await page.goto(siteOrigin)
     const action = page.getByRole('link', { name: `Run ${run.name}`, exact: true }).first()
     await expect(action, `SITE-001: ${width}px homepage main action targets /run`).toHaveAttribute('href', '/run')
-    assert.ok((await commands(page)).includes(run.clone), `SITE-001: ${width}px homepage Run it yourself command matches manifest`)
+    assert.ok((await commands(page)).includes(startLine), `SITE-001: ${width}px homepage Run it yourself command is the one start line`)
     await screenshot(page, `homepage-${width}`)
     await action.click()
     await expect(page, `SITE-001: ${width}px homepage opens /run`).toHaveURL(siteOrigin + '/run')

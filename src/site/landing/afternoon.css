@@ -20,7 +20,8 @@
 .term-dots i{width:14px;height:14px;border-radius:50%;background:#F0645A}
 .term-dots i:nth-child(2){background:#F5C33B}.term-dots i:nth-child(3){background:#3CC75A}
 .term h3{margin-top:18px;font-size:22px;color:#FFFFFF}
-.term pre{margin-top:18px;overflow-x:auto;font:400 17px/1.75 var(--pm-mono);white-space:pre}
+.term pre{margin-top:18px;overflow-x:auto;font:400 17px/1.75 var(--pm-mono);white-space:pre-wrap}
+.term .nw{white-space:nowrap}
 .term .pr{color:#9FC2AD}
 .term .cm{color:#93B3A1}
 .mi-not{grid-column:1 / -1;grid-row:3;margin-top:32px;display:flex;align-items:center;gap:22px;padding:24px 28px;border-radius:16px;font:400 21px/1.4 var(--pm-ui);color:#4D5652}
