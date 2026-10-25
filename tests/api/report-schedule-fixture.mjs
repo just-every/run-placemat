@@ -4,11 +4,12 @@ export const reportDay='2031-11-02',firstDue='2031-11-03T18:00:00.000Z'
 export async function reportGroup({recipientEmail='synthetic-placemat-group@example.test',bindings={},reportMailEdge}={}){
  let home,tap,available=true
  const mail={uncertain:false,messages:[]}
+ try{
  home=await installation({bindings,origin:'https://home.example.test',peers:{'tap.example.test':()=>{if(!available)throw Error('Synthetic unavailable venue');return tap}},mailEdge:async request=>{
   const wire=await request.clone().json(),message=wire.personalizations?{subject:wire.subject,to:wire.personalizations[0].to.map(p=>p.email),text:wire.content.find(p=>p.type==='text/plain')?.value}:wire;mail.messages.push(message)
   if(reportMailEdge&&message.subject==='Your weekly group cover report')return reportMailEdge(request)
   if(mail.uncertain&&message.subject==='Your weekly group cover report')throw Error('Synthetic uncertain acceptance')
-  return Response.json({id:'synthetic-placemat-mail-'+mail.messages.length},{headers:{'x-message-id':'synthetic-placemat-mail-'+mail.messages.length}})
+  return Response.json({id:'synthetic-placemat-mail-'+mail.messages.length},{status:wire.personalizations?202:200,headers:{'x-message-id':'synthetic-placemat-mail-'+mail.messages.length}})
  }})
  tap=await installation({origin:'https://tap.example.test',peers:{'home.example.test':()=>home}})
  const signIn=async(email,role='member',name='Group manager')=>{
@@ -35,6 +36,7 @@ export async function reportGroup({recipientEmail='synthetic-placemat-group@exam
  const approve=(extra={})=>home.api('/api/report-schedules',{recipientId,venueIds,nextAt:firstDue,acknowledged:true,...extra},{status:201})
  const tick=async(time=firstDue)=>{const result=await(await home.mf.getWorker()).scheduled({scheduledTime:new Date(time),cron:'17 * * * *'});assert.equal(result.outcome,'ok')}
  return {home,tap,mail,recipient,recipientId,manager,managerId,other,bookings,venueIds,approve,tick,grant,signIn,setAvailable(v){available=v},async close(){await home.close();await tap.close()}}
+ }catch(error){await home?.close();await tap?.close();throw error}
 }
 export async function publishReportService(h,name,startAt){
  const service=await h.command('service.save',{name,startAt,endAt:new Date(Date.parse(startAt)+4*3600000).toISOString(),turnMinutes:60,coverLimit:100})
