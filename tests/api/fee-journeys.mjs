@@ -184,6 +184,12 @@ test('Finite fee authority expires without claiming held funds, assigns renewed 
   const preview=await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'late_cancel'})
   assert.equal(preview.authorizationCurrent,false);assert.equal(preview.chargeAllowed,false);assert.equal(preview.executionReady,false)
   await feeApi(h,'fees',feeDecision(preview),{status:409});assert.equal(edge.intents.size,0)
+  const pendingBooking=await feeBooking(h,service,2);await consentBooking(h,edge,pendingBooking,policy)
+  await h.command('booking.stage',{bookingId:pendingBooking.id,stage:'cancelled',reason:'Recorded cancellation before the finite authority expired.'})
+  const pendingPreview=await feeApi(h,'fee-preview',{bookingId:pendingBooking.id,kind:'late_cancel'}),pendingDecision=feeDecision(pendingPreview)
+  edge.loseNextConfirmation();await feeApi(h,'fees',pendingDecision,{status:502});assert.equal(edge.intents.size,1)
+  await feeApi(h,'fee-expiry',{bookingId:pendingBooking.id});const posts=edge.calls.filter(c=>c.method==='POST').length
+  await feeApi(h,'fees',pendingDecision,{status:409});assert.equal(edge.calls.filter(c=>c.method==='POST').length,posts,'Expiry prevents a saved pending decision from making another processor attempt')
   const archive=await h.api('/api/backup');await copy.api('/api/restore',{archive,confirm:'RESTORE'})
   const restored=(await copy.api('/api/state')).feeWork.consents[0];assert.equal(restored.authorizationState,'expired');assert.equal(restored.expiresAt,expired.expiresAt)
   assert.ok((await (await h.request('/api/business-export/fee-consents.csv')).text()).includes('recollection_requested_at'))

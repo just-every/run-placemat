@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "35f9928a2e3eb6efaecb26891b8aac8d76ca1180fe1ec25075c46a0f33bc3e7e",
+      "sha256": "ab91b4de98840bf7860c64555b53d3bf39809815a632cc00eab50096da005c22",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "43b2aef0e3426e093e7801767a2c3c8828a0177e04a99b702678a895612f71ce",
+      "sha256": "6f4af4bc7eb25d50cd3a1c7cd5c900f8a2931268f81fdb6aeaf237c007c656c1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "04aa7d2d4502f04cb229a17aefb2cd159563a1df8936689eb5bea24a5e102f84",
+      "sha256": "308051ff3ce9bc0d41da7c7c259e63e246c0f8c8dfc0817374cc1ca4a86d9238",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -489,6 +489,10 @@
       "sha256": "84abe248973f4eb3e510a944e6ab00089b05993366f2d106ae1f8f2c57d86215",
       "executable": false
     },
+    "migrations/core/0041_fee_expiry.sql": {
+      "sha256": "bc3e0195cc92f32f20758f0e4e27bfd0a8fb0573deea2efb15a59413bda3c1b8",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -666,7 +670,7 @@
       "executable": false
     },
     "public/placemat-fees.js": {
-      "sha256": "3b97021093c97eb0bfa509fa0c2400c0ec45ea0a554e996d1640392057ff0b2a",
+      "sha256": "a55329aa4b2ed4e2dd9bb4ab0a6f720e333b6f489a207b9e6454d2870d5fee49",
       "executable": false
     },
     "public/placemat-floor-plan.js": {
@@ -3218,7 +3222,7 @@
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "ac6c9d77063dac9396bee32cee64833f5a14a794708c67f186b70d752a4c1678",
+      "sha256": "f8771c8c4c713654b204ab980dcba3029c7a6100cb1f986e53859e4a0952a9c1",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3282,7 +3286,7 @@
       "executable": false
     },
     "src/placemat/fee-archive.mjs": {
-      "sha256": "7760fa718f0ad28ccb1ee5a2447d6e81108fdf128f2bcf67f2651845035e7a25",
+      "sha256": "aba93820c344aa86965ad1b3ca334beaca39c53417293b56782fd269d58ccf1a",
       "executable": false
     },
     "src/placemat/fee-close-report.ts": {
@@ -3290,11 +3294,11 @@
       "executable": false
     },
     "src/placemat/fee-policy.ts": {
-      "sha256": "461131114118d3c238be4a8042b1a5499a236097e99e962cb6f762d7c698f781",
+      "sha256": "a9e04ab4c5eaab2bc2dfd0a132025410684adc33ce0af60bdb0d4ec40fb92bf2",
       "executable": false
     },
     "src/placemat/fees.ts": {
-      "sha256": "8a4174b08372af4fefde41e4f449a71de4d367511ef99ffa093100a985de6e51",
+      "sha256": "23d2fbb82c6f30d665da51db4abcc2d62737b4d9e570708824ec95173891f889",
       "executable": false
     },
     "src/placemat/finance-view.ts": {
@@ -3358,7 +3362,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "827aaa6598a2e72805c9f61bcc93fb3f14bbfaf7c12b893996ec60c267b1375f",
+      "sha256": "6b4e9f0e0df7db3a9c78488ed70cadca54e45b8a1da8e7ce01880d4ee2d5f4aa",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -3494,7 +3498,7 @@
       "executable": false
     },
     "src/placemat/preshift.ts": {
-      "sha256": "29ec842109474fc658f175e5da0d175371c2192a65ddb63ff42e872b126fcc97",
+      "sha256": "5962c41fd14f9d0ef16dc9d6eb9072afbd5cd354c4e92dd99063a279014f142a",
       "executable": false
     },
     "src/placemat/privacy/access.ts": {
@@ -3858,7 +3862,7 @@
       "executable": false
     },
     "tests/api/fee-journeys.mjs": {
-      "sha256": "f1851dcf003e8b21d6dfbc7964305f3f74b8859b7d4c3075c4f0b2cce0219b04",
+      "sha256": "128ea55fdfcf221aeaa5f07f4fa4ede7dfe087d6168a5c14d62649a0398ffdff",
       "executable": false
     },
     "tests/api/finance-role.test.mjs": {
@@ -4058,7 +4062,7 @@
       "executable": false
     },
     "tests/fees-ui.mjs": {
-      "sha256": "1bc64f7f71cd4e49e9080c59afbe9ce6f47581b77be674d99f08903210f01b8b",
+      "sha256": "35a040a772bf1bf8ca46ea0dffaa9fcce851802ed6666a6b7f237ecedb7757cd",
       "executable": false
     },
     "tests/finance-ui.mjs": {

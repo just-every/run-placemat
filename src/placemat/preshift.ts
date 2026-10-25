@@ -26,7 +26,7 @@ export function preshift(state:State,guests:Guest[],actor:Actor,date:string,gene
    // Only the server's verified paid state establishes protection. Keep payment
    // links, money and follow-up identities out of this shared host projection.
    const payments=server?[]:paymentRequests.filter(p=>p.bookingId===b.id).map(p=>({state:p.state,dueAt:p.dueAt,protection:p.state==='paid'?'protected' as const:'pending' as const}))
-   return {...shape,needLines:needLines(b,names),name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,feeAuthorizations:actor.role==='owner'&&!actor.deviceId?authorizations.filter(c=>c.bookingId===b.id):[],...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
+   return {...shape,needLines:needLines(b,names),name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,feeAuthorizations:actor.role==='owner'&&!actor.deviceId?authorizations.filter(c=>c.bookingId===b.id).map(c=>({...c,ownerName:names[c.actorId]??'Venue owner'})):[],...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
   })}
  })}
 }
@@ -59,8 +59,8 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
     add(`Deposit deadline: ${time(payment.dueAt)}`)
    }
    for(const consent of b.feeAuthorizations){
-    add(`Fee authorization: ${consent.authorizationState} | expires ${time(consent.expiresAt)} | No funds held; guarantee protection unproved`)
-    if(consent.recollection)add(`Renewed collection: ${consent.recollection.requestedAt?'requested':'review required'} | owner ${consent.recollection.ownerId} | ${consent.recollection.nextAction}`)
+    add(`Fee authorization: ${consent.authorizationState} | expires ${time(consent.expiresAt)} | No funds held; not protected by a card guarantee`)
+    if(consent.recollection)add(`Renewed collection: ${consent.recollection.requestedAt?'requested':'review required'} | owner ${consent.ownerName} | ${consent.recollection.nextAction}`)
    }
    for(const line of b.needLines)add(line)
    if(b.occasion)add(`Occasion: ${b.occasion}`)
