@@ -11,7 +11,7 @@ import {saveOnboarding} from './onboarding'
 import {serviceInput} from './service-input'
 import {executeServiceNotes,normalizePreorders} from './service-notes'
 import {prepareCloseReport} from './service-close-report'
-import {prepareClosure,approveClosure,followupChange} from './service-changes'
+import {prepareClosure,approveClosure,followupChange,prepareAmendment,approveAmendment} from './service-changes'
 import {normalizeBookingRequests,requestTerms} from './booking-requests'
 import {executeInquiry} from './inquiries'
 import {prepareInventory,approveInventory} from './inventory-advisor'
@@ -137,7 +137,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  }
  case 'proposal.prepare':{
   const kind=p.kind,plan=p.plan??{};let exact:any
-  if(kind==='service.closure'){
+  if(kind==='service.amend'){
+   if(actor.agent||actor.deviceId)fail(403,'A personal owner or manager must prepare a service amendment.')
+   exact=prepareAmendment(s,plan,now)
+  }else if(kind==='service.closure'){
    exact=prepareClosure(s,plan,now)
   }else if(kind==='inventory.protect'){
    exact=prepareInventory(s,plan,now)
@@ -175,7 +178,9 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   if(proposal.status!=='pending')fail(409,'This proposal has already been decided.')
   if(command==='proposal.decline'){proposal.status='declined';proposal.approvedBy=actor.id;proposal.approvedAt=now;result=proposal;break}
   const plan=proposal.plan
-  if(proposal.kind==='service.closure'){
+  if(proposal.kind==='service.amend'){
+   approveAmendment(s,actor,proposal,now)
+  }else if(proposal.kind==='service.closure'){
    approveClosure(s,actor,proposal,now)
   }else if(proposal.kind==='inventory.protect'){
    approveInventory(s,actor,proposal,now)

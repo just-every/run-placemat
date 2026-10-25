@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "9a02e8cb63b047c01adcd5ed97c55be9cfd56df48661a47d63c4fee9f62ee0e1",
+      "sha256": "6bd2c8374c1a8da17d2454cbd89e538c2237d27e916c6f12f336047589c6c26a",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6dcb3160088956c6cb812f04573dd86ea549e792f6bf69fc2d92017b27ef4b2e",
+      "sha256": "01e56c0aeaf4a57c6c01d9af25f248f0ae64f03c6501e7073529776d1384ec55",
       "executable": false
     },
     "deploy-demo.json": {
@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "fc64d92e9fe78936fa316d88436bcfec33b912ae0c2bea239c900ddafe3c3c9a",
+      "sha256": "f347e2358fb286e53f04d991371a3286dda283c42a78ddf0d4adfd29307419bc",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3250,7 +3250,7 @@
       "executable": false
     },
     "src/placemat/commands.ts": {
-      "sha256": "763662a68656eae2fc8d120ac57dc86db4f7bdaddea721f873f14fd9cad0b528",
+      "sha256": "55be92819641f81e237a63cd6e1c9fc4181dce2a611fbf9f413c5caff4d4f2af",
       "executable": false
     },
     "src/placemat/costs-archive.mjs": {
@@ -3358,7 +3358,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "404bbeb7eb07410f95fdcd3130a5e457b5c2571b1e51be1b62e26ec338b23e9e",
+      "sha256": "a96e3767d13ee70a26f80e269fd1234a241ef0f519b7304b75671d157d5cb21f",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -3442,7 +3442,7 @@
       "executable": false
     },
     "src/placemat/model.ts": {
-      "sha256": "c849d35bca8e3d41badf959f2c2bd0e5678c0716540be4980aede20cc0b3107b",
+      "sha256": "516197aeae05f7eedc56060da8ee8b0af077f957571b7095579d220cfed015c0",
       "executable": false
     },
     "src/placemat/needs.ts": {
@@ -3602,7 +3602,7 @@
       "executable": false
     },
     "src/placemat/service-changes.ts": {
-      "sha256": "f9f580f66b4b88561ba8370aca8bfba3c0685324d1b764a543869673a396f3b1",
+      "sha256": "c43f711954945c12e09960b1d92e239c0567480d78b84c875923de156e6daf6f",
       "executable": false
     },
     "src/placemat/service-close-report.ts": {
@@ -4006,7 +4006,7 @@
       "executable": false
     },
     "tests/api/service-changes.test.mjs": {
-      "sha256": "a55023227ef8109ef7fb1fef099dcd6bd46228df7c0fd655e77e565c7c0ac453",
+      "sha256": "ade53c55a9a28a638dadda9853a9903ad9b41882818a4cb841eec73a7bfe4f01",
       "executable": false
     },
     "tests/api/service-close-report-fixture.mjs": {

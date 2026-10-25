@@ -27,6 +27,8 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  }
  for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='bookingContacts'&&state.bookings.some(b=>b.id===change.id&&b.guestId===guestId)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
  const bookingIds=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id))
+ const amendedServices=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.serviceId))
+ for(const event of state.audit)if(event.action==='service.amend'&&amendedServices.has(event.subject))event.reason=''
  for(const event of state.serviceEvents??[])if(bookingIds.has(event.bookingId))event.reason=''
  for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId)))){event.reason='';if(event.pacing)event.pacing.reason=''}
  for(const task of state.riskDecisions??[])if(bookingIds.has(task.bookingId)){task.reason='';if(task.outcome)task.outcome=''}

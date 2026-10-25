@@ -1,3 +1,4 @@
+import {serviceInput} from './service-input'
 import {instant,serviceBy} from './availability'
 import {id,fail,text,type State,type Actor,type Proposal} from './model'
 import type {ServiceBlock} from './service-blocks'
@@ -36,4 +37,31 @@ export function followupChange(s:State,actor:Actor,p:any,now:string){
  task.status=p.status;task.outcome=text(p.outcome,'Staff-recorded outcome',500);task.ownerId=actor.id;task.updatedAt=now;task.updatedBy=actor.id
  s.audit.push({id:id(),actor:actor.id,at:now,action:'service.followup.recorded',subject:task.bookingId,reason:task.outcome})
  return task
+}
+
+/** Reviewed changes to future seating hours and capacity never rewrite commitments. */
+export function prepareAmendment(s:State,p:any,now:string){
+ const service=serviceBy(s,p.serviceId)
+ if(service.status!=='published'||service.closedAt||service.endAt<=now)fail(409,'Choose an open published service with remaining time.')
+ const changes=p.changes
+ if(!changes||typeof changes!=='object'||Array.isArray(changes)||!Object.keys(changes).length||Object.keys(changes).some(k=>!['endAt','coverLimit'].includes(k)))fail(400,'Amend the service end or cover limit only; other settings retain their existing reviewed doors.')
+ const normalized=serviceInput(s,{...service,...changes},service)
+ const next={...service,endAt:normalized.endAt,coverLimit:normalized.coverLimit,version:service.version+1}
+ if(next.endAt===service.endAt&&next.coverLimit===service.coverLimit)fail(400,'Choose a changed service end or cover limit.')
+ const commitments=s.bookings.filter(b=>b.serviceId===service.id&&['booked','seated'].includes(b.status))
+ if(s.holds?.some(h=>h.serviceId===service.id))fail(409,'Wait for active checkout holds to complete or expire before amending this service.')
+ if(commitments.some(b=>(b.cleanupEndAt??b.endAt)>next.endAt))fail(409,'The amended end would exclude an existing commitment. Keep its full turn and cleanup.')
+ if(s.bookings.filter(b=>b.serviceId===service.id&&['booked','seated','completed'].includes(b.status)).reduce((total,b)=>total+b.partySize,0)>next.coverLimit)fail(409,'The cover limit cannot exclude existing active bookings.')
+ if(next.endAt>service.endAt&&s.services.some(v=>v.id!==service.id&&v.status==='published'&&!v.closedAt&&v.startAt<next.endAt&&v.endAt>service.endAt))fail(409,'The extended hours overlap another published service. Review that service separately.')
+ return {serviceId:service.id,before:structuredClone(service),after:next,bookingIds:commitments.map(b=>b.id),snapshot:structuredClone(snapshot(s))}
+}
+export function approveAmendment(s:State,actor:Actor,proposal:Proposal,now:string){
+ if(actor.agent||actor.deviceId||!['owner','admin'].includes(actor.role))fail(403,'A personal owner or manager must approve a service amendment.')
+ const p=proposal.plan
+ if(JSON.stringify(snapshot(s))!==JSON.stringify(p.snapshot))fail(409,'The service, bookings or inventory changed. Prepare and review the amendment again.')
+ // Revalidate against the current time, not only the saved input snapshot.
+ const checked=prepareAmendment(s,{serviceId:p.serviceId,changes:{endAt:p.after.endAt,coverLimit:p.after.coverLimit}},now)
+ Object.assign(serviceBy(s,p.serviceId),checked.after)
+ s.audit.push({id:id(),actor:actor.id,at:now,action:'service.amend',subject:p.serviceId,reason:proposal.reason})
+ return checked.after
 }

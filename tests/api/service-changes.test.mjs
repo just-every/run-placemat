@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import {randomBytes} from 'node:crypto'
 import {installation,service,publicGuest} from './harness.mjs'
 
 export async function closureService(h){
@@ -77,5 +78,59 @@ test('SERVICE-003 full-date, arrival-window and private holds require exact revi
   await h.command('proposal.approve',{proposalId:publish.id})
   await h.api('/api/public/book',publicGuest(overlapping,2),{as:'',status:409})
   assert.equal((await h.api('/api/state')).state.bookings.length,1)
+ }finally{await h.close()}
+})
+
+
+test('Reviewed published hours and cover amendments preserve commitments and reject stale or unsafe changes',async()=>{
+ const h=await installation()
+ try{
+  const {service:s}=await service(h,{tables:3,covers:20})
+  const b=(await h.api('/api/public/book',publicGuest(s,0,{startAt:new Date(Date.parse(s.startAt)+30*60000).toISOString()}),{as:'',status:201})).result
+  let original=(await h.api('/api/state')).state.bookings
+  const at=n=>new Date(Date.parse(s.startAt)+n*60000).toISOString()
+  const prepare=(changes,opts)=>h.command('proposal.prepare',{kind:'service.amend',plan:{serviceId:s.id,changes},reason:'synthetic-placemat-1'},opts)
+  const member=await h.signIn('reader@example.test'),manager=await h.signIn('manager@example.test','admin')
+  await prepare({coverLimit:10},{as:member,status:403})
+  const key=(await h.api('/api/agent-keys',{name:'Synthetic preparation'})).result.key
+  await prepare({coverLimit:10},{headers:{authorization:`Bearer ${key}`},status:403})
+  await prepare({startAt:at(15)},{status:400})
+  await prepare({coverLimit:1},{status:409})
+  await prepare({endAt:at(90)},{status:409})
+  const stale=await prepare({coverLimit:10})
+  await h.command('booking.lock',{bookingId:b.id,locked:true,version:(await h.api('/api/state')).version})
+  await h.command('proposal.approve',{proposalId:stale.id},{as:manager,status:409})
+  await h.command('booking.lock',{bookingId:b.id,locked:false,version:(await h.api('/api/state')).version})
+  original=(await h.api('/api/state')).state.bookings
+  const plan=await prepare({endAt:at(180),coverLimit:2},{as:manager})
+  assert.deepEqual(plan.plan.bookingIds,[b.id]);assert.equal(plan.plan.before.endAt,s.endAt);assert.equal(plan.plan.after.endAt,at(180))
+  assert.deepEqual((await h.api('/api/state')).state.bookings,original)
+  await h.command('proposal.approve',{proposalId:plan.id},{as:member,status:403})
+  const held={requestId:'synthetic-placemat-amend',token:randomBytes(32).toString('hex'),booking:publicGuest(s,2),ttlSeconds:300}
+  await h.api('/api/public/booking-holds',held,{as:''})
+  await h.command('proposal.approve',{proposalId:plan.id},{as:manager,status:409})
+  await h.api('/api/public/booking-holds/abandon',held,{as:''})
+  await h.command('proposal.approve',{proposalId:plan.id},{as:manager})
+  let current=await h.api('/api/state'),amended=current.state.services.find(v=>v.id===s.id)
+  assert.equal(amended.endAt,at(180));assert.equal(amended.coverLimit,2);assert.equal(amended.version,plan.plan.before.version+1)
+  assert.deepEqual(current.state.bookings,original)
+  const event=current.state.audit.find(v=>v.action==='service.amend')
+  assert.equal(event.actor,plan.preparedBy);assert.ok(event.at);assert.equal(event.reason,'synthetic-placemat-1')
+  await h.command('proposal.approve',{proposalId:plan.id},{status:409})
+  await h.api('/api/public/book',publicGuest(s,1),{as:'',status:409})
+  const raise=await prepare({coverLimit:4})
+  await h.command('proposal.approve',{proposalId:raise.id})
+  await h.api('/api/public/book',publicGuest(s,1,{startAt:at(120)}),{as:'',status:400})
+  await h.api('/api/public/book',publicGuest(s,1),{as:'',status:201})
+  const closure=await h.command('proposal.prepare',{kind:'service.closure',plan:{serviceId:s.id,scope:'service'},reason:'synthetic-placemat-2'})
+  await h.command('proposal.approve',{proposalId:closure.id})
+  const extend=await prepare({endAt:s.endAt,coverLimit:10})
+  await h.command('proposal.approve',{proposalId:extend.id})
+  await h.api('/api/public/book',publicGuest(s,2),{as:'',status:409})
+  current=await h.api('/api/state')
+  const archive=await h.api('/api/backup'),copy=await installation()
+  try{await copy.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await copy.api('/api/state')).state.services,current.state.services)}finally{await copy.close()}
+  await h.command('guest.erase',{guestId:original.find(v=>v.id===b.id).guestId,confirm:'ERASE'})
+  current=await h.api('/api/state');assert.ok(!JSON.stringify(current.state).includes('synthetic-placemat-1'))
  }finally{await h.close()}
 })
