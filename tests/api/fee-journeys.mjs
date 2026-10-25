@@ -158,7 +158,7 @@ test('Finite fee authority expires without claiming held funds, assigns renewed 
  const edge=feeEdge(),h=await configured(edge),copy=await configured(edge)
  try{
   const {service}=await feeService(h),booking=await feeBooking(h,service),policy=await feeApi(h,'fee-policy',feePolicyInput()),manager=await h.signIn('synthetic-placemat-manager@example.test','admin')
-  const {consent,payload}=await consentBooking(h,edge,booking,policy)
+  const {consent,payload}=await consentBooking(h,edge,booking,policy,{evidence:'synthetic-placemat-authorization-evidence-1'})
   assert.equal(consent.expiresAt,service.endAt);assert.equal(consent.protection,'unproved');assert.equal(consent.fundsHeldCents,0)
   for(const path of ['fee-expiry','fee-recollection']){
    await feeApi(h,path,{bookingId:booking.id},{as:'',status:401})
@@ -166,7 +166,7 @@ test('Finite fee authority expires without claiming held funds, assigns renewed 
    await h.command('payment.'+path,{bookingId:booking.id},{as:manager,status:403})
   }
   await feeApi(h,'fee-recollection',{bookingId:booking.id},{status:409})
-  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(service.startAt)),sheet='/api/preshift?date='+date
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:(await h.api('/api/state')).state.venue.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(service.startAt)),sheet='/api/preshift?date='+date
   const ownerSheet=await h.api(sheet),authorization=ownerSheet.services[0].bookings[0].feeAuthorizations[0]
   assert.equal(authorization.protection,'unproved');assert.equal(authorization.authorizationState,'current')
   assert.deepEqual((await h.api(sheet,undefined,{as:manager})).services[0].bookings[0].feeAuthorizations,[])

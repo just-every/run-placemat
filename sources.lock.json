@@ -3862,7 +3862,7 @@
       "executable": false
     },
     "tests/api/fee-journeys.mjs": {
-      "sha256": "128ea55fdfcf221aeaa5f07f4fa4ede7dfe087d6168a5c14d62649a0398ffdff",
+      "sha256": "d45f70487c5e6b95a07e7f489461567fa066a28bc2fef20156a861936a7e7bff",
       "executable": false
     },
     "tests/api/finance-role.test.mjs": {
@@ -4062,7 +4062,7 @@
       "executable": false
     },
     "tests/fees-ui.mjs": {
-      "sha256": "35a040a772bf1bf8ca46ea0dffaa9fcce851802ed6666a6b7f237ecedb7757cd",
+      "sha256": "317feda48eeedd398728416282eddf5ae78861da38611d1c2de2fbb487a8f680",
       "executable": false
     },
     "tests/finance-ui.mjs": {
