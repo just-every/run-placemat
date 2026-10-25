@@ -283,6 +283,9 @@ test('Weekly group delivery requires explicit recipient approval, authenticates 
 test('Uncertain report submissions stay unconfirmed across scheduler replay and require an explicit manual resend with fresh authority',async()=>{
  const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),f=await reportGroup()
  try{
+  await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{as:f.manager,status:403})
+  assert.ok((await f.home.api('/api/audit')).rows.some(e=>e.action==='report.recipient-refused'&&e.actor===f.managerId))
+  await f.approve({nextAt:'2032-11-03T18:00:00.000Z'})
   const schedule=await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{as:f.manager,status:201});f.mail.uncertain=true;await f.tick()
   const deliveries=(await f.home.api('/api/report-schedules')).deliveries,attempt=deliveries[0]
   assert.equal(attempt.state,'delivery unconfirmed');assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)

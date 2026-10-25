@@ -65,6 +65,10 @@ export async function groupComparison(env:Bindings,recipientId:string,venueIds:s
  }finally{await env.DB.prepare('DELETE FROM pm_group_tokens WHERE token_hash=?').bind(await hash(token)).run()}
 }
 const comparisonCsv=(report:Awaited<ReturnType<typeof groupComparison>>)=>rowsCsv([['dateFrom','dateTo','venue','timezone','bookedCovers','attendedCovers','cancelledCovers','noShowCovers'],...report.locations.map(r=>[report.dateFrom,report.dateTo,r.venue,r.timezone,r.bookedCovers,r.attendedCovers,r.cancelledCovers,r.noShowCovers])])
+async function ownerApprovedAddress(db:D1Database,recipientId:string,emailHash:string){
+ const approval=await db.prepare("SELECT 1 AS approved FROM pm_report_schedules s JOIN oa_operators o ON o.id=s.owner_id WHERE s.recipient_id=? AND s.recipient_hash=? AND o.role='owner' AND o.status='active' LIMIT 1").bind(recipientId,emailHash).first()
+ if(!approval)fail(403,'A personal owner must first approve this recipient address by creating a report schedule.')
+}
 async function authority(env:Bindings,s:Schedule){
  if(!s.enabled)fail(403,'The schedule is stopped.')
  const owner=await operator(env.DB,s.owner_id)
@@ -72,6 +76,7 @@ async function authority(env:Bindings,s:Schedule){
  await manager(env.DB,{id:owner!.id,name:owner!.name,role:owner!.role})
  const recipient=await operator(env.DB,s.recipient_id)
  if(!recipient||recipient.status!=='active'||await hash(recipient.email)!==s.recipient_hash)fail(403,'The approved recipient identity changed or was removed.')
+ if(owner!.role!=='owner')await ownerApprovedAddress(env.DB,s.recipient_id,s.recipient_hash)
  return recipient!
 }
 async function scheduleById(db:D1Database,scheduleId:string){return await db.prepare('SELECT * FROM pm_report_schedules WHERE id=?').bind(scheduleId).first<Schedule>()??fail(404,'Report schedule not found.')}
@@ -167,6 +172,10 @@ export async function scheduledReportResponse(request:Request,env:Bindings):Prom
   if(typeof p.nextAt!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(p.nextAt)||!Number.isFinite(Date.parse(p.nextAt))||Date.parse(p.nextAt)<=Date.now())fail(400,'Choose a future first delivery instant in UTC.')
   const recipient=await operator(env.DB,String(p.recipientId)),{state}=await load(env.DB),day=serviceDate(p.nextAt,state.venue.timezone)
   await groupComparison(env,String(p.recipientId),p.venueIds,new URLSearchParams({dateFrom:day,dateTo:day}))
+  if(actor!.role!=='owner'){
+   try{await ownerApprovedAddress(env.DB,recipient!.id,await hash(recipient!.email))}
+   catch(error){await audit(env.DB,actor!.id,'report.recipient-refused',recipient!.id,'Owner approval of this recipient address is required.');throw error}
+  }
   const scheduleId=id(),at=new Date().toISOString()
   await audit(env.DB,actor!.id,'report.recipient-approved',scheduleId,'Explicit weekly email approval for one native group identity; authenticated links only.',[env.DB.prepare('INSERT INTO pm_report_schedules(id,owner_id,recipient_id,recipient_hash,venues,timezone,next_at,approved_at) VALUES(?,?,?,?,?,?,?,?)').bind(scheduleId,actor!.id,recipient!.id,await hash(recipient!.email),JSON.stringify(p.venueIds),state.venue.timezone,p.nextAt,at)])
   return Response.json({id:scheduleId},{status:201,headers:noStore})

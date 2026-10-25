@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "06bb9d1f5258f5f64046ffd697800f051b58aabc71b00db6504a4b1b74f99ead",
+      "sha256": "e6bff8d08146af184fd56fd6c6341cc55ac7511a08a5f869fdba04d139e9a373",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "32329235c7084b44f25c05f9022c5840fed80e185994add88da92403a986872c",
+      "sha256": "2db141870f9dd932ded6c83a9a43463d2acec18b614f90ce33e5f4729d75d945",
       "executable": false
     },
     "deploy-demo.json": {
@@ -798,7 +798,7 @@
       "executable": false
     },
     "public/placemat-report-schedules.js": {
-      "sha256": "a4eba59f29ce7e8a5bddb7aad013bd449c7566608ebdfcc28c105657f6e99b35",
+      "sha256": "45e980c42ac5d7b7b05d322312e2afa6d989f2cb0a213d90a728628bea10eade",
       "executable": false
     },
     "public/placemat-reports.js": {
@@ -858,7 +858,7 @@
       "executable": false
     },
     "public/placemat.js": {
-      "sha256": "ec90f85bd2467cb19d9524724fede7fc14f00dda9ea12750f467be07c3a9e708",
+      "sha256": "4b25a9aad88ec86b2c0de5206e3bd484301a2180e79441315f2b0416bcadd6dd",
       "executable": false
     },
     "public/plan.css": {
@@ -3598,7 +3598,7 @@
       "executable": false
     },
     "src/placemat/scheduled-reports.ts": {
-      "sha256": "65b92e3b0f1e057ac03b30f9fab8603e2c26c291905db37bf4c4f0432d1f2023",
+      "sha256": "d19f57c47dc1cf6aed069c71d8936fa4b4fe1eb1f33b1a944e272f2311779dac",
       "executable": false
     },
     "src/placemat/schedules.ts": {
@@ -3994,7 +3994,7 @@
       "executable": false
     },
     "tests/api/reports.test.mjs": {
-      "sha256": "2aec8614bced9c2a0360f508126450c5162a2e888a597c62dda12be1125cc8e6",
+      "sha256": "4bf84379dc0c8737d4358c788844bb2d36a1504243982f811b1eb2474c7c9105",
       "executable": false
     },
     "tests/api/reservation-api.test.mjs": {
