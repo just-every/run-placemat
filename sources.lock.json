@@ -4202,7 +4202,7 @@
       "executable": false
     },
     "tests/service-close-report-ui.mjs": {
-      "sha256": "efdcaaf66d2a6d44b76cdb9623ed740b82756d088cedac5a670b7276c350d9a2",
+      "sha256": "7bd0e62d703a2ad55625e06d36e360b84f7c70cd122241701a1245aea236d8fb",
       "executable": false
     },
     "tests/service-notes-ui.mjs": {
