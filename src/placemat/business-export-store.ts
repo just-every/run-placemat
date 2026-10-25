@@ -3,7 +3,7 @@ import {emptyState,type Guest,type State} from './model'
 
 /** One D1 batch keeps venue, guest, journal and financial records in the same read transaction. */
 export async function readBusinessCsv(db:D1Database,kind:string):Promise<string>{
- const [floor,people,merges,reports,payments,charges,refunds,events,contacts,links,admins,notices,webhooks,followups,feePolicies,feeConsents,feeAssessments,feeEvents,feeDisputes,cardCollections,cardGuarantees]=await db.batch<{data:string}>([
+ const [floor,people,merges,reports,payments,charges,refunds,events,contacts,links,admins,notices,webhooks,followups,feePolicies,feeConsents,feeAssessments,feeEvents,feeDisputes,cardCollections,cardGuarantees,reportSchedules,reportDeliveries]=await db.batch<{data:string}>([
   db.prepare('SELECT data FROM pm_state WHERE id=1'),
   db.prepare('SELECT data FROM pm_guests ORDER BY id'),
   db.prepare('SELECT data FROM pm_guest_merges ORDER BY id'),
@@ -25,9 +25,11 @@ export async function readBusinessCsv(db:D1Database,kind:string):Promise<string>
   db.prepare('SELECT * FROM pm_fee_disputes ORDER BY at,id'),
   db.prepare('SELECT * FROM pm_stripe_collections ORDER BY created_at,id'),
   db.prepare('SELECT * FROM pm_card_guarantees ORDER BY created_at,id'),
+  db.prepare('SELECT id,owner_id,recipient_id,venues,timezone,next_at,approved_at,enabled FROM pm_report_schedules ORDER BY approved_at,id'),
+  db.prepare('SELECT * FROM pm_report_deliveries ORDER BY due_at,id'),
  ])
  const state:State=floor.results[0]?JSON.parse(floor.results[0].data):emptyState()
  const guests:Guest[]=people.results.map(row=>JSON.parse(row.data))
- const finance={cardGuarantees:cardGuarantees.results,cardCollections:cardCollections.results,feePolicies:feePolicies.results,feeConsents:feeConsents.results,feeAssessments:feeAssessments.results,feeEvents:feeEvents.results,feeDisputes:feeDisputes.results,paymentRequests:payments.results,refundCharges:charges.results,refunds:refunds.results,refundEvents:events.results,refundNotices:notices.results,refundWebhooks:webhooks.results,refundFollowups:followups.results,bookingContacts:contacts.results,groupLinks:links.results,groupAdmins:admins.results} as unknown as BusinessFinancialRecords
+ const finance={reportSchedules:reportSchedules.results,reportDeliveries:reportDeliveries.results,cardGuarantees:cardGuarantees.results,cardCollections:cardCollections.results,feePolicies:feePolicies.results,feeConsents:feeConsents.results,feeAssessments:feeAssessments.results,feeEvents:feeEvents.results,feeDisputes:feeDisputes.results,paymentRequests:payments.results,refundCharges:charges.results,refunds:refunds.results,refundEvents:events.results,refundNotices:notices.results,refundWebhooks:webhooks.results,refundFollowups:followups.results,bookingContacts:contacts.results,groupLinks:links.results,groupAdmins:admins.results} as unknown as BusinessFinancialRecords
  return businessCsv(state,guests,kind,reports.results as unknown as BusinessPerformanceReport[],merges.results.map(row=>JSON.parse(row.data)),finance)
 }

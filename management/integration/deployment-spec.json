@@ -216,6 +216,24 @@
       "name": "0040_reservation_idempotency.sql",
       "sha256": "84abe248973f4eb3e510a944e6ab00089b05993366f2d106ae1f8f2c57d86215",
       "sql": "CREATE TABLE pm_reservation_requests (\n actor_id TEXT NOT NULL,\n request_id TEXT NOT NULL,\n request_hash TEXT NOT NULL,\n response TEXT NOT NULL,\n created_at TEXT NOT NULL,\n PRIMARY KEY (actor_id, request_id)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0041_fee_expiry.sql",
+      "sha256": "bc3e0195cc92f32f20758f0e4e27bfd0a8fb0573deea2efb15a59413bda3c1b8",
+      "sql": "-- Existing agreements have no proven finite authorization, so expire them conservatively.\nALTER TABLE pm_fee_consents ADD COLUMN expires_at TEXT;\nALTER TABLE pm_fee_consents ADD COLUMN recollection_requested_at TEXT;\nUPDATE pm_fee_consents SET expires_at=recorded_at;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0042_stripe_merchant.sql",
+      "sha256": "a32f7d9dad7a9bd905e1654009a11aca4ad7835cdf4c3abf128ed2b07ecc98d9",
+      "sql": "-- Connection state is installation custody; portable financial history stays in the fee event journal.\nCREATE TABLE pm_stripe_merchant (\n id INTEGER PRIMARY KEY CHECK(id=1),\n account_id TEXT NOT NULL,\n state TEXT NOT NULL CHECK(state IN ('connected','restricted','disconnected')),\n charges_enabled INTEGER NOT NULL CHECK(charges_enabled IN (0,1)),\n payouts_enabled INTEGER NOT NULL CHECK(payouts_enabled IN (0,1)),\n details_submitted INTEGER NOT NULL CHECK(details_submitted IN (0,1)),\n livemode INTEGER NOT NULL CHECK(livemode IN (0,1)),\n updated_by TEXT NOT NULL,\n updated_at TEXT NOT NULL\n);\nCREATE TABLE pm_stripe_collections (\n id TEXT PRIMARY KEY,\n booking_id TEXT NOT NULL,\n account_id TEXT NOT NULL,\n created_by TEXT NOT NULL,\n created_at TEXT NOT NULL,\n expires_at TEXT NOT NULL,\n provider_reference TEXT UNIQUE,\n state TEXT NOT NULL CHECK(state IN ('pending','collected','expired')),\n verified_at TEXT\n);\nCREATE TABLE pm_stripe_collection_custody (\n collection_id TEXT PRIMARY KEY REFERENCES pm_stripe_collections(id),\n return_url TEXT NOT NULL,\n provider_url TEXT,\n setup_reference TEXT,\n customer_reference TEXT,\n method_reference TEXT\n);\n\n-- Each collection carries its own immutable guest agreement and booking facts.\nCREATE TABLE pm_card_guarantees (\n id TEXT PRIMARY KEY REFERENCES pm_stripe_collections(id),\n booking_id TEXT NOT NULL,\n policy_id TEXT NOT NULL REFERENCES pm_fee_policies(id),\n actor_id TEXT NOT NULL,\n created_at TEXT NOT NULL,\n accepted_at TEXT,\n review_text TEXT NOT NULL,\n booking_snapshot TEXT NOT NULL CHECK(json_valid(booking_snapshot)),\n expires_at TEXT NOT NULL,\n ended_at TEXT,\n recollection_requested_at TEXT,\n max_fee_cents INTEGER NOT NULL CHECK(max_fee_cents BETWEEN 0 AND 99999999)\n);\nALTER TABLE pm_stripe_collection_custody ADD COLUMN token_hash TEXT;\nALTER TABLE pm_stripe_collection_custody ADD COLUMN token_expires_at TEXT;\nALTER TABLE pm_fee_assessments ADD COLUMN guest_consent_id TEXT REFERENCES pm_card_guarantees(id);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0043_report_schedules.sql",
+      "sha256": "7d3b241bc8b205510d5963b7ba434c5de758f38bca35f706c0859d317bb87458",
+      "sql": "-- Report custody is private and never restored into a new installation.\nCREATE TABLE pm_report_schedules (\n id TEXT PRIMARY KEY,\n owner_id TEXT NOT NULL,\n recipient_id TEXT NOT NULL,\n recipient_hash TEXT NOT NULL,\n venues TEXT NOT NULL CHECK(json_valid(venues)),\n timezone TEXT NOT NULL,\n next_at TEXT NOT NULL,\n approved_at TEXT NOT NULL,\n enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1))\n);\nCREATE TABLE pm_report_deliveries (\n id TEXT PRIMARY KEY,\n schedule_id TEXT NOT NULL REFERENCES pm_report_schedules(id),\n due_at TEXT NOT NULL,\n date_from TEXT NOT NULL,\n date_to TEXT NOT NULL,\n state TEXT NOT NULL CHECK(state IN ('delivery unconfirmed','provider accepted','blocked')),\n reason TEXT NOT NULL DEFAULT '',\n UNIQUE(schedule_id,due_at)\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
@@ -246,7 +264,9 @@
     "STRIPE_WEBHOOK_SECRET",
     "HOST_PIN_PEPPERS"
   ],
-  "schedules": [],
+  "schedules": [
+    "17 * * * *"
+  ],
   "queueConsumers": [],
   "healthPath": "/health",
   "recovery": "Follow OPERATIONS.md. Pause writes, retain exact source and private settings, export a consistent Placemat archive, restore only into an empty installation, run owner setup and compare a fresh export before routing traffic. Preserve every applied migration name and byte.",

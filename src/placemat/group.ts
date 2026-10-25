@@ -112,7 +112,7 @@ export async function groupStatus(db:D1Database,actor:Actor){
  const mine=(await db.prepare('SELECT venue_id,rights FROM pm_group_admins WHERE operator_id=?').bind(actor.id).all<{venue_id:string;rights:string}>()).results
  if(actor.role!=='owner'){
   if(!mine.length)fail(403,'The owner has not granted you group access.')
-  return {role:'admin' as const,rights:Object.fromEntries(mine.map(r=>[r.venue_id,JSON.parse(r.rights)])),available:groupRights}
+  return {role:'admin' as const,venues:[{id:'home',name:(await load(db)).state.venue.name},...(await db.prepare('SELECT id,name FROM pm_group_links WHERE revoked_at IS NULL').all<{id:string;name:string}>()).results],rights:Object.fromEntries(mine.map(r=>[r.venue_id,JSON.parse(r.rights)])),available:groupRights}
  }
  const [home,links,admins,invites]=await db.batch([db.prepare('SELECT home_origin,ceiling,joined_at FROM pm_group_home'),db.prepare('SELECT id,name,origin,ceiling,joined_at,revoked_at FROM pm_group_links ORDER BY joined_at'),db.prepare('SELECT operator_id,venue_id,rights FROM pm_group_admins ORDER BY operator_id,venue_id'),db.prepare('SELECT label,created_at,expires_at,used_at FROM pm_group_invites ORDER BY created_at DESC LIMIT 20')]) as unknown as Row<any>[]
  const member=home.results[0]

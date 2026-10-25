@@ -1,3 +1,4 @@
+import {scheduledReportResponse} from './scheduled-reports'
 import {readGuarantees,issueGuarantee,endGuarantee,guestGuarantee} from './card-guarantees'
 import {readMerchant,connectMerchant,disconnectMerchant,collectMerchantCard,syncMerchantCard} from './stripe-merchant'
 import {ownerReservationResponse} from './api/reservations'
@@ -88,8 +89,9 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
  if(path==='/api/payments/refund-events')return refundWebhook(env,request)
- if(!path.startsWith('/api/public/card-guarantee/')&&!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(!path.startsWith('/api/report-schedules')&&!path.startsWith('/api/report-deliveries/')&&path!=='/api/group-comparison'&&path!=='/api/report-export.csv'&&!path.startsWith('/api/public/card-guarantee/')&&!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
+  const scheduled=await scheduledReportResponse(request,env);if(scheduled)return scheduled
   if(path.startsWith('/api/public/card-guarantee/')){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    originCheck(request,env)

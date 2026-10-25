@@ -201,3 +201,101 @@ test('REPORT-002: published service facts survive owner archive round-trip witho
   assert.ok(!JSON.stringify(restored.report).includes('Priya Shah'))
  }finally{await destination?.close();await h.close()}
 })
+
+// REPORT-005 exercises native sessions, two real venue Workers and their public report doors.
+test('Report exports retain service scopes, future bookings and historical visits without disclosing personal fields after erasure',async()=>{
+ const {publishReportService}=await import('./report-schedule-fixture.mjs'),h=await installation()
+ try{
+  await h.command('venue.update',{name:'Report venue',timezone:'America/Los_Angeles'})
+  const table=await h.command('table.save',{label:'R1',seats:4,x:20,y:30})
+  const future=await publishReportService(h,'Future dinner','2031-11-03T01:00:00Z')
+  const reservation=(await h.api('/api/public/book',publicGuest(future,0),{as:'',status:201})).result
+  const past=await publishReportService(h,'Historical dinner','2020-11-03T01:00:00Z')
+  const visit=await h.command('booking.walkin',publicGuest(past,1,{tableIds:[table.id]}))
+  await h.command('booking.status',{bookingId:visit.id,status:'completed'});await h.command('booking.stage',{bookingId:visit.id,stage:'ready'})
+  const manager=await h.signIn('synthetic-placemat-report-manager@example.test','admin'),member=await h.signIn('synthetic-placemat-report-member@example.test')
+  const download=async(query,as=manager)=>{const response=await h.request('/api/report-export.csv?'+query,{as});assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');return response.text()}
+  const futureCsv=await download('period=future'),visitCsv=await download('kind=visits&period=past')
+  assert.ok(futureCsv.includes(reservation.id)&&!futureCsv.includes(visit.id));assert.ok(visitCsv.includes(visit.id)&&!visitCsv.includes(reservation.id))
+  for(const personal of ['Alex Rowan','Sam Patel','guest0@example.test','guest1@example.test'])assert.ok(!(futureCsv+visitCsv).includes(personal))
+  for(const as of ['',member])assert.equal((await h.request('/api/report-export.csv',{as})).status,as?403:401)
+  for(const kind of ['guests','finance'])await h.api('/api/report-export.csv?kind='+kind,undefined,{as:manager,status:403})
+  const managerId=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-report-manager@example.test').id
+  await h.command('team.reports',{operatorId:managerId,serviceIds:[past.id]})
+  await h.api('/api/report-export.csv',undefined,{as:manager,status:403})
+  assert.ok((await download('kind=visits&serviceId='+past.id)).includes(visit.id))
+  await h.api('/api/report-export.csv?serviceId='+future.id,undefined,{as:manager,status:403})
+  const guestId=(await h.api('/api/state')).state.bookings.find(b=>b.id===visit.id).guestId
+  await h.command('guest.erase',{guestId,confirm:'ERASE'})
+  assert.ok(!(await download('kind=visits&serviceId='+past.id)).includes('guest1@example.test'))
+ }finally{await h.close()}
+})
+
+test('Group comparisons use identical venue-local date labels and fail closed when any current grant or venue is unavailable',async()=>{
+ const {reportGroup,reportDay}=await import('./report-schedule-fixture.mjs'),f=await reportGroup()
+ try{
+  const query=new URLSearchParams({dateFrom:reportDay,dateTo:reportDay});for(const id of f.venueIds)query.append('venueId',id)
+  const path='/api/group-comparison?'+query,result=await f.home.api(path,undefined,{as:f.recipient})
+  assert.deepEqual(result.locations.map(r=>[r.venue,r.timezone,r.bookedCovers]),[['Home Bistro','America/Los_Angeles',2],['Tap Room','Australia/Brisbane',2]])
+  const response=await f.home.request(path+'&format=csv',{as:f.recipient}),csv=await response.text();assert.equal(response.status,200);assert.ok(csv.includes(reportDay)&&!csv.includes('guest0@example.test'))
+  assert.equal((await f.home.request(path,{as:f.other})).status,403)
+  f.setAvailable(false);await f.home.api(path,undefined,{as:f.recipient,status:403});f.setAvailable(true)
+  await f.home.api('/api/group/admin/revoke',{operatorId:f.recipientId})
+  const denied=await f.home.api(path,undefined,{as:f.recipient,status:403});assert.ok(!JSON.stringify(denied).includes('Tap Room'))
+ }finally{await f.close()}
+})
+
+test('Weekly group delivery requires explicit recipient approval, authenticates links and blocks every attempt after recipient or schedule-owner revocation',async()=>{
+ const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),f=await reportGroup()
+ try{
+  await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue},{status:400})
+  const schedule=await f.approve()
+  assert.equal((await f.home.api('/api/report-schedules')).schedules.length,1)
+  for(const as of ['',f.recipient,f.other])await f.home.api('/api/report-schedules',undefined,{as,status:as?403:401})
+  await f.tick();const sent=f.mail.messages.filter(m=>m.subject==='Your weekly group cover report');assert.equal(sent.length,1)
+  assert.ok(!JSON.stringify(sent[0]).includes('bookedCovers')&&!JSON.stringify(sent[0]).includes('guest0@example.test'))
+  const link=new URL(sent[0].text.match(/https:\/\/[^\s]+/)[0]),path=link.pathname
+  assert.equal(link.search,'');assert.equal(link.hash,'')
+  for(const as of ['',f.other,f.home.cookie]){const denied=await f.home.api(path,undefined,{as,status:as?403:401});assert.ok(!JSON.stringify(denied).includes('Home Bistro'))}
+  assert.ok((await(await f.home.request(path,{as:f.recipient})).text()).includes('Home Bistro'))
+  await f.tick();assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1,'Durable due claim prevents a repeated send')
+  await f.home.api('/api/group/admin/revoke',{operatorId:f.recipientId})
+  await f.home.api(path,undefined,{as:f.recipient,status:403})
+  await f.tick('2031-11-10T18:00:00.000Z');assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)
+  assert.ok((await f.home.api('/api/report-schedules')).deliveries.some(d=>d.state==='blocked'))
+  await f.grant();await f.home.api('/auth/operator/status',{operatorId:f.recipientId,status:'inactive'})
+  await f.tick('2031-11-17T18:00:00.000Z');assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)
+  await f.home.api('/auth/operator/status',{operatorId:f.recipientId,status:'active'});f.recipient=await f.signIn('synthetic-placemat-group@example.test')
+  const owned=(await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{as:f.manager,status:201})).id
+  await f.home.api('/auth/operator/status',{operatorId:f.managerId,status:'inactive'})
+  await f.tick();assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)
+  assert.ok((await f.home.api('/api/report-schedules')).deliveries.some(d=>d.schedule_id===owned&&d.state==='blocked'))
+  const audit=(await f.home.api('/api/audit')).rows
+  for(const action of ['report.recipient-approved','report.link-refused','report.recheck-refused'])assert.ok(audit.some(e=>e.action===action))
+  await f.home.api('/api/report-schedules/stop',{scheduleId:schedule.id});await f.home.api(path,undefined,{as:f.recipient,status:403})
+  const archive=await f.home.api('/api/backup');for(const table of ['pm_report_schedules','pm_report_deliveries'])assert.ok(archive[0].excludedTables.includes(table))
+  assert.ok(!JSON.stringify(archive.filter(l=>l.kind==='part')).includes('recipient_hash'))
+  for(const kind of ['report-schedules','report-deliveries']){const csv=await(await f.home.request('/api/business-export/'+kind+'.csv')).text();assert.ok(csv.includes(schedule.id));assert.ok(!csv.includes('recipient_hash'))}
+  const restored=await installation();try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/report-schedules')).schedules,[])}finally{await restored.close()}
+ }finally{await f.close()}
+})
+
+test('Uncertain report submissions stay unconfirmed across scheduler replay and require an explicit manual resend with fresh authority',async()=>{
+ const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),f=await reportGroup()
+ try{
+  const schedule=await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{as:f.manager,status:201});f.mail.uncertain=true;await f.tick()
+  const deliveries=(await f.home.api('/api/report-schedules')).deliveries,attempt=deliveries[0]
+  assert.equal(attempt.state,'delivery unconfirmed');assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)
+  await f.tick();assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)
+  await f.home.api('/api/report-schedules/resend',{scheduleId:schedule.id,deliveryId:attempt.id},{status:400})
+  const ownerId=(await f.home.api('/auth/operators')).find(p=>p.role==='owner').id
+  f.mail.uncertain=false;await f.home.api('/api/report-schedules/resend',{scheduleId:schedule.id,deliveryId:attempt.id,acknowledged:true})
+  assert.ok((await f.home.api('/api/audit')).rows.some(e=>e.action==='report.manual-resend-approved'&&e.actor===ownerId))
+  assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,2)
+  assert.ok((await f.home.api('/api/report-schedules')).deliveries.some(d=>d.state==='provider accepted'))
+  await f.home.api('/api/group/admin/revoke',{operatorId:f.recipientId})
+  await f.home.api('/api/report-schedules/resend',{scheduleId:schedule.id,deliveryId:attempt.id,acknowledged:true})
+  assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,2)
+  assert.ok((await f.home.api('/api/audit')).rows.some(e=>e.action==='report.recheck-refused'))
+ }finally{await f.close()}
+})

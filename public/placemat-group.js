@@ -7,7 +7,7 @@ export async function mountGroup(root,{api,esc,field,people,notice,reload}) {
   const form = (kind, body, button) => `<form data-group-form="${kind}"><fieldset><div class="form-grid">${body}<div class="wide"><button type="submit">${esc(button)}</button></div></div></fieldset></form>`;
   const names = id => people.find(person => person.id === id)?.displayName || id;
   if (status.role === 'admin') {
-    root.innerHTML = `<details><summary>Group access</summary><p class="help">The owner granted you read-only access to reservation reports and pre-shift sheets: ${Object.entries(status.rights).map(([venue, list]) => `${esc(venue === 'home' ? 'this venue' : 'a connected venue')} (${esc(list.join(', '))})`).join('; ')}. A token lasts 12 hours and is shown once.</p>${form('token', '', 'Create group token')}<div id="group-token"></div></details>`;
+    root.innerHTML = `<details><summary>Group access</summary><p class="help">The owner granted you read-only access to reservation reports and pre-shift sheets: ${Object.entries(status.rights).map(([venue, list]) => `${esc(venue === 'home' ? 'this venue' : 'a connected venue')} (${esc(list.join(', '))})`).join('; ')}. A token lasts 12 hours and is shown once.</p>${form('token', '', 'Create group token')}<div id="group-token"></div>${form('comparison',field('Local service date from','dateFrom','date','','required')+field('Local service date through','dateTo','date','','required')+Object.entries(status.rights).filter(([,r])=>r.includes('reports.read')).map(([id])=>`<label class="inline"><input type="checkbox" name="venueId" value="${esc(id)}" checked> ${esc(status.venues?.find(v=>v.id===id)?.name||'This venue')}</label>`).join(''),'Compare local cover totals')}<div id="group-comparison" aria-live="polite"></div></details>`;
   } else {
     const member = status.standing === 'member', home = status.standing === 'home', linked = status.links.filter(link => !link.revokedAt);
     const ceiling = status.available.map(right => `<label class="inline"><input type="checkbox" name="ceiling" value="${esc(right)}" checked> ${esc(rightLabels[right] || right)}</label>`).join(' ');
@@ -24,6 +24,11 @@ export async function mountGroup(root,{api,esc,field,people,notice,reload}) {
     event.preventDefault();
     const data = new FormData(el), kind = el.dataset.groupForm;
     try {
+      if (kind === 'comparison') {
+        const search=new URLSearchParams({dateFrom:data.get('dateFrom'),dateTo:data.get('dateTo')});for(const id of data.getAll('venueId'))search.append('venueId',id);
+        const report=await api('/api/group-comparison?'+search);
+        root.querySelector('#group-comparison').innerHTML=`<p>${esc(report.definition)}</p>${report.locations.map(r=>`<article class="card"><h4>${esc(r.venue)} · ${esc(r.timezone)}</h4><p>Booked: ${r.bookedCovers} covers · Attended: ${r.attendedCovers} · Cancelled: ${r.cancelledCovers} · No-show: ${r.noShowCovers}</p></article>`).join('')}<a class="button-link" href="/api/group-comparison?${esc(search)}&amp;format=csv" download>Download group cover CSV</a>`;return;
+      }
       if (kind === 'token') {
         const result = (await api('/api/group/token', {})).result;
         root.querySelector('#group-token').innerHTML = `<p class="help">Copy this token now; it is shown once and expires ${esc(new Date(result.expiresAt).toLocaleString())}.</p><pre>${esc(result.token)}</pre>`; notice('Group token created.', 'success'); return;

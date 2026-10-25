@@ -56,6 +56,7 @@ export function projectAuthority(value:any,actor?:Actor|null):any{
  if(actor?.role==='owner'&&!actor.agent)return value
  if(Array.isArray(value))return value.map(v=>projectAuthority(v,actor))
  if(!value||typeof value!=='object')return value
+ if(typeof value.action==='string'&&value.action.startsWith('report.'))return {...value,subject:'restricted',reason:'Private report custody.'}
  if(['managerRefundLimits','reportScopes','groupAdmins','groupLinks','groupHome'].includes(value.kind))return {...value,before:value.before===null?null:{restricted:true},after:value.after===null?null:{restricted:true}}
  return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,['managerRefundLimits','reportScopes'].includes(key)?actor&&!actor.agent&&(key==='reportScopes'&&['admin','lead'].includes(actor.role)||key==='managerRefundLimits'&&actor.role==='admin')&&item&&typeof item==='object'&&Object.hasOwn(item,actor.id)?{[actor.id]:(item as any)[actor.id]}:undefined:projectAuthority(item,actor)]))
 }
