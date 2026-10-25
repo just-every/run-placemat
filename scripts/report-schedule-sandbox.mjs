@@ -17,6 +17,7 @@ const f=await reportGroup({recipientEmail:recipient,bindings:{MAIL_PROVIDER:'sen
  const response=await fetch(url,{method:'POST',headers:{authorization:request.headers.get('authorization'),'content-type':'application/json'},body:JSON.stringify(body),redirect:'manual',signal:AbortSignal.timeout(20000)})
  assert.equal(response.status,202,'SendGrid must accept the one controlled submission')
  providerMessageId=response.headers.get('x-message-id');assert.ok(providerMessageId)
+ console.log(JSON.stringify({providerAccepted:true,providerMessageId}))
  return response
 }})
 let schedule

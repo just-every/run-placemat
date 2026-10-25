@@ -1170,7 +1170,7 @@
       "executable": false
     },
     "scripts/report-schedule-sandbox.mjs": {
-      "sha256": "8fb2dfe9ef01c00ed3aedc385fe23808e05e8114f631faaee2ee1d0b717641dd",
+      "sha256": "75634028cad5af8b2c2abd55aa13481fa075ad8049e815fc84fd6b722ee08829",
       "executable": false
     },
     "scripts/verify-app.mjs": {
