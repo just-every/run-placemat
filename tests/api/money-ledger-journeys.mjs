@@ -54,6 +54,12 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:'synthetic-placemat-bt-3',bookingId:'synthetic-placemat-nonexistent'},{status:409})
   ledger=await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:'synthetic-placemat-bt-3',bookingId:booking.id})
   assert.equal(ledger.adjustments.length,1);assert.equal(ledger.payouts[0].unmatched.length,0);assert.deepEqual(ledger.items,originalItems)
+  const attributed=ledger.payouts[0],adjustment=ledger.adjustments[0]
+  assert.deepEqual([attributed.grossCents,attributed.feeCents,attributed.netCents],[payout.grossCents,payout.feeCents,payout.netCents],'Human attribution changes no provider total')
+  assert.deepEqual(attributed.items.map(({bookingId,adjustmentId,...source})=>source),payout.items.map(({bookingId,adjustmentId,...source})=>source),'Every original provider item remains inspectable after attribution')
+  assert.equal(adjustment.booking_id,booking.id);assert.equal(adjustment.transaction_id,'synthetic-placemat-bt-3');assert.equal(adjustment.payout_id,payout.id)
+  assert.equal(adjustment.actor_id,(await h.api('/api/state')).actor.id);assert.ok(Number.isFinite(Date.parse(adjustment.recorded_at)))
+  const linked=attributed.items.find(i=>i.id===adjustment.transaction_id);assert.equal(linked.bookingId,booking.id);assert.equal(linked.adjustmentId,adjustment.id)
   await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:'synthetic-placemat-bt-3',bookingId:booking.id},{status:409})
   assert.equal((await h.api('/api/payments/ledger/payout',{payoutId:payout.id})).payouts.length,1)
   payoutAmount=9500
