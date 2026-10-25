@@ -246,7 +246,7 @@ test('Group comparisons use identical venue-local date labels and fail closed wh
 })
 
 test('Weekly group delivery requires explicit recipient approval, authenticates links and blocks every attempt after recipient or schedule-owner revocation',async()=>{
- const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),f=await reportGroup()
+ const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),f=await reportGroup({bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-placemat-1'},reportMailEdge:async()=>new Response(null,{status:202,headers:{'x-message-id':'synthetic-placemat-1'}})})
  try{
   await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue},{status:400})
   const schedule=await f.approve()

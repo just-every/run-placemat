@@ -4018,7 +4018,7 @@
       "executable": false
     },
     "tests/api/reports.test.mjs": {
-      "sha256": "4bf84379dc0c8737d4358c788844bb2d36a1504243982f811b1eb2474c7c9105",
+      "sha256": "2d3e3bef78f3f7684eb37bae60e698cc33416cf2a7b9c8b9615160fbfc23246b",
       "executable": false
     },
     "tests/api/reservation-api.test.mjs": {
