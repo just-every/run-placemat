@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 export const reportDay='2031-11-02',firstDue='2031-11-03T18:00:00.000Z'
-export async function reportGroup(){
+export async function reportGroup({recipientEmail='synthetic-placemat-group@example.test',bindings={},reportMailEdge}={}){
  let home,tap,available=true
  const mail={uncertain:false,messages:[]}
- home=await installation({origin:'https://home.example.test',peers:{'tap.example.test':()=>{if(!available)throw Error('Synthetic unavailable venue');return tap}},mailEdge:async request=>{
-  const message=await request.json();mail.messages.push(message)
+ home=await installation({bindings,origin:'https://home.example.test',peers:{'tap.example.test':()=>{if(!available)throw Error('Synthetic unavailable venue');return tap}},mailEdge:async request=>{
+  const wire=await request.clone().json(),message=wire.personalizations?{subject:wire.subject,to:wire.personalizations[0].to.map(p=>p.email),text:wire.content.find(p=>p.type==='text/plain')?.value}:wire;mail.messages.push(message)
+  if(reportMailEdge&&message.subject==='Your weekly group cover report')return reportMailEdge(request)
   if(mail.uncertain&&message.subject==='Your weekly group cover report')throw Error('Synthetic uncertain acceptance')
-  return Response.json({id:'synthetic-placemat-mail-'+mail.messages.length})
+  return Response.json({id:'synthetic-placemat-mail-'+mail.messages.length},{headers:{'x-message-id':'synthetic-placemat-mail-'+mail.messages.length}})
  }})
  tap=await installation({origin:'https://tap.example.test',peers:{'home.example.test':()=>home}})
  const signIn=async(email,role='member',name='Group manager')=>{
@@ -17,8 +18,8 @@ export async function reportGroup(){
   const response=await home.request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}});assert.equal(response.status,303)
   return response.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
  }
- const recipient=await signIn('synthetic-placemat-group@example.test'),manager=await signIn('synthetic-placemat-manager@example.test','admin','Venue manager'),other=await signIn('synthetic-placemat-other@example.test','member','Unapproved reader')
- const people=await home.api('/auth/operators'),recipientId=people.find(r=>r.email==='synthetic-placemat-group@example.test').id,managerId=people.find(r=>r.email==='synthetic-placemat-manager@example.test').id
+ const recipient=await signIn(recipientEmail),manager=await signIn('synthetic-placemat-manager@example.test','admin','Venue manager'),other=await signIn('synthetic-placemat-other@example.test','member','Unapproved reader')
+ const people=await home.api('/auth/operators'),recipientId=people.find(r=>r.email===recipientEmail).id,managerId=people.find(r=>r.email==='synthetic-placemat-manager@example.test').id
  const bookings=[]
  for(const [h,name,timezone,startAt] of [[home,'Home Bistro','America/Los_Angeles','2031-11-03T01:00:00Z'],[tap,'Tap Room','Australia/Brisbane','2031-11-02T09:00:00Z']]){
   await h.command('venue.update',{name,timezone})
