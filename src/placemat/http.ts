@@ -1,3 +1,5 @@
+import {readGuarantees,issueGuarantee,endGuarantee,guestGuarantee} from './card-guarantees'
+import {readMerchant,connectMerchant,disconnectMerchant,collectMerchantCard,syncMerchantCard} from './stripe-merchant'
 import {ownerReservationResponse} from './api/reservations'
 import {costsResponse} from './costs'
 import {privacyResponse} from './privacy/http'
@@ -69,7 +71,7 @@ import {filterMergeAudit,readMergeJournal} from './guest-merge-store'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
-const paths=new Set(['/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/payments/guarantees','/api/payments/guarantees/issue','/api/payments/guarantees/end','/api/payments/merchant','/api/payments/merchant/connect','/api/payments/merchant/disconnect','/api/payments/merchant/collect','/api/payments/merchant/sync','/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
@@ -86,8 +88,15 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
  if(path==='/api/payments/refund-events')return refundWebhook(env,request)
- if(!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(!path.startsWith('/api/public/card-guarantee/')&&!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
+  if(path.startsWith('/api/public/card-guarantee/')){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env)
+   const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':card-guarantee:'+Math.floor(Date.now()/60000)),limit=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
+   if((limit?.count??0)>30)fail(429,'Too many collection requests. Please wait a minute.')
+   return json(await guestGuarantee(env,await jsonBody(request),path.split('/').at(-1)!))
+  }
   if(path==='/api/v1/owner-reservations')return await ownerReservationResponse(request,env)
   const integration=await integrationResponse(request,env);if(integration)return integration
   const shared=await sharedDeviceResponse(request,env);if(shared)return shared
@@ -214,7 +223,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(['/preshift','/api/preshift','/api/preshift.pdf'].includes(path)){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB),date=url.searchParams.get('date')??serviceDate(new Date().toISOString(),state.venue.timezone)
-   const sheet=preshift(state,await guests(env.DB),actor!,date,undefined,await actorNames(env.DB,state),await paymentAlerts(env.DB),await feeAuthorizations(env.DB,actor!))
+   const sheet=preshift(state,await guests(env.DB),actor!,date,undefined,await actorNames(env.DB,state),await paymentAlerts(env.DB),await feeAuthorizations(env.DB,actor!),await readGuarantees(env.DB,actor!))
    if(path==='/preshift')return preshiftPage(sheet)
    if(path.endsWith('.pdf'))return new Response(preshiftPdf(sheet),{headers:{...headers,'content-type':'application/pdf','content-disposition':`attachment; filename="placemat-preshift-${date}.pdf"`}})
    return json(sheet)
@@ -225,6 +234,24 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    const {state,version}=await load(env.DB)
    return json(await outageReview(state,actor!,await jsonBody(request),version,env.SESSION_SECRET,new Date().toISOString()))
+  }
+  if(path.startsWith('/api/payments/guarantees')){
+   if(path==='/api/payments/guarantees'&&request.method==='GET')return json({guarantees:await readGuarantees(env.DB,actor!)})
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env);const p=await jsonBody(request)
+   if(path.endsWith('/issue'))return json({result:await issueGuarantee(env,actor!,p)})
+   if(path.endsWith('/end'))return json({result:await endGuarantee(env.DB,actor!,p)})
+   return json({error:'Not found'},404)
+  }
+  if(path.startsWith('/api/payments/merchant')){
+   if(path==='/api/payments/merchant'&&request.method==='GET')return json(await readMerchant(env.DB,actor!))
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env);const p=await jsonBody(request)
+   if(path.endsWith('/connect'))return json({result:await connectMerchant(env,actor!,p)})
+   if(path.endsWith('/disconnect'))return json({result:await disconnectMerchant(env,actor!)})
+   if(path.endsWith('/collect'))return json({result:await collectMerchantCard(env,actor!,p)})
+   if(path.endsWith('/sync'))return json({result:await syncMerchantCard(env,actor!,p)})
+   return json({error:'Not found'},404)
   }
   if(path.startsWith('/api/payments/fee')){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
@@ -340,7 +367,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
    const handoverPeople=await handoverAssignees(env.DB,state),paymentRequests=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[],refundCharges=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT charge_id AS chargeId,booking_id AS bookingId,amount_cents AS amountCents,imported_refunded_cents AS importedRefundedCents FROM pm_refund_charges').all()).results:[],refunds=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT id,request_id AS requestId,actor_id AS actorId,booking_id AS bookingId,charge_id AS chargeId,amount_cents AS amountCents,reason,status,processor_id AS processorId,created_at AS createdAt FROM pm_refunds').all()).results:[]
    const bookingContacts=!actor!.agent?Object.fromEntries((await env.DB.prepare('SELECT booking_id,data FROM pm_booking_contacts').all<{booking_id:string;data:string}>()).results.map(row=>[row.booking_id,JSON.parse(row.data)])):{}
-   return json({queueOrder:queueOrder(state),feeWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readFees(env.DB,actor!):undefined,refundFollowups:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await refundFollowups(env.DB):[],refundNotices:actor!.role==='owner'?await refundNotices(env.DB):[],bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({merchantWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readMerchant(env.DB,actor!):undefined,queueOrder:queueOrder(state),feeWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readFees(env.DB,actor!):undefined,refundFollowups:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await refundFollowups(env.DB):[],refundNotices:actor!.role==='owner'?await refundNotices(env.DB):[],bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){
@@ -350,6 +377,11 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   if(path==='/api/commands'&&request.method==='POST'){
    const p=await jsonBody(request)
+   if(p.command==='payment.merchant-connect')return json({result:await connectMerchant(env,actor!,p.payload??{})})
+   if(p.command==='payment.merchant-disconnect')return json({result:await disconnectMerchant(env,actor!)})
+   if(p.command==='payment.guarantee-issue')return json({result:await issueGuarantee(env,actor!,p.payload??{})})
+   if(p.command==='payment.guarantee-end')return json({result:await endGuarantee(env.DB,actor!,p.payload??{})})
+   if(p.command==='payment.guarantee-sync')return json({result:await syncMerchantCard(env,actor!,{requestId:p.payload?.id})})
    if(p.command==='booking.management.send')return json({result:await sendManagement(env,actor!,p.payload??{})})
    if(p.command==='payment.close')return json({result:await closePaymentRequest(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.request')return json({result:await createPaymentRequest(env.DB,actor!,p.payload??{})})

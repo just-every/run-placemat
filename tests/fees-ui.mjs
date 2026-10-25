@@ -51,3 +51,4 @@ for(const width of [1440,390]){
   assert.deepEqual(errors,[]);console.log(`PAY-004 owner policy, consent, charge, waiver and fixed fee report passed at ${width}`);
  }finally{await context.close();await browser.close();await transport.close();await h.close();}
 }
+await import('./guarantees-ui.mjs')

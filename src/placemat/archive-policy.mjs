@@ -1,3 +1,4 @@
+import {validateMerchantCollections} from './stripe-merchant-archive.mjs'
 import {validateCosts} from './costs-archive.mjs'
 import {validatePrivacy} from './privacy/archive.mjs'
 import {validateFees} from './fee-archive.mjs'
@@ -43,7 +44,7 @@ function validateStaffing(s,tables){
 export default {
  product:'hospitality/placemat',
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
- excludeTables:['pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
+ excludeTables:['pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
   if(table==='pm_fee_assessments')return {...row,processing_until:0}
   if(table==='pm_refund_webhooks')return {...row,claim:''}
@@ -53,6 +54,7 @@ export default {
  requiredConfiguration:['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM'],
  async validateStaged({read}) {
   const rows=await read('pm_state'),guests=await read('pm_guests'),reports=await read('pm_performance_reports')
+  await validateMerchantCollections(read,guests,rows)
   await validatePrivacy(read,guests)
   await validateCosts(read)
   if(rows.length>1)throw Error('Invalid floor state')

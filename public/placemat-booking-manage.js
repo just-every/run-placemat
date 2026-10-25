@@ -1,4 +1,6 @@
 import {localTime,toUtc} from './placemat-local-time.js'
+import {cardMode} from './placemat-card-guarantee.js';
+if(location.hash.startsWith('#card=')){await cardMode();}else{
 
 const root=document.querySelector('#management-content'),notice=document.querySelector('#notice')
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
@@ -49,3 +51,5 @@ root.addEventListener('submit',event=>{
 // Reload to discard the old in-memory capability and open exactly the new link.
 window.addEventListener('hashchange',()=>{if(new URLSearchParams(location.hash.slice(1)).has('token'))location.reload()})
 run(async()=>{view=await api('status');render();notice.textContent='Reservation opened. Every change requires your confirmation.'})
+
+}

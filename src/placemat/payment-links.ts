@@ -1,3 +1,4 @@
+import {assertStripeCollectionAllowed} from './stripe-merchant'
 import {fail,id,text,type Actor,type State} from './model'
 import {load,save} from './store'
 
@@ -90,6 +91,7 @@ export async function readPaymentRequests(db:D1Database,actor:Actor,bookingId?:s
 function stripeKey(env:PaymentBindings){return env.STRIPE_SECRET_KEY||fail(409,'The owner must configure Stripe before issuing deposit links.')}
 async function stripe(env:PaymentBindings,path:string,body?:URLSearchParams,key?:string):Promise<Checkout>{
  const secret=stripeKey(env)
+ if(body&&!path.endsWith('/expire'))await assertStripeCollectionAllowed(env.DB,env.STRIPE_SECRET_KEY)
  let response:Response
  try{response=await fetch('https://api.stripe.com/v1/checkout/sessions'+path,{method:body?'POST':'GET',headers:{authorization:'Bearer '+secret,...body?{'content-type':'application/x-www-form-urlencoded','idempotency-key':key!}:{}},body:body?.toString(),redirect:'manual',signal:AbortSignal.timeout(15000)})}
  catch{return fail(502,'Stripe could not be reached. The request is saved; no delivery is recorded.')}

@@ -201,3 +201,78 @@ test('Finite fee authority expires without claiming held funds, assigns renewed 
   assert.ok(!retained.includes(payload.evidence));assert.equal(h.messages.length,1,'Only the explicit manager invitation sent mail; recollection never sends')
  }finally{await Promise.all([h.close(),copy.close()])}
 })
+
+
+test('Merchant hosted collection keeps card custody private and disconnect blocks collection without hiding obligations',async()=>{
+ const sessions=new Map(),setups=new Map(),calls=[],account={object:'account',id:'synthetic-placemat-merchant-1',country:'US',default_currency:'usd',charges_enabled:true,payouts_enabled:true,details_submitted:true,livemode:false}
+ const edge=async request=>{
+  const u=new URL(request.url);calls.push({path:u.pathname,method:request.method})
+  if(u.pathname==='/v1/country_specs/US')return Response.json({object:'country_spec',id:'US',supported_payment_currencies:['usd']})
+  if(u.pathname==='/v1/account')return Response.json(account)
+  if(request.method==='POST'&&u.pathname==='/v1/checkout/sessions'){
+   const body=new URLSearchParams(await request.text()),requestId=body.get('client_reference_id'),session={object:'checkout.session',id:'synthetic-placemat-session-'+sessions.size,mode:body.get('mode'),client_reference_id:requestId,metadata:{placemat_booking_id:body.get('metadata[placemat_booking_id]'),placemat_collection_id:body.get('metadata[placemat_collection_id]')},status:'open',url:'https://checkout.stripe.com/c/synthetic-placemat-'+sessions.size}
+   assert.equal(body.get('mode'),'setup');assert.equal(body.get('payment_method_types[0]'),'card');assert.equal(request.headers.get('idempotency-key'),'placemat-card-'+requestId)
+   sessions.set(session.id,session);return Response.json(session)
+  }
+  if(u.pathname.startsWith('/v1/checkout/sessions/'))return Response.json(sessions.get(u.pathname.split('/').at(-1)))
+  if(u.pathname.startsWith('/v1/setup_intents/'))return Response.json(setups.get(u.pathname.split('/').at(-1)))
+  throw Error('Unexpected Stripe edge '+u.pathname)
+ }
+ const h=await installation({stripeEdge:edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}}),copy=await installation({stripeEdge:edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
+ try{
+  const {service}=await feeService(h),booking=await feeBooking(h,service),manager=await h.signIn('synthetic-placemat-merchant-manager@example.test','admin')
+  const read=()=>h.api('/api/payments/merchant'),post=(action,p={},opts={})=>h.api('/api/payments/merchant/'+action,p,opts)
+  const cost=(await read()).costDisclosure,payload={bookingId:booking.id,requestId:'synthetic-placemat-collection-1'}
+  await post('collect',payload,{status:409});await post('connect',{acceptCosts:true,reviewedCosts:'Unreviewed'},{status:409})
+  for(const as of ['',manager]){await h.api('/api/payments/merchant',undefined,{as,status:as?403:401});await post('connect',{acceptCosts:true,reviewedCosts:cost},{as,status:as?403:401})}
+  account.details_submitted=false;assert.equal((await post('connect',{acceptCosts:true,reviewedCosts:cost})).result.state,'restricted');await post('collect',payload,{status:409});account.details_submitted=true
+  assert.equal((await post('connect',{acceptCosts:true,reviewedCosts:cost})).result.state,'connected')
+  const first=(await post('collect',payload)).result,replay=(await post('collect',payload)).result;assert.equal(first.hostedUrl,replay.hostedUrl);assert.equal(sessions.size,1)
+  const session=sessions.get(first.providerReference);session.status='complete';session.setup_intent='synthetic-placemat-setup-1';setups.set(session.setup_intent,{object:'setup_intent',id:session.setup_intent,status:'succeeded',usage:'off_session',customer:'synthetic-placemat-customer-1',payment_method:'synthetic-placemat-method-1',metadata:session.metadata})
+  assert.equal((await post('sync',{requestId:payload.requestId})).result.state,'collected')
+  const redacted=JSON.stringify(await read());for(const value of [first.hostedUrl,session.setup_intent,'synthetic-placemat-customer-1','synthetic-placemat-method-1'])assert.ok(!redacted.includes(value));assert.equal((await read()).collections[0].fundsHeldCents,0)
+  const archive=await h.api('/api/backup'),serialized=JSON.stringify(archive),csv=await (await h.request('/api/business-export/card-collections.csv')).text()
+  for(const value of [first.hostedUrl,session.setup_intent,'synthetic-placemat-customer-1','synthetic-placemat-method-1'])assert.ok(!serialized.includes(value)&&!csv.includes(value));assert.ok(csv.includes(payload.requestId))
+  await copy.api('/api/restore',{archive,confirm:'RESTORE'});const restored=await copy.api('/api/payments/merchant');assert.equal(restored.merchant,null);assert.equal(restored.collections[0].state,'collected');await copy.api('/api/payments/merchant/collect',{bookingId:booking.id,requestId:'synthetic-placemat-restore'},{status:409})
+  const owner=(await h.api('/api/state')).actor,payment=await h.command('payment.request',{bookingId:booking.id,amountCents:5000,dueAt:new Date(Date.now()+7200000).toISOString(),followupOwnerId:owner.id,reason:'Synthetic obligation retained after disconnect.'})
+  await post('disconnect');const count=calls.filter(c=>c.method==='POST').length
+  await post('collect',{...payload,requestId:'synthetic-placemat-collection-2'},{status:409});await h.command('payment.link',{requestId:payment.requestId},{status:409});assert.equal(calls.filter(c=>c.method==='POST').length,count)
+  assert.equal((await read()).collections[0].state,'collected');assert.ok((await h.api('/api/state')).paymentRequests.some(p=>p.requestId===payment.requestId))
+  assert.ok((await h.api('/api/audit')).rows.some(e=>e.action==='payment.merchant-disconnect'))
+  await post('connect',{acceptCosts:true,reviewedCosts:cost});account.id='synthetic-placemat-merchant-2';await post('collect',{...payload,requestId:'synthetic-placemat-collection-2'},{status:409});account.id='synthetic-placemat-merchant-1'
+  await h.command('guest.erase',{guestId:booking.guestId,confirm:'ERASE'});await post('sync',{requestId:payload.requestId},{status:409});assert.equal((await h.db.prepare('SELECT COUNT(*) AS count FROM pm_stripe_collection_custody').first()).count,0)
+ }finally{await Promise.all([h.close(),copy.close()])}
+})
+
+test('Guest exact-fee acceptance and hosted card renewal preserve finite authority across guest, owner, sheet and archive doors',async()=>{
+ const {merchantEdge}=await import('./merchant-fixture.mjs'),edge=merchantEdge(),h=await installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}}),copy=await installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
+ try{
+  const {service}=await feeService(h),booking=await feeBooking(h,service),policy=await feeApi(h,'fee-policy',feePolicyInput()),manager=await h.signIn('synthetic-placemat-guarantee-manager@example.test','admin'),cost=(await h.api('/api/payments/merchant')).costDisclosure
+  await h.api('/api/payments/merchant/connect',{acceptCosts:true,reviewedCosts:cost})
+  const issue=async()=> (await h.api('/api/payments/guarantees/issue',{bookingId:booking.id,policyId:policy.id})).result,first=await issue(),token=new URL(first.guestUrl).hash.slice(6),guest=(action,p={},opts={})=>h.api('/api/public/card-guarantee/'+action,{token,...p},{as:'',...opts})
+  await h.api('/api/payments/guarantees/issue',{bookingId:booking.id,policyId:policy.id},{as:manager,status:403});await h.api('/api/payments/guarantees',undefined,{as:manager,status:200}).then(v=>assert.deepEqual(v.guarantees,[]))
+  const custody=await h.db.prepare('SELECT return_url,token_hash FROM pm_stripe_collection_custody WHERE collection_id=?').bind(first.id).first();assert.ok(!custody.return_url.includes(token));assert.notEqual(custody.token_hash,token);assert.match(custody.token_hash,/^[a-f0-9]{64}$/);
+  assert.equal((await guest('status')).protection,'unprotected');await guest('accept',{accept:false,reviewedText:policy.reviewText},{status:409});await guest('accept',{accept:true,reviewedText:'Changed terms'},{status:409});assert.equal(edge.sessions.size,0)
+  const collection=await guest('accept',{accept:true,reviewedText:policy.reviewText});assert.equal(collection.delivery,'copy-required');assert.equal((await guest('status')).protection,'unprotected');edge.complete(collection)
+  const current=await guest('sync');assert.equal(current.source,'guest-captured');assert.equal(current.protection,'tokenized-card-guarantee');assert.equal(current.fundsHeldCents,0);assert.equal(current.maxFeeCents,4000);assert.equal(current.reviewText,policy.reviewText);assert.ok(current.acceptedAt)
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:policy.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(service.startAt)),sheet='/api/preshift?date='+date
+  assert.equal((await h.api(sheet)).services[0].bookings[0].cardGuarantees[0].protection,'tokenized-card-guarantee');assert.deepEqual((await h.api(sheet,undefined,{as:manager})).services[0].bookings[0].cardGuarantees,[])
+  for(const door of ['/preshift?date='+date,'/api/preshift.pdf?date='+date]){
+   const body=await (await h.request(door)).text();assert.ok(body.includes('Held guarantee amount: USD 0.00'));assert.ok(body.includes('Maximum agreed fee: USD 40.00'));assert.ok(!body.includes('synthetic-placemat-method-'))
+   assert.ok(!(await (await h.request(door,{as:manager})).text()).includes('Held guarantee amount'))
+  }
+  const ended=(await h.api('/api/payments/guarantees/end',{id:first.id})).result;assert.equal(ended.authorizationState,'expired');assert.equal((await guest('status')).protection,'unprotected');assert.equal((await h.api(sheet)).services[0].bookings[0].cardGuarantees[0].authorizationState,'expired');await guest('sync',{}, {status:409})
+  const expired=await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'late_cancel'});assert.equal(expired.chargeAllowed,false)
+  const renewed=await issue(),renewedToken=new URL(renewed.guestUrl).hash.slice(6);await guest('status',{}, {status:404})
+  const second=await h.api('/api/public/card-guarantee/accept',{token:renewedToken,accept:true,reviewedText:policy.reviewText},{as:''});edge.complete(second);const renewedState=await h.api('/api/public/card-guarantee/sync',{token:renewedToken},{as:''});assert.equal(renewedState.protection,'tokenized-card-guarantee');assert.notEqual(renewedState.id,current.id)
+  assert.equal((await h.api('/api/payments/guarantees')).guarantees.length,2)
+  await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'Guest canceled after accepting the renewed fee terms.'})
+  const preview=await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'late_cancel'});assert.equal(preview.guestConsentId,renewed.id);assert.equal(preview.chargeAllowed,true);const fee=await feeApi(h,'fees',feeDecision(preview));assert.equal(fee.status,'succeeded');assert.equal(fee.amountCents,4000);assert.equal(fee.guestConsentId,renewed.id);assert.equal(edge.fees.intents.size,1)
+  const expiredBooking=await feeBooking(h,service,2),expiredIssue=(await h.api('/api/payments/guarantees/issue',{bookingId:expiredBooking.id,policyId:policy.id})).result,expiredToken=new URL(expiredIssue.guestUrl).hash.slice(6),expiredCollection=await h.api('/api/public/card-guarantee/accept',{token:expiredToken,accept:true,reviewedText:policy.reviewText},{as:''});edge.complete(expiredCollection);await h.api('/api/public/card-guarantee/sync',{token:expiredToken},{as:''});await h.api('/api/payments/guarantees/end',{id:expiredIssue.id});await h.command('booking.stage',{bookingId:expiredBooking.id,stage:'cancelled',reason:'Recorded cancellation after guest fee authority expired.'});const expiredDecision=await feeApi(h,'fee-preview',{bookingId:expiredBooking.id,kind:'late_cancel'});assert.equal(expiredDecision.chargeAllowed,false);const posts=edge.calls.filter(c=>c.method==='POST').length;await feeApi(h,'fees',feeDecision(expiredDecision),{status:409});assert.equal(edge.calls.filter(c=>c.method==='POST').length,posts)
+  const archive=await h.api('/api/backup'),serialized=JSON.stringify(archive);for(const value of [token,renewedToken,collection.hostedUrl,'synthetic-placemat-method-','synthetic-placemat-customer-'])assert.ok(!serialized.includes(value))
+  await copy.api('/api/restore',{archive,confirm:'RESTORE'});assert.equal((await copy.api('/api/payments/guarantees')).guarantees.at(-1).protection,'unprotected');const restoredPreview=await feeApi(copy,'fee-preview',{bookingId:booking.id,kind:'late_cancel'});assert.equal(restoredPreview.chargeAllowed,false);assert.equal(restoredPreview.executionReady,false);assert.equal(edge.fees.intents.size,1)
+  const csv=await (await h.request('/api/business-export/card-guarantees.csv')).text();assert.ok(csv.includes(renewed.id)&&csv.includes(policy.id)&&csv.includes('accepted_at'))
+  await h.command('guest.erase',{guestId:booking.guestId,confirm:'ERASE'});const erasedArchive=await h.api('/api/backup'),retainedGuarantees=erasedArchive.filter(p=>p.kind==='part').flatMap(p=>p.items).filter(i=>i.table==='pm_card_guarantees').map(i=>i.row);assert.ok(retainedGuarantees.filter(g=>g.booking_id===booking.id).every(g=>g.review_text===''&&g.booking_snapshot==='{}'));assert.equal(retainedGuarantees.find(g=>g.booking_id===expiredBooking.id).review_text,policy.reviewText);assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM pm_stripe_collection_custody WHERE collection_id IN (SELECT id FROM pm_card_guarantees WHERE booking_id=?)').bind(booking.id).first()).n,0)
+  assert.equal(h.messages.length,1,'Only the explicit manager invitation sent mail; guarantees never send automatically')
+ }finally{await Promise.all([h.close(),copy.close()])}
+})

@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ab91b4de98840bf7860c64555b53d3bf39809815a632cc00eab50096da005c22",
+      "sha256": "9a02e8cb63b047c01adcd5ed97c55be9cfd56df48661a47d63c4fee9f62ee0e1",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6f4af4bc7eb25d50cd3a1c7cd5c900f8a2931268f81fdb6aeaf237c007c656c1",
+      "sha256": "6dcb3160088956c6cb812f04573dd86ea549e792f6bf69fc2d92017b27ef4b2e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/data-portability.md": {
-      "sha256": "53d70becc0472d3fc56a89c170ac5ae0f7d37590df47a9d1ad0f3a47be07aaff",
+      "sha256": "55e4749c7daa5facc6c3aa917efd2d5ee1048553d0ce904f113f8d4a0bbafe45",
       "executable": false
     },
     "docs/deploy.md": {
@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "308051ff3ce9bc0d41da7c7c259e63e246c0f8c8dfc0817374cc1ca4a86d9238",
+      "sha256": "fc64d92e9fe78936fa316d88436bcfec33b912ae0c2bea239c900ddafe3c3c9a",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -493,6 +493,10 @@
       "sha256": "bc3e0195cc92f32f20758f0e4e27bfd0a8fb0573deea2efb15a59413bda3c1b8",
       "executable": false
     },
+    "migrations/core/0042_stripe_merchant.sql": {
+      "sha256": "a32f7d9dad7a9bd905e1654009a11aca4ad7835cdf4c3abf128ed2b07ecc98d9",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -630,7 +634,7 @@
       "executable": false
     },
     "public/placemat-booking-manage.js": {
-      "sha256": "faf58cd4f294ada48a2e0f50c275e70db67a6c130e32f34965b551449baaac3d",
+      "sha256": "b52c2a714eff7957c078358e6518b20f2b1198bbc30e0548b9fd41ab85a9fb90",
       "executable": false
     },
     "public/placemat-booking-management-staff.js": {
@@ -639,6 +643,10 @@
     },
     "public/placemat-business-export.js": {
       "sha256": "bfb398ddc967a6815df3536f26cc7f52239c10bd0d8fb337abfdeabf7cc190bd",
+      "executable": false
+    },
+    "public/placemat-card-guarantee.js": {
+      "sha256": "5297d8e3050475fa8f9c3b832718a521e006b982737ae89cb76b420532d6bba9",
       "executable": false
     },
     "public/placemat-checkout.js": {
@@ -670,7 +678,7 @@
       "executable": false
     },
     "public/placemat-fees.js": {
-      "sha256": "a55329aa4b2ed4e2dd9bb4ab0a6f720e333b6f489a207b9e6454d2870d5fee49",
+      "sha256": "a2c0b48a2325baf51b0311c0aac354e946fe404496c197792d0b9c0a89fbc2f5",
       "executable": false
     },
     "public/placemat-floor-plan.js": {
@@ -842,7 +850,7 @@
       "executable": false
     },
     "public/placemat.js": {
-      "sha256": "c3460c34c8ef71a0307e43796a563a2b17e6b0cdbaa147fa8420ea45de374942",
+      "sha256": "a750a08e4fdae466a4aae331cad70769b310e075379e55588b83462b5ca61a18",
       "executable": false
     },
     "public/plan.css": {
@@ -1127,6 +1135,10 @@
     },
     "scripts/installer/ui/seed.mjs": {
       "sha256": "9d83daac8d621eb1f9eb5f9a0efdfb672bce4dbc1e438ee0b1c719c57cc539b3",
+      "executable": false
+    },
+    "scripts/merchant-sandbox.mjs": {
+      "sha256": "5bcd8cac82a6a87a8ef50f18fa6b91597d75be07a66a70a77733f02938cc4797",
       "executable": false
     },
     "scripts/operations-config.mjs": {
@@ -3174,7 +3186,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "26ce862e1160ec264703516645584d68869933ff55c7866b3a2c5e052ffd9387",
+      "sha256": "0b8d94ae96715192a892f2784d224785c70bf4dbaf5252706c1d85ad6f8181c0",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -3218,15 +3230,19 @@
       "executable": false
     },
     "src/placemat/business-export-store.ts": {
-      "sha256": "f9d9d3c5996cd7ae099da1a36cd6477e33b34a639c61051d235019a43eeb3b33",
+      "sha256": "bdad84a5a1b009252a1e815e5e905f3e1bc4fcc0ac3c86bbbdbeb6cb7767d36b",
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "f8771c8c4c713654b204ab980dcba3029c7a6100cb1f986e53859e4a0952a9c1",
+      "sha256": "34e373d6f79ecdb4cc065d3557040b30a74dd3ae2a23b888e8bafe7f97ac86cd",
       "executable": false
     },
     "src/placemat/capacity.ts": {
       "sha256": "a0fb7bb0283a5f6a011ec06b35860c3de639b906a4014c00fc1453388aab1bce",
+      "executable": false
+    },
+    "src/placemat/card-guarantees.ts": {
+      "sha256": "ea1426d8c2a9c7aa3e78264c0018bfeb7a6f1f23513ba469b3e74a87c1b025d1",
       "executable": false
     },
     "src/placemat/combinations.ts": {
@@ -3298,7 +3314,7 @@
       "executable": false
     },
     "src/placemat/fees.ts": {
-      "sha256": "23d2fbb82c6f30d665da51db4abcc2d62737b4d9e570708824ec95173891f889",
+      "sha256": "057864102ae505c3a8da11bc128c8e9a47069c7e742a19316bfb7d355d309a87",
       "executable": false
     },
     "src/placemat/finance-view.ts": {
@@ -3342,7 +3358,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "bca1f5ae3228592f742c7b0af39ce36f999351eebfa5428bcefc73e7c4a90157",
+      "sha256": "404bbeb7eb07410f95fdcd3130a5e457b5c2571b1e51be1b62e26ec338b23e9e",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -3362,7 +3378,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "6b4e9f0e0df7db3a9c78488ed70cadca54e45b8a1da8e7ce01880d4ee2d5f4aa",
+      "sha256": "42cedaa045086af31f976cc967604849d01ee22948849964629a0d07c5486eb3",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -3426,7 +3442,7 @@
       "executable": false
     },
     "src/placemat/model.ts": {
-      "sha256": "c96180e3eca2bf847b253bdc00d7fa3d54852489c80dcea4f269dbf457555f39",
+      "sha256": "c849d35bca8e3d41badf959f2c2bd0e5678c0716540be4980aede20cc0b3107b",
       "executable": false
     },
     "src/placemat/needs.ts": {
@@ -3466,7 +3482,7 @@
       "executable": false
     },
     "src/placemat/payment-links.ts": {
-      "sha256": "bcd8f9d9a64950b4863f9f05a664adeb49c17020f088d3539bec7e989a291830",
+      "sha256": "230f8b42c504a483d835a379812c3eecc0806639133f89381e152a7b40701fa1",
       "executable": false
     },
     "src/placemat/pdf.ts": {
@@ -3498,7 +3514,7 @@
       "executable": false
     },
     "src/placemat/preshift.ts": {
-      "sha256": "5962c41fd14f9d0ef16dc9d6eb9072afbd5cd354c4e92dd99063a279014f142a",
+      "sha256": "9cdad316ff1d790d24753b758dad907e26ebc5a2ba354605778f7f556a2f288a",
       "executable": false
     },
     "src/placemat/privacy/access.ts": {
@@ -3639,6 +3655,14 @@
     },
     "src/placemat/store.ts": {
       "sha256": "fa3c32ba0c8bd9a75cdc1266aad0c8c1c0420c104c88d42e910f4cf69fbb977c",
+      "executable": false
+    },
+    "src/placemat/stripe-merchant-archive.mjs": {
+      "sha256": "dc8a29c9fc426451c61657ce4d862209b60491e31ab3ab4d69bf28a7bc56b925",
+      "executable": false
+    },
+    "src/placemat/stripe-merchant.ts": {
+      "sha256": "cca1a5f2eb975f138430bf6945ea34706c476201da92320b3defe2adfce95cf0",
       "executable": false
     },
     "src/placemat/timeline.ts": {
@@ -3862,7 +3886,7 @@
       "executable": false
     },
     "tests/api/fee-journeys.mjs": {
-      "sha256": "d45f70487c5e6b95a07e7f489461567fa066a28bc2fef20156a861936a7e7bff",
+      "sha256": "39a45c632baf8d7c375cc545fe42941d4a8880a520cf77980f838f16dd44d24e",
       "executable": false
     },
     "tests/api/finance-role.test.mjs": {
@@ -3899,6 +3923,10 @@
     },
     "tests/api/integration-schema.test.mjs": {
       "sha256": "3e6213aac804534b1bc73f7481868a270c120f33ad0487a0cae3c8d043319ae8",
+      "executable": false
+    },
+    "tests/api/merchant-fixture.mjs": {
+      "sha256": "63b76bb1e86f31ceeaa60efcf0a9c1a579b95a28300b51fe4ad356ec8dba0306",
       "executable": false
     },
     "tests/api/onboarding-fixture.mjs": {
@@ -4062,7 +4090,7 @@
       "executable": false
     },
     "tests/fees-ui.mjs": {
-      "sha256": "317feda48eeedd398728416282eddf5ae78861da38611d1c2de2fbb487a8f680",
+      "sha256": "2307773a3a270d785931f24aded63ca8ab63378a7408ff6c09784975f128e4fc",
       "executable": false
     },
     "tests/finance-ui.mjs": {
@@ -4079,6 +4107,10 @@
     },
     "tests/group-ui.mjs": {
       "sha256": "53e0b594037e4897267a6dbdaa758e4e563e3d676412a30d8e23c6d4657c1679",
+      "executable": false
+    },
+    "tests/guarantees-ui.mjs": {
+      "sha256": "3f97af1ae69ff39d0e777733f471b11a7243072562c1f5add4ac6a36811818b4",
       "executable": false
     },
     "tests/guest-review-ui.mjs": {
