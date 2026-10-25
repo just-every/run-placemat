@@ -3658,7 +3658,7 @@
       "executable": false
     },
     "src/placemat/stripe-merchant-archive.mjs": {
-      "sha256": "dc8a29c9fc426451c61657ce4d862209b60491e31ab3ab4d69bf28a7bc56b925",
+      "sha256": "d9eb28a6f97497923a23563e5b03314eaa16392ccc25418771a1f15e4ac39815",
       "executable": false
     },
     "src/placemat/stripe-merchant.ts": {
@@ -3886,7 +3886,7 @@
       "executable": false
     },
     "tests/api/fee-journeys.mjs": {
-      "sha256": "39a45c632baf8d7c375cc545fe42941d4a8880a520cf77980f838f16dd44d24e",
+      "sha256": "433b9efc2f98825cedb3045c30a6b7d4b355c7bca14ceb1149aa6746c9873d4b",
       "executable": false
     },
     "tests/api/finance-role.test.mjs": {
