@@ -3502,7 +3502,7 @@
       "executable": false
     },
     "src/placemat/payment-archive.mjs": {
-      "sha256": "090522528118d86f52b389da8d4f7209b3a1d2bda00cefef9bb38124d71f98eb",
+      "sha256": "eb78c11d39d47aedfce2ef4717e32ffd7c342cc59482e84a53aec6160da7c8e3",
       "executable": false
     },
     "src/placemat/payment-links.ts": {
