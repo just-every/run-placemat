@@ -67,7 +67,7 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'reminders':return {fields:['id','bookingId','guestId','contactName','contactEmail','contactPhone','message','status','approvedBy','approvedAt'],rows:state.reminders}
   case 'performance-reports':return {fields:['id','serviceId','publishedAt','publishedBy','floorVersion','report_json'],rows:reports.map(row=>({id:row.id,serviceId:row.service_id,publishedAt:row.published_at,publishedBy:row.published_by,floorVersion:row.floor_version,report:JSON.parse(row.data)}))}
   case 'fee-policies':return {fields:['id','version','created_by','created_at','data'],rows:finance.feePolicies??[]}
-  case 'fee-consents':return {fields:['id','booking_id','policy_id','actor_id','accepted_at','recorded_at','evidence','booking_snapshot','review_text'],rows:finance.feeConsents??[]}
+  case 'fee-consents':return {fields:['id','booking_id','policy_id','actor_id','accepted_at','recorded_at','evidence','booking_snapshot','review_text','expires_at','recollection_requested_at'],rows:finance.feeConsents??[]}
   case 'fee-assessments':return {fields:['id','request_id','booking_id','service_id','policy_id','consent_id','kind','event_id','action','status','amount_cents','actor_id','reason','evidence','processor_id','charge_id','created_at','updated_at'],rows:finance.feeAssessments??[]}
   case 'fee-events':return {fields:['id','booking_id','actor_id','at','action','subject_id','before_data','after_data'],rows:finance.feeEvents??[]}
   case 'fee-disputes':return {fields:['id','assessment_id','actor_id','at','reason','evidence'],rows:finance.feeDisputes??[]}

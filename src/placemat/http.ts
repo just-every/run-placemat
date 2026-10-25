@@ -4,7 +4,7 @@ import {privacyResponse} from './privacy/http'
 import {queueOrder} from './queue-order'
 import {integrationResponse} from './api/reads'
 import {createHold,readHold,abandonHold} from './booking-holds'
-import {createFeePolicy,recordFeeConsent,previewFee,assessFee,readFees,feeAudit} from './fees'
+import {createFeePolicy,recordFeeConsent,previewFee,assessFee,readFees,feeAudit,endFeeAuthorization,requestFeeRecollection,feeAuthorizations} from './fees'
 import {refundWebhook,refundFollowups} from './refund-events'
 import {sendRefundNotice,refundNotices,refundNoticeAudit} from './refund-notices'
 import {readManagement,previewManagement,commitManagement} from './booking-management'
@@ -69,7 +69,7 @@ import {filterMergeAudit,readMergeJournal} from './guest-merge-store'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
-const paths=new Set(['/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
@@ -214,7 +214,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(['/preshift','/api/preshift','/api/preshift.pdf'].includes(path)){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB),date=url.searchParams.get('date')??serviceDate(new Date().toISOString(),state.venue.timezone)
-   const sheet=preshift(state,await guests(env.DB),actor!,date,undefined,await actorNames(env.DB,state),await paymentAlerts(env.DB))
+   const sheet=preshift(state,await guests(env.DB),actor!,date,undefined,await actorNames(env.DB,state),await paymentAlerts(env.DB),await feeAuthorizations(env.DB,actor!))
    if(path==='/preshift')return preshiftPage(sheet)
    if(path.endsWith('.pdf'))return new Response(preshiftPdf(sheet),{headers:{...headers,'content-type':'application/pdf','content-disposition':`attachment; filename="placemat-preshift-${date}.pdf"`}})
    return json(sheet)
@@ -229,6 +229,8 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path.startsWith('/api/payments/fee')){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    const p=await jsonBody(request)
+   if(path==='/api/payments/fee-expiry')return json({result:await endFeeAuthorization(env.DB,actor!,p)})
+   if(path==='/api/payments/fee-recollection')return json({result:await requestFeeRecollection(env.DB,actor!,p)})
    if(path==='/api/payments/fee-policy')return json({result:await createFeePolicy(env.DB,actor!,p)})
    if(path==='/api/payments/fee-consent')return json({result:await recordFeeConsent(env,actor!,p)})
    if(path==='/api/payments/fee-preview')return json({result:await previewFee(env.DB,actor!,p)})
@@ -354,6 +356,8 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(p.command==='payment.link')return json({result:await issuePaymentLink(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.sync')return json({result:await syncPaymentRequest(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.charge-sync')return json({result:await synchronizeRefundCharge(env.DB,actor!,p.payload??{},env.STRIPE_SECRET_KEY)})
+   if(p.command==='payment.fee-expiry')return json({result:await endFeeAuthorization(env.DB,actor!,p.payload??{})})
+   if(p.command==='payment.fee-recollection')return json({result:await requestFeeRecollection(env.DB,actor!,p.payload??{})})
    if(p.command==='payment.fee-policy')return json({result:await createFeePolicy(env.DB,actor!,p.payload??{})})
    if(p.command==='payment.fee-consent')return json({result:await recordFeeConsent(env,actor!,p.payload??{})})
    if(p.command==='payment.fee-preview')return json({result:await previewFee(env.DB,actor!,p.payload??{})})

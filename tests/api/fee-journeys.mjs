@@ -152,3 +152,46 @@ test('Fee archives preserve auditable decisions without payment authority, and g
   await feeApi(h,'fees',decision,{status:409});assert.equal(edge.intents.size,1)
  }finally{await Promise.all([h.close(),copy.close()])}
 })
+
+
+test('Finite fee authority expires without claiming held funds, assigns renewed collection once, and cannot revive through previews or restore',async()=>{
+ const edge=feeEdge(),h=await configured(edge),copy=await configured(edge)
+ try{
+  const {service}=await feeService(h),booking=await feeBooking(h,service),policy=await feeApi(h,'fee-policy',feePolicyInput()),manager=await h.signIn('synthetic-placemat-manager@example.test','admin')
+  const {consent,payload}=await consentBooking(h,edge,booking,policy)
+  assert.equal(consent.expiresAt,service.endAt);assert.equal(consent.protection,'unproved');assert.equal(consent.fundsHeldCents,0)
+  for(const path of ['fee-expiry','fee-recollection']){
+   await feeApi(h,path,{bookingId:booking.id},{as:'',status:401})
+   await feeApi(h,path,{bookingId:booking.id},{as:manager,status:403})
+   await h.command('payment.'+path,{bookingId:booking.id},{as:manager,status:403})
+  }
+  await feeApi(h,'fee-recollection',{bookingId:booking.id},{status:409})
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(service.startAt)),sheet='/api/preshift?date='+date
+  const ownerSheet=await h.api(sheet),authorization=ownerSheet.services[0].bookings[0].feeAuthorizations[0]
+  assert.equal(authorization.protection,'unproved');assert.equal(authorization.authorizationState,'current')
+  assert.deepEqual((await h.api(sheet,undefined,{as:manager})).services[0].bookings[0].feeAuthorizations,[])
+  const expired=await feeApi(h,'fee-expiry',{bookingId:booking.id})
+  assert.equal(expired.authorizationState,'expired');assert.equal(expired.recollection.ownerId,consent.actorId)
+  const [requested,again]=await Promise.all([feeApi(h,'fee-recollection',{bookingId:booking.id}),feeApi(h,'fee-recollection',{bookingId:booking.id})])
+  assert.equal(requested.recollection.requestedAt,again.recollection.requestedAt)
+  assert.equal(requested.expiresAt,expired.expiresAt);assert.equal(requested.protection,'unproved');assert.equal(edge.intents.size,0)
+  for(const door of ['/preshift?date='+date,'/api/preshift.pdf?date='+date]){
+   const text=await (await h.request(door)).text();assert.ok(text.includes('expired'));assert.ok(text.includes('No funds held'));assert.ok(text.includes('Renewed collection: requested'))
+   const denied=await (await h.request(door,{as:manager})).text();assert.ok(!denied.includes('Fee authorization:')&&!denied.includes(consent.id))
+  }
+  const audit=await h.api('/api/audit');assert.equal(audit.rows.filter(e=>e.action==='payment.fee-recollection').length,1)
+  await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'Guest cancellation after authorization ended.'})
+  const preview=await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'late_cancel'})
+  assert.equal(preview.authorizationCurrent,false);assert.equal(preview.chargeAllowed,false);assert.equal(preview.executionReady,false)
+  await feeApi(h,'fees',feeDecision(preview),{status:409});assert.equal(edge.intents.size,0)
+  const archive=await h.api('/api/backup');await copy.api('/api/restore',{archive,confirm:'RESTORE'})
+  const restored=(await copy.api('/api/state')).feeWork.consents[0];assert.equal(restored.authorizationState,'expired');assert.equal(restored.expiresAt,expired.expiresAt)
+  assert.ok((await (await h.request('/api/business-export/fee-consents.csv')).text()).includes('recollection_requested_at'))
+  assert.ok(!JSON.stringify(archive).includes(payload.setupIntentId))
+  await h.command('guest.erase',{guestId:booking.guestId,confirm:'ERASE'})
+  assert.ok(!(await (await h.request('/preshift?date='+date)).text()).includes('Fee authorization:'))
+  await feeApi(h,'fee-recollection',{bookingId:booking.id},{status:409})
+  const retained=JSON.stringify(await h.api('/api/backup'))+JSON.stringify(await h.api('/api/audit'))
+  assert.ok(!retained.includes(payload.evidence));assert.equal(h.messages.length,1,'Only the explicit manager invitation sent mail; recollection never sends')
+ }finally{await Promise.all([h.close(),copy.close()])}
+})

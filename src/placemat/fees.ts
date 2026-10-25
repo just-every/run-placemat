@@ -7,7 +7,7 @@ type Credentials={consent_id:string;customer_id:string;payment_method_id:string;
 type Preview={id:string;booking_id:string;policy_id:string;consent_id:string|null;actor_id:string;created_at:string;expires_at:string;floor_version:number;data:string}
 type Assessment={id:string;request_id:string;booking_id:string;service_id:string;policy_id:string;consent_id:string|null;preview_id:string;kind:'late_cancel'|'no_show';event_id:string;amount_cents:number;action:'charge'|'waive';status:'pending'|'succeeded'|'failed'|'waived';actor_id:string;reason:string;evidence:string;processor_id:string|null;charge_id:string|null;created_at:string;updated_at:string;processing_until:number}
 const receipt=(r:Assessment)=>({id:r.id,requestId:r.request_id,bookingId:r.booking_id,serviceId:r.service_id,policyId:r.policy_id,consentId:r.consent_id,previewId:r.preview_id,kind:r.kind,eventId:r.event_id,amountCents:r.amount_cents,currency:'usd',action:r.action,status:r.status,actorId:r.actor_id,reason:r.reason,evidence:r.evidence,processorId:r.processor_id,chargeId:r.charge_id,createdAt:r.created_at,updatedAt:r.updated_at})
-const consentView=(c:FeeConsent)=>({id:c.id,bookingId:c.booking_id,policyId:c.policy_id,actorId:c.actor_id,acceptedAt:c.accepted_at,recordedAt:c.recorded_at,evidence:c.evidence,bookingSnapshot:JSON.parse(c.booking_snapshot),reviewText:c.review_text,source:'owner-attested' as const})
+export const consentView=(c:FeeConsent)=>({id:c.id,bookingId:c.booking_id,policyId:c.policy_id,actorId:c.actor_id,acceptedAt:c.accepted_at,recordedAt:c.recorded_at,evidence:c.evidence,bookingSnapshot:JSON.parse(c.booking_snapshot),reviewText:c.review_text,expiresAt:c.expires_at,authorizationState:Date.parse(c.expires_at)>Date.now()?'current' as const:'expired' as const,protection:'unproved' as const,fundsHeldCents:0,recollection:Date.parse(c.expires_at)<=Date.now()?{ownerId:c.actor_id,dueAt:c.expires_at,requestedAt:c.recollection_requested_at,nextAction:'Obtain fresh guest agreement and a new hosted card collection; no message has been sent.'}:null,source:'owner-attested' as const})
 const previewView=(p:Preview)=>({...JSON.parse(p.data),id:p.id,bookingId:p.booking_id,policyId:p.policy_id,consentId:p.consent_id,actorId:p.actor_id,createdAt:p.created_at,expiresAt:p.expires_at})
 const consentFor=(db:D1Database,bookingId:string)=>db.prepare('SELECT * FROM pm_fee_consents WHERE booking_id=?').bind(bookingId).first<FeeConsent>()
 const credentialFor=(db:D1Database,consentId:string)=>db.prepare('SELECT * FROM pm_fee_credentials WHERE consent_id=?').bind(consentId).first<Credentials>()
@@ -34,8 +34,11 @@ export async function recordFeeConsent(env:FeeBindings,actor:Actor,p:any){
  if(await consentFor(env.DB,bookingId))fail(409,'This reservation already has immutable fee consent. Review its agreed policy.')
  const setup=await stripe(env,'setup_intents/'+encodeURIComponent(setupId))
  if(setup?.object!=='setup_intent'||setup.id!==setupId||setup.status!=='succeeded'||setup.usage!=='off_session'||typeof setup.customer!=='string'||!setup.customer||typeof setup.payment_method!=='string'||!setup.payment_method||setup.metadata?.placemat_booking_id!==bookingId||setup.metadata?.placemat_policy_id!==policy.id)fail(409,'Stripe must confirm a successful off-session SetupIntent with this reservation and exact policy metadata.')
- const consentId=id(),now=new Date().toISOString(),view={id:consentId,bookingId,policyId:policy.id,actorId:actor.id,acceptedAt,recordedAt:now,evidence,bookingSnapshot:bookingTerms(booking),reviewText:policy.reviewText,source:'owner-attested'}
- await feeCommit(env.DB,actor,version,[env.DB.prepare('INSERT INTO pm_fee_consents(id,booking_id,policy_id,actor_id,accepted_at,recorded_at,evidence,booking_snapshot,review_text) VALUES(?,?,?,?,?,?,?,?,?)').bind(consentId,bookingId,policy.id,actor.id,acceptedAt,now,evidence,JSON.stringify(bookingTerms(booking)),policy.reviewText),env.DB.prepare('INSERT INTO pm_fee_credentials(consent_id,customer_id,payment_method_id,setup_intent_id) VALUES(?,?,?,?)').bind(consentId,setup.customer,setup.payment_method,setupId),feeEvent(env.DB,actor,'payment.fee-consent',consentId,view,bookingId)])
+ const service=state.services.find(s=>s.id===booking.serviceId)??fail(409,'Reservation service not found.')
+ const expiresAt=p.expiresAt===undefined?service.endAt:iso(p.expiresAt,'Authorization expiry')
+ if(Date.parse(expiresAt)<=Date.now()||Date.parse(expiresAt)>Date.parse(service.endAt))fail(400,'Authorization expiry must be in the future and no later than service end.')
+ const consentId=id(),now=new Date().toISOString(),view={id:consentId,bookingId,policyId:policy.id,actorId:actor.id,acceptedAt,recordedAt:now,evidence,bookingSnapshot:bookingTerms(booking),reviewText:policy.reviewText,expiresAt,authorizationState:'current',protection:'unproved',fundsHeldCents:0,recollection:null,source:'owner-attested'}
+ await feeCommit(env.DB,actor,version,[env.DB.prepare('INSERT INTO pm_fee_consents(id,booking_id,policy_id,actor_id,accepted_at,recorded_at,evidence,booking_snapshot,review_text,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(consentId,bookingId,policy.id,actor.id,acceptedAt,now,evidence,JSON.stringify(bookingTerms(booking)),policy.reviewText,expiresAt),env.DB.prepare('INSERT INTO pm_fee_credentials(consent_id,customer_id,payment_method_id,setup_intent_id) VALUES(?,?,?,?)').bind(consentId,setup.customer,setup.payment_method,setupId),feeEvent(env.DB,actor,'payment.fee-consent',consentId,view,bookingId)])
  return view
 }
 
@@ -45,8 +48,9 @@ export async function feeConsequences(db:D1Database,bookingId:string,kind:unknow
  if(!policy)return {bookingId,kind:feeKind(kind),policyId:null,amountCents:0,chargeAllowed:false,reviewRequired:true,note:'No fee policy or recorded guest consent exists.'}
  const calculation=feeCalculation(state,booking,policy,feeKind(kind),iso(at,'Violation time'),exemptionCode),binding=!!consent&&consent.booking_snapshot===JSON.stringify(bookingTerms(booking)),credentials=consent?await credentialFor(db,consent.id):null
  const beforeObservation=!!consent&&Date.parse(consent.recorded_at)<=Date.parse(calculation.occurredAt)&&Date.parse(consent.accepted_at)<=Date.parse(calculation.occurredAt)
- const chargeAllowed=binding&&beforeObservation&&!!credentials&&calculation.amountCents>=50
- return {...calculation,consentId:consent?.id??null,consentRecorded:binding,beforeObservation,executionReady:!!credentials,chargeAllowed,reviewRequired:!binding||!beforeObservation||!credentials,reviewText:policy.reviewText,note:!binding?'No matching guest consent: owner review required.':!credentials?'Historical consent has no execution credentials; no charge is authorized.':'An explicit owner decision is required; this preview takes no money.'}
+ const authorizationCurrent=!!consent&&Date.parse(consent.expires_at)>Date.now()&&Date.parse(calculation.occurredAt)<Date.parse(consent.expires_at)
+ const chargeAllowed=binding&&beforeObservation&&authorizationCurrent&&!!credentials&&calculation.amountCents>=50
+ return {...calculation,consentId:consent?.id??null,consentRecorded:binding,beforeObservation,authorizationCurrent,authorizationExpiresAt:consent?.expires_at??null,executionReady:!!credentials&&authorizationCurrent,chargeAllowed,reviewRequired:!binding||!beforeObservation||!credentials||!authorizationCurrent,reviewText:policy.reviewText,note:!binding?'No matching guest consent: owner review required.':!authorizationCurrent?'Fee authorization expired. Fresh guest agreement and card collection are required; no protection is claimed.':!credentials?'Historical consent has no execution credentials; no charge is authorized.':'An explicit owner decision is required; this preview takes no money.'}
 }
 
 /** Preview uses a recorded terminal event when present, otherwise shows only a hypothetical consequence. */
@@ -100,6 +104,8 @@ export async function assessFee(env:FeeBindings,actor:Actor,p:any){
  assessment=locked
  try{
   await feeAuthority(env.DB,actor)
+  const consent=await consentFor(env.DB,assessment.booking_id)
+  if(!assessment.processor_id&&(!consent||Date.parse(consent.expires_at)<=Date.now()))fail(409,'Fee authorization expired. No new processor attempt is permitted; reconcile any earlier unconfirmed attempt manually.')
   const form=new URLSearchParams({amount:String(assessment.amount_cents),currency:'usd',customer:credentials.customer_id,payment_method:credentials.payment_method_id,confirm:'true',off_session:'true','allowed_payment_method_types[0]':'card','metadata[placemat_fee_id]':assessment.id,'metadata[placemat_booking_id]':assessment.booking_id,'metadata[placemat_policy_id]':assessment.policy_id,'expand[0]':'latest_charge'})
   const result=assessment.processor_id?await stripe(env,'payment_intents/'+encodeURIComponent(assessment.processor_id)+'?expand[]=latest_charge'):await stripe(env,'payment_intents',form,'placemat-fee-'+assessment.id)
   if(result?.object!=='payment_intent'||typeof result.id!=='string'||!result.id||assessment.processor_id&&assessment.processor_id!==result.id||result.currency!=='usd'||result.amount!==assessment.amount_cents||result.customer!==credentials.customer_id||result.payment_method!==credentials.payment_method_id||result.metadata?.placemat_fee_id!==assessment.id||result.metadata?.placemat_booking_id!==assessment.booking_id||result.metadata?.placemat_policy_id!==assessment.policy_id||!['succeeded','processing','requires_action','requires_payment_method','canceled','requires_confirmation','requires_capture'].includes(result.status))fail(502,'Stripe fee confirmation did not match the saved decision. The violation remains reserved.')
@@ -129,4 +135,33 @@ export async function feeAudit(db:D1Database,actor:Actor){
  await feeAuthority(db,actor)
  const rows=await db.prepare('SELECT * FROM pm_fee_events ORDER BY at,id').all<{id:string;booking_id:string|null;actor_id:string;at:string;action:string;subject_id:string;before_data:string|null;after_data:string}>()
  return rows.results.map(e=>({id:'fee-'+e.id,at:e.at,actor:e.actor_id,action:e.action,subject:e.booking_id??e.subject_id,source:'person' as const,changes:[{kind:'fees',id:e.subject_id,before:e.before_data?JSON.parse(e.before_data):null,after:JSON.parse(e.after_data)}]}))
+}
+
+/** A saved card never implies indefinite authority. Expiry only shortens; reads never send. */
+export async function endFeeAuthorization(db:D1Database,actor:Actor,p:any){
+ await feeAuthority(db,actor)
+ const bookingId=text(p.bookingId,'Reservation'),consent=await consentFor(db,bookingId)??fail(404,'Recorded fee agreement not found.'),{version}=await load(db)
+ const now=new Date().toISOString(),before=consentView(consent)
+ if(Date.parse(consent.expires_at)<=Date.now())return before
+ await feeCommit(db,actor,version,[db.prepare('UPDATE pm_fee_consents SET expires_at=? WHERE id=? AND expires_at>?').bind(now,consent.id,now),feeEvent(db,actor,'payment.fee-expiry',consent.id,{...before,expiresAt:now,authorizationState:'expired'},bookingId,before,'expiry-'+consent.id)])
+ return consentView((await consentFor(db,bookingId))!)
+}
+export async function requestFeeRecollection(db:D1Database,actor:Actor,p:any){
+ await feeAuthority(db,actor)
+ const bookingId=text(p.bookingId,'Reservation'),consent=await consentFor(db,bookingId)??fail(404,'Recorded fee agreement not found.'),{state,version}=await load(db)
+ const booking=state.bookings.find(b=>b.id===bookingId)??fail(404,'Reservation not found.')
+ if(booking.status!=='booked'||Date.parse(booking.startAt)<=Date.now())fail(409,'Renewed collection requires an upcoming active reservation.')
+ const guest=await db.prepare('SELECT data FROM pm_guests WHERE id=?').bind(booking.guestId).first<{data:string}>()
+ if(!guest||JSON.parse(guest.data).erased)fail(409,'An erased guest cannot receive a recollection request.')
+ if(Date.parse(consent.expires_at)>Date.now())fail(409,'End the current authorization before requesting renewed collection.')
+ if(consent.recollection_requested_at)return consentView(consent)
+ const now=new Date().toISOString()
+ await feeCommit(db,actor,version,[db.prepare('UPDATE pm_fee_consents SET recollection_requested_at=? WHERE id=? AND recollection_requested_at IS NULL').bind(now,consent.id),feeEvent(db,actor,'payment.fee-recollection',consent.id,{ownerId:consent.actor_id,requestedAt:now,nextAction:'Obtain fresh guest agreement and hosted card collection',delivery:'not-sent'},bookingId,null,'recollection-'+consent.id)])
+ return consentView((await consentFor(db,bookingId))!)
+}
+/** Only the personal owner receives agreement details. No held funds are inferred from setup. */
+export async function feeAuthorizations(db:D1Database,actor:Actor){
+ if(actor.role!=='owner'||actor.agent||actor.deviceId)return []
+ await feeAuthority(db,actor)
+ return (await db.prepare('SELECT * FROM pm_fee_consents ORDER BY recorded_at,id').all<FeeConsent>()).results.map(consentView)
 }

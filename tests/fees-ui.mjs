@@ -3,7 +3,7 @@ import {mkdir} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {chromium,expect} from '@playwright/test'
 import {installation} from './api/harness.mjs'
-import {feeEdge,feeService} from './api/fee-fixture.mjs'
+import {feeEdge,feeService,feeBooking} from './api/fee-fixture.mjs'
 import {browserServer} from './browser-server.mjs'
 // HTML datetime-local values omit insignificant fractional zeros and zero seconds.
 const localTimestamp=date=>date.toISOString().slice(0,-1).replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,'').replace(/:00$/,'')
@@ -23,12 +23,24 @@ for(const width of [1440,390]){
   for(const [name,value]of Object.entries({cutoffDaysBefore:'30',cutoffLocalTime:'18:00',graceMinutes:'0',cancellationCents:'2000',noShowCents:'8000',terms:'A late cancellation is $20 per guest; every fee is reviewed by the owner.'}))await policyForm.locator(`[name="${name}"]`).fill(value);
   await policyForm.locator('[name=cancellationMode]').selectOption('per_person');await shot('policy-review');
   await policyForm.getByRole('button',{name:'Publish new fee policy',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
-  const policy=(await h.api('/api/state')).feeWork.policies[0];
-  for(const booking of bookings){
+  const policy=(await h.api('/api/state')).feeWork.policies[0],authorizationBooking=await feeBooking(h,service,3);
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor();
+  for(const booking of [...bookings,authorizationBooking]){
    await root.getByText('Record agreed fee policy',{exact:true}).click();const consent=root.locator('[data-command="payment.fee-consent"]');await consent.locator('[name=bookingId]').selectOption(booking.id);await consent.locator('[name=acceptedAt]').fill(localTimestamp(new Date()));await consent.locator('[name=evidence]').fill('Guest agreed to this exact policy during the recorded reservation call.');await consent.locator('[name=setupIntentId]').fill(edge.setup(booking.id,policy.id));await consent.locator('[name=attest]').check();await shot('recorded-agreement-review');await consent.getByRole('button',{name:'Record fee consent',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
-   await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'Guest canceled after the agreed deadline.'});
+   if(booking.id!==authorizationBooking.id)await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'Guest canceled after the agreed deadline.'});
   }
   await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor();
+  const authorization=(await h.api('/api/state')).feeWork.consents.find(c=>c.bookingId===authorizationBooking.id),agreement=root.locator(`[data-fee-consent="${authorization.id}"]`);
+  await agreement.locator('summary').click();await expect(agreement).toContainText('Authorization current');await expect(agreement).toContainText('No funds held');await shot('finite-authorization');
+  await agreement.getByRole('button',{name:'End fee authorization',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
+  await agreement.locator('summary').click();await expect(agreement).toContainText('Authorization expired');await agreement.getByRole('button',{name:'Request renewed collection',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
+  await agreement.locator('summary').click();await expect(agreement).toContainText('Renewed collection requested');await expect(agreement).toContainText('no message has been sent');await shot('expired-recollection');
+  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(service.startAt));
+  await page.goto(transport.origin+'/preshift?date='+date);const sheet=page.getByRole('article',{name:'Pre-shift sheet'});await expect(sheet).toContainText('Fee authorization: expired');await expect(sheet).toContainText('Renewed collection: requested');await expect(sheet).toContainText('No funds held');
+  if(shots)await page.screenshot({path:resolve(shots,`PAY-003-sheet-${width}.png`),fullPage:true});
+  await page.emulateMedia({media:'print'});await expect(sheet).toContainText('Fee authorization: expired');if(shots)await page.screenshot({path:resolve(shots,`PAY-003-print-${width}.png`),fullPage:true});await page.emulateMedia({media:'screen'});
+  const sheetPdf=await (await h.request('/api/preshift.pdf?date='+date)).text();assert.ok(sheetPdf.includes('Fee authorization: expired')&&sheetPdf.includes('No funds held'));
+  await page.goto(transport.origin+'/app');await page.locator('.app-main[aria-busy=false]').waitFor();
   for(const [i,booking]of bookings.entries()){
    await root.getByText('Review reservation fee',{exact:true}).click();const preview=root.locator('[data-command="payment.fee-preview"]');await preview.locator('[name=bookingId]').selectOption(booking.id);await preview.getByRole('button',{name:'Preview fee',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();
    const decision=root.locator('[data-fee-preview] [data-command="payment.fee"]').last();await decision.locator('[name=action]').selectOption(i?'waive':'charge');await decision.locator('[name=reason]').fill(i?'Owner waived the cancellation fee after reviewing the guest request.':'The recorded cancellation was after the agreed cutoff.');await decision.locator('[name=evidence]').fill('Prior policy agreement and recorded cancellation reviewed.');await shot(i?'waiver-preview':'charge-preview');if(!i)edge.loseNextConfirmation();await decision.getByRole('button',{name:'Confirm fee decision',exact:true}).click();if(!i){await page.getByRole('alert').filter({hasText:'Stripe did not confirm the fee'}).waitFor();await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor();await shot('pending-owned-fee');await root.getByRole('button',{name:'Reconcile saved fee',exact:true}).click();}await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();await shot(i?'waived':'charged');

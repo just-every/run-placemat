@@ -3,11 +3,12 @@ import {notesFor} from './service-notes'
 import {fail,type Actor,type Guest,type State} from './model'
 import {pacingReport} from './pacing'
 import {textPdf,type PdfLine} from './pdf'
+import type {consentView} from './fees'
 import type {PaymentAlert} from './payment-links'
 
 export const serviceDate=(instant:string,timezone:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(instant))
 /** This is the sole projection used by JSON, HTML, print and PDF. No raw state or guest is returned. */
-export function preshift(state:State,guests:Guest[],actor:Actor,date:string,generatedAt=new Date().toISOString(),names:Record<string,string>={},paymentRequests:PaymentAlert[]=[]){
+export function preshift(state:State,guests:Guest[],actor:Actor,date:string,generatedAt=new Date().toISOString(),names:Record<string,string>={},paymentRequests:PaymentAlert[]=[],authorizations:ReturnType<typeof consentView>[]=[]){
  if(actor.agent||!['owner','admin','host','server'].includes(actor.role))fail(403,'The pre-shift sheet is for managers, owner-granted hosts and signed-in servers.')
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T12:00:00Z'))||new Date(date+'T12:00:00Z').toISOString().slice(0,10)!==date)fail(400,'Choose a valid service date.')
  const manager=actor.role==='owner'||actor.role==='admin',server=actor.role==='server'
@@ -25,7 +26,7 @@ export function preshift(state:State,guests:Guest[],actor:Actor,date:string,gene
    // Only the server's verified paid state establishes protection. Keep payment
    // links, money and follow-up identities out of this shared host projection.
    const payments=server?[]:paymentRequests.filter(p=>p.bookingId===b.id).map(p=>({state:p.state,dueAt:p.dueAt,protection:p.state==='paid'?'protected' as const:'pending' as const}))
-   return {...shape,needLines:needLines(b,names),name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
+   return {...shape,needLines:needLines(b,names),name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,feeAuthorizations:actor.role==='owner'&&!actor.deviceId?authorizations.filter(c=>c.bookingId===b.id):[],...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
   })}
  })}
 }
@@ -56,6 +57,10 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
    for(const payment of b.paymentRequests){
     add(`Deposit: ${payment.state} | ${payment.protection==='protected'?'Protected (provider verified)':'Protection pending (unprotected)'}`)
     add(`Deposit deadline: ${time(payment.dueAt)}`)
+   }
+   for(const consent of b.feeAuthorizations){
+    add(`Fee authorization: ${consent.authorizationState} | expires ${time(consent.expiresAt)} | No funds held; guarantee protection unproved`)
+    if(consent.recollection)add(`Renewed collection: ${consent.recollection.requestedAt?'requested':'review required'} | owner ${consent.recollection.ownerId} | ${consent.recollection.nextAction}`)
    }
    for(const line of b.needLines)add(line)
    if(b.occasion)add(`Occasion: ${b.occasion}`)

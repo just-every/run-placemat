@@ -5,7 +5,7 @@ import {load} from './store'
 export type FeeRule={mode:'fixed'|'per_person';amountCents:number}
 export type FeePolicy={id:string;version:number;timezone:string;cutoffDaysBefore:number;cutoffLocalTime:string;cutoffOffset?:string;graceMinutes:number;cancellation:FeeRule;noShow:FeeRule;exemptions:Array<{code:string;label:string}>;requiredEvidence:string[];terms:string;reviewText:string;createdBy:string;createdAt:string}
 export type FeePolicyRow={id:string;version:number;created_by:string;created_at:string;data:string}
-export type FeeConsent={id:string;booking_id:string;policy_id:string;actor_id:string;accepted_at:string;recorded_at:string;evidence:string;booking_snapshot:string;review_text:string}
+export type FeeConsent={id:string;booking_id:string;policy_id:string;actor_id:string;accepted_at:string;recorded_at:string;evidence:string;booking_snapshot:string;review_text:string;expires_at:string;recollection_requested_at:string|null}
 export type FeeKind='late_cancel'|'no_show'
 export const bookingTerms=(b:Booking)=>({bookingId:b.id,serviceId:b.serviceId,guestId:b.guestId,startAt:b.startAt,partySize:b.partySize})
 export const policyFromRow=(r:FeePolicyRow):FeePolicy=>({...JSON.parse(r.data),id:r.id,version:r.version,createdBy:r.created_by,createdAt:r.created_at})
@@ -18,8 +18,8 @@ export async function feeAuthority(db:D1Database,actor:Actor){
  if(actor.agent||actor.deviceId||actor.role!=='owner')fail(403,'Fee decisions require a full owner session.')
  if(!await db.prepare("SELECT id FROM oa_operators WHERE id=? AND status='active' AND role='owner'").bind(actor.id).first())fail(403,'Active owner fee authority is required.')
 }
-export function feeEvent(db:D1Database,actor:Actor,action:string,subject:string,after:unknown,bookingId:string|null=null,before:unknown=null){
- return db.prepare('INSERT INTO pm_fee_events(id,booking_id,actor_id,at,action,subject_id,before_data,after_data) VALUES(?,?,?,?,?,?,?,?)').bind(id(),bookingId,actor.id,new Date().toISOString(),action,subject,before===null?null:JSON.stringify(before),JSON.stringify(after))
+export function feeEvent(db:D1Database,actor:Actor,action:string,subject:string,after:unknown,bookingId:string|null=null,before:unknown=null,eventId?:string){
+ return db.prepare(`${eventId?'INSERT OR IGNORE':'INSERT'} INTO pm_fee_events(id,booking_id,actor_id,at,action,subject_id,before_data,after_data) VALUES(?,?,?,?,?,?,?,?)`).bind(eventId??id(),bookingId,actor.id,new Date().toISOString(),action,subject,before===null?null:JSON.stringify(before),JSON.stringify(after))
 }
 /** Authority and floor revision are checked in the same transaction as each owner decision. */
 export async function feeCommit(db:D1Database,actor:Actor,version:number,statements:D1PreparedStatement[]){
