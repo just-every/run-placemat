@@ -25,6 +25,7 @@ for(const width of [1440,390]){
     assert.equal(await file.failure(),null,'DATA-003: CSV download completes')
     return csvRecords(await readFile(await file.path(),'utf8'))
    }
+   for(const kind of ['money-items','money-receipts','money-payouts','money-adjustments'])assert.equal((await download(kind)).length,0,'Empty ledger exports are available through the owner download controls')
    const guests=await download('guests'),guest=guests.find(row=>row.id===fixture.guest)
    assert.equal(guest.name,'Alex "Cedar", Rowan');assert.match(guest.notes,/^'=SUM/)
    const bookings=await download('bookings');assert.ok(bookings.some(row=>row.id===fixture.online.id&&row.guestId===guest.id))

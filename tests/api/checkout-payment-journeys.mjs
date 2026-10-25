@@ -87,3 +87,29 @@ test('Checkout preparation fences cancellation before its provider call; process
   await cancel(h,never.booking);await h.command('payment.link',{requestId:never.request.requestId},{status:409});assert.equal(edge.sessions.size,before)
  }finally{release?.();await h.close()}
 })
+
+test('Per-person deposits retain the original guest scope, reject conflicting totals and disclose exact hosted terms',async()=>{
+ const edge=checkoutEdge(),h=await installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
+ try{
+  const {service:s}=await service(h,{tables:2,seats:4,covers:8}),owner=(await h.api('/api/state')).actor
+  const booking=(await h.api('/api/public/book',publicGuest(s,0,{partySize:4}),{as:'',status:201})).result
+  const input={bookingId:booking.id,perGuestCents:2500,dueAt:new Date(Date.now()+2*3600000).toISOString(),followupOwnerId:owner.id,reason:'Reviewed original party deposit'}
+  await h.command('payment.request',{...input,amountCents:2500},{status:400})
+  const request=await h.command('payment.request',input)
+  assert.equal(request.amountCents,10000);assert.equal(request.perGuestCents,2500);assert.equal(request.originalPartySize,4)
+  await h.command('payment.link',{requestId:request.requestId})
+  const form=edge.calls.find(c=>c.path==='/v1/checkout/sessions').body
+  assert.equal(form.get('line_items[0][price_data][unit_amount]'),'10000')
+  assert.match(form.get('custom_text[submit][message]'),/25.00 per guest for 4 guests/)
+  assert.match(form.get('custom_text[submit][message]'),/no transfer, top-up or general spending/)
+  edge.completeCheckout([...edge.sessions.keys()][0])
+  for(let i=0;i<2;i++)assert.equal((await h.command('payment.sync',{requestId:request.requestId})).state,'paid')
+  assert.equal(edge.sessions.size,1);assert.equal((await h.api('/api/state')).state.bookings.length,1)
+  const snapshot=await h.api('/api/backup'),restored=await installation()
+  try{
+   await restored.api('/api/restore',{archive:snapshot,confirm:'RESTORE'})
+   const row=(await restored.api('/api/state')).paymentRequests[0]
+   assert.equal(row.amountCents,10000);assert.equal(row.originalPartySize,4);assert.equal(row.perGuestCents,2500)
+  }finally{await restored.close()}
+ }finally{await h.close()}
+})

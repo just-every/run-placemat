@@ -27,6 +27,7 @@ export async function validatePayments(state,read,erasedGuestIds=new Set()){
  const paymentBookings=new Set(),sessions=new Set()
  for(const row of payments){
   if(!bookings.has(row.booking_id)||paymentBookings.has(row.booking_id)||!money(row.amount_cents,50)||row.currency!=='usd'||!instant(row.due_at)||!instant(row.created_at)||Date.parse(row.due_at)<=Date.parse(row.created_at)||!string(row.created_by)||!string(row.followup_owner_id)||typeof row.reason!=='string'||!['unpaid','paid','expired','exception'].includes(row.state)||!nullable(row.provider_attempt_at,instant)||!nullable(row.provider_session_id,string)||!nullable(row.verified_at,instant)||!nullable(row.paid_at,instant))throw bad('Invalid payment request')
+  if(row.per_guest_cents!=null&&(!money(row.per_guest_cents,50)||!Number.isSafeInteger(row.original_party_size)||row.original_party_size<1||row.original_party_size>100||row.per_guest_cents*row.original_party_size!==row.amount_cents)||row.per_guest_cents==null&&row.original_party_size!=null)throw bad('Invalid original deposit scope')
   // Hosted Checkout URLs grant payment access and must be absent from portable archives.
   if(row.provider_url!==null&&row.provider_url!==undefined)throw bad('Nonportable payment link')
   if(row.provider_attempt_at?!returnUrl(row.provider_return_url):row.provider_return_url!=null||row.provider_session_id!=null)throw bad('Invalid payment attempt')

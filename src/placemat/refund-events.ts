@@ -8,7 +8,7 @@ const reply=(status:number,result:Record<string,unknown>)=>Response.json(result,
 const identifier=(v:unknown):v is string=>typeof v==='string'&&v.length>0&&v.length<=255
 
 /** Verify bytes before parsing. Stripe signs timestamp + '.' + the unmodified request body. */
-async function signed(request:Request,secret:string):Promise<Uint8Array|null>{
+export async function verifyStripeEventBytes(request:Request,secret:string):Promise<Uint8Array|null>{
  const parts=(request.headers.get('stripe-signature')??'').split(',').map(p=>p.trim().split('='))
  const timestamps=parts.filter(([key])=>key==='t'),timestamp=timestamps[0]?.[1]
  if(timestamps.length!==1||!timestamp||!/^\d+$/.test(timestamp)||!Number.isSafeInteger(Number(timestamp))||Math.abs(Date.now()/1000-Number(timestamp))>300)return null
@@ -41,7 +41,7 @@ export async function refundWebhook(env:RefundWebhookBindings,request:Request):P
  if(request.method!=='POST')return reply(405,{error:'Method not allowed.'})
  if(!env.STRIPE_WEBHOOK_SECRET)return reply(503,{error:'Refund event verification is not configured.'})
  let raw:Uint8Array|null
- try{raw=await signed(request,env.STRIPE_WEBHOOK_SECRET)}catch{return reply(400,{error:'Invalid refund event signature.'})}
+ try{raw=await verifyStripeEventBytes(request,env.STRIPE_WEBHOOK_SECRET)}catch{return reply(400,{error:'Invalid refund event signature.'})}
  if(!raw)return reply(400,{error:'Invalid refund event signature.'})
  let event:any
  try{event=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw))}catch{return reply(400,{error:'Invalid refund event.'})}

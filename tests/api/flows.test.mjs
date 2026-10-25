@@ -868,3 +868,5 @@ test('Scoped signed reservation events retain failures and explicitly replay one
   await h.api('/api/v1/events',undefined,{...opts,status:401});assert.equal(delivered.length,2)
  }finally{await h.close()}
 })
+
+import './money-ledger-journeys.mjs'

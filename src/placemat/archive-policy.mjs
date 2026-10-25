@@ -1,3 +1,4 @@
+import {validateMoneyLedger} from './money-ledger-archive.mjs'
 import {validateMerchantCollections} from './stripe-merchant-archive.mjs'
 import {validateCosts} from './costs-archive.mjs'
 import {validatePrivacy} from './privacy/archive.mjs'
@@ -54,6 +55,7 @@ export default {
  requiredConfiguration:['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM'],
  async validateStaged({read}) {
   const rows=await read('pm_state'),guests=await read('pm_guests'),reports=await read('pm_performance_reports')
+  await validateMoneyLedger(read,rows)
   await validateMerchantCollections(read,guests,rows)
   await validatePrivacy(read,guests)
   await validateCosts(read)

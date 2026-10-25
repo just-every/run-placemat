@@ -1,3 +1,4 @@
+import {moneyWebhook,readMoneyLedger,importPayout,adjustMoneyLedger} from './money-ledger'
 import {scheduledReportResponse} from './scheduled-reports'
 import {readGuarantees,issueGuarantee,endGuarantee,guestGuarantee} from './card-guarantees'
 import {readMerchant,connectMerchant,disconnectMerchant,collectMerchantCard,syncMerchantCard} from './stripe-merchant'
@@ -72,7 +73,7 @@ import {filterMergeAudit,readMergeJournal} from './guest-merge-store'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
-const paths=new Set(['/api/payments/guarantees','/api/payments/guarantees/issue','/api/payments/guarantees/end','/api/payments/merchant','/api/payments/merchant/connect','/api/payments/merchant/disconnect','/api/payments/merchant/collect','/api/payments/merchant/sync','/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/payments/ledger','/api/payments/ledger/payout','/api/payments/ledger/adjustment','/api/payments/guarantees','/api/payments/guarantees/issue','/api/payments/guarantees/end','/api/payments/merchant','/api/payments/merchant/connect','/api/payments/merchant/disconnect','/api/payments/merchant/collect','/api/payments/merchant/sync','/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
@@ -88,6 +89,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   return Response.json(projectAuthority(projectHandover(data,responseActor,visibleTaskIds),responseActor),{status,headers})
  }
+ if(path==='/api/payments/ledger-events')return moneyWebhook(env,request)
  if(path==='/api/payments/refund-events')return refundWebhook(env,request)
  if(!path.startsWith('/api/report-schedules')&&!path.startsWith('/api/report-deliveries/')&&path!=='/api/group-comparison'&&path!=='/api/report-export.csv'&&!path.startsWith('/api/public/card-guarantee/')&&!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
@@ -200,6 +202,15 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   const actor=await actorFor(request,env);responseActor=actor
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
   if(!['owner','admin','member','host','lead','server','finance','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(path.startsWith('/api/payments/ledger')){
+   if(path==='/api/payments/ledger'&&request.method==='GET')return json(await readMoneyLedger(env.DB,actor!))
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env)
+   const payload=await jsonBody(request)
+   if(path==='/api/payments/ledger/payout')return json(await importPayout(env,actor!,payload))
+   if(path==='/api/payments/ledger/adjustment')return json(await adjustMoneyLedger(env.DB,actor!,payload))
+   return json({error:'Method not allowed'},405)
+  }
   // A signed-in server reaches only their own pre-shift sheet and kitchen view; every other door is refused by default.
   if(actor!.role==='server'&&!actor!.agent){
    if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/preshift'}})
