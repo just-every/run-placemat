@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "24a286ffcff565adb1b0d1939079c24eb20a80c1a29a3e1170ad6fda4e78bbbf",
+      "sha256": "35f9928a2e3eb6efaecb26891b8aac8d76ca1180fe1ec25075c46a0f33bc3e7e",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c926fee0ceb913c9d7b3508f6cc67b1466cbb685934db95a1e404cf8ae3671f5",
+      "sha256": "43b2aef0e3426e093e7801767a2c3c8828a0177e04a99b702678a895612f71ce",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3866,7 +3866,7 @@
       "executable": false
     },
     "tests/api/flows.test.mjs": {
-      "sha256": "8772e9e17df9ef46172af51dd59e74b4af9ee861a4a02e56673fb04672264774",
+      "sha256": "d57c0e23db4b36dfe908c9f60617745a2f46f6bce2a931abc9128fe207bbdf7e",
       "executable": false
     },
     "tests/api/group.test.mjs": {
