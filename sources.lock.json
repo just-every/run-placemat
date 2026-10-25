@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f47ad4d86efc85ea637135ce1d93020e9d68eaebd5837f988773af1fe927f8d9",
+      "sha256": "b5927ff6f08adcf54d4a9e4dc8180a9090992db234939b70c9cd272d8230289c",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3e480effd4be88f5ebeeae9d6677a223dd58513a4ce4cb92e2e3dda2238d0d53",
+      "sha256": "e8c475c7f2efba987a630eb7ae613a0c525794ccffe867a1e37648dc9f9f51a1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "f5ddb31fe212b422869148ce850cd982567fadd6965decdd2757e9968202cf37",
+      "sha256": "e05e68e632a1f35287cca6641c4c541365eb98fcbba969ef95ecee50956b52ea",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -1167,6 +1167,10 @@
     },
     "scripts/refund-webhook-sandbox.mjs": {
       "sha256": "23b9769050578695f318164d6407d09fbb7ebc286aa9fa728610d66dcf14a1d2",
+      "executable": false
+    },
+    "scripts/report-schedule-sandbox.mjs": {
+      "sha256": "8fb2dfe9ef01c00ed3aedc385fe23808e05e8114f631faaee2ee1d0b717641dd",
       "executable": false
     },
     "scripts/verify-app.mjs": {
@@ -4010,7 +4014,7 @@
       "executable": false
     },
     "tests/api/report-schedule-fixture.mjs": {
-      "sha256": "7208ed0651122dbf21a2e399d174f362f21762a6377fd0c97626bc64a12bb1d0",
+      "sha256": "9358fe3d156f0cb52254af98a4c7efb2f8c7e96e548d1245b9ab753c66cb0dba",
       "executable": false
     },
     "tests/api/reports.test.mjs": {
