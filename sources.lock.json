@@ -701,6 +701,10 @@
       "sha256": "42d5d19e494ab72c578fd0296bb02bbe07b8767974b3a53e21d2a669f1280cc1",
       "executable": false
     },
+    "public/placemat-experiences.js": {
+      "sha256": "f2e1109dfaf0e8e1a4ea28990d9ec13dcc72d38194176199e389534c0372cf7e",
+      "executable": false
+    },
     "public/placemat-fees.js": {
       "sha256": "2bdd7affb926a5e65441f2d2dc84a5140dd005ae9a9875d9e197fad2e8317876",
       "executable": false
@@ -3294,7 +3298,7 @@
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "28c47d2f22eae49e4a288c7226d7070b4ece46bd0ec6ff06fcc4346fbffa7183",
+      "sha256": "a05c098b35f8058bac792a56e2ac914721531adfd8f43fd28dadd4b7f7d0f3b1",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3367,6 +3371,18 @@
     },
     "src/placemat/embed.ts": {
       "sha256": "e622790d250c68d553ee8709477cd5e7582c3c22f741ad8f08e9891677c76450",
+      "executable": false
+    },
+    "src/placemat/experience-fit.ts": {
+      "sha256": "b414469445c04a48c4e88bb392296ed9efc2f69a51d68bc0723c9cdae0452e42",
+      "executable": false
+    },
+    "src/placemat/experiences-archive.mjs": {
+      "sha256": "c632f07f267f7e1136832c836d3098d8508647db70473034759f8ac49f25351e",
+      "executable": false
+    },
+    "src/placemat/experiences.ts": {
+      "sha256": "8c560e372d5ba9aa3e4a2503c1e9ce086f151d887030dcd7ff48c8a48967ddde",
       "executable": false
     },
     "src/placemat/fee-archive.mjs": {
@@ -4029,6 +4045,10 @@
       "sha256": "fea9fc70cd75068f9c826b51e147b6a9d0588ae1a2d7e470dbe9e49fdd2b5ff1",
       "executable": false
     },
+    "tests/api/experience-journeys.mjs": {
+      "sha256": "1834aa29b97118be33637a02ae624291155a7b09f22fe0ddc515585eac45e6ab",
+      "executable": false
+    },
     "tests/api/fee-expiry-journeys.mjs": {
       "sha256": "4a7ef53170ac43542f0c9626058731afa6ffe6d404ecda859a2b4a16b8cab185",
       "executable": false
@@ -4378,7 +4398,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "785fe9500fda8657135c9028b272e88f0fa81a8d0762e86b8eeda4cd34fe2048",
+      "sha256": "efe1b53eafb3f41dc97f39777a6777b78c524bcfefc55a09729e8c4065cbb2e6",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
