@@ -4066,7 +4066,7 @@
       "executable": false
     },
     "tests/api/experience-journeys.mjs": {
-      "sha256": "4a7e072d846207a90163c1435ed830bd32ab5cd338dbc786163735ff450a8382",
+      "sha256": "d9719f228a3566c4bb0b3ddb655e9e801da02509b1078630e40848deb4346579",
       "executable": false
     },
     "tests/api/fee-expiry-journeys.mjs": {

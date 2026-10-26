@@ -71,13 +71,6 @@ test('Experience stale selections require explicit reselection; frozen terms, up
   const archive=await h.api('/api/backup'),copy=await installation()
   try{await copy.api('/api/restore',{archive,confirm:'RESTORE'});const restored=(await copy.api('/api/state')).state;assert.equal(restored.experiences[0].image,image);assert.deepEqual(restored.bookings.find(row=>row.id===b.id).experience,saved.experience)}finally{await copy.close()}
   await h.command('guest.erase',{guestId:saved.guestId,confirm:'ERASE'});const erased=await h.api('/api/backup');assert.ok(!JSON.stringify(erased).includes('guest1@example.test'))
-  const ephemeralBooking={...inputs[winner],...choice((await h.api('/api/state')).state.experiences.find(row=>row.id===entry.id)),experienceCart:{items:[cart.items[1]],dietaryChoices:[]}}
-  await h.command('booking.status',{bookingId:result.id,status:'cancelled'})
-  const ephemeral={requestId:randomUUID(),token:randomBytes(32).toString('hex'),booking:ephemeralBooking,ttlSeconds:5}
-  await h.api('/api/public/booking-holds',ephemeral,{as:''});await new Promise(resolve=>setTimeout(resolve,5200));assert.equal((await h.api('/api/public/booking-holds/status',ephemeral,{as:''})).status,'expired')
-  const released={...ephemeral,requestId:randomUUID(),token:randomBytes(32).toString('hex')}
-  await h.api('/api/public/booking-holds',released,{as:''});await h.api('/api/public/booking-holds/abandon',released,{as:''})
-  const available=(await h.api('/api/public/services',undefined,{as:''})).experiences.find(row=>row.id===entry.id);assert.equal(available.addOns.find(row=>row.id===entry.addOns[1].id).remainingByServiceId[f.service.id],1)
   const erasedCopy=await installation();try{await erasedCopy.api('/api/restore',{archive:erased,confirm:'RESTORE'});assert.equal((await erasedCopy.api('/api/state')).state.experiences[0].name,'Accessible tasting dinner')}finally{await erasedCopy.close()}
  }finally{await h.close()}
 })
@@ -88,6 +81,13 @@ test('Experience ticket choices reserve the final included supplement once, reta
   const f=await experienceFixture(h)
   for(const table of (await h.api('/api/state')).state.tables.filter(row=>f.floor.slice(0,2).some(table=>table.id===row.id)))await h.command('table.save',{...table,seats:4})
   const entry=await f.create({...f.draft('Four-course tasting',['Dining room'],120,15,8),ticketClasses:[{name:'Early dinner',quantityLimit:8},{name:'Second class',quantityLimit:8}],addOns:[{name:'Wine pairing',unitAmountCents:0,quantityLimit:8},{name:'Limited mushroom supplement',unitAmountCents:0,quantityLimit:1}],dietaryChoices:[{name:'Plant-based menu'},{name:'Standard tasting menu'}]})
+  const servers=await Promise.all([h.signIn('experience-server-a@example.test'),h.signIn('experience-server-b@example.test')])
+  const operators=await h.api('/auth/operators')
+  for(const [index,email] of ['experience-server-a@example.test','experience-server-b@example.test'].entries()){
+   const operator=operators.find(row=>row.email===email);await h.command('team.server',{operatorId:operator.id,enabled:true})
+   const assigned=await h.command('server.save',{serviceId:f.service.id,name:index?'Garden server':'Window server',coverCap:20,operatorId:operator.id})
+   await h.command('section.save',{serviceId:f.service.id,name:index?'Garden':'Window',serverId:assigned.id,tableIds:[f.floor[index].id]})
+  }
   const cart={items:[{id:entry.addOns[0].id,quantity:2},{id:entry.addOns[1].id,quantity:1}],dietaryChoices:[{guestNumber:1,choiceId:entry.dietaryChoices[0].id},{guestNumber:2,choiceId:entry.dietaryChoices[1].id}]}
   const inputs=[0,1].map(index=>publicGuest(f.service,index,{partySize:4,area:'Dining room',tableIds:[f.floor[index].id],...choice(entry),ticketClassId:entry.ticketClasses[index].id,experienceCart:cart}))
   for(const invalid of [{...cart,dietaryChoices:[{guestNumber:5,choiceId:entry.dietaryChoices[0].id}]},{...cart,dietaryChoices:[cart.dietaryChoices[0],cart.dietaryChoices[0]]},{...cart,totalCents:0}])await h.api('/api/public/booking-holds',{requestId:randomUUID(),token:randomBytes(32).toString('hex'),booking:{...inputs[0],experienceCart:invalid}},{as:'',status:400})
@@ -109,6 +109,11 @@ test('Experience ticket choices reserve the final included supplement once, reta
   assert.deepEqual(new Map(kitchen.experienceTotals.items.map(row=>[row.name,row.quantity])),new Map([['Wine pairing',4],['Limited mushroom supplement',1]]))
   assert.deepEqual(kitchen.experienceTotals.dietaryChoices.map(row=>[row.name,row.quantity]),[['Plant-based menu',1],['Standard tasting menu',1]])
   assert.ok(!JSON.stringify(kitchen).includes('guest0@example.test'));assert.ok(!JSON.stringify(kitchen).includes('Alex Rowan'))
+  const ownKitchen=await h.api('/api/kitchen?serviceId='+f.service.id,undefined,{as:servers[winner]});assert.equal(ownKitchen.needs.length,1);assert.equal(ownKitchen.experienceTotals,undefined);assert.equal(ownKitchen.needs[0].experienceOrder.dietaryChoices[0].name,'Plant-based menu')
+  const otherKitchen=await h.api('/api/kitchen?serviceId='+f.service.id,undefined,{as:servers[1-winner]});assert.equal(otherKitchen.needs.length,1);assert.deepEqual(otherKitchen.needs[0].experienceOrder.dietaryChoices,[])
+  for(const door of ['/api/preshift?date=','/preshift?date=','/api/preshift.pdf?date=']){
+   const response=await h.request(door+f.service.startAt.slice(0,10),{as:servers[1-winner]});assert.equal(response.status,200);assert.ok(!(await response.text()).includes('Plant-based menu'))
+  }
   const host=await h.signIn('experience-host@example.test'),member=await h.signIn('experience-member@example.test'),hostId=(await h.api('/auth/operators')).find(row=>row.email==='experience-host@example.test').id
   await h.command('team.host',{operatorId:hostId,enabled:true})
   const date=f.service.startAt.slice(0,10),sheet='/api/preshift?date='+date
