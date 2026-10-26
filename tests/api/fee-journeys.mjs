@@ -1,3 +1,5 @@
+import './card-hold-journey.mjs'
+import './fee-expiry-journeys.mjs'
 import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'

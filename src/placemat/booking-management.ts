@@ -40,9 +40,9 @@ function contactFence(db:D1Database,c:Context){
 }
 // Any recorded obligation or captured charge needs a manager until fee/refund policy and execution are approved and complete.
 // The captured-charge ledger is pm_refund_charges; there is no pm_payment_charges table.
-function moneyFence(db:D1Database,bookingId:string){return db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_fee_consents WHERE booking_id=?) THEN 1 ELSE 0 END').bind(bookingId,bookingId,bookingId,bookingId)}
+function moneyFence(db:D1Database,bookingId:string){return db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_fee_consents WHERE booking_id=?) AND NOT EXISTS(SELECT 1 FROM pm_card_guarantees WHERE booking_id=?) THEN 1 ELSE 0 END').bind(bookingId,bookingId,bookingId,bookingId,bookingId)}
 async function hasMoney(db:D1Database,bookingId:string){
- const row=await db.prepare('SELECT (EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_fee_consents WHERE booking_id=?)) AS implicated').bind(bookingId,bookingId,bookingId,bookingId).first<{implicated:number}>()
+ const row=await db.prepare('SELECT (EXISTS(SELECT 1 FROM pm_payment_requests WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refund_charges WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_refunds WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_fee_consents WHERE booking_id=?) OR EXISTS(SELECT 1 FROM pm_card_guarantees WHERE booking_id=?)) AS implicated').bind(bookingId,bookingId,bookingId,bookingId,bookingId).first<{implicated:number}>()
  return !!row?.implicated
 }
 async function noMoney(db:D1Database,bookingId:string){

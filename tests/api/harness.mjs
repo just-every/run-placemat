@@ -7,7 +7,7 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import assert from 'node:assert/strict'
-export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge,mailEdge,origin='https://venue.example.test',peers={}}={}){
+export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge,mailEdge,origin='https://venue.example.test',peers={},clock}={}){
  const directory=await mkdtemp(join(tmpdir(),'placemat-api-'))
  const bundled=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
  const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),messages=[]
@@ -30,7 +30,7 @@ export async function installation({entry='tests/api/worker.ts',bindings={},stri
   const db=await mf.getD1Database('DB')
   for(const f of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort())await db.batch(unstable_splitSqlQuery(await readFile(join('migrations/core',f),'utf8')).map(sql=>db.prepare(sql)))
   let cookie=''
-  const request=(path,{method='GET',body,as=cookie,headers={}}={})=>mf.dispatchFetch(origin+path,{method,redirect:'manual',headers:{origin,host:new URL(origin).host,'content-type':'application/json',...(as?{cookie:as}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})})
+  const request=(path,{method='GET',body,as=cookie,headers={}}={})=>mf.dispatchFetch(origin+path,{method,redirect:'manual',headers:{origin,host:new URL(origin).host,'content-type':'application/json',...(clock?{'x-placemat-test-clock':String(clock())}:{}),...(as?{cookie:as}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})})
   const boot=await request('/auth/bootstrap',{method:'POST',body:{token:setup,displayName:'Venue owner'}});assert.equal(boot.status,303,boot.status===303?undefined:await boot.text())
   cookie=boot.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
   const api=async(path,body,opts={})=>{const r=await request(path,{...(body===undefined?{}:{method:'POST',body}),...opts}),v=await r.json();if(opts.status)assert.equal(r.status,opts.status,JSON.stringify(v));else assert.ok(r.ok,JSON.stringify(v));return v}

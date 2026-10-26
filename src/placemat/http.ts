@@ -253,7 +253,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    originCheck(request,env);const p=await jsonBody(request)
    if(path.endsWith('/issue'))return json({result:await issueGuarantee(env,actor!,p)})
-   if(path.endsWith('/end'))return json({result:await endGuarantee(env.DB,actor!,p)})
+   if(path.endsWith('/end'))return json({result:await endGuarantee(env,actor!,p)})
    return json({error:'Not found'},404)
   }
   if(path.startsWith('/api/payments/merchant')){
@@ -393,7 +393,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(p.command==='payment.merchant-connect')return json({result:await connectMerchant(env,actor!,p.payload??{})})
    if(p.command==='payment.merchant-disconnect')return json({result:await disconnectMerchant(env,actor!)})
    if(p.command==='payment.guarantee-issue')return json({result:await issueGuarantee(env,actor!,p.payload??{})})
-   if(p.command==='payment.guarantee-end')return json({result:await endGuarantee(env.DB,actor!,p.payload??{})})
+   if(p.command==='payment.guarantee-end')return json({result:await endGuarantee(env,actor!,p.payload??{})})
    if(p.command==='payment.guarantee-sync')return json({result:await syncMerchantCard(env,actor!,{requestId:p.payload?.id})})
    if(p.command==='booking.management.send')return json({result:await sendManagement(env,actor!,p.payload??{})})
    if(p.command==='payment.close')return json({result:await closePaymentRequest(env,actor!,p.payload?.requestId)})

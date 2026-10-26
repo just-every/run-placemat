@@ -304,6 +304,10 @@ async function submitForm(el) {
     if(button)await loadGuestMergeJournal(button);
     notice(command==='guest.merge'?'Reviewed profiles merged. Marketing permission remains not recorded.':`Unmerge complete. ${result.laterRecords.length} later records need assignment.`,'success');return;
   }
+  if(['payment.guarantee-end','payment.guarantee-sync'].includes(command)){
+   try{await execute(command,payload);}catch(error){await loadStaff();throw error;}
+   await loadStaff();notice(command==='payment.guarantee-end'?'Guarantee authority ended. Review the recorded release outcome.':'Guarantee collection checked.','success');return;
+  }
   if(command==='payment.guarantee-issue'){
    const result=await execute(command,payload);await loadStaff();const container=$('#guarantee-result');container.innerHTML='<label>Private guest collection link<input type="url" readonly></label><p>Copy this link now. No message has been sent.</p>';container.querySelector('input').value=result.guestUrl;notice('Private collection link created. Copy it now.','success');return;
   }

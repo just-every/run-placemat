@@ -11,6 +11,7 @@ import {saveOnboarding} from './onboarding'
 import {serviceInput} from './service-input'
 import {executeServiceNotes,normalizePreorders} from './service-notes'
 import {prepareCloseReport} from './service-close-report'
+import {shortenServiceAuthority} from './fee-expiry'
 import {prepareClosure,approveClosure,followupChange,prepareAmendment,approveAmendment} from './service-changes'
 import {normalizeBookingRequests,requestTerms} from './booking-requests'
 import {executeInquiry} from './inquiries'
@@ -180,6 +181,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   const plan=proposal.plan
   if(proposal.kind==='service.amend'){
    approveAmendment(s,actor,proposal,now)
+   if(Date.parse(plan.after.endAt)<Date.parse(plan.before.endAt))before.push(...await shortenServiceAuthority(db,actor,plan.serviceId,plan.after.endAt))
   }else if(proposal.kind==='service.closure'){
    approveClosure(s,actor,proposal,now)
   }else if(proposal.kind==='inventory.protect'){

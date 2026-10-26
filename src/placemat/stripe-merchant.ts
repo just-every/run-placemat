@@ -1,12 +1,15 @@
+import {holdCheckout,observeCardHold} from './card-hold-provider'
+import {holdObservationStatements} from './card-hold-records'
+import type {Guarantee} from './card-guarantees'
 import {fail,text,type Actor} from './model'
 import {hash,load} from './store'
 import {feeAuthority,feeCommit,feeEvent} from './fee-policy'
 export type MerchantEnv={DB:D1Database;STRIPE_SECRET_KEY?:string;AUTH_ORIGIN:string}
 type Merchant={account_id:string;state:'connected'|'restricted'|'disconnected';charges_enabled:number;payouts_enabled:number;details_submitted:number;livemode:number;updated_by:string;updated_at:string}
-type Collection={id:string;booking_id:string;account_id:string;created_by:string;created_at:string;expires_at:string;provider_reference:string|null;state:'pending'|'collected'|'expired';verified_at:string|null}
+type Collection={authorization_held_cents?:number;id:string;booking_id:string;account_id:string;created_by:string;created_at:string;expires_at:string;provider_reference:string|null;state:'pending'|'collected'|'expired';verified_at:string|null}
 const row=(db:D1Database)=>db.prepare('SELECT * FROM pm_stripe_merchant WHERE id=1').first<Merchant>()
 const view=(r:Merchant|null)=>r?{accountId:r.account_id,state:r.state,chargesEnabled:!!r.charges_enabled,payoutsEnabled:!!r.payouts_enabled,onboardingComplete:!!r.details_submitted,mode:r.livemode?'live':'test',updatedBy:r.updated_by,updatedAt:r.updated_at}:null
-const collectionView=(r:Collection)=>({id:r.id,bookingId:r.booking_id,accountId:r.account_id,createdBy:r.created_by,createdAt:r.created_at,expiresAt:r.expires_at,providerReference:r.provider_reference,state:r.state==='pending'&&Date.parse(r.expires_at)<=Date.now()?'expired':r.state,verifiedAt:r.verified_at,fundsHeldCents:0,protection:'unproved'})
+const collectionView=(r:Collection)=>({id:r.id,bookingId:r.booking_id,accountId:r.account_id,createdBy:r.created_by,createdAt:r.created_at,expiresAt:r.expires_at,providerReference:r.provider_reference,state:r.state==='pending'&&Date.parse(r.expires_at)<=Date.now()?'expired':r.state,verifiedAt:r.verified_at,fundsHeldCents:r.authorization_held_cents??0,protection:'unproved'})
 export const stripeCostDisclosure='Stripe bills the restaurant directly under its merchant agreement. US standard domestic card pricing is 2.9% plus USD 0.30 per successful charge; other cards, methods and optional services may cost more. Check the merchant agreement for current prices. Placemat charges no fee and holds no merchant funds.'
 export async function merchantStripe(env:MerchantEnv,path:string,body?:URLSearchParams,key?:string):Promise<any>{
  if(!env.STRIPE_SECRET_KEY)fail(409,'Configure the restaurant Stripe credential privately before connecting.')
@@ -43,7 +46,7 @@ export async function connectedMerchant(env:MerchantEnv){
 }
 export async function readMerchant(db:D1Database,actor:Actor){
  await feeAuthority(db,actor)
- return {merchant:view(await row(db)),costDisclosure:stripeCostDisclosure,collections:(await db.prepare('SELECT * FROM pm_stripe_collections ORDER BY created_at,id').all<Collection>()).results.map(collectionView)}
+ return {merchant:view(await row(db)),costDisclosure:stripeCostDisclosure,collections:(await db.prepare('SELECT c.*,g.authorization_held_cents FROM pm_stripe_collections c LEFT JOIN pm_card_guarantees g ON g.id=c.id ORDER BY c.created_at,c.id').all<Collection>()).results.map(collectionView)}
 }
 export async function connectMerchant(env:MerchantEnv,actor:Actor,p:any){
  await feeAuthority(env.DB,actor)
@@ -78,10 +81,11 @@ export async function collectMerchantCard(env:MerchantEnv,actor:Actor,p:any){
  }
  const r=saved!,custody=await env.DB.prepare('SELECT return_url,provider_url,token_hash FROM pm_stripe_collection_custody WHERE collection_id=?').bind(r.id).first<{return_url:string;provider_url:string|null;token_hash:string|null}>()
  if(!custody||Date.parse(r.expires_at)<=Date.now()||r.state!=='pending')fail(409,'This collection has ended. Review its saved outcome.')
+ const guarantee=await env.DB.prepare('SELECT * FROM pm_card_guarantees WHERE id=?').bind(r.id).first<Guarantee>()
+ if(guarantee&&(guarantee.ended_at||Date.parse(guarantee.expires_at)<=Date.now()))fail(409,'This guest fee authority expired. Collect a new agreement.')
  if(r.provider_reference)return {...collectionView(r),hostedUrl:custody!.provider_url,delivery:'copy-required'}
  const body=new URLSearchParams({mode:'setup',currency:'usd',success_url:custody!.return_url,cancel_url:custody!.return_url,client_reference_id:r.id,'metadata[placemat_collection_id]':r.id,'metadata[placemat_booking_id]':r.booking_id,'setup_intent_data[metadata][placemat_booking_id]':r.booking_id,'setup_intent_data[metadata][placemat_collection_id]':r.id,'payment_method_types[0]':'card',expires_at:String(Math.floor(Date.parse(r.expires_at)/1000))})
  // Setup saves a card only. It creates neither held funds nor guest consent to a fee.
- const guarantee=await env.DB.prepare('SELECT accepted_at FROM pm_card_guarantees WHERE id=?').bind(r.id).first<{accepted_at:string|null}>()
  if(guarantee){
   if(typeof p.guestToken!=='string'||await hash(p.guestToken)!==custody!.token_hash)fail(409,'Continue through the guest private link to create hosted collection.')
   body.set('success_url',custody!.return_url+'#card='+p.guestToken);body.set('cancel_url',custody!.return_url+'#card='+p.guestToken)
@@ -91,10 +95,11 @@ export async function collectMerchantCard(env:MerchantEnv,actor:Actor,p:any){
   body.set('customer',customer.id)
   const terms=await env.DB.prepare('SELECT policy_id FROM pm_card_guarantees WHERE id=?').bind(r.id).first<{policy_id:string}>()
   body.set('setup_intent_data[metadata][placemat_policy_id]',terms!.policy_id)
+  if(guarantee.authorization_cents)holdCheckout(body,guarantee)
  }
  const result=await merchantStripe(env,'/checkout/sessions',body,'placemat-card-'+r.id)
  let url:URL;try{url=new URL(result.url)}catch{return fail(502,'Stripe did not return a hosted collection link.')}
- if(result.object!=='checkout.session'||typeof result.id!=='string'||result.mode!=='setup'||result.client_reference_id!==r.id||result.metadata?.placemat_booking_id!==r.booking_id||result.metadata?.placemat_collection_id!==r.id||url.protocol!=='https:'||url.hostname!=='checkout.stripe.com'||url.username||url.password||url.port)fail(502,'Stripe collection did not match the saved request.')
+ if(result.object!=='checkout.session'||typeof result.id!=='string'||result.mode!==(guarantee?.authorization_cents?'payment':'setup')||result.client_reference_id!==r.id||result.metadata?.placemat_booking_id!==r.booking_id||result.metadata?.placemat_collection_id!==r.id||url.protocol!=='https:'||url.hostname!=='checkout.stripe.com'||url.username||url.password||url.port)fail(502,'Stripe collection did not match the saved request.')
  await feeAuthority(env.DB,actor);await connectedMerchant(env)
  const {version:current}=await load(env.DB)
  await feeCommit(env.DB,actor,current,[env.DB.prepare('UPDATE pm_stripe_collections SET provider_reference=? WHERE id=? AND provider_reference IS NULL').bind(result.id,r.id),env.DB.prepare('UPDATE pm_stripe_collection_custody SET provider_url=? WHERE collection_id=?').bind(url.href,r.id)])
@@ -106,8 +111,23 @@ export async function syncMerchantCard(env:MerchantEnv,actor:Actor,p:any){
  if(r.account_id!==merchant.account_id||!r.provider_reference)fail(409,'No matching merchant collection is recorded.')
  const {state,version}=await load(env.DB),booking=state.bookings.find(b=>b.id===r.booking_id)??fail(404,'Reservation not found.'),guest=await env.DB.prepare('SELECT data FROM pm_guests WHERE id=?').bind(booking.guestId).first<{data:string}>()
  if(!guest||JSON.parse(guest.data).erased)fail(409,'The collection guest is erased.')
+ const guarantee=await env.DB.prepare('SELECT * FROM pm_card_guarantees WHERE id=?').bind(r.id).first<Guarantee>()
  const session=await merchantStripe(env,'/checkout/sessions/'+encodeURIComponent(r.provider_reference!))
- if(session.object!=='checkout.session'||session.id!==r.provider_reference||session.mode!=='setup'||session.client_reference_id!==r.id||session.metadata?.placemat_collection_id!==r.id||session.metadata?.placemat_booking_id!==r.booking_id)fail(502,'Stripe collection identity did not match.')
+ if(session.object!=='checkout.session'||session.id!==r.provider_reference||session.mode!==(guarantee?.authorization_cents?'payment':'setup')||session.client_reference_id!==r.id||session.metadata?.placemat_collection_id!==r.id||session.metadata?.placemat_booking_id!==r.booking_id)fail(502,'Stripe collection identity did not match.')
+ if(guarantee?.authorization_cents){
+  if(!guarantee.accepted_at)fail(409,'This authorization has no recorded guest agreement.')
+  let observation
+  try{observation=session.payment_intent?await observeCardHold(env,session,guarantee):null}catch(error){
+   await feeCommit(env.DB,actor,version,[env.DB.prepare("UPDATE pm_card_guarantees SET authorization_state='unconfirmed' WHERE id=?").bind(guarantee.id),feeEvent(env.DB,actor,'payment.card-hold-unconfirmed',guarantee.id,{state:'unconfirmed',protection:'unprotected',nextAction:'Reconcile the original provider authorization.'},guarantee.booking_id)])
+   throw error
+  }
+  const next:Collection['state']=session.status==='complete'?'collected':session.status==='expired'?'expired':'pending',now=new Date().toISOString()
+  await feeCommit(env.DB,actor,version,[env.DB.prepare('UPDATE pm_stripe_collections SET state=?,verified_at=? WHERE id=?').bind(next,now,r.id),...(observation?[
+   ...holdObservationStatements(env.DB,actor,guarantee,observation),
+   env.DB.prepare('UPDATE pm_stripe_collection_custody SET customer_reference=?,method_reference=?,provider_url=NULL WHERE collection_id=?').bind(observation.customer,observation.method,r.id)
+  ]:[]),feeEvent(env.DB,actor,'payment.card-verified',r.id,{...collectionView({...r,state:next,verified_at:now}),fundsHeldCents:observation?.heldCents??0},r.booking_id)])
+  return {...collectionView({...r,state:next,verified_at:now}),fundsHeldCents:observation?.heldCents??0}
+ }
  let next:Collection['state']='pending',setup:any=null
  if(session.status==='expired')next='expired'
  else if(session.status==='complete'){
@@ -116,7 +136,6 @@ export async function syncMerchantCard(env:MerchantEnv,actor:Actor,p:any){
   if(setup.object!=='setup_intent'||setup.id!==session.setup_intent||setup.status!=='succeeded'||setup.usage!=='off_session'||typeof setup.payment_method!=='string'||!setup.payment_method||setup.metadata?.placemat_booking_id!==r.booking_id||setup.metadata?.placemat_collection_id!==r.id)fail(502,'Stripe did not confirm this reservation card setup.')
   next='collected'
  }
- const guarantee=await env.DB.prepare('SELECT policy_id,accepted_at,booking_snapshot,expires_at,ended_at FROM pm_card_guarantees WHERE id=?').bind(r.id).first<{policy_id:string;accepted_at:string|null;booking_snapshot:string;expires_at:string;ended_at:string|null}>()
  if(guarantee){
   const {bookingTerms}=await import('./fee-policy')
   if(setup&&(typeof setup.customer!=='string'||setup.customer!==session.customer))fail(502,'Stripe customer did not match the hosted collection.')

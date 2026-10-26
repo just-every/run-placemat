@@ -1,11 +1,15 @@
-import {readGuarantees,currentGuarantee,guaranteeView,guaranteeCredentials,type Guarantee} from './card-guarantees'
+import {readGuarantees,currentGuarantee,guaranteeView,guaranteeCredentials} from './card-guarantees'
 import {assertStripeCollectionAllowed} from './stripe-merchant'
+import {authorityExpiry} from './fee-expiry'
+import {observeCardHold} from './card-hold-provider'
+import {holdObservationStatements} from './card-hold-records'
+import type {Guarantee} from './card-guarantees'
 import {fail,id,text,type Actor} from './model'
 import {load} from './store'
 import {bookingTerms,feeAuthority,feeCalculation,feeCommit,feeEvent,feeKind,feePolicy,iso,policyFromRow,type FeeConsent,type FeePolicyRow} from './fee-policy'
 export {createFeePolicy} from './fee-policy'
 export type FeeBindings={DB:D1Database;STRIPE_SECRET_KEY?:string}
-type Credentials={consent_id:string;customer_id:string;payment_method_id:string;setup_intent_id:string}
+type Credentials={consent_id:string;customer_id:string;payment_method_id:string;setup_intent_id:string;authorization_reference?:string;authorization_cents?:number}
 type Preview={id:string;booking_id:string;policy_id:string;consent_id:string|null;actor_id:string;created_at:string;expires_at:string;floor_version:number;data:string}
 type Assessment={id:string;request_id:string;booking_id:string;service_id:string;policy_id:string;consent_id:string|null;guest_consent_id:string|null;preview_id:string;kind:'late_cancel'|'no_show';event_id:string;amount_cents:number;action:'charge'|'waive';status:'pending'|'succeeded'|'failed'|'waived';actor_id:string;reason:string;evidence:string;processor_id:string|null;charge_id:string|null;created_at:string;updated_at:string;processing_until:number}
 const receipt=(r:Assessment)=>({id:r.id,requestId:r.request_id,bookingId:r.booking_id,serviceId:r.service_id,policyId:r.policy_id,consentId:r.consent_id,...r.guest_consent_id?{guestConsentId:r.guest_consent_id}:{},previewId:r.preview_id,kind:r.kind,eventId:r.event_id,amountCents:r.amount_cents,currency:'usd',action:r.action,status:r.status,actorId:r.actor_id,reason:r.reason,evidence:r.evidence,processorId:r.processor_id,chargeId:r.charge_id,createdAt:r.created_at,updatedAt:r.updated_at})
@@ -50,12 +54,13 @@ export async function feeConsequences(db:D1Database,bookingId:string,kind:unknow
  const {state}=await load(db),booking=state.bookings.find(b=>b.id===bookingId)??fail(404,'Reservation not found.'),consent=await consentFor(db,bookingId),guarantee=await currentGuarantee(db,bookingId),useGuest=!!guarantee&&(!consent||guarantee.created_at>=consent.recorded_at),policy=await feePolicy(db,useGuest?guarantee!.policy_id:consent?.policy_id)
  if(!policy)return {bookingId,kind:feeKind(kind),policyId:null,amountCents:0,chargeAllowed:false,reviewRequired:true,note:'No fee policy or recorded guest consent exists.'}
  if(useGuest){
-  const g=guarantee!,view=await guaranteeView(db,g),calculation=feeCalculation(state,booking,policy,feeKind(kind),iso(at,'Violation time'),exemptionCode),credentials=await guaranteeCredentials(db,g.id),binding=!!g.accepted_at&&g.booking_snapshot===JSON.stringify(bookingTerms(booking)),beforeObservation=!!g.accepted_at&&Date.parse(g.accepted_at)<=Date.parse(calculation.occurredAt),authorizationCurrent=view.authorizationState==='current'&&Date.parse(calculation.occurredAt)<Date.parse(view.expiresAt),chargeAllowed=binding&&beforeObservation&&authorizationCurrent&&!!credentials&&calculation.amountCents>=50&&calculation.amountCents<=g.max_fee_cents
+  const g=guarantee!,view=await guaranteeView(db,g),calculation=feeCalculation(state,booking,policy,feeKind(kind),iso(at,'Violation time'),exemptionCode),credentials=await guaranteeCredentials(db,g.id),binding=!!g.accepted_at&&g.booking_snapshot===JSON.stringify(bookingTerms(booking)),beforeObservation=!!g.accepted_at&&Date.parse(g.accepted_at)<=Date.parse(calculation.occurredAt),authorizationCurrent=view.authorizationState==='current'&&Date.parse(calculation.occurredAt)<Date.parse(view.expiresAt),chargeAllowed=binding&&beforeObservation&&authorizationCurrent&&!!credentials&&calculation.amountCents>=50&&calculation.amountCents<=g.max_fee_cents&&(!g.authorization_cents||calculation.amountCents<=g.authorization_cents)
   return {...calculation,consentId:null,guestConsentId:g.id,consentRecorded:binding,beforeObservation,authorizationCurrent,authorizationExpiresAt:view.expiresAt,executionReady:!!credentials&&authorizationCurrent,chargeAllowed,reviewRequired:!chargeAllowed,reviewText:g.review_text,note:chargeAllowed?'Guest-captured exact fee terms and hosted card setup confirmed. An explicit owner decision is required.':'Guest fee authority is unconfirmed or expired. Fresh guest agreement and collection are required.'}
  }
  const calculation=feeCalculation(state,booking,policy,feeKind(kind),iso(at,'Violation time'),exemptionCode),binding=!!consent&&consent.booking_snapshot===JSON.stringify(bookingTerms(booking)),credentials=consent?await credentialFor(db,consent.id):null
  const beforeObservation=!!consent&&Date.parse(consent.recorded_at)<=Date.parse(calculation.occurredAt)&&Date.parse(consent.accepted_at)<=Date.parse(calculation.occurredAt)
- const authorizationCurrent=!!consent&&Date.parse(consent.expires_at)>Date.now()&&Date.parse(calculation.occurredAt)<Date.parse(consent.expires_at)
+ const expiresAt=consent?authorityExpiry(consent.expires_at,state.services.find(s=>s.id===booking.serviceId)?.endAt):null
+ const authorizationCurrent=!!expiresAt&&Date.parse(expiresAt)>Date.now()&&Date.parse(calculation.occurredAt)<Date.parse(expiresAt)
  const chargeAllowed=binding&&beforeObservation&&authorizationCurrent&&!!credentials&&calculation.amountCents>=50
  return {...calculation,consentId:consent?.id??null,consentRecorded:binding,beforeObservation,authorizationCurrent,authorizationExpiresAt:consent?.expires_at??null,executionReady:!!credentials&&authorizationCurrent,chargeAllowed,reviewRequired:!binding||!beforeObservation||!credentials||!authorizationCurrent,reviewText:policy.reviewText,note:!binding?'No matching guest consent: owner review required.':!authorizationCurrent?'Fee authorization expired. Fresh guest agreement and card collection are required; no protection is claimed.':!credentials?'Historical consent has no execution credentials; no charge is authorized.':'An explicit owner decision is required; this preview takes no money.'}
 }
@@ -111,15 +116,23 @@ export async function assessFee(env:FeeBindings,actor:Actor,p:any){
  assessment=locked
  try{
   await feeAuthority(env.DB,actor)
-  const consent=await consentFor(env.DB,assessment.booking_id)
-  if(assessment.guest_consent_id){
-   const g=await env.DB.prepare('SELECT * FROM pm_card_guarantees WHERE id=?').bind(assessment.guest_consent_id).first<Guarantee>()
-   if(!g||g.policy_id!==assessment.policy_id||g.booking_id!==assessment.booking_id||!g.accepted_at||!(Date.parse(g.ended_at??g.expires_at)>Date.now()))fail(409,'Guest fee authority expired. No processor attempt is permitted.')
+  if(!assessment.processor_id){
+   const preview=await env.DB.prepare('SELECT data FROM pm_fee_previews WHERE id=?').bind(assessment.preview_id).first<{data:string}>(),reviewed=preview?JSON.parse(preview.data):null
+   const fresh=await feeConsequences(env.DB,assessment.booking_id,assessment.kind,reviewed?.occurredAt,reviewed?.exemption?.code)
+   if(!fresh.chargeAllowed||fresh.policyId!==assessment.policy_id||fresh.amountCents!==assessment.amount_cents||('guestConsentId' in fresh?fresh.guestConsentId!==assessment.guest_consent_id:fresh.consentId!==assessment.consent_id))fail(409,'Fee authorization expired or its agreed facts changed. No new processor attempt is permitted; reconcile any earlier unconfirmed attempt manually.')
   }
-  if(!assessment.guest_consent_id&&!assessment.processor_id&&(!consent||!(Date.parse(consent.expires_at)>Date.now())))fail(409,'Fee authorization expired. No new processor attempt is permitted; reconcile any earlier unconfirmed attempt manually.')
   const form=new URLSearchParams({amount:String(assessment.amount_cents),currency:'usd',customer:credentials.customer_id,payment_method:credentials.payment_method_id,confirm:'true',off_session:'true','allowed_payment_method_types[0]':'card','metadata[placemat_fee_id]':assessment.id,'metadata[placemat_booking_id]':assessment.booking_id,'metadata[placemat_policy_id]':assessment.policy_id,'expand[0]':'latest_charge'})
-  const result=assessment.processor_id?await stripe(env,'payment_intents/'+encodeURIComponent(assessment.processor_id)+'?expand[]=latest_charge'):await stripe(env,'payment_intents',form,'placemat-fee-'+assessment.id)
-  if(result?.object!=='payment_intent'||typeof result.id!=='string'||!result.id||assessment.processor_id&&assessment.processor_id!==result.id||result.currency!=='usd'||result.amount!==assessment.amount_cents||result.customer!==credentials.customer_id||result.payment_method!==credentials.payment_method_id||result.metadata?.placemat_fee_id!==assessment.id||result.metadata?.placemat_booking_id!==assessment.booking_id||result.metadata?.placemat_policy_id!==assessment.policy_id||!['succeeded','processing','requires_action','requires_payment_method','canceled','requires_confirmation','requires_capture'].includes(result.status))fail(502,'Stripe fee confirmation did not match the saved decision. The violation remains reserved.')
+  const capture=credentials.authorization_reference&&!assessment.processor_id
+  if(capture){
+   const g=await env.DB.prepare('SELECT * FROM pm_card_guarantees WHERE id=?').bind(assessment.guest_consent_id).first<Guarantee>()??fail(409,'The original authorization is unavailable.'),observed=await observeCardHold({...env,AUTH_ORIGIN:''},{payment_intent:credentials.authorization_reference,customer:credentials.customer_id},g)
+   if(observed.state!=='held'||observed.heldCents<assessment.amount_cents||g.ended_at||Date.parse(g.expires_at)<=Date.now())fail(409,'Stripe has not confirmed a current authorization for this fee. No capture was submitted.')
+   const {version}=await load(env.DB)
+   await feeCommit(env.DB,actor,version,[...holdObservationStatements(env.DB,actor,g,observed),env.DB.prepare('UPDATE pm_fee_assessments SET processor_id=? WHERE id=? AND processor_id IS NULL').bind(credentials.authorization_reference!,assessment.id)])
+   assessment.processor_id=credentials.authorization_reference!
+  }
+  const captureForm=new URLSearchParams({amount_to_capture:String(assessment.amount_cents),'metadata[placemat_fee_id]':assessment.id,'metadata[placemat_booking_id]':assessment.booking_id,'metadata[placemat_policy_id]':assessment.policy_id,'expand[0]':'latest_charge'})
+  const result=capture?await stripe(env,'payment_intents/'+encodeURIComponent(assessment.processor_id!)+'/capture',captureForm,'placemat-fee-capture-'+assessment.id):assessment.processor_id?await stripe(env,'payment_intents/'+encodeURIComponent(assessment.processor_id)+'?expand[]=latest_charge'):await stripe(env,'payment_intents',form,'placemat-fee-'+assessment.id)
+  if(result?.object!=='payment_intent'||typeof result.id!=='string'||!result.id||assessment.processor_id&&assessment.processor_id!==result.id||result.currency!=='usd'||result.amount!==(credentials.authorization_cents??assessment.amount_cents)||result.customer!==credentials.customer_id||result.payment_method!==credentials.payment_method_id||result.metadata?.placemat_fee_id!==assessment.id||result.metadata?.placemat_booking_id!==assessment.booking_id||result.metadata?.placemat_policy_id!==assessment.policy_id||!['succeeded','processing','requires_action','requires_payment_method','canceled','requires_confirmation','requires_capture'].includes(result.status))fail(502,'Stripe fee confirmation did not match the saved decision. The violation remains reserved.')
   // Save the confirmed intent identity before reading its charge, so failed reads reconcile by GET.
   await env.DB.prepare('UPDATE pm_fee_assessments SET processor_id=? WHERE id=?').bind(result.id,assessment.id).run()
   let chargeId:string|null=null,status:Assessment['status']=result.status==='requires_payment_method'||result.status==='canceled'?'failed':'pending'
@@ -145,7 +158,7 @@ export async function readFees(db:D1Database,actor:Actor,bookingId?:string){
 export async function feeAudit(db:D1Database,actor:Actor){
  await feeAuthority(db,actor)
  const rows=await db.prepare('SELECT * FROM pm_fee_events ORDER BY at,id').all<{id:string;booking_id:string|null;actor_id:string;at:string;action:string;subject_id:string;before_data:string|null;after_data:string}>()
- return rows.results.map(e=>({id:'fee-'+e.id,at:e.at,actor:e.actor_id,action:e.action,subject:e.booking_id??e.subject_id,source:e.action==='payment.guarantee-guest-consent'?'guest-supplied' as const:['payment.card-verified','payment.merchant-capability'].includes(e.action)?'provider' as const:'person' as const,changes:[{kind:'fees',id:e.subject_id,before:e.before_data?JSON.parse(e.before_data):null,after:JSON.parse(e.after_data)}]}))
+ return rows.results.map(e=>({id:'fee-'+e.id,at:e.at,actor:e.actor_id,action:e.action,subject:e.booking_id??e.subject_id,source:e.action==='payment.guarantee-guest-consent'?'guest-supplied' as const:['payment.card-verified','payment.merchant-capability','payment.card-hold-observed','payment.card-hold-unconfirmed'].includes(e.action)?'provider' as const:'person' as const,changes:[{kind:'fees',id:e.subject_id,before:e.before_data?JSON.parse(e.before_data):null,after:JSON.parse(e.after_data)}]}))
 }
 
 /** A saved card never implies indefinite authority. Expiry only shortens; reads never send. */
