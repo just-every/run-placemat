@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/data-portability.md": {
-      "sha256": "b5eb42a51c502c8b029a30f939b5ae36fb7f18336b3881467e8bd82a0201e1fc",
+      "sha256": "a5a81ddbf4d1439defef0da73f282d7c9a4b2b4d850c08586a513d0f2d183e46",
       "executable": false
     },
     "docs/deploy.md": {
@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "272a76848fbf844c7f96b6da88666dd866b2b812be48f4ec674ba338f260cdce",
+      "sha256": "036e6b61ce8c9c4ec2b9148f2fa90fd6ecf46a62c8b93dce515fd9d4e1b8330e",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -4350,7 +4350,7 @@
       "executable": false
     },
     "tests/service-changes-ui.mjs": {
-      "sha256": "96e68c6781403de1c413b712224b3832dad471a06436a2b7845128c05b982dc8",
+      "sha256": "3e53d5ebaae87220de20b9e6c3356b9bd3eee106f5a280b0940989de3be19384",
       "executable": false
     },
     "tests/service-close-report-ui.mjs": {

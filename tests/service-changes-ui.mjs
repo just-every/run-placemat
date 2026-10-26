@@ -118,6 +118,7 @@ try {
    await cancelTask.getByText(/Cancelled · confirmed refund 40.01 USD/).waitFor()
    const unanswered=root.locator(`[data-service-task="${change.tasks[2].id}"] [data-service-followup]`);await unanswered.locator('[name=status]').selectOption('failed-contact');await unanswered.locator('[name=outcome]').fill('No email permission; manager owns personal follow-up')
    pending=nextCommand('service.followup');await unanswered.getByRole('button',{name:'Record follow-up',exact:true}).click();response=await pending;assert.ok(response.ok(),await response.text())
+   await root.locator(`[data-service-task="${change.tasks[2].id}"]`).getByText('Staff-recorded outcome: No email permission; manager owns personal follow-up',{exact:true}).waitFor()
    await decision.getByText('Guest accepted relocation',{exact:true}).waitFor()
    await shot('accepted-cancelled-and-failed-contact')
    data=await h.api('/api/state');assert.deepEqual(data.state.bookings[0].tableIds,[fixture.floor[3].id]);assert.equal(data.state.bookings[1].status,'cancelled');assert.deepEqual(data.state.bookings[2],original[2]);assert.equal(data.state.serviceChanges[0].tasks[2].ownerId,data.actor.id)
