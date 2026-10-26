@@ -277,6 +277,10 @@
       "sha256": "15e824e68d8c464d720d9d886036883e5f01ff37042c1725f4174747e8f152e4",
       "executable": false
     },
+    "docs/experiences.md": {
+      "sha256": "c76a27882bd9bce8cb9cb8b9525b0fa969ad874f556e0df3919a6884d7c349ec",
+      "executable": false
+    },
     "docs/floor-and-bookings.md": {
       "sha256": "6cab278648ed088590189e117fb603fb95ea3d31c6bd5a0d129fb85547bafa31",
       "executable": false
@@ -4278,7 +4282,7 @@
       "executable": false
     },
     "tests/experiences-ui.mjs": {
-      "sha256": "79ae5c82ae64c47b697cf992f7d9273a1923926dc579ca53de91119f85702bd1",
+      "sha256": "79d99d1acd7cc1b1fe67cd2021bd5b3278d0bcec3d0f3d2847c094e192311a37",
       "executable": false
     },
     "tests/fees-ui.mjs": {
