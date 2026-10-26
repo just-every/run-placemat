@@ -1,11 +1,11 @@
 const token=new URLSearchParams(location.hash.slice(1)).get('token');history.replaceState(null,'',location.pathname);
 const root=document.querySelector('#management-content'),notice=document.querySelector('#notice');
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const time=value=>new Date(value).toLocaleString();
+let zone;const time=value=>new Intl.DateTimeFormat('en-US',{timeZone:zone,dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
 const api=async action=>{const r=await fetch('/api/public/relocation/'+action,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,...action==='status'?{}:{acknowledged:true}})}),p=await r.json();if(!r.ok)throw new Error(p.error);return p};
 const visit=b=>`${esc(time(b.startAt))} to ${esc(time(b.endAt))} · ${esc(b.partySize)} guests · ${esc(b.area??'Dining room')} · ${esc(b.tables.join(', '))}`;
 try{
- const p=await api('status');document.querySelector('#venue-line').textContent=p.venue;
+ const p=await api('status');zone=p.timezone;document.querySelector('#venue-line').textContent=`${p.venue} · ${zone}`;
  root.innerHTML=`<article class="card"><h2>Your current reservation</h2><p>${visit(p.booking)}</p><h2>Proposed relocation</h2><p>${visit(p.offered)}</p><p>Your current reservation stays unchanged until you accept. No payment or refund is performed here.</p><p>Offer expires ${esc(time(p.expiresAt))}.</p><div class="actions"><button data-decision="accept">Accept relocation</button><button class="secondary" data-decision="decline">Decline relocation</button></div></article>`;notice.textContent='Review both arrangements before deciding.';
  root.addEventListener('click',async event=>{const button=event.target.closest('[data-decision]');if(!button)return;for(const b of root.querySelectorAll('button'))b.disabled=true;try{const result=await api(button.dataset.decision);root.innerHTML=`<article class="card"><h2>${result.decision==='accepted'?'Relocation accepted':'Original reservation retained'}</h2><p>${visit(result.booking)}</p><p>Reservation reference: ${esc(result.booking.id)}</p></article>`;notice.textContent=result.decision==='accepted'?'Your relocation is confirmed.':'Your original reservation is unchanged. Contact the venue for help.';}catch(error){notice.textContent=error.message;notice.setAttribute('role','alert');for(const b of root.querySelectorAll('button'))b.disabled=false;}});
 }catch(error){notice.textContent=error.message;notice.setAttribute('role','alert');}

@@ -4,7 +4,7 @@ export function portableServiceChanges(changes){
 }
 export function validateServiceDecisions(state){
  const date=value=>typeof value==='string'&&Number.isFinite(Date.parse(value));
- for(const b of state.bookings)if(b.closureEmailConsent!==undefined&&(!date(b.closureEmailConsent.at)||b.closureEmailConsent.source!=='guest-supplied'))throw Error('Invalid booking contact permission');
+ for(const b of state.bookings)if(b.closureEmailConsent!==undefined&&(!date(b.closureEmailConsent.at)||typeof b.closureEmailConsent.emailHash!=='string'||!/^[a-f0-9]{64}$/.test(b.closureEmailConsent.emailHash)||b.closureEmailConsent.source!=='guest-supplied'))throw Error('Invalid booking contact permission');
  const ids=new Set();
  for(const change of state.serviceChanges??[])for(const task of change.tasks){
   if(ids.has(task.id))throw Error('Duplicate affected booking task');ids.add(task.id);

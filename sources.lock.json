@@ -826,7 +826,7 @@
       "executable": false
     },
     "public/placemat-relocation.js": {
-      "sha256": "8535eaef711b33195eaf5c30890178ae4aa3757ba1ce121a7b7e5e5c9c326c0a",
+      "sha256": "a559f6da779b8c98c966bacd077b7d7f954c015afdae15b3d98b77f6b2f01e24",
       "executable": false
     },
     "public/placemat-report-schedules.js": {
@@ -3318,7 +3318,7 @@
       "executable": false
     },
     "src/placemat/commands.ts": {
-      "sha256": "8490a1efdc45a8cf639784e2f04821e9335736659ecbc112d8fc5f2ea0a741f3",
+      "sha256": "6165be50ef14a360330ce2589cc6cd40b7416bc5377c3ce858fa19acfa5ecc21",
       "executable": false
     },
     "src/placemat/costs-archive.mjs": {
@@ -3514,7 +3514,7 @@
       "executable": false
     },
     "src/placemat/model.ts": {
-      "sha256": "0a96f06df2a11a35443361217029a2755fb92d59af115a669c5f105e74a4e700",
+      "sha256": "0b64e568f76da3ec09d12d8f5a1450209a2e42fbd27e7edd2c3b5c26f0c4d8f7",
       "executable": false
     },
     "src/placemat/money-ledger-archive.mjs": {
@@ -3726,7 +3726,7 @@
       "executable": false
     },
     "src/placemat/service-change-archive.mjs": {
-      "sha256": "53af7c1a185abcda31bd0e169a9596ea07f47232d7a6fbb9a1b96f8d119a85ed",
+      "sha256": "284ad283ef444baf645b6400a926099b6ed5b8d2009d4d04b14da3848d76096b",
       "executable": false
     },
     "src/placemat/service-changes.ts": {
@@ -3750,7 +3750,7 @@
       "executable": false
     },
     "src/placemat/service-outreach.ts": {
-      "sha256": "f61d0033ccabd1d279d000de1bd25f8ea44b6f1173ceae647ff985a604877c55",
+      "sha256": "accdb1da999e7fc7e5aca7e30c3aa6a1a0cfd609cbf957e4deb0435384fa0a9a",
       "executable": false
     },
     "src/placemat/service-relocation-view.ts": {

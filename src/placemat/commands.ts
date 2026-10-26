@@ -35,7 +35,7 @@ import {setAnalytics,removeAnalyticsKey,savedKeys} from './analytics'
 import { fail,id,text,number,type State,type Actor,type Booking } from './model'
 import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
-import { load,save,guests } from './store'
+import { load,save,guests,hash } from './store'
 import { updateGuestProfile } from './profiles'
 import {mergeGuests,unmergeGuests} from './guest-merge'
 import {searchTables} from './reservation-search'
@@ -296,7 +296,7 @@ export async function onlineBook(db:D1Database,input:any):Promise<{partySize:num
  const preorders=normalizePreorders(service,p.preorders)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={...(p.closureEmailConsent===true?{closureEmailConsent:{at:new Date().toISOString(),source:'guest-supplied' as const}}:{}),preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
+ const b:Booking={...(p.closureEmailConsent===true?{closureEmailConsent:{at:new Date().toISOString(),emailHash:await hash(entry.guest.email.toLowerCase()),source:'guest-supplied' as const}}:{}),preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  const result={assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
