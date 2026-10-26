@@ -105,8 +105,11 @@ try {
     if(shots)await guestPage.screenshot({path:resolve(shots,`SERVICE-003-guest-accepted-${width}.png`),fullPage:true})
    }finally{await guestContext.close()}
    // Refund execution uses the existing public money command, then the closure page records its exact confirmed decision.
-   const chargeId=edge.charge(original[1].id,4001);await h.command('payment.charge-sync',{bookingId:original[1].id,chargeId})
+   const chargeId=edge.charge(original[1].id,4001)
    await page.getByRole('link',{name:'Floor & bookings',exact:true}).click()
+   await page.locator('summary').filter({hasText:/^Synchronize Stripe charge$/}).click()
+   const sync=page.locator('[data-command="payment.charge-sync"]');await sync.locator('[name=bookingId]').selectOption(original[1].id);await sync.locator('[name=chargeId]').fill(chargeId)
+   pending=nextCommand('payment.charge-sync');await sync.getByRole('button',{name:'Synchronize charge',exact:true}).click();response=await pending;assert.ok(response.ok(),await response.text())
    const charge=page.locator(`[data-refund-charge="${chargeId}"]`);await charge.getByText('Refund this charge',{exact:true}).click()
    const refundForm=charge.locator('form');await refundForm.locator('[name=amountCents]').fill('4001');await refundForm.locator('[name=reason]').fill('Dining room closed; full deposit refund')
    pending=nextCommand('payment.refund');await refundForm.getByRole('button',{name:'Submit refund',exact:true}).click();response=await pending;assert.ok(response.ok(),await response.text());const refund=(await response.json()).result
