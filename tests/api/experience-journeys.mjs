@@ -87,6 +87,7 @@ test('Experience ticket choices reserve the final included supplement once, reta
   const identities=inputs.map(booking=>({requestId:randomUUID(),token:randomBytes(32).toString('hex'),booking}))
   const raced=await Promise.all(identities.map(body=>h.request('/api/public/booking-holds',{method:'POST',body,as:''})))
   assert.deepEqual(raced.map(row=>row.status).sort(),[200,409]);const winner=raced.findIndex(row=>row.ok),hold=await raced[winner].json()
+  const heldPublic=(await h.api('/api/public/services',undefined,{as:''})).experiences.find(row=>row.id===entry.id);assert.equal(heldPublic.addOns.find(row=>row.id===entry.addOns[1].id).remainingByServiceId[f.service.id],0)
   assert.equal(hold.hold.experienceCart.items.find(item=>item.id===entry.addOns[1].id).quantity,1);assert.deepEqual(hold.hold.experienceCart.dietaryChoices,[],'Hold inventory contains no personal dietary choices')
   const result=(await h.api('/api/public/book',{...inputs[winner],checkout:identities[winner]},{as:'',status:201})).result
   assert.equal(result.partySize,4);assert.equal(result.endAt,f.at(120));assert.equal(result.cleanupEndAt,f.at(135));assert.equal(result.experienceCart.totalCents,0)

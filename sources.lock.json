@@ -678,7 +678,7 @@
       "executable": false
     },
     "public/placemat-checkout.js": {
-      "sha256": "e4a0d4c46b7a0b34aa2f3c6ea713d1649c2e3421eb33ef3667651ec16c0f160d",
+      "sha256": "68dc249d368af6a2e725fdc674d1b2faec16d83e71e789ec58f66a34d75b00b0",
       "executable": false
     },
     "public/placemat-close-report.js": {
@@ -706,7 +706,7 @@
       "executable": false
     },
     "public/placemat-experience-options.js": {
-      "sha256": "6779f4ed00b3c578a3d237614320fa11866971c41075836ec3e551772735cf32",
+      "sha256": "cf34a4b0d28158b2b010fac18948fb24cc1762b6250b6195f439cee8f03b8b64",
       "executable": false
     },
     "public/placemat-experiences.js": {
@@ -866,7 +866,7 @@
       "executable": false
     },
     "public/placemat-search.js": {
-      "sha256": "4a3af854f6f083a9e378b1d436932cffcfda6b6ccb47950b725d37183ac9c4b8",
+      "sha256": "bb880848459f4211dff452002f954b6644769fd040e5b69bf72c4aa7f7bd39d3",
       "executable": false
     },
     "public/placemat-service-changes.js": {
@@ -4066,7 +4066,7 @@
       "executable": false
     },
     "tests/api/experience-journeys.mjs": {
-      "sha256": "c3fe835a61bb0206aea35d6ca740dfbb4c8802a6f1bf76e1d1b0f89344132977",
+      "sha256": "05ef587826427c00c0fc6f199c6a7fe7888c789672a4b6e79d809509e8cd167e",
       "executable": false
     },
     "tests/api/fee-expiry-journeys.mjs": {
@@ -4294,7 +4294,7 @@
       "executable": false
     },
     "tests/experiences-ui.mjs": {
-      "sha256": "435afe03c99645ccc7c1bda53db6f6b4b0f1564bc501fff61be52723aaf1b8ab",
+      "sha256": "4d2cf360ef95c2c29b1b54c31723ad36eed0cd9333ecc494d21375148d8d4291",
       "executable": false
     },
     "tests/fees-ui.mjs": {
