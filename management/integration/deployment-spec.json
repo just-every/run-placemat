@@ -234,6 +234,24 @@
       "name": "0043_report_schedules.sql",
       "sha256": "7d3b241bc8b205510d5963b7ba434c5de758f38bca35f706c0859d317bb87458",
       "sql": "-- Report custody is private and never restored into a new installation.\nCREATE TABLE pm_report_schedules (\n id TEXT PRIMARY KEY,\n owner_id TEXT NOT NULL,\n recipient_id TEXT NOT NULL,\n recipient_hash TEXT NOT NULL,\n venues TEXT NOT NULL CHECK(json_valid(venues)),\n timezone TEXT NOT NULL,\n next_at TEXT NOT NULL,\n approved_at TEXT NOT NULL,\n enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1))\n);\nCREATE TABLE pm_report_deliveries (\n id TEXT PRIMARY KEY,\n schedule_id TEXT NOT NULL REFERENCES pm_report_schedules(id),\n due_at TEXT NOT NULL,\n date_from TEXT NOT NULL,\n date_to TEXT NOT NULL,\n state TEXT NOT NULL CHECK(state IN ('delivery unconfirmed','provider accepted','blocked')),\n reason TEXT NOT NULL DEFAULT '',\n UNIQUE(schedule_id,due_at)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0044_deposit_scope.sql",
+      "sha256": "960592c693f46e128fbed2dce5d8ae30b166762975becfeed65927e0ec768c7b",
+      "sql": "ALTER TABLE pm_payment_requests ADD COLUMN per_guest_cents INTEGER;\nALTER TABLE pm_payment_requests ADD COLUMN original_party_size INTEGER;\nCREATE TRIGGER pm_deposit_scope_immutable BEFORE UPDATE OF per_guest_cents,original_party_size,amount_cents,booking_id ON pm_payment_requests\nWHEN NEW.per_guest_cents IS NOT OLD.per_guest_cents OR NEW.original_party_size IS NOT OLD.original_party_size OR NEW.amount_cents != OLD.amount_cents OR NEW.booking_id != OLD.booking_id\nBEGIN SELECT RAISE(ABORT,'Deposit scope is immutable'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0045_money_ledger.sql",
+      "sha256": "8dc2f44a17d0f9ccf54d98e131114363c0eb003bae5100476bb0c949b768b9c2",
+      "sql": "CREATE TABLE pm_money_items (\n source_id TEXT PRIMARY KEY,\n kind TEXT NOT NULL CHECK(kind IN ('charge','refund')),\n charge_id TEXT NOT NULL,\n booking_id TEXT,\n amount_cents INTEGER NOT NULL CHECK(typeof(amount_cents)='integer' AND amount_cents BETWEEN 1 AND 99999999),\n currency TEXT NOT NULL CHECK(currency='usd'),\n recorded_at TEXT NOT NULL\n);\nCREATE TABLE pm_money_receipts (event_id TEXT PRIMARY KEY,source_id TEXT NOT NULL,received_at TEXT NOT NULL);\nCREATE TABLE pm_money_payouts (id TEXT PRIMARY KEY,amount_cents INTEGER NOT NULL,currency TEXT NOT NULL CHECK(currency='usd'),items TEXT NOT NULL CHECK(json_valid(items)),actor_id TEXT NOT NULL,recorded_at TEXT NOT NULL);\nCREATE TABLE pm_money_adjustments (id TEXT PRIMARY KEY,payout_id TEXT NOT NULL,transaction_id TEXT NOT NULL,booking_id TEXT NOT NULL,actor_id TEXT NOT NULL,recorded_at TEXT NOT NULL,UNIQUE(payout_id,transaction_id));\nCREATE TRIGGER pm_money_items_no_update BEFORE UPDATE ON pm_money_items BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\nCREATE TRIGGER pm_money_items_no_delete BEFORE DELETE ON pm_money_items BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\nCREATE TRIGGER pm_money_receipts_no_update BEFORE UPDATE ON pm_money_receipts BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\nCREATE TRIGGER pm_money_receipts_no_delete BEFORE DELETE ON pm_money_receipts BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\nCREATE TRIGGER pm_money_payouts_no_update BEFORE UPDATE ON pm_money_payouts BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\nCREATE TRIGGER pm_money_payouts_no_delete BEFORE DELETE ON pm_money_payouts BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\nCREATE TRIGGER pm_money_adjustments_no_update BEFORE UPDATE ON pm_money_adjustments BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\nCREATE TRIGGER pm_money_adjustments_no_delete BEFORE DELETE ON pm_money_adjustments BEGIN SELECT RAISE(ABORT,'Ledger is append only'); END;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0046_card_authorizations.sql",
+      "sha256": "068225bc619b85337c041821c3b6fcb6a2dae83d3466d1af0ce9b2fb9cc7010b",
+      "sql": "-- Preserve the agreed hold scope and separately observed provider facts.\nALTER TABLE pm_card_guarantees ADD COLUMN authorization_cents INTEGER NOT NULL DEFAULT 0 CHECK(authorization_cents BETWEEN 0 AND 99999999);\nALTER TABLE pm_card_guarantees ADD COLUMN authorization_reference TEXT;\nALTER TABLE pm_card_guarantees ADD COLUMN authorization_state TEXT NOT NULL DEFAULT 'unconfirmed' CHECK(authorization_state IN ('unconfirmed','held','released','captured'));\nALTER TABLE pm_card_guarantees ADD COLUMN authorization_held_cents INTEGER NOT NULL DEFAULT 0 CHECK(authorization_held_cents BETWEEN 0 AND 99999999);\nALTER TABLE pm_card_guarantees ADD COLUMN authorization_expires_at TEXT;\nALTER TABLE pm_card_guarantees ADD COLUMN authorization_verified_at TEXT;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
