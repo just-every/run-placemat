@@ -65,7 +65,8 @@ export function acceptRelocation(s:State,task:import('./service-changes').Change
  const checked=relocationFit(s,b,{serviceId:offer.after.serviceId,startAt:offer.after.startAt,tableIds:offer.after.tableIds,area:offer.after.requiredArea??''})
  for(const key of ['startAt','endAt','cleanupEndAt','setupStartAt','serviceId','tableIds','requiredArea'] as const)if(JSON.stringify(checked[key])!==JSON.stringify(offer.after[key]))fail(409,'The offered assignment changed. Ask the venue for a renewed offer.')
  Object.assign(b,checked);recordServing(b,servingFor(s,b.serviceId,b.tableIds),'guest',now,'service.relocation.accepted')
- task.status='resolved';offer.acceptedAt=now;delete offer.tokenHash
+ for(const change of s.serviceChanges??[])for(const linked of change.tasks)if(linked.bookingId===b.id&&linked.status!=='resolved'){linked.status='resolved';linked.updatedAt=now;linked.updatedBy='guest'}
+ offer.acceptedAt=now;delete offer.tokenHash
  task.updatedAt=now;task.updatedBy='guest'
  s.audit.push({id:id(),actor:'guest',source:'guest-supplied',at:now,action:'service.relocation.accepted',subject:b.id})
  return b

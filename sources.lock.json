@@ -3718,7 +3718,7 @@
       "executable": false
     },
     "src/placemat/service-blocks.ts": {
-      "sha256": "66910d6fe5da718f3b975d02cfa441ea05101ac6324c764f60aeefb1d397b970",
+      "sha256": "c3cbacf91e36db373d6ec4d75ebec3af8e0ac31079aa94c5b4cbdf14818518a7",
       "executable": false
     },
     "src/placemat/service-change-archive.d.mts": {
@@ -3758,7 +3758,7 @@
       "executable": false
     },
     "src/placemat/service-relocation.ts": {
-      "sha256": "731b5ab509b93a67d107016416e522eb3870cb72d26c3a8748ce75fa6f806820",
+      "sha256": "ba7e2361ba78eadafe126cb96084a957504e21916105a524d7e3cffbcf370395",
       "executable": false
     },
     "src/placemat/service-status.ts": {
@@ -4170,7 +4170,7 @@
       "executable": false
     },
     "tests/api/service-changes.test.mjs": {
-      "sha256": "96b38e974fb3e4246d34eb2d5014f7ea984d44c08cb6c0eb3d9b1d5df1e356ee",
+      "sha256": "09da55447cf32ed1f5226808bb7c80072b2fe1f579c871235153c5564361f16a",
       "executable": false
     },
     "tests/api/service-close-report-fixture.mjs": {
