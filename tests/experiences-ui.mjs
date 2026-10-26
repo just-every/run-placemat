@@ -35,6 +35,7 @@ try{for(const width of [1440,390]){
     for(const label of ['Plant-based menu','Standard tasting menu']){await form.getByRole('button',{name:'Add dietary choice',exact:true}).click();await form.locator('[data-experience-option=dietary]').last().locator('[name=optionName]').fill(label);}
    }
    await form.locator('[name=className]').fill('Dinner seating');await form.locator('[name=quantityLimit]').fill('8');await form.locator('[name=cancellationRules]').fill('Cancel with the venue before service. This free booking takes no payment.')
+   await shot('options-editor-'+(area==='Patio'?'patio':'tasting'));
    let pending=command('experience.save');await form.getByRole('button',{name:'Save draft',exact:true}).click();let response=await pending;assert.ok(response.ok(),await response.text());const entry=(await response.json()).result
    const review=root.locator('details.card').filter({has:page.locator('summary').filter({hasText:name+' · Draft'})});await review.locator('summary').click();await review.locator('.experience-image').evaluate(img=>img.decode());await shot('review-'+(area==='Patio'?'patio':'tasting'))
    const publish=review.locator('[data-experience-command="experience.publish"]');await publish.getByRole('checkbox').check();pending=command('experience.publish');await publish.getByRole('button',{name:'Publish catalog entry',exact:true}).click();response=await pending;assert.ok(response.ok(),await response.text())
@@ -72,5 +73,6 @@ try{for(const width of [1440,390]){
   await page.goto(transport.origin+'/kitchen?serviceId='+f.service.id);await page.getByText(/Unverified dietary choice: Guest 1/).waitFor();assert.equal(await page.getByRole('heading',{name:'Experience options',exact:true}).count(),0);await shot('server-kitchen-options')
   await page.goto(transport.origin+'/preshift?date='+f.service.startAt.slice(0,10));await page.getByText(/Unverified dietary choice: Guest 1/).waitFor();assert.ok(!(await page.locator('article').innerText()).includes('mia@example.test'));await shot('server-sheet-options');assert.deepEqual(errors,[])
   console.log(`EXP-001 manager publication, guest tasting and patio bookings, shared tables, full turns, stale reselection and last seating passed at ${width}`)
+  console.log(`EXP-002 zero-charge ticket choices, included add-ons, hold review, receipt and authorized kitchen and sheet passed at ${width}`)
  }finally{await guest.close();await owner.close();await transport.close();await h.close()}
 }}finally{await browser.close()}
