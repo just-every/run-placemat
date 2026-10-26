@@ -705,6 +705,10 @@
       "sha256": "42d5d19e494ab72c578fd0296bb02bbe07b8767974b3a53e21d2a669f1280cc1",
       "executable": false
     },
+    "public/placemat-experience-options.js": {
+      "sha256": "6779f4ed00b3c578a3d237614320fa11866971c41075836ec3e551772735cf32",
+      "executable": false
+    },
     "public/placemat-experiences.js": {
       "sha256": "5e2b6622c4714acfdc76ddc641e0b40f0c3c40fe147b9e2f0ade3449c57edfc3",
       "executable": false
@@ -3377,8 +3381,16 @@
       "sha256": "e622790d250c68d553ee8709477cd5e7582c3c22f741ad8f08e9891677c76450",
       "executable": false
     },
+    "src/placemat/experience-cart.ts": {
+      "sha256": "3cd3cb42ed91398fa03a5f7c13fd9ecf26bb62e2342477cf846390e278c167f7",
+      "executable": false
+    },
     "src/placemat/experience-fit.ts": {
       "sha256": "c522d026e1980d048be261fe003f8d132904320a31643fa1dfb32eb777b3cf9b",
+      "executable": false
+    },
+    "src/placemat/experience-kitchen.ts": {
+      "sha256": "672f7b9ee3791a01b2f90aa565af7d9b47c4246efdfcc6f59de0df34cf72638b",
       "executable": false
     },
     "src/placemat/experiences-archive.mjs": {
@@ -4054,7 +4066,7 @@
       "executable": false
     },
     "tests/api/experience-journeys.mjs": {
-      "sha256": "fe964d3a9dbe44ad064ba43a57f1df2879a07647578a240d3a638344649685cd",
+      "sha256": "c3fe835a61bb0206aea35d6ca740dfbb4c8802a6f1bf76e1d1b0f89344132977",
       "executable": false
     },
     "tests/api/fee-expiry-journeys.mjs": {

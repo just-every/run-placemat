@@ -83,6 +83,7 @@ test('Experience ticket choices reserve the final included supplement once, reta
   const entry=await f.create({...f.draft('Four-course tasting',['Dining room'],120,15,8),addOns:[{name:'Wine pairing',unitAmountCents:0,quantityLimit:8},{name:'Limited mushroom supplement',unitAmountCents:0,quantityLimit:1}],dietaryChoices:[{name:'Plant-based menu'},{name:'Standard tasting menu'}]})
   const cart={items:[{id:entry.addOns[0].id,quantity:2},{id:entry.addOns[1].id,quantity:1}],dietaryChoices:[{guestNumber:1,choiceId:entry.dietaryChoices[0].id},{guestNumber:2,choiceId:entry.dietaryChoices[1].id}]}
   const inputs=[0,1].map(index=>publicGuest(f.service,index,{partySize:4,area:'Dining room',tableIds:[f.floor[index].id],...choice(entry),experienceCart:cart}))
+  for(const invalid of [{...cart,dietaryChoices:[{guestNumber:5,choiceId:entry.dietaryChoices[0].id}]},{...cart,dietaryChoices:[cart.dietaryChoices[0],cart.dietaryChoices[0]]},{...cart,totalCents:0}])await h.api('/api/public/booking-holds',{requestId:randomUUID(),token:randomBytes(32).toString('hex'),booking:{...inputs[0],experienceCart:invalid}},{as:'',status:400})
   const identities=inputs.map(booking=>({requestId:randomUUID(),token:randomBytes(32).toString('hex'),booking}))
   const raced=await Promise.all(identities.map(body=>h.request('/api/public/booking-holds',{method:'POST',body,as:''})))
   assert.deepEqual(raced.map(row=>row.status).sort(),[200,409]);const winner=raced.findIndex(row=>row.ok),hold=await raced[winner].json()
@@ -90,11 +91,12 @@ test('Experience ticket choices reserve the final included supplement once, reta
   const result=(await h.api('/api/public/book',{...inputs[winner],checkout:identities[winner]},{as:'',status:201})).result
   assert.equal(result.partySize,4);assert.equal(result.endAt,f.at(120));assert.equal(result.cleanupEndAt,f.at(135));assert.equal(result.experienceCart.totalCents,0)
   const recovered=(await h.api('/api/public/booking-holds/status',identities[winner],{as:''})).result;assert.equal(recovered.id,result.id);assert.deepEqual(recovered.experienceCart,result.experienceCart)
-  await h.api('/api/public/book',{...inputs[1-winner],startAt:f.at(150)},{as:'',status:409})
+  await h.api('/api/public/book',inputs[1-winner],{as:'',status:409})
   const noSupplement={...inputs[1-winner],experienceCart:{...cart,items:[cart.items[0]],dietaryChoices:[]}}
   const second=(await h.api('/api/public/book',noSupplement,{as:'',status:201})).result
+  await h.api('/api/public/book',{...inputs[winner],checkout:identities[winner]},{as:'',status:201});
   assert.notEqual(second.id,result.id);assert.equal((await h.api('/api/state')).state.bookings.length,2)
-  await h.api('/api/public/book',publicGuest(f.service,4,{experienceCart:cart}),{as:'',status:400})
+  await h.api('/api/public/book',publicGuest(f.service,4,{startAt:f.at(150),experienceCart:cart}),{as:'',status:400})
   const kitchen=await h.api('/api/kitchen?serviceId='+f.service.id)
   assert.deepEqual(new Map(kitchen.experienceTotals.items.map(row=>[row.name,row.quantity])),new Map([['Wine pairing',4],['Limited mushroom supplement',1]]))
   assert.deepEqual(kitchen.experienceTotals.dietaryChoices.map(row=>[row.name,row.quantity]),[['Plant-based menu',1],['Standard tasting menu',1]])
@@ -107,6 +109,9 @@ test('Experience ticket choices reserve the final included supplement once, reta
    const response=await h.request(path,{as:host});assert.equal(response.status,200);const body=await response.text()
    assert.ok(body.includes('Wine pairing'));assert.ok(body.includes('Plant-based menu'));assert.ok(!body.includes('guest0@example.test'))
   }
+  await h.command('experience.withdraw',{id:entry.id,version:entry.version,confirm:true})
+  await h.command('experience.save',{...entry,version:entry.version+1,addOns:entry.addOns.map((item,index)=>({...item,quantityLimit:index===0?1:item.quantityLimit}))},{status:409})
+  await h.command('experience.publish',{id:entry.id,version:entry.version+1,confirm:true})
   const exported=await (await h.request('/api/business-export/bookings.csv')).text();assert.ok(exported.includes('experienceCart_json'));assert.ok(exported.includes('Limited mushroom supplement'))
   const archive=await h.api('/api/backup'),copy=await installation()
   try{await copy.api('/api/restore',{archive,confirm:'RESTORE'});const restored=(await copy.api('/api/state')).state;assert.deepEqual(restored.bookings.find(row=>row.id===result.id).experienceCart,(await h.api('/api/state')).state.bookings.find(row=>row.id===result.id).experienceCart)}finally{await copy.close()}

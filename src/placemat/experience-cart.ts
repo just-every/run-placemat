@@ -43,7 +43,7 @@ export function normalizeExperienceCart(s:CartState,serviceId:string,experience:
  if(!integer(partySize,1,500)||!experience.serviceIds.includes(serviceId))fail(400,'Choose a valid experience service and ticket quantity.')
  const cart:Record<string,unknown>=input===undefined?{}:fields(input,['items','dietaryChoices'],'Supply only add-on quantities and per-guest dietary choices.')
  const itemInputs=cart.items===undefined?[]:cart.items,choiceInputs=cart.dietaryChoices===undefined?[]:cart.dietaryChoices
- if(!Array.isArray(itemInputs)||itemInputs.length>50||!Array.isArray(choiceInputs)||choiceInputs.length>partySize)fail(400,'Choose listed add-ons and at most one dietary choice per guest.')
+ if(!Array.isArray(itemInputs)||itemInputs.length>50||!Array.isArray(choiceInputs)||choiceInputs.length>partySize)return fail(400,'Choose listed add-ons and at most one dietary choice per guest.')
  const counts=totals(s),seenItems=new Set<string>(),seenGuests=new Set<number>()
  const items:ExperienceCartItem[]=[]
  for(const value of itemInputs){
