@@ -4066,7 +4066,7 @@
       "executable": false
     },
     "tests/api/experience-journeys.mjs": {
-      "sha256": "05ef587826427c00c0fc6f199c6a7fe7888c789672a4b6e79d809509e8cd167e",
+      "sha256": "4a7e072d846207a90163c1435ed830bd32ab5cd338dbc786163735ff450a8382",
       "executable": false
     },
     "tests/api/fee-expiry-journeys.mjs": {
@@ -4294,7 +4294,7 @@
       "executable": false
     },
     "tests/experiences-ui.mjs": {
-      "sha256": "4d2cf360ef95c2c29b1b54c31723ad36eed0cd9333ecc494d21375148d8d4291",
+      "sha256": "7f17ab129efecc669b7b4dd63cd214f2000ab9a5304092beb6d4ef919500fce4",
       "executable": false
     },
     "tests/fees-ui.mjs": {

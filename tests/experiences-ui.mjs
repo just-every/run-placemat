@@ -11,7 +11,7 @@ const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','
 try{for(const width of [1440,390]){
  const h=await installation(),f=await experienceFixture(h),transport=await browserServer(h),owner=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true}),guest=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
  try{
-  for(const table of f.floor.slice(0,2))await h.command('table.save',{...table,seats:4})
+  for(const table of (await h.api('/api/state')).state.tables.filter(row=>f.floor.slice(0,2).some(table=>table.id===row.id)))await h.command('table.save',{...table,seats:4})
   const errors=[],page=await owner.newPage();page.on('pageerror',error=>errors.push(error.message))
   const shot=async(name,p=page)=>{
    assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Experience screen fits the viewport')
