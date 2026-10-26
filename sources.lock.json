@@ -3942,7 +3942,7 @@
       "executable": false
     },
     "tests/api/fee-fixture.mjs": {
-      "sha256": "16444843683ab45c22faf39b7819cbc4e82da00ff58a134c4b1800232293eb98",
+      "sha256": "5d91e856c6be7a99dcad1ac2baf330e49e33392cdd39334cd223bf7912529980",
       "executable": false
     },
     "tests/api/fee-journeys.mjs": {
@@ -4178,7 +4178,7 @@
       "executable": false
     },
     "tests/guarantees-ui.mjs": {
-      "sha256": "831524809324f13e45f361cd11d1c0c1cbc565df53129c8321ec6fa1d3289ca5",
+      "sha256": "6851a88cb16a256280b9da92ce196e1dd00d5f4918e515aeb1ad31d9a56d1cb5",
       "executable": false
     },
     "tests/guest-review-ui.mjs": {

@@ -28,10 +28,10 @@ export function feeEdge(){
 }
 export const feePolicyInput=(extra={})=>({cutoffDaysBefore:30,cutoffLocalTime:'18:00',graceMinutes:0,cancellation:{mode:'per_person',amountCents:2000},noShow:{mode:'fixed',amountCents:3500},exemptions:[{code:'venue-cancelled',label:'The venue cancelled the sitting'}],terms:'The guest agrees to this fee only for this reservation, with the stated cancellation deadline and no-show grace.',...extra})
 export const feeApi=async(h,path,payload,opts={})=>(await h.api('/api/payments/'+path,payload,opts)).result
-export async function feeService(h,{startAt=new Date(Date.now()+86400000).toISOString(),timezone='America/New_York',tables=4}={}){
+export async function feeService(h,{startAt=new Date(Date.now()+86400000).toISOString(),timezone='America/New_York',tables=4,name='Fee review sitting',tablePrefix=`Fee ${startAt}`}={}){
  await h.command('venue.update',{name:'Synthetic Cedar',timezone})
- const floor=[];for(let i=0;i<tables;i++)floor.push(await h.command('table.save',{label:`Fee ${startAt} ${i+1}`,seats:4,x:20+i*20,y:30}))
- const draft=await h.command('service.save',{name:'Fee review sitting',startAt,endAt:new Date(Date.parse(startAt)+4*3600000).toISOString(),turnMinutes:60,coverLimit:40})
+ const floor=[];for(let i=0;i<tables;i++)floor.push(await h.command('table.save',{label:`${tablePrefix} ${i+1}`,seats:4,x:20+i*20,y:30}))
+ const draft=await h.command('service.save',{name,startAt,endAt:new Date(Date.parse(startAt)+4*3600000).toISOString(),turnMinutes:60,coverLimit:40})
  const proposal=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:draft.id},reason:'Owner reviewed this sitting'})
  await h.command('proposal.approve',{proposalId:proposal.id})
  return {service:draft,floor}
