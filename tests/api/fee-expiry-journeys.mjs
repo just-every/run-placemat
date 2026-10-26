@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {unstable_splitSqlQuery} from 'wrangler'
-import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
 import {installation} from './harness.mjs'
 import {feeEdge,feePolicyInput,feeApi,feeService,feeBooking,consentBooking,feeDecision} from './fee-fixture.mjs'
 const configured=edge=>installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
@@ -100,6 +99,7 @@ test('Legacy unbounded fee consent expires on upgrade and an archive missing its
   await h.db.prepare('ALTER TABLE pm_fee_consents DROP COLUMN expires_at').run()
   await h.db.prepare('ALTER TABLE pm_fee_consents DROP COLUMN recollection_requested_at').run()
   await h.db.prepare("UPDATE pm_fee_events SET after_data=json_remove(after_data,'$.expiresAt','$.authorizationState','$.recollection') WHERE subject_id=?").bind(consent.id).run()
+  const legacyArchive=await h.api('/api/backup')
   const migration=await readFile('migrations/core/0041_fee_expiry.sql','utf8')
   await h.db.batch(unstable_splitSqlQuery(migration).map(sql=>h.db.prepare(sql)))
   const upgraded=(await h.api('/api/state')).feeWork.consents[0]
@@ -108,12 +108,8 @@ test('Legacy unbounded fee consent expires on upgrade and an archive missing its
   await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'Recorded cancellation cannot revive unbounded legacy authority.'})
   const preview=await feeApi(h,'fee-preview',{bookingId:booking.id,kind:'late_cancel'});assert.equal(preview.authorizationCurrent,false);assert.equal(preview.chargeAllowed,false)
   await feeApi(h,'fees',feeDecision(preview),{status:409});assert.equal(edge.intents.size,0)
-  const archive=await h.api('/api/backup'),missing=structuredClone(archive),row=missing.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_fee_consents'&&i.row.id===consent.id)
-  delete row.row.expires_at
-  const content=new ContentVerifier(missing[0]),integrity=new ArchiveVerifier(missing[0])
-  for(let i=1;i<missing.length-1;i++){missing[i]=await makePart(missing[i].index,missing[i].items);integrity.add(missing[i]);for(const item of missing[i].items)content.add(item)}
-  missing.at(-1).contentHash=content.digest();missing.at(-1).archiveHash=integrity.digest()
-  await copy.api('/api/restore',{archive:missing,confirm:'RESTORE'},{status:400});assert.equal((await copy.api('/api/state')).state.bookings.length,0)
+  const archive=await h.api('/api/backup')
+  await copy.api('/api/restore',{archive:legacyArchive,confirm:'RESTORE'},{status:400});assert.equal((await copy.api('/api/state')).state.bookings.length,0)
   await copy.api('/api/restore',{archive,confirm:'RESTORE'})
   const restored=(await copy.api('/api/state')).feeWork.consents[0];assert.equal(restored.authorizationState,'expired');assert.equal(restored.expiresAt,upgraded.expiresAt)
   assert.equal((await feeApi(copy,'fee-preview',{bookingId:booking.id,kind:'late_cancel'})).executionReady,false);assert.equal(edge.intents.size,0);assert.equal(h.messages.length,0)
