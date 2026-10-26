@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "446505550787a33a8e8b619e626e9b16cd321cf49f29f8b9032f090ba313807a",
+      "sha256": "a6cc50042b0cd324673f528bc0dfdc1ccb52d997b71754ec6ead3d0ce5ad4c2f",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d87bd2c2dc102ad7e2fb97845375a6ca05e729314f544e4beef7e33c9e45a815",
+      "sha256": "c6078c5a1da586e3aef644e9b26bed247fae3189ad8ec90581b5cc21e2f3b8c1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3938,7 +3938,7 @@
       "executable": false
     },
     "tests/api/fee-expiry-journeys.mjs": {
-      "sha256": "d14a4f6a7ecdc7cab76284ccb02b45ec5fa6d707be419f066dcc04db0dd92aea",
+      "sha256": "149f3d65531d7c6b878fef9de86f7eca3e9e6d75032f33a02a549117f5d597a4",
       "executable": false
     },
     "tests/api/fee-fixture.mjs": {
