@@ -367,3 +367,5 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 
 .booking-shell [data-public-command=book] .form-grid{grid-template-columns:minmax(0,1fr)}
 .booking-shell [data-public-command=book] .form-grid>.wide:last-child{flex-wrap:wrap;gap:8px}
+
+@media(max-width:600px){#experiences-content dl{grid-template-columns:minmax(0,1fr);gap:4px}#experiences-content dt{font-weight:600}#experiences-content dd{margin:0 0 12px}}
