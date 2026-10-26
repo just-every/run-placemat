@@ -898,7 +898,7 @@
       "executable": false
     },
     "public/placemat.css": {
-      "sha256": "c5f1e9e04025e6fa6e0dc41717d4fd35e0c775b6a36a964a653353760e03429e",
+      "sha256": "d2f723ba6c14cb29452cfeadb7e83204b49dea7adec32733dcdf6f6ee1b24378",
       "executable": false
     },
     "public/placemat.js": {
@@ -4282,7 +4282,7 @@
       "executable": false
     },
     "tests/experiences-ui.mjs": {
-      "sha256": "58c4d16080ce8f1225459ea5ecf46e6e6ddb3269a112ebaa1b718701e07c2d6f",
+      "sha256": "6d7547bb10cdae0888c2ed7784becd63f52c08c9d9382e206352ccf12c2fa796",
       "executable": false
     },
     "tests/fees-ui.mjs": {

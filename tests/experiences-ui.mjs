@@ -14,6 +14,7 @@ try{for(const width of [1440,390]){
   const errors=[],page=await owner.newPage();page.on('pageerror',error=>errors.push(error.message))
   const shot=async(name,p=page)=>{
    assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Experience screen fits the viewport')
+   if(p!==page)assert.ok(await p.locator('[data-public-command=book] input:not([type=checkbox])').evaluateAll(nodes=>nodes.every(node=>node.getBoundingClientRect().right<=node.closest('article').getBoundingClientRect().right-8)),'Guest contact controls fit their booking card')
    assert.deepEqual(await p.locator('button,a[href]').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length&&!n.textContent.trim()&&!n.getAttribute('data-tooltip')&&!n.getAttribute('title')).map(n=>n.outerHTML)),[],'Every visible icon-only control has a tooltip')
    if(shots){const target=p===page?p.locator('#experiences-content'):p.locator('.booking-shell');await target.screenshot({path:resolve(shots,`EXP-001-${name}-${width}.png`)})}
   }

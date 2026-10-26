@@ -364,3 +364,6 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 /* Experience images keep the existing disclosure spacing inside narrow guest cards. */
 .rer-themed details .experience-image{display:block;max-width:calc(100% - 36px);height:auto}
 .experience-copy{white-space:pre-wrap}
+
+.booking-shell [data-public-command=book] .form-grid{grid-template-columns:minmax(0,1fr)}
+.booking-shell [data-public-command=book] .form-grid>.wide:last-child{flex-wrap:wrap;gap:8px}
