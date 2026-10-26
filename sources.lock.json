@@ -4282,7 +4282,7 @@
       "executable": false
     },
     "tests/experiences-ui.mjs": {
-      "sha256": "79d99d1acd7cc1b1fe67cd2021bd5b3278d0bcec3d0f3d2847c094e192311a37",
+      "sha256": "39c93c9790b1c8c176bd6ca1b13fb02127c7671c21571978a4dfd05ddc12f1b0",
       "executable": false
     },
     "tests/fees-ui.mjs": {

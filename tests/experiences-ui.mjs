@@ -24,7 +24,7 @@ try{for(const width of [1440,390]){
   async function publish(name,area,turn,cleanup){
    const editor=root.locator('[data-experience-editor] details');if(!await editor.getAttribute('open').then(value=>value!==null))await editor.locator('summary').click()
    const form=root.locator('[data-experience-command="experience.save"]')
-   await form.locator('[name=name]').fill(name);await form.locator('[name=imageFile]').setInputFiles('public/site/hero-phone-390.webp');await form.locator('[name=menu]').fill(name.includes('tasting')?'Three courses: roasted pumpkin, handmade ricotta pasta, and poached pears.':'A free sunset patio gathering with seasonal small plates available from the venue.')
+   await form.locator('[name=name]').fill(name);await form.locator('[name=imageFile]').setInputFiles('public/site/hero-phone-760.webp');await form.locator('[name=menu]').fill(name.includes('tasting')?'Three courses: roasted pumpkin, handmade ricotta pasta, and poached pears.':'A free sunset patio gathering with seasonal small plates available from the venue.')
    await form.locator('[name=turnMinutes]').fill(String(turn));await form.locator('[name=cleanupMinutes]').fill(String(cleanup))
    await form.locator(`[name=serviceIds][value="${f.service.id}"]`).check();await form.locator(`[name=areas][value="${area}"]`).check()
    await form.locator('[name=className]').fill('Dinner seating');await form.locator('[name=quantityLimit]').fill('8');await form.locator('[name=cancellationRules]').fill('Cancel with the venue before service. This free booking takes no payment.')
