@@ -1209,6 +1209,10 @@
       "sha256": "75634028cad5af8b2c2abd55aa13481fa075ad8049e815fc84fd6b722ee08829",
       "executable": false
     },
+    "scripts/service-change-sandbox.mjs": {
+      "sha256": "17d670b0dae884ef3eb93f562204605e693e8c0c42d4cb6573ec4ebd3594f4a2",
+      "executable": false
+    },
     "scripts/verify-app.mjs": {
       "sha256": "4c3a87c809e2b671a555dc36171b60675f87be96362de7d2269d9f5e1c3100b6",
       "executable": false
@@ -3718,7 +3722,7 @@
       "executable": false
     },
     "src/placemat/service-change-archive.mjs": {
-      "sha256": "afef7fdcd69cbedfe9d728fdf10b25439d6633be832483540d94bb74ce46f110",
+      "sha256": "53af7c1a185abcda31bd0e169a9596ea07f47232d7a6fbb9a1b96f8d119a85ed",
       "executable": false
     },
     "src/placemat/service-changes.ts": {
