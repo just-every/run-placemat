@@ -13,6 +13,18 @@ function image(value){
  }catch{return false}
 }
 function distinct(values,max){return Array.isArray(values)&&values.length>0&&values.length<=max&&values.every(value=>label(value))&&new Set(values).size===values.length}
+function validateOptions(entry){
+ for(const kind of ['addOns','dietaryChoices']){
+  const options=entry[kind]===undefined?[]:entry[kind]
+  if(!Array.isArray(options)||options.length>50)invalid('Invalid experience options')
+  const ids=new Set(),names=new Set()
+  for(const option of options){
+   if(!record(option)||!label(option.id,100)||ids.has(option.id)||!label(option.name,120)||names.has(option.name.toLowerCase()))invalid('Invalid experience option identity')
+   if(kind==='addOns'&&(option.unitAmountCents!==0||!integer(option.quantityLimit,1,500)))invalid('Invalid zero-charge add-on quantity')
+   ids.add(option.id);names.add(option.name.toLowerCase())
+  }
+ }
+}
 
 /** Catalog business records, including drafts and uploaded image bytes, restore together. */
 export function validateExperiences(s){
@@ -23,6 +35,7 @@ export function validateExperiences(s){
   if(!record(entry)||!label(entry.id,100)||ids.has(entry.id)||!integer(entry.version,1,Number.MAX_SAFE_INTEGER)||!['draft','published'].includes(entry.status)||!label(entry.name,120)||!image(entry.image)||!label(entry.menu,8000)||!label(entry.cancellationRules,4000))invalid('Invalid experience catalog entry')
   ids.add(entry.id)
   if(!['free','deposit','prepaid'].includes(entry.kind)||entry.currency!=='USD'||!integer(entry.amountCents,entry.kind==='free'?0:1,100000000)||entry.kind==='free'&&entry.amountCents!==0)invalid('Invalid experience pricing or publication')
+  validateOptions(entry)
   if(!instant(entry.createdAt)||!instant(entry.updatedAt)||entry.createdAt>entry.updatedAt||!label(entry.createdBy)||!label(entry.updatedBy))invalid('Invalid experience attribution')
   if(entry.status==='published'&&(!instant(entry.publishedAt)||!label(entry.publishedBy)||entry.publishedAt<entry.createdAt||entry.publishedAt>entry.updatedAt)||entry.status==='draft'&&(entry.publishedAt!==undefined||entry.publishedBy!==undefined))invalid('Invalid experience publication history')
   if(!distinct(entry.serviceIds,31)||!distinct(entry.areas,30)||!integer(entry.turnMinutes,15,360)||!integer(entry.cleanupMinutes,0,120)||!record(entry.lastSeatingAt)||Object.keys(entry.lastSeatingAt).length!==entry.serviceIds.length||Object.keys(entry.lastSeatingAt).some(id=>!entry.serviceIds.includes(id)))invalid('Invalid experience dates or turn policy')
@@ -46,9 +59,43 @@ export function validateExperienceBookings(s){
   const e=b.experience;if(e===undefined)continue
   const entry=s.experiences?.find(row=>row.id===e.id)
   if(!record(e)||!entry||!integer(e.version,1,entry.version)||!label(e.classId,100)||!label(e.className,120)||!integer(e.quantityLimit,1,500)||!label(e.name,120)||!label(e.menu,8000)||!label(e.cancellationRules,4000)||e.kind!=='free'||e.amountCents!==0||e.currency!=='USD'||!distinct(e.serviceIds,31)||!e.serviceIds.includes(b.serviceId)||!distinct(e.areas,30)||!integer(e.turnMinutes,15,360)||!integer(e.cleanupMinutes,0,120)||!record(e.lastSeatingAt)||e.serviceIds.some(id=>!s.services.some(row=>row.id===id)||!instant(e.lastSeatingAt[id])))invalid('Invalid frozen experience commitment')
+  validateOptions(e)
+  for(const kind of ['addOns','dietaryChoices'])for(const option of e[kind]??[]){const current=entry[kind]?.find(row=>row.id===option.id);if(current&&current.name!==option.name)invalid('Broken stable experience option identity')}
   if(b.tableIds.some(id=>!e.areas.includes(s.tables.find(t=>t.id===id)?.area??'Dining room'))||b.startAt>e.lastSeatingAt[b.serviceId]||Date.parse(b.endAt)-Date.parse(b.startAt)<e.turnMinutes*60000||Date.parse(b.cleanupEndAt??b.endAt)-Date.parse(b.endAt)<e.cleanupMinutes*60000)invalid('Broken experience reservation fit')
   const used=s.bookings.filter(row=>row.serviceId===b.serviceId&&row.experience?.id===e.id&&row.experience.classId===e.classId&&['booked','seated','completed'].includes(row.status)).reduce((n,row)=>n+row.partySize,0)
   const currentClass=entry.ticketClasses.find(t=>t.id===e.classId),limit=currentClass?currentClass.quantityLimit:Math.max(...s.bookings.filter(row=>row.experience?.id===e.id&&row.experience.classId===e.classId).map(row=>row.experience.quantityLimit))
   if(used>limit)invalid('Oversold experience ticket inventory')
+ }
+ validateExperienceCarts(s)
+}
+
+/** Restored cart names come from its frozen options; anonymous stock spans all classes. */
+export function validateExperienceCarts(s){
+ const stock=new Map()
+ for(const booking of s.bookings){
+  const cart=booking.experienceCart;if(cart===undefined)continue
+  const e=booking.experience
+  if(!record(e)||e.kind!=='free'||e.amountCents!==0||!record(cart)||Object.keys(cart).some(key=>!['items','dietaryChoices','ticketQuantity','totalCents','currency','source'].includes(key))||!integer(cart.ticketQuantity,1,500)||cart.ticketQuantity!==booking.partySize||cart.totalCents!==0||cart.currency!=='USD'||cart.source!=='guest-supplied'||!Array.isArray(cart.items)||cart.items.length>50||!Array.isArray(cart.dietaryChoices)||cart.dietaryChoices.length>booking.partySize)invalid('Invalid experience cart or ticket quantity')
+  validateOptions(e)
+  const seenItems=new Set(),seenGuests=new Set()
+  for(const item of cart.items){
+   const definition=(e.addOns??[]).find(option=>option.id===item?.id)
+   if(!record(item)||Object.keys(item).some(key=>!['id','name','quantity','unitAmountCents','totalCents'].includes(key))||!definition||item.name!==definition.name||seenItems.has(item.id)||!integer(item.quantity,1,500)||item.unitAmountCents!==0||item.totalCents!==0)invalid('Invalid frozen experience add-on')
+   seenItems.add(item.id)
+   if(['booked','seated','completed'].includes(booking.status)){
+    const key=JSON.stringify([e.id,booking.serviceId,item.id])
+    stock.set(key,(stock.get(key)??0)+item.quantity)
+   }
+  }
+  for(const choice of cart.dietaryChoices){
+   const definition=(e.dietaryChoices??[]).find(option=>option.id===choice?.choiceId)
+   if(!record(choice)||Object.keys(choice).some(key=>!['guestNumber','choiceId','choiceName'].includes(key))||!definition||choice.choiceName!==definition.name||!integer(choice.guestNumber,1,booking.partySize)||seenGuests.has(choice.guestNumber))invalid('Invalid frozen per-guest dietary choice')
+   seenGuests.add(choice.guestNumber)
+  }
+ }
+ for(const [key,quantity] of stock){
+  const [experienceId,serviceId,itemId]=JSON.parse(key)
+  const entry=s.experiences?.find(row=>row.id===experienceId),definition=entry?.addOns?.find(row=>row.id===itemId)
+  if(!entry||!s.services.some(row=>row.id===serviceId)||!definition||quantity>definition.quantityLimit)invalid('Oversold experience add-on inventory or missing retained definition')
  }
 }

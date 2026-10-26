@@ -1,3 +1,4 @@
+import {experienceOrder,experienceOrderLines} from './experience-kitchen'
 import type {guaranteeView} from './card-guarantees'
 import {needLines} from './needs'
 import {notesFor} from './service-notes'
@@ -27,7 +28,7 @@ export function preshift(state:State,guests:Guest[],actor:Actor,date:string,gene
    // Only the server's verified paid state establishes protection. Keep payment
    // links, money and follow-up identities out of this shared host projection.
    const payments=server?[]:paymentRequests.filter(p=>p.bookingId===b.id).map(p=>({state:p.state,dueAt:p.dueAt,protection:p.state==='paid'?'protected' as const:'pending' as const}))
-   return {...shape,needLines:needLines(b,names),name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,cardGuarantees:actor.role==='owner'&&!actor.deviceId?guarantees.filter(g=>g.bookingId===b.id).slice(-1).map(g=>({authorizationState:g.authorizationState,expiresAt:g.expiresAt,fundsHeldCents:g.fundsHeldCents,collectionMode:g.collectionMode,heldState:g.heldState,heldVerifiedAt:g.heldVerifiedAt,maxFeeCents:g.maxFeeCents,protection:g.protection})):[],feeAuthorizations:actor.role==='owner'&&!actor.deviceId?authorizations.filter(c=>c.bookingId===b.id).map(c=>({...c,ownerName:names[c.actorId]??'Venue owner'})):[],...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
+   return {...shape,experienceOrder:experienceOrder(b),needLines:needLines(b,names),name:guest.name,status:b.status,vipLevel:guest.profile?.vipLevel??'none',visitCount:visits,occasion:b.requests?.occasion??'',requests:b.requests?{dietary:b.requests.dietaryNotes,allergy:b.requests.allergyNotes,access:[b.requests.wheelchair?'Wheelchair':'',b.requests.highchair?'Highchair':'',b.requests.stroller?'Stroller':''].filter(Boolean)}:undefined,requiredAccessTags:b.requiredAccessTags??[],seatingPreference:b.requests?.seatingPreference||guest.profile?.seatingPreference||'',requestedArea:b.requests?.requestedArea??'',section:b.sectionName??'',server:b.serverName??'',paymentRequests:payments,cardGuarantees:actor.role==='owner'&&!actor.deviceId?guarantees.filter(g=>g.bookingId===b.id).slice(-1).map(g=>({authorizationState:g.authorizationState,expiresAt:g.expiresAt,fundsHeldCents:g.fundsHeldCents,collectionMode:g.collectionMode,heldState:g.heldState,heldVerifiedAt:g.heldVerifiedAt,maxFeeCents:g.maxFeeCents,protection:g.protection})):[],feeAuthorizations:actor.role==='owner'&&!actor.deviceId?authorizations.filter(c=>c.bookingId===b.id).map(c=>({...c,ownerName:names[c.actorId]??'Venue owner'})):[],...(manager?{email:guest.email,phone:guest.phone,notes:guest.notes,tags:guest.profile?.tags??[]}:{})}
   })}
  })}
 }
@@ -69,6 +70,7 @@ export function preshiftLines(sheet:Preshift):PdfLine[]{
     if(consent.recollection)add(`Renewed collection: ${consent.recollection.requestedAt?'requested':'review required'} | owner ${consent.ownerName} | ${consent.recollection.nextAction}`)
    }
    for(const line of b.needLines)add(line)
+   for(const line of experienceOrderLines(b.experienceOrder))add(line)
    if(b.occasion)add(`Occasion: ${b.occasion}`)
    if(b.seatingPreference)add(`Seating preference: ${b.seatingPreference}`)
    if(b.requestedArea)add(`Requested area: ${b.requestedArea}`)

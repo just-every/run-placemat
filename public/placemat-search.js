@@ -1,3 +1,4 @@
+import {cartFields,readCart,cartSummary} from './placemat-experience-options.js'
 import {createCheckout} from './placemat-checkout.js'
 import {preorderFields,readPreorders,preorderSummary} from './placemat-service-notes.js'
 import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
@@ -8,7 +9,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
   let areas = [], accessTags = [], experiences = [], menus = new Map();
-  let contact = {name: '', email: '', phone: ''}, requests, closureEmailConsent=false;
+  let contact = {name: '', email: '', phone: ''}, requests, experienceCart, closureEmailConsent=false;
   const find = selector => root.querySelector(selector);
   const action = (label, value, disabled = false) => `<button type="button" class="secondary" data-public-action="${value}"${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
   const fullTime = value => new Intl.DateTimeFormat('en-US', {
@@ -25,6 +26,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if (!form) return;
     const values = new FormData(form);
     closureEmailConsent=values.has('closureEmailConsent');
+    experienceCart=selected?.experienceId?readCart(form):undefined;
     requests={...readRequests(form),preorders:readPreorders(form,menus.get(selected?.serviceId))};
     contact = Object.fromEntries(['name', 'email', 'phone'].map(name => [name, String(values.get(name) || '')]));
   }
@@ -101,7 +103,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if (!selected) { target.innerHTML = ''; return; }
     const experience=selected.experienceId?experiences.find(entry=>entry.id===selected.experienceId):undefined;
     if(selected.experienceId&&(!experience||!experience.bookingAvailable||experience.kind!=='free')){target.innerHTML='<p role="alert">This experience is not available for online booking. Search again or contact the venue. No booking has been made.</p>';return;}
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<label class="wide"><input type="checkbox" name="closureEmailConsent"${closureEmailConsent?' checked':''}>Email me about a closure or proposed relocation for this reservation.</label>${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}${experience?experienceDisclosure(experience):''}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<label class="wide"><input type="checkbox" name="closureEmailConsent"${closureEmailConsent?' checked':''}>Email me about a closure or proposed relocation for this reservation.</label>${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}${experience?cartFields(experience,query.partySize,experienceCart,esc)+experienceDisclosure(experience):''}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
   }
   function counterSeats(){
     const inventory=response?.inventoryOptions?.find(i=>i.name===query.area&&i.kind==='counter');
@@ -135,11 +137,12 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   async function book(review=false) {
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
     if(selected.experienceId&&!find('[name="acknowledgedExperienceTerms"]')?.checked)throw new Error('Read and agree to the experience terms before confirming.');
+    const form=find('[data-public-command=book]');
     const embedOrigin = document.body.dataset.embedOrigin;
     const payload = {...contact,...requests, closureEmailConsent:find('[name="closureEmailConsent"]')?.checked===true, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
       ...(find('[name="counterSeats"]')?.value?{tableIds:find('[name="counterSeats"]').value.split(',')} : {}),
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt,
-      ...(selected.experienceId?{experienceId:selected.experienceId,ticketClassId:selected.ticketClassId,experienceVersion:selected.experienceVersion,acknowledgedExperienceTerms:true}:{})};
+      ...(selected.experienceId?{experienceId:selected.experienceId,ticketClassId:selected.ticketClassId,experienceVersion:selected.experienceVersion,acknowledgedExperienceTerms:true,experienceCart:readCart(form)}:{})};
     const seats=find('[name="counterSeats"]');if(seats)seats.required=false;
     let result;
     try { if(review){await checkout.review(payload);return}result=await checkout.finish(payload); }
@@ -159,7 +162,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   }
   function confirmed(result){
     const partySize=result.partySize;query={...(query||{}),partySize,area:result.area||'',requiredAccessTags:result.requiredAccessTags||[],experienceId:result.experienceId||'',ticketClassId:result.ticketClassId||''};
-    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2>${result.experienceId?`<p>${esc(result.experienceName)} · ${esc(result.className)}</p>`:''}<p>${contact.name?esc(contact.name)+', your':'Your'} reservation for ${partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(query?constraints():result.area||'Your selected visit')}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${result.assignment?`<p>${esc(result.assignment)}</p>`:''}${action('Make another booking', 'another')}</article>`;
+    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2>${result.experienceId?`<p>${esc(result.experienceName)} · ${esc(result.className)}</p>`:''}<p>${contact.name?esc(contact.name)+', your':'Your'} reservation for ${partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(query?constraints():result.area||'Your selected visit')}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}${cartSummary(result.experienceCart,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${result.assignment?`<p>${esc(result.assignment)}</p>`:''}${action('Make another booking', 'another')}</article>`;
     notice('Your booking is confirmed.', 'success');
   }
   async function run(work, message) {
@@ -210,6 +213,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if (working) return;
     if (event.target.closest('[data-public-command="search"]')) {
       rememberContact();
+      if(['experienceId','partySize'].includes(event.target.name))experienceCart=undefined;
       if(event.target.name==='experienceId'){
         renderExperienceClasses(event.target.value);
         renderExperienceCatalog(event.target.value);
@@ -243,7 +247,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
       find('[name="public-result"]').focus();
       return;
     }
-    if(value==='another')checkout.clear();
+    if(value==='another'){checkout.clear();experienceCart=undefined;}
     run(async () => { await load(); notice('Choose your next visit.'); }, 'Loading availability…');
   });
   return {load: () => run(async () => { if(!await load())notice('Choose an available arrival time.'); }, 'Loading availability…')};

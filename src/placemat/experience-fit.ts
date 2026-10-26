@@ -1,7 +1,7 @@
 import {fail,type State,type Service,type Booking} from './model'
 import type {Experience} from './experiences'
 import {tableTurn} from './turn-policy'
-export type ExperienceCommitment=Pick<Experience,'id'|'version'|'name'|'menu'|'kind'|'amountCents'|'currency'|'serviceIds'|'areas'|'turnMinutes'|'cleanupMinutes'|'lastSeatingAt'|'cancellationRules'>&{classId:string;className:string;quantityLimit:number}
+export type ExperienceCommitment=Pick<Experience,'id'|'version'|'name'|'menu'|'kind'|'amountCents'|'currency'|'serviceIds'|'areas'|'turnMinutes'|'cleanupMinutes'|'lastSeatingAt'|'cancellationRules'|'addOns'|'dietaryChoices'>&{classId:string;className:string;quantityLimit:number}
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b)
 export function experienceService(service:Service,entry:Pick<Experience,'turnMinutes'|'cleanupMinutes'|'lastSeatingAt'>):Service{
  const policy=service.turnPolicy,minimum=entry.turnMinutes
@@ -42,7 +42,7 @@ export function experienceContext(s:State,service:Service,p:any,partySize:number
   if(p.experienceVersion!==entry.version)fail(409,'Experience terms changed. Refresh availability and explicitly choose a new time.')
   const ticket=entry.ticketClasses.find(t=>t.id===p.ticketClassId)??fail(409,'Choose a current experience ticket class.')
   const {id,version,name,menu,kind,amountCents,currency,serviceIds,areas,turnMinutes,cleanupMinutes,lastSeatingAt,cancellationRules}=entry
-  experience=structuredClone({id,version,name,menu,kind,amountCents,currency,serviceIds,areas,turnMinutes,cleanupMinutes,lastSeatingAt,cancellationRules,classId:ticket.id,className:ticket.name,quantityLimit:ticket.quantityLimit})
+  experience=structuredClone({id,version,name,menu,kind,amountCents,currency,serviceIds,areas,turnMinutes,cleanupMinutes,lastSeatingAt,cancellationRules,addOns:entry.addOns??[],dietaryChoices:entry.dietaryChoices??[],classId:ticket.id,className:ticket.name,quantityLimit:ticket.quantityLimit})
  }
  if(!experience.serviceIds.includes(service.id))fail(409,'Choose a published seating date for this experience.')
  const used=s.bookings.filter(b=>b.serviceId===service.id&&['booked','seated','completed'].includes(b.status)&&b.experience?.id===experience.id&&b.experience.classId===experience.classId).reduce((n,b)=>n+b.partySize,0)

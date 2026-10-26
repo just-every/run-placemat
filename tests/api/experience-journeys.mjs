@@ -74,3 +74,47 @@ test('Experience stale selections require explicit reselection; frozen terms, up
   const erasedCopy=await installation();try{await erasedCopy.api('/api/restore',{archive:erased,confirm:'RESTORE'});assert.equal((await erasedCopy.api('/api/state')).state.experiences[0].name,'Accessible tasting dinner')}finally{await erasedCopy.close()}
  }finally{await h.close()}
 })
+
+test('Experience ticket choices reserve the final included supplement once, retain exact recovery, feed authorized kitchen and sheet totals, and erase personal choices',async()=>{
+ const h=await installation()
+ try{
+  const f=await experienceFixture(h)
+  for(const table of f.floor.slice(0,2))await h.command('table.save',{...table,seats:4})
+  const entry=await f.create({...f.draft('Four-course tasting',['Dining room'],120,15,8),addOns:[{name:'Wine pairing',unitAmountCents:0,quantityLimit:8},{name:'Limited mushroom supplement',unitAmountCents:0,quantityLimit:1}],dietaryChoices:[{name:'Plant-based menu'},{name:'Standard tasting menu'}]})
+  const cart={items:[{id:entry.addOns[0].id,quantity:2},{id:entry.addOns[1].id,quantity:1}],dietaryChoices:[{guestNumber:1,choiceId:entry.dietaryChoices[0].id},{guestNumber:2,choiceId:entry.dietaryChoices[1].id}]}
+  const inputs=[0,1].map(index=>publicGuest(f.service,index,{partySize:4,area:'Dining room',tableIds:[f.floor[index].id],...choice(entry),experienceCart:cart}))
+  const identities=inputs.map(booking=>({requestId:randomUUID(),token:randomBytes(32).toString('hex'),booking}))
+  const raced=await Promise.all(identities.map(body=>h.request('/api/public/booking-holds',{method:'POST',body,as:''})))
+  assert.deepEqual(raced.map(row=>row.status).sort(),[200,409]);const winner=raced.findIndex(row=>row.ok),hold=await raced[winner].json()
+  assert.equal(hold.hold.experienceCart.items.find(item=>item.id===entry.addOns[1].id).quantity,1);assert.deepEqual(hold.hold.experienceCart.dietaryChoices,[],'Hold inventory contains no personal dietary choices')
+  const result=(await h.api('/api/public/book',{...inputs[winner],checkout:identities[winner]},{as:'',status:201})).result
+  assert.equal(result.partySize,4);assert.equal(result.endAt,f.at(120));assert.equal(result.cleanupEndAt,f.at(135));assert.equal(result.experienceCart.totalCents,0)
+  const recovered=(await h.api('/api/public/booking-holds/status',identities[winner],{as:''})).result;assert.equal(recovered.id,result.id);assert.deepEqual(recovered.experienceCart,result.experienceCart)
+  await h.api('/api/public/book',{...inputs[1-winner],startAt:f.at(150)},{as:'',status:409})
+  const noSupplement={...inputs[1-winner],experienceCart:{...cart,items:[cart.items[0]],dietaryChoices:[]}}
+  const second=(await h.api('/api/public/book',noSupplement,{as:'',status:201})).result
+  assert.notEqual(second.id,result.id);assert.equal((await h.api('/api/state')).state.bookings.length,2)
+  await h.api('/api/public/book',publicGuest(f.service,4,{experienceCart:cart}),{as:'',status:400})
+  const kitchen=await h.api('/api/kitchen?serviceId='+f.service.id)
+  assert.deepEqual(new Map(kitchen.experienceTotals.items.map(row=>[row.name,row.quantity])),new Map([['Wine pairing',4],['Limited mushroom supplement',1]]))
+  assert.deepEqual(kitchen.experienceTotals.dietaryChoices.map(row=>[row.name,row.quantity]),[['Plant-based menu',1],['Standard tasting menu',1]])
+  assert.ok(!JSON.stringify(kitchen).includes('guest0@example.test'));assert.ok(!JSON.stringify(kitchen).includes('Alex Rowan'))
+  const host=await h.signIn('experience-host@example.test'),member=await h.signIn('experience-member@example.test'),hostId=(await h.api('/auth/operators')).find(row=>row.email==='experience-host@example.test').id
+  await h.command('team.host',{operatorId:hostId,enabled:true})
+  const date=f.service.startAt.slice(0,10),sheet='/api/preshift?date='+date
+  await h.api(sheet,undefined,{as:member,status:403})
+  for(const path of [sheet,'/preshift?date='+date,'/api/preshift.pdf?date='+date]){
+   const response=await h.request(path,{as:host});assert.equal(response.status,200);const body=await response.text()
+   assert.ok(body.includes('Wine pairing'));assert.ok(body.includes('Plant-based menu'));assert.ok(!body.includes('guest0@example.test'))
+  }
+  const exported=await (await h.request('/api/business-export/bookings.csv')).text();assert.ok(exported.includes('experienceCart_json'));assert.ok(exported.includes('Limited mushroom supplement'))
+  const archive=await h.api('/api/backup'),copy=await installation()
+  try{await copy.api('/api/restore',{archive,confirm:'RESTORE'});const restored=(await copy.api('/api/state')).state;assert.deepEqual(restored.bookings.find(row=>row.id===result.id).experienceCart,(await h.api('/api/state')).state.bookings.find(row=>row.id===result.id).experienceCart)}finally{await copy.close()}
+  const guestId=(await h.api('/api/state')).state.bookings.find(row=>row.id===result.id).guestId
+  await h.command('guest.erase',{guestId,confirm:'ERASE'})
+  const erased=(await h.api('/api/state')).state.bookings.find(row=>row.id===result.id)
+  assert.deepEqual(erased.experienceCart.dietaryChoices,[]);assert.equal(erased.experienceCart.items.find(item=>item.id===entry.addOns[1].id).quantity,1,'Anonymous fulfilled quantities still reserve stock')
+  const current=await h.api('/api/kitchen?serviceId='+f.service.id);assert.deepEqual(current.experienceTotals.dietaryChoices,[]);assert.equal(current.experienceTotals.items.find(item=>item.name==='Limited mushroom supplement').quantity,1)
+  const erasedCopy=await installation();try{await erasedCopy.api('/api/restore',{archive:await h.api('/api/backup'),confirm:'RESTORE'});assert.deepEqual((await erasedCopy.api('/api/state')).state.bookings.find(row=>row.id===result.id).experienceCart.dietaryChoices,[])}finally{await erasedCopy.close()}
+ }finally{await h.close()}
+})
