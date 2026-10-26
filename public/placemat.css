@@ -360,3 +360,7 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 
 /* ROLE-001: one-time codes and tokens wrap instead of widening the phone screen. */
 #group-code pre,#group-token pre{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Experience images keep the existing disclosure spacing inside narrow guest cards. */
+.rer-themed details .experience-image{display:block;max-width:calc(100% - 36px);height:auto}
+.experience-copy{white-space:pre-wrap}

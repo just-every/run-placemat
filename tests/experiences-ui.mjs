@@ -29,7 +29,7 @@ try{for(const width of [1440,390]){
    await form.locator(`[name=serviceIds][value="${f.service.id}"]`).check();await form.locator(`[name=areas][value="${area}"]`).check()
    await form.locator('[name=className]').fill('Dinner seating');await form.locator('[name=quantityLimit]').fill('8');await form.locator('[name=cancellationRules]').fill('Cancel with the venue before service. This free booking takes no payment.')
    let pending=command('experience.save');await form.getByRole('button',{name:'Save draft',exact:true}).click();let response=await pending;assert.ok(response.ok(),await response.text());const entry=(await response.json()).result
-   const review=root.locator('details.card').filter({has:page.locator('summary').filter({hasText:name+' · Draft'})});await review.locator('summary').click();await shot('review-'+(area==='Patio'?'patio':'tasting'))
+   const review=root.locator('details.card').filter({has:page.locator('summary').filter({hasText:name+' · Draft'})});await review.locator('summary').click();await review.locator('.experience-image').evaluate(img=>img.decode());await shot('review-'+(area==='Patio'?'patio':'tasting'))
    const publish=review.locator('[data-experience-command="experience.publish"]');await publish.getByRole('checkbox').check();pending=command('experience.publish');await publish.getByRole('button',{name:'Publish catalog entry',exact:true}).click();response=await pending;assert.ok(response.ok(),await response.text())
    await root.locator('summary').filter({hasText:name+' · Published'}).waitFor();return (await h.api('/api/state')).state.experiences.find(e=>e.id===entry.id)
   }
