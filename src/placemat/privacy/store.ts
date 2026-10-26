@@ -20,10 +20,11 @@ export async function guestRow(db:D1Database,guestId:unknown){const row=await db
 export async function reviewRetention(db:D1Database){
  const current=await policy(db);if(!current)fail(409,'Record retention periods and grounds first.')
  const {state,version}=await load(db),rows=(await db.prepare('SELECT id,version,data FROM pm_guests ORDER BY id').all<any>()).results
+ const dinerDates=(await db.prepare('SELECT b.guest_id,a.updated_at FROM pm_diner_accounts a JOIN pm_diner_bookings b ON b.account_id=a.id').all<{guest_id:string;updated_at:string}>()).results
  const days=Math.max(...categories.filter(k=>k!=='financialEvidence').map(k=>current.rules[k].days)),cutoff=new Date(Date.now()-days*86400000).toISOString(),now=new Date().toISOString()
  const guests=rows.filter(r=>!JSON.parse(r.data).erased&&!JSON.parse(r.data).mergedInto).map(r=>{
   const g=JSON.parse(r.data),bookings=state.bookings.filter(b=>b.guestId===r.id),queues=state.waitlist.filter(w=>w.guestId===r.id),inquiries=(state.inquiries??[]).filter(i=>i.guestId===r.id)
-  const dates=[...Object.values(g.provenance??{}).map((p:any)=>p.at),...(g.notesHistory??[]).map((n:any)=>n.provenance?.at),...(g.history??[]).map((v:any)=>v.date),...bookings.flatMap(b=>[b.createdAt,b.endAt,...(b.needHistory??[]).map(e=>e.at)]),...queues.flatMap(w=>(w.history??[]).map(e=>e.at)),...inquiries.flatMap(i=>i.messages.map(m=>m.at))].filter(d=>typeof d==='string'&&Number.isFinite(Date.parse(d))).map(d=>new Date(d).toISOString()).sort()
+  const dates=[...dinerDates.filter(d=>d.guest_id===r.id).map(d=>d.updated_at),...Object.values(g.provenance??{}).map((p:any)=>p.at),...(g.notesHistory??[]).map((n:any)=>n.provenance?.at),...(g.history??[]).map((v:any)=>v.date),...bookings.flatMap(b=>[b.createdAt,b.endAt,...(b.needHistory??[]).map(e=>e.at)]),...queues.flatMap(w=>(w.history??[]).map(e=>e.at)),...inquiries.flatMap(i=>i.messages.map(m=>m.at))].filter(d=>typeof d==='string'&&Number.isFinite(Date.parse(d))).map(d=>new Date(d).toISOString()).sort()
   const lastAt=dates.at(-1)??null,active=bookings.some(b=>['booked','seated'].includes(b.status))||queues.some(w=>['waiting','queued','offered'].includes(w.status))||inquiries.some(i=>!['converted','closed'].includes(i.status))
   const undatedNotes=!!g.notes&&!g.provenance?.notes?.at
   const eligible=!active&&!undatedNotes&&!!lastAt&&lastAt<cutoff

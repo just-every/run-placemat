@@ -65,8 +65,14 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  }
 
  }
+ const dinerGuests=JSON.stringify(typeof guestIds==='string'?[guestIds]:guestIds)
  const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  {sql:'DELETE FROM pm_diner_challenges WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_diner_sessions WHERE account_id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_diner_accounts WHERE id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_diner_bookings WHERE account_id NOT IN (SELECT id FROM pm_diner_accounts)',params:[]},
+  {sql:'DELETE FROM pm_diner_mail_limits WHERE booking_id IN (SELECT value FROM json_each(?))',params:[erasedIds]},
   {sql:'DELETE FROM pm_booking_holds WHERE booking_id IN (SELECT value FROM json_each(?))',params:[erasedIds]},
   {sql:"UPDATE pm_card_guarantees SET review_text='',booking_snapshot='{}' WHERE booking_id IN (SELECT value FROM json_each(?))",params:[erasedIds]},
   {sql:"UPDATE pm_fee_events SET after_data=json_remove(after_data,'$.reviewText','$.bookingSnapshot'),before_data=CASE WHEN before_data IS NULL THEN NULL ELSE json_remove(before_data,'$.reviewText','$.bookingSnapshot') END WHERE booking_id IN (SELECT value FROM json_each(?)) AND action LIKE 'payment.guarantee-%'",params:[erasedIds]},

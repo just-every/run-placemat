@@ -465,3 +465,54 @@ Personal owners and managers use `experience.save` for a complete draft, then `e
 Both public read doors include the intentionally public `experiences` projection: descriptive content, terms, dates, areas, classes and `bookingAvailable`. Only free entries book online; priced listings create neither a reservation nor a payment. No guest or staff identity enters the public catalog. The existing search accepts `experienceId` and `ticketClassId` and returns matching `experienceVersion` with each result. Search and commit both enforce date, area and every required access tag. Booking and hold creation carry the selected three identifiers and `acknowledgedExperienceTerms:true`; changed terms or availability refuse with an explicit reselection path.
 
 Experience allocations stay in the same dated service and physical ledger as ordinary reservations. Class quantities count guest covers per dated service, including live holds. Committing the real reservation consumes its own hold atomically. A saved experience promise cannot be replaced through another staff command; guest management and closure relocation retain its frozen terms. CSV and structured archives document catalog records, uploaded images and reservation snapshots. EXP-002 inherits this inventory and checkout protection before payment collection ships.
+
+### Optional diner accounts (DIST-005, partial)
+
+Guest checkout at `POST /api/public/book` remains available without an account.
+The native diner API is an initial slice; no diner account screen is shipped.
+This door grants no venue role and never merges guest profiles. Favorites and
+preferences belong only to the current restaurant installation. They are not
+applied to a booking or exposed in staff projections automatically.
+
+All diner doors require a same-origin JSON POST, are uncached, and are subject
+to the public request limit. Supply these fields:
+
+| Door | Fields | Result |
+| --- | --- | --- |
+| `/api/public/diner/request` | `bookingId`, `email`, `acknowledged: true` | Generic 202 response. At most five requests per booking per UTC day can send a code to the current recorded booking email. Development and demo send nothing. |
+| `/api/public/diner/verify` | `code`, `acknowledged: true` | Once-shown device `token`, expiry and the one attached booking ID. |
+| `/api/public/diner/account` | `token` | Verified email, current venue, favorite, saved preferences, explicitly verified bookings and `rebookUrl`. |
+| `/api/public/diner/preferences` | `token`, boolean `favorite`, string `preferences`, `acknowledged: true` | Saves up to 500 characters for this restaurant. Empty preferences revoke the saved text; false removes the favorite. |
+| `/api/public/diner/logout` | `token` | Revokes that device session. |
+| `/api/public/diner/forget` | `token`, `acknowledged: true` | Removes the restaurant account, all its links, pending codes and all device sessions. Reservations stay unchanged. |
+
+The code is 32 random bytes, stored only as SHA-256, consumed atomically and
+expires in 15 minutes. A new request supersedes the earlier code for that
+booking. A changed or erased booking contact refuses verification. Failed or
+uncertain provider acceptance revokes the code; a 202 response does not claim
+mailbox delivery. There is no automatic retry.
+
+Device tokens are separate random, digest-only bearers lasting 24 hours.
+Treat the once-shown token as a credential: never put it in a URL or log.
+A new device proves an explicitly selected booking again through email.
+Only the bookings individually verified for that email appear; another booking
+with the same email or phone is not attached automatically. Current contact
+matching is checked on reads. The API exposes no internal guest ID, staff notes,
+allergy records or other diners.
+
+The existing `/book` page performs a fresh capacity-checked guest booking.
+Account-led prefill, account screens and management of upcoming bookings from
+the account remain unbuilt. Existing private booking-management links retain
+their own authority and financial restrictions.
+
+Owner-only CSV kinds `diner-accounts` and `diner-bookings` and structured
+archives contain the business records. Codes and sessions are excluded, so a
+restored account needs new email proof. Preference changes and forgetting fence
+older archives through the existing redaction checkpoint. Guest erasure removes
+linked diner account custody and every associated device session; privacy access
+exports include the linked account's saved preferences. Retention review includes
+the latest diner preference update.
+
+Default ADOPTED pending ct: explicit booking-scoped proof, no automatic outbound
+action, no cross-installation identity or permission pooling. DIST-006 and
+GUEST-006 must independently establish review eligibility and group consent.

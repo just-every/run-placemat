@@ -250,3 +250,13 @@ test('Declared needs: exact staff review, stale clarification, dated corrections
   for(const value of [await h.api('/api/state'),await h.api('/api/backup'),await h.api('/api/kitchen?serviceId='+s.id)])assert.ok(!JSON.stringify(value).includes('synthetic-placemat-'))
  }finally{await h.close();await restored.close()}
 })
+
+test('Diner verification attaches only one booking and supports independent devices with revocable venue preferences',async()=>{
+ const {verifiedDinerJourney}=await import('./diner-journeys.mjs')
+ await verifiedDinerJourney()
+})
+test('Diner credentials expire and stay out of archives while guest erasure removes account custody',async()=>{
+ const {dinerCustodyJourney,failedDinerMailJourney}=await import('./diner-journeys.mjs')
+ await dinerCustodyJourney()
+ await failedDinerMailJourney()
+})
