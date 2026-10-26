@@ -52,7 +52,7 @@ export async function cancelAffected(db:D1Database,s:State,actor:Actor,p:any,now
   if(!refund||p.amountCents!==refund.amount_cents)fail(409,'Review a provider-confirmed succeeded refund for this reservation with its exact integer cents.')
   amountCents=refund!.amount_cents;refundId=refund!.id
  }else if(charges?.cents||p.amountCents!==0)fail(409,'Review the captured charge and confirm its refund through Payments before cancellation.')
- booking.status='cancelled'
+ booking.status='cancelled';task.status='resolved'
  task.cancellation={at:now,actor:actor.id,reason,amountCents,...refundId?{refundId}:{}}
  if(task.relocation)delete task.relocation.tokenHash
  task.updatedAt=now;task.updatedBy=actor.id;task.ownerId=actor.id
@@ -65,7 +65,7 @@ export function acceptRelocation(s:State,task:import('./service-changes').Change
  const checked=relocationFit(s,b,{serviceId:offer.after.serviceId,startAt:offer.after.startAt,tableIds:offer.after.tableIds,area:offer.after.requiredArea??''})
  for(const key of ['startAt','endAt','cleanupEndAt','setupStartAt','serviceId','tableIds','requiredArea'] as const)if(JSON.stringify(checked[key])!==JSON.stringify(offer.after[key]))fail(409,'The offered assignment changed. Ask the venue for a renewed offer.')
  Object.assign(b,checked);recordServing(b,servingFor(s,b.serviceId,b.tableIds),'guest',now,'service.relocation.accepted')
- offer.acceptedAt=now;delete offer.tokenHash
+ task.status='resolved';offer.acceptedAt=now;delete offer.tokenHash
  task.updatedAt=now;task.updatedBy='guest'
  s.audit.push({id:id(),actor:'guest',source:'guest-supplied',at:now,action:'service.relocation.accepted',subject:b.id})
  return b

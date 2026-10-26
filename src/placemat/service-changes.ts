@@ -2,7 +2,7 @@ import {serviceInput} from './service-input'
 import {instant,serviceBy} from './availability'
 import {id,fail,text,type State,type Actor,type Proposal} from './model'
 import type {ServiceBlock} from './service-blocks'
-export type ChangeTask={relocation?:import('./service-relocation').Relocation;outreach?:{id:string;state:'sending'|'accepted'|'unconfirmed'|'guest-opened';at:string;actor:string;providerId?:string|null};cancellation?:{at:string;actor:string;reason:string;refundId?:string;amountCents:number};id:string;bookingId:string;ownerId:string;status:'open'|'failed-contact';reason:string;outcome?:string;updatedAt:string;updatedBy:string}
+export type ChangeTask={relocation?:import('./service-relocation').Relocation;outreach?:{id:string;state:'sending'|'accepted'|'unconfirmed'|'guest-opened';at:string;actor:string;providerId?:string|null};cancellation?:{at:string;actor:string;reason:string;refundId?:string;amountCents:number};id:string;bookingId:string;ownerId:string;status:'open'|'failed-contact'|'resolved';reason:string;outcome?:string;updatedAt:string;updatedBy:string}
 export type ServiceChange=ServiceBlock&{reason:string;approvedBy:string;approvedAt:string;tasks:ChangeTask[]}
 const snapshot=(s:State)=>({services:s.services,tables:s.tables,bookings:s.bookings,serviceChanges:s.serviceChanges??[]})
 export function prepareClosure(s:State,p:any,now:string){
@@ -33,6 +33,7 @@ export function approveClosure(s:State,actor:Actor,proposal:Proposal,now:string)
 }
 export function followupChange(s:State,actor:Actor,p:any,now:string){
  const change=s.serviceChanges?.find(c=>c.id===p.changeId)??fail(404,'Service change not found.'),task=change.tasks.find(t=>t.id===p.taskId)??fail(404,'Affected booking task not found.')
+ if(task.status==='resolved')fail(409,'This impact has a completed guest or cancellation decision.')
  if(!['open','failed-contact'].includes(p.status))fail(400,'Keep follow-up open or record failed contact. No message is sent here.')
  task.status=p.status;task.outcome=text(p.outcome,'Staff-recorded outcome',500);task.ownerId=actor.id;task.updatedAt=now;task.updatedBy=actor.id
  s.audit.push({id:id(),actor:actor.id,at:now,action:'service.followup.recorded',subject:task.bookingId,reason:task.outcome})
