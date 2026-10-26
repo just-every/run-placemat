@@ -193,3 +193,26 @@ test('Affected guests explicitly accept reviewed relocation; permitted single-bo
   view=await h.api('/api/state');assert.equal(view.state.serviceChanges[0].tasks[0].relocation.reason,'');assert.ok(!JSON.stringify(await h.api('/api/backup')).includes('synthetic-placemat-2'))
  }finally{await h.close()}
 })
+
+test('Relocation capabilities expire, rotate, decline and revalidate stale inventory without changing original commitments or retrying mail',async()=>{
+ const h=await installation()
+ try{
+  const {service:s,floor}=await service(h,{tables:2,covers:20});await h.command('table.save',{...floor[1],area:'Patio'})
+  const b=(await h.api('/api/public/book',publicGuest(s,0,{area:'Dining room',closureEmailConsent:true}),{as:'',status:201})).result
+  const plan=await prepare(h,s);await h.command('proposal.approve',{proposalId:plan.id})
+  let view=await h.api('/api/state');const original=structuredClone(view.state.bookings[0]),change=view.state.serviceChanges[0],task={changeId:change.id,taskId:change.tasks[0].id},review={...task,serviceId:s.id,startAt:s.startAt,tableIds:[floor[1].id],area:'Patio',reason:'synthetic-placemat-5'}
+  const send=async()=>{await h.command('service.relocation',review);await h.command('service.outreach',{...task,acknowledged:true});return new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/relocation#[^\s]+/)[0]).hash.slice(1)).get('token')}
+  const token=await send()
+  await h.api('/api/public/relocation/decline',{token,acknowledged:true},{as:''});assert.deepEqual((await h.api('/api/state')).state.bookings[0],original)
+  await h.api('/api/public/relocation/accept',{token,acknowledged:true},{as:'',status:404})
+  const second=await send(),third=await send();await h.api('/api/public/relocation/status',{token:second},{as:'',status:404})
+  const archive=await h.api('/api/backup'),copy=await installation()
+  try{await copy.api('/api/restore',{archive,confirm:'RESTORE'});await copy.api('/api/public/relocation/status',{token:third},{as:'',status:404});assert.ok(!(await copy.api('/api/state')).state.serviceChanges[0].tasks[0].relocation.tokenHash)}finally{await copy.close()}
+  await h.api('/api/public/book',publicGuest(s,1,{area:'Patio'}),{as:'',status:201})
+  await h.api('/api/public/relocation/accept',{token:third,acknowledged:true},{as:'',status:409})
+  assert.deepEqual((await h.api('/api/state')).state.bookings.find(row=>row.id===b.id),original)
+  const row=await h.db.prepare('SELECT data FROM pm_state WHERE id=1').first(),state=JSON.parse(row.data);state.serviceChanges[0].tasks[0].relocation.expiresAt=new Date(Date.now()-60000).toISOString();await h.db.prepare('UPDATE pm_state SET data=?,version=version+1 WHERE id=1').bind(JSON.stringify(state)).run()
+  await h.api('/api/public/relocation/status',{token:third},{as:'',status:404})
+  assert.deepEqual((await h.api('/api/state')).state.bookings.find(row=>row.id===b.id),original)
+ }finally{await h.close()}
+})

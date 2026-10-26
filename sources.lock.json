@@ -3717,6 +3717,10 @@
       "sha256": "80f5533251e27731e29cdafa44ac97607a00cd1ebb2a20399155a5acba517646",
       "executable": false
     },
+    "src/placemat/service-change-archive.mjs": {
+      "sha256": "afef7fdcd69cbedfe9d728fdf10b25439d6633be832483540d94bb74ce46f110",
+      "executable": false
+    },
     "src/placemat/service-changes.ts": {
       "sha256": "4860b41627286cff76dedd2583661c8a811c17549cdbaef9ca95ca0ec61b2649",
       "executable": false
@@ -4158,7 +4162,7 @@
       "executable": false
     },
     "tests/api/service-changes.test.mjs": {
-      "sha256": "c03ec49dc6bcc1c53d02a99e75da1eddae2c83b88f485229007ddd15c04da08c",
+      "sha256": "b532d366e94f41ae74da9856e90c2b2970cbfab801697c365ac4bfe6f5f670f1",
       "executable": false
     },
     "tests/api/service-close-report-fixture.mjs": {
