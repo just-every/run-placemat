@@ -199,11 +199,12 @@ test('Relocation capabilities expire, rotate, decline and revalidate stale inven
  const h=await installation({mailEdge:async request=>{messages.push(await request.json());return failMail?new Response(null,{status:503}):Response.json({id:'synthetic-placemat-'+messages.length})}})
  try{
   const {service:s,floor}=await service(h,{tables:2,covers:20});await h.command('table.save',{...floor[1],area:'Patio'})
-  const b=(await h.api('/api/public/book',publicGuest(s,0,{area:'Dining room',closureEmailConsent:true}),{as:'',status:201})).result
+  const b=await h.command('booking.phone',{...publicGuest(s,0,{area:'Dining room'}),staffIntake:{source:'phone',contactPreference:'email',confirmationConsent:true}})
   const plan=await prepare(h,s);await h.command('proposal.approve',{proposalId:plan.id})
   let view=await h.api('/api/state');const original=structuredClone(view.state.bookings[0]),change=view.state.serviceChanges[0],task={changeId:change.id,taskId:change.tasks[0].id},review={...task,serviceId:s.id,startAt:s.startAt,tableIds:[floor[1].id],area:'Patio',reason:'synthetic-placemat-5'}
   const send=async()=>{await h.command('service.relocation',review);await h.command('service.outreach',{...task,acknowledged:true});return new URLSearchParams(new URL(messages.at(-1).text.match(/https:\/\/[^\s]+\/relocation#[^\s]+/)[0]).hash.slice(1)).get('token')}
   const token=await send()
+  await h.command('booking.phone.change',{bookingId:b.id,version:(await h.api('/api/state')).version,partySize:2,startAt:new Date(Date.parse(s.startAt)+120*60000).toISOString(),area:'Patio',tableIds:[floor[1].id],staffIntake:{source:'phone',contactPreference:'email',confirmationConsent:true}},{status:409})
   await h.api('/api/public/relocation/decline',{token,acknowledged:true},{as:''});assert.deepEqual((await h.api('/api/state')).state.bookings[0],original)
   await h.api('/api/public/relocation/accept',{token,acknowledged:true},{as:'',status:404})
   const second=await send(),third=await send();await h.api('/api/public/relocation/status',{token:second},{as:'',status:404})

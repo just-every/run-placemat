@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "fe6801b056677cefd4f6df22309621901ee44a6f2776e5438b13b480082fa71d",
+      "sha256": "0fa530261f7c6a37204bfbbd7bd370f4f15a4f7addb457a56c889137a1f5a86d",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f35c62f0933bd998a368dc6c1b167bd75f0305d6b62323e77002b641cc7582f9",
+      "sha256": "761b01897b4b9a80a30d8648cd835f1da971da1acfb5035042e60b8a1a95d2a2",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3718,7 +3718,7 @@
       "executable": false
     },
     "src/placemat/service-blocks.ts": {
-      "sha256": "80f5533251e27731e29cdafa44ac97607a00cd1ebb2a20399155a5acba517646",
+      "sha256": "66910d6fe5da718f3b975d02cfa441ea05101ac6324c764f60aeefb1d397b970",
       "executable": false
     },
     "src/placemat/service-change-archive.d.mts": {
@@ -3794,7 +3794,7 @@
       "executable": false
     },
     "src/placemat/store.ts": {
-      "sha256": "fa3c32ba0c8bd9a75cdc1266aad0c8c1c0420c104c88d42e910f4cf69fbb977c",
+      "sha256": "9f00a66c0203f57967a30b6ed3fc4ce8fa3fce12aca40004fe2edfb4a611408b",
       "executable": false
     },
     "src/placemat/stripe-merchant-archive.mjs": {
@@ -4170,7 +4170,7 @@
       "executable": false
     },
     "tests/api/service-changes.test.mjs": {
-      "sha256": "f21ca9dbda164f4a16c19c2cbeb32b4f537b7fae13a2a73ffd75abda38bc5f10",
+      "sha256": "96b38e974fb3e4246d34eb2d5014f7ea984d44c08cb6c0eb3d9b1d5df1e356ee",
       "executable": false
     },
     "tests/api/service-close-report-fixture.mjs": {

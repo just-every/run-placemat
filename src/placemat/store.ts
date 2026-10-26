@@ -1,3 +1,4 @@
+import {assertClosureCommitments} from './service-blocks'
 import {reservationEvents} from './api/events'
 import {assertPaymentReleaseAllowed} from './payment-links'
 import {readActiveHolds} from './booking-holds'
@@ -19,6 +20,7 @@ export async function save(db:D1Database,state:State,version:number,before:D1Pre
  const prior:State=JSON.parse(previous!.data);prior.holds=await readActiveHolds(db)
  const releases=prior.bookings.filter(b=>['booked','seated'].includes(b.status)).filter(b=>!state.bookings.some(n=>n.id===b.id&&['booked','seated'].includes(n.status))).map(b=>b.id)
  const releaseFence=releases.length?await assertPaymentReleaseAllowed(db,releases):undefined
+ assertClosureCommitments(prior,state)
  assertHeldConfiguration(prior,state)
  const {holds,...persisted}=state
  captureAudit(prior,persisted)
