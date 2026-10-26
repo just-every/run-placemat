@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0fa530261f7c6a37204bfbbd7bd370f4f15a4f7addb457a56c889137a1f5a86d",
+      "sha256": "c173064e4e6bc4460782387e3a7b35ade09cdeed66e80f9340eb8d19fa859bf1",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "761b01897b4b9a80a30d8648cd835f1da971da1acfb5035042e60b8a1a95d2a2",
+      "sha256": "e48df920a36f803d3e299d9983fc0f9d729d30124905ce16462d3cf3de017558",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/data-portability.md": {
-      "sha256": "a5a81ddbf4d1439defef0da73f282d7c9a4b2b4d850c08586a513d0f2d183e46",
+      "sha256": "92b0e5ce22f89dcce8e7fdd38655a8a984606e1f9d0dcd298a784791eebf9e51",
       "executable": false
     },
     "docs/deploy.md": {
@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "036e6b61ce8c9c4ec2b9148f2fa90fd6ecf46a62c8b93dce515fd9d4e1b8330e",
+      "sha256": "bc53ab02bf7ddd16589dfda8d6464f8900cfa517943c4071dd931c070ffeb22b",
       "executable": false
     },
     "docs/MOVE-IN.md": {
