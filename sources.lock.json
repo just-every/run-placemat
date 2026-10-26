@@ -4294,7 +4294,7 @@
       "executable": false
     },
     "tests/experiences-ui.mjs": {
-      "sha256": "4c8134d7f92224eee789884054cc83ed26d0b89f802107a66f78f73487e7bfd6",
+      "sha256": "331055cbe9d9b796581cd1c2f12b759d375c4fbe35929211439c0945c9f5574a",
       "executable": false
     },
     "tests/fees-ui.mjs": {
@@ -4326,7 +4326,7 @@
       "executable": false
     },
     "tests/inquiries-ui.mjs": {
-      "sha256": "b00cb73fc973f483c3ab08e5a58077b2304545841c9a8bfd681fca9f2e0a4186",
+      "sha256": "38222ebe94f913e1aa619aaa3b8ae19cebfc943d01e1d85b62f537d5f79bb30b",
       "executable": false
     },
     "tests/install.mjs": {

@@ -21,7 +21,7 @@ try{for(const width of [1440,390]){
    if(shots){const target=p===page?p.locator(new URL(p.url()).pathname==='/kitchen'?'main':new URL(p.url()).pathname==='/preshift'?'article[aria-label="Pre-shift sheet"]':'#experiences-content'):p.locator('.booking-shell');await target.screenshot({path:resolve(shots,`EXP-001-${name}-${width}.png`)})}
   }
   await owner.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
-  await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+  await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('.app-main[aria-busy="false"]').waitFor()
   await page.getByRole('link',{name:'Services & tables',exact:true}).click()
   const root=page.locator('#experiences-content'),command=name=>page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command===name)
   async function publish(name,area,turn,cleanup){
