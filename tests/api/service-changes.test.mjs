@@ -180,7 +180,7 @@ test('Affected guests explicitly accept reviewed relocation; permitted single-bo
   await h.command('service.cancel',{...payload(2),refundId:refund.id,amountCents:4001,reason:'synthetic-placemat-3',acknowledged:true},{status:409})
   const cancelled=await h.command('service.cancel',{...payload(1),refundId:refund.id,amountCents:4001,reason:'synthetic-placemat-3',acknowledged:true})
   assert.equal(cancelled.cancellation.amountCents,4001);assert.equal(cancelled.cancellation.refundId,refund.id)
-  await h.command('service.relocation',review(2))
+  await h.command('service.relocation',{...review(2),startAt:new Date(Date.parse(s.startAt)+120*60000).toISOString()})
   await h.command('service.outreach',{...payload(2),acknowledged:true},{status:409});assert.equal(h.messages.length,sent+1,'Missing permission never calls mail')
   await h.command('service.followup',{...payload(2),status:'failed-contact',outcome:'No permitted email; manager will contact guest personally'})
   view=await h.api('/api/state');assert.equal(view.state.bookings.find(b=>b.id===bookings[1].id).status,'cancelled');assert.deepEqual(view.state.bookings.find(b=>b.id===bookings[2].id),original[2]);assert.equal(view.state.serviceChanges[0].tasks[2].ownerId,view.actor.id)
