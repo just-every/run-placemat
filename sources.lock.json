@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c173064e4e6bc4460782387e3a7b35ade09cdeed66e80f9340eb8d19fa859bf1",
+      "sha256": "18b1341dac3370f55a1647954d4fee2a89c4daf802d113984c5b38b8114929f2",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7729abda257e829db9a2148b31bb9b45f5790200239da1cf34e65b832007dc53",
+      "sha256": "5ca7677b1b43a27560a5edd471b0eca0156aa569706133d61e1939b0a81da8b5",
       "executable": false
     },
     "deploy-demo.json": {
@@ -4054,7 +4054,7 @@
       "executable": false
     },
     "tests/api/experience-journeys.mjs": {
-      "sha256": "1834aa29b97118be33637a02ae624291155a7b09f22fe0ddc515585eac45e6ab",
+      "sha256": "d8d9e5d26159e9794ab5afe8d615f028c1c4dcf2941b22df99d6f475783de739",
       "executable": false
     },
     "tests/api/fee-expiry-journeys.mjs": {

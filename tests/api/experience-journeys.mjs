@@ -15,9 +15,10 @@ test('Experience catalog publishes tasting and patio events with exact turns, sh
   await h.command('experience.save',{...f.draft('Unsafe last seating',['Dining room'],120,15),lastSeatingAt:f.at(150)},{status:400})
   const tasting=await f.create(f.draft('Chef tasting dinner',['Dining room'],120,15,2)),patio=await f.create(f.draft('Free patio evening',['Patio'],60,15,8))
   const paid=await f.create({...f.draft('Prepaid celebration catalog',['Dining room'],120,15),kind:'prepaid',amountCents:9000})
+  const deposit=await f.create({...f.draft('Deposit tasting catalog',['Dining room'],120,15),kind:'deposit',amountCents:2500})
   const catalog=(await h.api('/api/public/services',undefined,{as:''})).experiences
-  assert.equal(catalog.length,3);assert.equal(catalog.find(e=>e.id===paid.id).bookingAvailable,false);assert.ok(!JSON.stringify(catalog).includes(tasting.createdBy))
-  await h.api('/api/public/book',publicGuest(f.service,4,{...choice(paid)}),{as:'',status:409})
+  assert.deepEqual(new Set(catalog.map(e=>e.id)),new Set([tasting.id,patio.id,paid.id,deposit.id]));assert.equal(catalog.find(e=>e.id===paid.id).bookingAvailable,false);assert.ok(!JSON.stringify(catalog).includes(tasting.createdBy))
+  for(const entry of [paid,deposit])await h.api('/api/public/book',publicGuest(f.service,4,{...choice(entry)}),{as:'',status:409})
   const ordinary=(await h.api('/api/public/book',publicGuest(f.service,0,{tableIds:[f.floor[0].id]}),{as:'',status:201})).result
   const found=await search(h,f.service,tasting)
   assert.ok(found.results.some(r=>r.startAt===f.at(0)));assert.ok(found.results.every(r=>r.experienceId===tasting.id&&r.endAt<=f.at(225)&&r.cleanupEndAt<=f.at(240)))
