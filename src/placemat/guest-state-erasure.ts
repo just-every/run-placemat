@@ -18,14 +18,15 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='serviceNotes'&&noteIds.has(change.id)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
  eraseAudit(state,guestId)
  for(const reminder of state.reminders)if(reminder.guestId===guestId){delete reminder.contactName;delete reminder.contactEmail;delete reminder.contactPhone}
- const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan))]
- for(const b of bookings)if(b.guestId===guestId){if(b.lateOperations)for(const e of b.lateOperations.history){e.reason='';if(e.outcome)e.outcome=''}if(b.needHistory)b.needHistory=[];if(b.handover)b.handover=[];b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
+ const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan)),...[...(state.serviceChanges??[]),...state.proposals.flatMap(p=>p.plan?.snapshot?.serviceChanges??[])].flatMap(c=>c.tasks.flatMap((t:any)=>t.relocation?[t.relocation.before,t.relocation.after]:[]))]
+ for(const b of bookings)if(b.guestId===guestId){delete b.closureEmailConsent;if(b.lateOperations)for(const e of b.lateOperations.history){e.reason='';if(e.outcome)e.outcome=''}if(b.needHistory)b.needHistory=[];if(b.handover)b.handover=[];b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
  for(const inquiry of state.inquiries??[])if(inquiry.guestId===guestId){
   delete inquiry.tokenHash;delete inquiry.requiredArea;inquiry.requiredAccessTags=[];inquiry.requests=normalizeBookingRequests({});inquiry.messages=[]
   if(inquiry.offer){delete inquiry.offer.requiredArea;inquiry.offer.requiredAccessTags=[];inquiry.offer.guarantees=[]}
   if(inquiry.status!=='converted')inquiry.status='closed'
  }
  for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='bookingContacts'&&state.bookings.some(b=>b.id===change.id&&b.guestId===guestId)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
+ for(const b of state.bookings)if(b.guestId===guestId)delete b.closureEmailConsent
  const bookingIds=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id))
  const amendedServices=new Set(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.serviceId))
  for(const event of state.audit)if(event.action==='service.amend'&&amendedServices.has(event.subject))event.reason=''
@@ -33,7 +34,7 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  for(const event of state.audit)if(bookingIds.has(event.subject)||[event.before,event.after].some(rows=>Array.isArray(rows)&&rows.some(row=>bookingIds.has(row.bookingId)))){event.reason='';if(event.pacing)event.pacing.reason=''}
  for(const task of state.riskDecisions??[])if(bookingIds.has(task.bookingId)){task.reason='';if(task.outcome)task.outcome=''}
  const changes=[...(state.serviceChanges??[]),...state.proposals.flatMap(p=>p.plan?.snapshot?.serviceChanges??[])]
- for(const change of changes)if(change.tasks.some((t:{bookingId:string})=>bookingIds.has(t.bookingId))){change.reason='';for(const task of change.tasks){task.reason='';delete task.outcome}}
+ for(const change of changes)if(change.tasks.some((t:{bookingId:string})=>bookingIds.has(t.bookingId))){change.reason='';for(const task of change.tasks){task.reason='';delete task.outcome;if(task.relocation){task.relocation.reason='';delete task.relocation.tokenHash}if(task.cancellation)task.cancellation.reason=''}}
  for(const proposal of state.proposals)if(proposal.kind==='service.closure'&&(proposal.plan.bookingIds??[]).some((id:string)=>bookingIds.has(id)))proposal.reason=''
  const relatedServices=new Set(state.waitlist.filter(w=>w.guestId===guestId).map(w=>w.serviceId))
  const closeReasons=new Set(state.services.filter(s=>relatedServices.has(s.id)).map(s=>s.closeReason).filter(Boolean))

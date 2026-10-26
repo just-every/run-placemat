@@ -2,7 +2,7 @@ import {serviceInput} from './service-input'
 import {instant,serviceBy} from './availability'
 import {id,fail,text,type State,type Actor,type Proposal} from './model'
 import type {ServiceBlock} from './service-blocks'
-export type ChangeTask={id:string;bookingId:string;ownerId:string;status:'open'|'failed-contact';reason:string;outcome?:string;updatedAt:string;updatedBy:string}
+export type ChangeTask={relocation?:import('./service-relocation').Relocation;outreach?:{id:string;state:'sending'|'accepted'|'unconfirmed'|'guest-opened';at:string;actor:string;providerId?:string|null};cancellation?:{at:string;actor:string;reason:string;refundId?:string;amountCents:number};id:string;bookingId:string;ownerId:string;status:'open'|'failed-contact';reason:string;outcome?:string;updatedAt:string;updatedBy:string}
 export type ServiceChange=ServiceBlock&{reason:string;approvedBy:string;approvedAt:string;tasks:ChangeTask[]}
 const snapshot=(s:State)=>({services:s.services,tables:s.tables,bookings:s.bookings,serviceChanges:s.serviceChanges??[]})
 export function prepareClosure(s:State,p:any,now:string){

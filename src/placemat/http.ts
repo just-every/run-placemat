@@ -14,6 +14,8 @@ import {refundWebhook,refundFollowups} from './refund-events'
 import {sendRefundNotice,refundNotices,refundNoticeAudit} from './refund-notices'
 import {readManagement,previewManagement,commitManagement} from './booking-management'
 import {managementPage} from './booking-management-view'
+import {sendServiceOutreach,guestRelocation} from './service-outreach'
+import {relocationPage} from './service-relocation-view'
 import {sendManagement} from './booking-management-mail'
 import {handoverAssignees} from './host-projection'
 import {paymentAlerts,closePaymentRequest,createPaymentRequest,issuePaymentLink,syncPaymentRequest} from './payment-links'
@@ -93,9 +95,18 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
  }
  if(path==='/api/payments/ledger-events')return moneyWebhook(env,request)
  if(path==='/api/payments/refund-events')return refundWebhook(env,request)
- if(!path.startsWith('/api/report-schedules')&&!path.startsWith('/api/report-deliveries/')&&path!=='/api/group-comparison'&&path!=='/api/report-export.csv'&&!path.startsWith('/api/public/card-guarantee/')&&!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
+ if(path!=='/relocation'&&!path.startsWith('/api/public/relocation/')&&!path.startsWith('/api/report-schedules')&&!path.startsWith('/api/report-deliveries/')&&path!=='/api/group-comparison'&&path!=='/api/report-export.csv'&&!path.startsWith('/api/public/card-guarantee/')&&!path.startsWith('/api/v')&&!path.startsWith('/api/integration-keys')&&!path.startsWith('/api/integration-subscriptions')&&!path.startsWith('/api/public/booking-holds')&&path!=='/api/group'&&!path.startsWith('/api/group/')&&!path.startsWith('/api/finance/')&&path!=='/manage-booking'&&!path.startsWith('/api/public/booking-management/')&&path!=='/hoststand'&&!path.startsWith('/api/hoststand/')&&!path.startsWith('/api/business-export/')&&path!=='/inquiry'&&!path.startsWith('/api/public/inquiries/')&&path!=='/app'&&path!=='/book'&&path!=='/queue'&&!path.startsWith('/api/public/queue/')&&!paths.has(path)&&!path.startsWith('/api/import/')&&!path.startsWith('/api/calendar/')&&!path.startsWith('/api/agent-keys/'))return null
  try{
   const scheduled=await scheduledReportResponse(request,env);if(scheduled)return scheduled
+  if(path==='/relocation'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return relocationPage(request)}
+  if(path.startsWith('/api/public/relocation/')){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405)
+   originCheck(request,env)
+   const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':relocation:'+Math.floor(Date.now()/60000))
+   const limit=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
+   if((limit?.count??0)>60)fail(429,'Too many requests. Please wait a minute.')
+   return json(await guestRelocation(env.DB,await jsonBody(request),path.split('/').at(-1)!))
+  }
   if(path.startsWith('/api/public/card-guarantee/')){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    originCheck(request,env)
@@ -397,6 +408,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(p.command==='payment.guarantee-issue')return json({result:await issueGuarantee(env,actor!,p.payload??{})})
    if(p.command==='payment.guarantee-end')return json({result:await endGuarantee(env,actor!,p.payload??{})})
    if(p.command==='payment.guarantee-sync')return json({result:await syncMerchantCard(env,actor!,{requestId:p.payload?.id})})
+   if(p.command==='service.outreach')return json({result:await sendServiceOutreach(env,actor!,p.payload??{})})
    if(p.command==='booking.management.send')return json({result:await sendManagement(env,actor!,p.payload??{})})
    if(p.command==='payment.close')return json({result:await closePaymentRequest(env,actor!,p.payload?.requestId)})
    if(p.command==='payment.request')return json({result:await createPaymentRequest(env.DB,actor!,p.payload??{})})

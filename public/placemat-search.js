@@ -77,7 +77,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   function renderBooking() {
     const target = find('#public-booking-form');
     if (!selected) { target.innerHTML = ''; return; }
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<label class="wide"><input type="checkbox" name="closureEmailConsent">Email me about a closure or proposed relocation for this reservation.</label>${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
   }
   function counterSeats(){
     const inventory=response?.inventoryOptions?.find(i=>i.name===query.area&&i.kind==='counter');
@@ -109,7 +109,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   async function book(review=false) {
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
     const embedOrigin = document.body.dataset.embedOrigin;
-    const payload = {...contact,...requests, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
+    const payload = {...contact,...requests, closureEmailConsent:find('[name="closureEmailConsent"]')?.checked===true, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
       ...(find('[name="counterSeats"]')?.value?{tableIds:find('[name="counterSeats"]').value.split(',')} : {}),
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
     const seats=find('[name="counterSeats"]');if(seats)seats.required=false;

@@ -48,6 +48,7 @@ export default {
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
  excludeTables:['pm_payment_operation_custody','pm_report_schedules','pm_report_deliveries','pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
+  if(table==='pm_state'){const state=JSON.parse(row.data);const changes=[...(state.serviceChanges??[]),...(state.proposals??[]).flatMap(p=>p.plan?.snapshot?.serviceChanges??[])];for(const change of changes)for(const task of change.tasks??[])if(task.relocation)delete task.relocation.tokenHash;return {...row,data:JSON.stringify(state)}}
   if(table==='pm_fee_assessments')return {...row,processing_until:0}
   if(table==='pm_refund_webhooks')return {...row,claim:''}
   if(table==='pm_payment_requests')return {...row,provider_url:null}

@@ -1,3 +1,4 @@
+import {reviewRelocation,cancelAffected} from './service-relocation'
 import {executeLate} from './late-arrivals'
 import {executeNeeds} from './needs'
 import {outageSheet,outageOwner,approveOutage} from './outage'
@@ -67,6 +68,8 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  case 'embed.origins':{result=setEmbedOrigins(s,actor,p,now);break}
  case 'analytics.settings':{const change=setAnalytics(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}
  case 'analytics.remove-key':{const change=removeAnalyticsKey(db,s,actor,p,await savedKeys(db),version,now);before.push(...change.statements);result=change.result;break}
+ case 'service.relocation':{result=reviewRelocation(s,actor,p,now);break}
+ case 'service.cancel':{result=await cancelAffected(db,s,actor,p,now);break}
  case 'service.followup':{result=followupChange(s,actor,p,now);break}
  case 'inquiry.assign':case 'inquiry.reply':case 'inquiry.convert':case 'inquiry.close':{
   result=await executeInquiry(s,actor,command,p,now,db);if(result.before){before.push(...result.before);delete result.before}break
@@ -293,7 +296,7 @@ export async function onlineBook(db:D1Database,input:any):Promise<{partySize:num
  const preorders=normalizePreorders(service,p.preorders)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
+ const b:Booking={...(p.closureEmailConsent===true?{closureEmailConsent:{at:new Date().toISOString(),source:'guest-supplied' as const}}:{}),preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  const result={assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
