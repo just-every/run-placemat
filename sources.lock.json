@@ -825,6 +825,10 @@
       "sha256": "17365cc7bdc105eb418046cb4940151117021f362f0a87fb6b0d5686dce22b09",
       "executable": false
     },
+    "public/placemat-relocation.js": {
+      "sha256": "8535eaef711b33195eaf5c30890178ae4aa3757ba1ce121a7b7e5e5c9c326c0a",
+      "executable": false
+    },
     "public/placemat-report-schedules.js": {
       "sha256": "45e980c42ac5d7b7b05d322312e2afa6d989f2cb0a213d90a728628bea10eade",
       "executable": false
@@ -855,6 +859,10 @@
     },
     "public/placemat-service-changes.js": {
       "sha256": "7b6681c28526344c881826ca70fdad32b81f502f5556bc41a065bdc5ec5d36e8",
+      "executable": false
+    },
+    "public/placemat-service-decisions.js": {
+      "sha256": "566062426d4e2745e6096f58d287c3462c035bd930185d1ea531b3dad9febc0c",
       "executable": false
     },
     "public/placemat-service-notes.js": {
@@ -3234,7 +3242,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "3395a82a505a983bb28eab223c08b271676681b3bb284a37bebd27766ef9fdd7",
+      "sha256": "8c5a57bbdc043cfb1dcd880db1b2731831e3f0fc0fa0b334414d7f9b112a6b52",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -3282,7 +3290,7 @@
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "a7002c8e65feb1d7c43cb13e08195ceafc22793aa5ef85d6b23ceb1f8ed7fb83",
+      "sha256": "9af7caf6a420688304b3a75bc503c20ba38c8224e46a7413f4d3e8bd1e31bd9e",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3727,6 +3735,18 @@
     },
     "src/placemat/service-notes.ts": {
       "sha256": "33c580608bba5c79ea44225e1801eea243429a6d065f6a4c9a9ac3a76520485c",
+      "executable": false
+    },
+    "src/placemat/service-outreach.ts": {
+      "sha256": "f61d0033ccabd1d279d000de1bd25f8ea44b6f1173ceae647ff985a604877c55",
+      "executable": false
+    },
+    "src/placemat/service-relocation-view.ts": {
+      "sha256": "f10e59beb8d3aa109869445a17f4256d6d16d5fda746c77258b079e06e6fcc7d",
+      "executable": false
+    },
+    "src/placemat/service-relocation.ts": {
+      "sha256": "27f3a29fbaa55194c69027e211d04f7655e4aa42ea69c05d5bf50c838c4647fd",
       "executable": false
     },
     "src/placemat/service-status.ts": {
@@ -4318,7 +4338,7 @@
       "executable": false
     },
     "tests/service-changes-ui.mjs": {
-      "sha256": "97c9c083db9d4a0c2f2c14286d4850e86647dd4d491d38170ac174f0170829fa",
+      "sha256": "96e68c6781403de1c413b712224b3832dad471a06436a2b7845128c05b982dc8",
       "executable": false
     },
     "tests/service-close-report-ui.mjs": {
