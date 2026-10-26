@@ -26,7 +26,7 @@ export function cartFields(entry,partySize,cart,esc,serviceId){
 export function readCart(form){
  return {items:[...form.querySelectorAll('[data-experience-cart-item]')].map(input=>({id:input.dataset.experienceCartItem,quantity:Number(input.value)})).filter(item=>item.quantity!==0),dietaryChoices:[...form.querySelectorAll('[data-experience-guest-number]')].filter(input=>input.value).map(input=>({guestNumber:Number(input.dataset.experienceGuestNumber),choiceId:input.value}))};
 }
-export function cartSummary(cart,esc){
+export function cartSummary(cart,esc,preview=false){
  if(!cart)return '';
- return `<section aria-label="Experience ticket receipt"><h3>Experience ticket receipt</h3><p>${cart.ticketQuantity} tickets · Total USD ${(cart.totalCents/100).toFixed(2)} · No payment taken.</p>${cart.items.map(item=>`<p>${item.quantity} × ${esc(item.name)} · USD ${(item.totalCents/100).toFixed(2)}</p>`).join('')}<p>Bound to this reservation only. No transfer, top-up or general spending.</p></section>`;
+ return `<section aria-label="Experience ticket receipt"><h3>${preview?'Review ticket options':'Experience ticket receipt'}</h3><p>${cart.ticketQuantity} tickets · Total USD ${(cart.totalCents/100).toFixed(2)} · No payment taken.</p>${cart.items.map(item=>`<p>${item.quantity} × ${esc(item.name)} · USD ${(item.totalCents/100).toFixed(2)}</p>`).join('')}<p>${preview?'These options are held for this checkout only.':'Bound to this reservation only. No transfer, top-up or general spending.'}</p></section>`;
 }
