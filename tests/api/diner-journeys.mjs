@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {installation,service,publicGuest} from './harness.mjs'
 
 const door='/api/public/diner/'
-const call=(h,action,body,options={})=>h.api(door+action,body,{as:'',...options})
+const call=(h,action,body,options={})=>h.api(action.startsWith('/')?action:door+action,body,{as:'',...options})
 const code=h=>h.messages.findLast(m=>m.subject==='Verify your diner account').text.match(/\b[a-f0-9]{64}\b/)[0]
 async function issue(h,b,email){
  await call(h,'request',{bookingId:b.id,email,acknowledged:true},{status:202})
@@ -50,8 +50,10 @@ export async function verifiedDinerJourney(){
   await call(h,'logout',{token:first.token})
   await call(h,'account',{token:first.token},{status:404})
   assert.equal((await call(h,'account',{token:second.token})).bookings[0].id,b.id)
+  const third=await verify(h,b,input.email)
   await call(h,'forget',{token:second.token,acknowledged:true})
   await call(h,'account',{token:second.token},{status:404})
+  await call(h,'account',{token:third.token},{status:404})
   assert.equal((await h.api('/api/state')).state.bookings.find(row=>row.id===b.id).status,'booked')
  }finally{await h.close();await other.close()}
 }
@@ -114,5 +116,62 @@ export async function failedDinerMailJourney(){
   await call(h,'verify',{code:token,acknowledged:true},{status:404})
   assert.equal((await h.db.prepare('SELECT count(*) AS n FROM pm_diner_accounts').first()).n,0)
   assert.equal((await h.api('/api/state')).state.bookings.find(row=>row.id===b.id).status,'booked')
+ }finally{await h.close()}
+}
+
+export async function dinerManagementJourney(){
+ const {dinerFixture,dinerNow}=await import('./diner-fixture.mjs')
+ let now=dinerNow
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now})
+ try{
+  const f=await dinerFixture(h),first=await verify(h,f.same,f.input.email),second=await verify(h,f.same,f.input.email)
+  const manage=(action,p={},status)=>call(h,'/api/public/diner/management/'+action,{token:first.token,bookingId:f.same.id,...p},status?{status}:{})
+  await manage('status',{bookingId:f.sibling.id},404)
+  await manage('status',{token:'synthetic-placemat-1'},404)
+  const view=await manage('status')
+  assert.equal(view.booking.id,f.same.id);assert.equal(view.guest.email,f.input.email)
+  const before=(await h.api('/api/state')).state
+  const preview=await manage('preview',{action:'change',partySize:3})
+  assert.equal(preview.booking.partySize,3);assert.equal(preview.consequences.feeCents,0);assert.equal(preview.consequences.refundCents,0)
+  assert.deepEqual((await h.api('/api/state')).state,before,'Preview never changes a restaurant reservation')
+  await manage('commit',{previewId:preview.previewId,acknowledged:false},400)
+  await manage('commit',{token:second.token,previewId:preview.previewId,acknowledged:true},404)
+  await manage('commit',{bookingId:f.sibling.id,previewId:preview.previewId,acknowledged:true},404)
+  const committed=await manage('commit',{previewId:preview.previewId,acknowledged:true})
+  assert.equal(committed.booking.partySize,3)
+  await manage('commit',{previewId:preview.previewId,acknowledged:true},404)
+  assert.equal((await call(h,'account',{token:second.token})).bookings[0].partySize,3)
+  assert.deepEqual((await h.api('/api/state')).state.bookings.find(b=>b.id===f.sibling.id),before.bookings.find(b=>b.id===f.sibling.id))
+  // A failed capacity check leaves the existing reservation and device session usable.
+  await manage('preview',{action:'change',partySize:100},409)
+  assert.equal((await manage('status')).booking.partySize,3)
+  const stale=await manage('preview',{action:'cancel'})
+  await h.command('booking.lock',{bookingId:f.same.id,locked:true,version:(await h.api('/api/state')).version})
+  await manage('commit',{previewId:stale.previewId,acknowledged:true},404)
+  const cancel=await manage('preview',{action:'cancel'})
+  const archive=await h.api('/api/backup')
+  assert.ok(!JSON.stringify(archive).includes(cancel.previewId),'Diner consent previews never enter archives')
+  await call(h,'logout',{token:first.token})
+  await manage('commit',{previewId:cancel.previewId,acknowledged:true},404)
+  const fromSecond=await call(h,'/api/public/diner/management/preview',{token:second.token,bookingId:f.same.id,action:'reconfirm'})
+  const reconfirmed=await call(h,'/api/public/diner/management/commit',{token:second.token,bookingId:f.same.id,previewId:fromSecond.previewId,acknowledged:true})
+  assert.equal(reconfirmed.booking.serviceStatus,'reconfirmed')
+  // Paid bookings require the existing manager review, including money added after preview.
+  const pending=await call(h,'/api/public/diner/management/preview',{token:second.token,bookingId:f.same.id,action:'cancel'})
+  const owner=(await h.api('/auth/operators')).find(o=>o.role==='owner')
+  await h.command('payment.request',{bookingId:f.same.id,amountCents:100,dueAt:'2026-10-29T10:00:00Z',followupOwnerId:owner.id,reason:'Guest agreed deposit requires manager review'})
+  assert.equal((await call(h,'/api/public/diner/management/status',{token:second.token,bookingId:f.same.id})).managerReviewRequired,true)
+  await call(h,'/api/public/diner/management/commit',{token:second.token,bookingId:f.same.id,previewId:pending.previewId,acknowledged:true},{status:409})
+  assert.equal((await call(h,'account',{token:second.token})).bookings[0].status,'booked')
+  now+=60000
+  const repeat=(await h.api('/api/public/book',{...f.input,startAt:'2026-10-30T09:00:00Z'},{as:'',status:201})).result
+  await verify(h,repeat,f.input.email)
+  const review=await call(h,'/api/public/diner/management/preview',{token:second.token,bookingId:repeat.id,action:'cancel'})
+  assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===repeat.id).status,'booked')
+  const cancelled=await call(h,'/api/public/diner/management/commit',{token:second.token,bookingId:repeat.id,previewId:review.previewId,acknowledged:true})
+  assert.equal(cancelled.booking.status,'cancelled')
+  assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===f.same.id).status,'booked','Cancelling another verified booking leaves the paid reservation intact')
+  await call(h,'/api/public/diner/management/commit',{token:second.token,bookingId:repeat.id,previewId:review.previewId,acknowledged:true},{status:404})
+
  }finally{await h.close()}
 }

@@ -17,7 +17,8 @@ type Action='change'|'reconfirm'|'cancel'
 type Change={action:Action;startAt?:string;partySize?:number;contact?:Contact}
 type Plan={booking:Booking;contact:Contact;stage:ServiceSnapshot}
 type Preview={input:Change;tableIds:string[];planHash:string}
-type Context={s:State;version:number;b:Booking;service:Service;guest:Guest;guestRow:GuestRow;contact:Contact;contactRow:ContactRow|null;fingerprint:string;link:Link}
+export type DinerAuthority={digest:string;accountId:string;bookingId:string;email:string;expiresAt:number}
+type Context={diner?:DinerAuthority;s:State;version:number;b:Booking;service:Service;guest:Guest;guestRow:GuestRow;contact:Contact;contactRow:ContactRow|null;fingerprint:string;link:Link}
 const unavailable=():never=>fail(404,'Management link not found.')
 const moneyMessage='Contact the venue manager to review fees and refunds before changing this reservation.'
 const consequences=()=>({currency:'USD' as const,feeCents:0,refundCents:0,message:'No fee will be charged and no refund is due. No payment will be taken.'})
@@ -34,6 +35,7 @@ const authority=(db:D1Database,actor:Actor)=>db.prepare("INSERT INTO pm_assertio
 const stateFence=(db:D1Database,version:number)=>db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END').bind(version)
 function guestFence(db:D1Database,c:Context){return db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END').bind(c.guest.id,c.guestRow.version,c.guestRow.data)}
 function tokenFence(db:D1Database,c:Context,previewId?:string){
+ if(c.diner)return db.prepare(`INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_diner_sessions s JOIN pm_diner_accounts a ON a.id=s.account_id JOIN pm_diner_bookings b ON b.account_id=a.id WHERE s.digest=? AND a.id=? AND a.email=? AND b.booking_id=? AND b.guest_id=? AND s.expires_at>?${previewId?' AND s.management_booking_id=? AND s.management_fingerprint=? AND s.preview_id=?':''}) THEN 1 ELSE 0 END`).bind(c.diner.digest,c.diner.accountId,c.diner.email,c.b.id,c.guest.id,Date.now(),...previewId?[c.b.id,c.fingerprint,previewId]:[])
  return db.prepare(`INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_booking_management WHERE booking_id=? AND guest_id=? AND token_hash=? AND fingerprint=? AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')${previewId?' AND preview_id=?':''}) THEN 1 ELSE 0 END`).bind(c.b.id,c.guest.id,c.link.token_hash,c.fingerprint,...previewId?[previewId]:[])
 }
 function contactFence(db:D1Database,c:Context){
@@ -68,7 +70,15 @@ async function reservation(db:D1Database,s:State,version:number,bookingId:string
  const fingerprint=await hash(JSON.stringify({booking:b,service,venue:s.venue,guestId:guest.id,guestVersion:guestRow.version,guestData:guestRow.data,contact,stage:serviceSnapshot(s,b)}))
  return {s,version,b,service,guest,guestRow,contact,contactRow,fingerprint}
 }
-async function context(db:D1Database,p:any):Promise<Context>{
+async function context(db:D1Database,p:any,diner?:DinerAuthority):Promise<Context>{
+ if(diner){
+  const {state:s,version}=await load(db),base=await reservation(db,s,version,diner.bookingId)
+  if(base.contact.email.trim().toLowerCase()!==diner.email||Date.parse(base.service.startAt)<=Date.now())unavailable()
+  const row=await db.prepare('SELECT management_booking_id,management_fingerprint,preview_id,preview_data FROM pm_diner_sessions WHERE digest=? AND account_id=? AND expires_at>?').bind(diner.digest,diner.accountId,Date.now()).first<{management_booking_id:string|null;management_fingerprint:string|null;preview_id:string|null;preview_data:string|null}>()
+  if(!row)unavailable()
+  const matches=row!.management_booking_id===base.b.id&&row!.management_fingerprint===base.fingerprint
+  return {...base,diner,link:{booking_id:base.b.id,guest_id:base.guest.id,token_hash:diner.digest,fingerprint:base.fingerprint,expires_at:new Date(Math.min(diner.expiresAt,Date.parse(base.service.startAt))).toISOString(),created_at:'',created_by:'guest',preview_id:matches?row!.preview_id:null,preview_data:matches?row!.preview_data:null}}
+ }
  const tokenHash=await hash(bearer(p)),link=await db.prepare('SELECT * FROM pm_booking_management WHERE token_hash=?').bind(tokenHash).first<Link>()??unavailable()
  if(Date.parse(link.expires_at)<=Date.now()||!Number.isFinite(Date.parse(link.expires_at)))unavailable()
  const {state:s,version}=await load(db),c=await reservation(db,s,version,link.booking_id)
@@ -141,23 +151,23 @@ export async function revokeManagement(db:D1Database,token:string){
  if(!/^[a-f0-9]{64}$/.test(token))return
  await db.prepare('DELETE FROM pm_booking_management WHERE token_hash=?').bind(await hash(token)).run()
 }
-export async function readManagement(db:D1Database,p:{token?:unknown}){
- const c=await context(db,p),managerReviewRequired=await hasMoney(db,c.b.id)
+export async function readManagement(db:D1Database,p:{token?:unknown},diner?:DinerAuthority){
+ const c=await context(db,p,diner),managerReviewRequired=await hasMoney(db,c.b.id)
  return {...projection(c),managerReviewRequired,...managerReviewRequired?{managerReviewMessage:moneyMessage}:{}}
 }
 
 /** A preview saves consent data only; it never changes a booking or consumes inventory. */
-export async function previewManagement(db:D1Database,p:any){
- const c=await context(db,p);await noMoney(db,c.b.id)
+export async function previewManagement(db:D1Database,p:any,diner?:DinerAuthority){
+ const c=await context(db,p,diner);await noMoney(db,c.b.id)
  const change=input(p,c),plan=planFor(c,change),previewId=randomToken()
  const data:Preview={input:change,tableIds:plan.booking.tableIds,planHash:await hash(JSON.stringify(plan))}
- await atomic(()=>db.batch([stateFence(db,c.version),guestFence(db,c),contactFence(db,c),tokenFence(db,c),moneyFence(db,c.b.id),db.prepare('UPDATE pm_booking_management SET preview_id=?,preview_data=? WHERE token_hash=?').bind(previewId,JSON.stringify(data),c.link.token_hash),db.prepare('DELETE FROM pm_assertions')]),'The reservation or payment details changed. Review a new preview or contact the venue manager.')
+ await atomic(()=>db.batch([stateFence(db,c.version),guestFence(db,c),contactFence(db,c),tokenFence(db,c),moneyFence(db,c.b.id),c.diner?db.prepare('UPDATE pm_diner_sessions SET management_booking_id=?,management_fingerprint=?,preview_id=?,preview_data=? WHERE digest=?').bind(c.b.id,c.fingerprint,previewId,JSON.stringify(data),c.diner.digest):db.prepare('UPDATE pm_booking_management SET preview_id=?,preview_data=? WHERE token_hash=?').bind(previewId,JSON.stringify(data),c.link.token_hash),db.prepare('DELETE FROM pm_assertions')]),'The reservation or payment details changed. Review a new preview or contact the venue manager.')
  return {...projection(c,plan),previewId,action:change.action,consequences:consequences()}
 }
 
 /** Consent commits the exact preview; inventory, contact and token rotation share one D1 transaction. */
-export async function commitManagement(db:D1Database,p:any){
- const c=await context(db,p)
+export async function commitManagement(db:D1Database,p:any,diner?:DinerAuthority){
+ const c=await context(db,p,diner)
  if(typeof p.previewId!=='string'||p.previewId!==c.link.preview_id||!c.link.preview_data)unavailable()
  if(p.acknowledged!==true)fail(400,'Acknowledge the shown fee and refund consequences before confirming.')
  if(['action','startAt','partySize','contact'].some(k=>p[k]!==undefined))fail(400,'Confirm the saved preview without replacement edits.')
@@ -177,10 +187,10 @@ export async function commitManagement(db:D1Database,p:any){
  const fingerprint=await hash(JSON.stringify({booking:c.b,service:c.service,venue:c.s.venue,guestId:c.guest.id,guestVersion:c.guestRow.version,guestData:c.guestRow.data,contact:plan.contact,stage:serviceSnapshot(c.s,c.b)}))
  const statements=[stateFence(db,c.version),guestFence(db,c),contactFence(db,c),tokenFence(db,c,p.previewId),moneyFence(db,c.b.id)]
  if(contactChanged)statements.push(db.prepare('INSERT INTO pm_booking_contacts(booking_id,guest_id,data,updated_at) VALUES(?,?,?,?) ON CONFLICT(booking_id) DO UPDATE SET guest_id=excluded.guest_id,data=excluded.data,updated_at=excluded.updated_at').bind(c.b.id,c.guest.id,JSON.stringify(plan.contact),now))
- statements.push(emailChanged?db.prepare('DELETE FROM pm_booking_management WHERE token_hash=?').bind(c.link.token_hash):db.prepare('UPDATE pm_booking_management SET token_hash=?,fingerprint=?,expires_at=?,preview_id=NULL,preview_data=NULL WHERE token_hash=?').bind(tokenHash,fingerprint,expiresAt,c.link.token_hash))
- c.s.audit.push({id:id(),actor:'guest',at:now,action:emailChanged?'booking.management.email-invalidated':'booking.management.rotate',subject:c.b.id,source:'guest-supplied'})
+ statements.push(c.diner?db.prepare('UPDATE pm_diner_sessions SET management_booking_id=NULL,management_fingerprint=NULL,preview_id=NULL,preview_data=NULL WHERE digest=?').bind(c.diner.digest):emailChanged?db.prepare('DELETE FROM pm_booking_management WHERE token_hash=?').bind(c.link.token_hash):db.prepare('UPDATE pm_booking_management SET token_hash=?,fingerprint=?,expires_at=?,preview_id=NULL,preview_data=NULL WHERE token_hash=?').bind(tokenHash,fingerprint,expiresAt,c.link.token_hash))
+ c.s.audit.push({id:id(),actor:'guest',at:now,action:emailChanged?'booking.management.email-invalidated':c.diner?'diner.management.confirmed':'booking.management.rotate',subject:c.b.id,source:'guest-supplied'})
  c.s.audit.push({id:id(),actor:'guest',at:now,action:'booking.management.'+preview.input.action,subject:c.b.id,source:'guest-supplied',changes:[{kind:'managementConsent',id:c.b.id,before:null,after:{action:preview.input.action,acknowledged:true,consequences:consequences()}},...contactChanged?[{kind:'bookingContacts',id:c.b.id,before:c.contact,after:plan.contact}]:[]]})
  await atomic(()=>save(db,c.s,c.version,statements),'The reservation, link or payment details changed. Review a new link or contact the venue manager.')
  c.contact=plan.contact;c.link.expires_at=expiresAt
- return {...projection(c,plan),token:emailChanged?null:token,managementAccessEnded:emailChanged,consequences:consequences()}
+ return {...projection(c,plan),token:emailChanged?null:c.diner?p.token:token,managementAccessEnded:emailChanged,consequences:consequences()}
 }

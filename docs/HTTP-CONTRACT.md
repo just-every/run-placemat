@@ -469,7 +469,7 @@ Experience allocations stay in the same dated service and physical ledger as ord
 ### Optional diner accounts (DIST-005, partial)
 
 Guest checkout at `POST /api/public/book` remains available without an account.
-The native diner API is an initial slice; no diner account screen is shipped.
+The public `/diner` screen requests verification, opens the account and manages its favorite, preferences and individually verified reservations.
 This door grants no venue role and never merges guest profiles. Favorites and
 preferences belong only to the current restaurant installation. They are not
 applied to a booking or exposed in staff projections automatically.
@@ -485,6 +485,9 @@ to the public request limit. Supply these fields:
 | `/api/public/diner/preferences` | `token`, boolean `favorite`, string `preferences`, `acknowledged: true` | Saves up to 500 characters for this restaurant. Empty preferences revoke the saved text; false removes the favorite. |
 | `/api/public/diner/logout` | `token` | Revokes that device session. |
 | `/api/public/diner/forget` | `token`, `acknowledged: true` | Removes the restaurant account, all its links, pending codes and all device sessions. Reservations stay unchanged. |
+| `/api/public/diner/management/status` | `token`, `bookingId` | Only a booking individually verified for this account, with its current matching contact. Financial obligations require manager review. |
+| `/api/public/diner/management/preview` | `token`, `bookingId`, `action` and the existing BOOK-004 change fields | Saves one exact reviewed plan for this device without changing the reservation. |
+| `/api/public/diner/management/commit` | `token`, `bookingId`, `previewId`, `acknowledged: true` | Commits only that device’s current preview, with live identity, capacity, state and money guards; consumes the preview. |
 
 The code is 32 random bytes, stored only as SHA-256, consumed atomically and
 expires in 15 minutes. A new request supersedes the earlier code for that
@@ -500,10 +503,9 @@ with the same email or phone is not attached automatically. Current contact
 matching is checked on reads. The API exposes no internal guest ID, staff notes,
 allergy records or other diners.
 
-The existing `/book` page performs a fresh capacity-checked guest booking.
-Account-led prefill, account screens and management of upcoming bookings from
-the account remain unbuilt. Existing private booking-management links retain
-their own authority and financial restrictions.
+A favorite’s Book again action opens the existing `/book` page for a fresh capacity-checked guest booking. Contact and preferences are not copied automatically; the new booking needs separate verification before appearing in the account.
+
+The `/diner/manage` screen reuses BOOK-004’s explicit preview and acknowledgment for time, party size, reservation contact, reconfirmation and cancellation. It grants no email-link issuance authority. Existing private booking-management links retain their own authority and financial restrictions. A changed contact email removes the old account’s access; proving the new address is required. Financially implicated reservations stay in manager review. Each device holds one reviewed reservation preview at a time; a replacement preview, changed reservation, consumed confirmation, expired session or revocation prevents reuse. Device credentials remain in tab session storage, never a URL, and all previews are excluded with sessions from archives.
 
 Owner-only CSV kinds `diner-accounts` and `diner-bookings` and structured
 archives contain the business records. Codes and sessions are excluded, so a

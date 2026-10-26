@@ -1,3 +1,6 @@
+import {dinerPage} from './diner-view'
+import {managementPage} from './booking-management-view'
+import {readManagement,previewManagement,commitManagement} from './booking-management'
 import type {Bindings} from '../auth.server'
 import {operatorMail} from '../mail.server.mjs'
 import {originCheck,jsonBody} from './access'
@@ -79,8 +82,9 @@ async function verify(db:D1Database,p:any){
 }
 async function session(db:D1Database,p:any){
  const digest=await hash(bearer(p.token))
+ const device=await db.prepare('SELECT expires_at FROM pm_diner_sessions WHERE digest=? AND expires_at>?').bind(digest,Date.now()).first<{expires_at:number}>()
  const a=await db.prepare('SELECT a.* FROM pm_diner_accounts a JOIN pm_diner_sessions s ON s.account_id=a.id WHERE s.digest=? AND s.expires_at>?').bind(digest,Date.now()).first<Account>()
- if(!a)unavailable()
+ if(!a||!device)unavailable()
  const links=(await db.prepare('SELECT booking_id,guest_id FROM pm_diner_bookings WHERE account_id=?').bind(a!.id).all<{booking_id:string;guest_id:string}>()).results
  const bookings=[]
  for(const link of links){
@@ -89,10 +93,14 @@ async function session(db:D1Database,p:any){
  }
  // Restored links are records only: absent sessions cannot open them.
  if(!bookings.length)unavailable()
- return {account:a!,digest,bookings}
+ return {account:a!,digest,bookings,expiresAt:device!.expires_at}
 }
 export async function dinerResponse(request:Request,env:Bindings):Promise<Response|null>{
  const path=new URL(request.url).pathname
+ if(path==='/diner'||path==='/diner/manage'){
+  if(!['GET','HEAD'].includes(request.method))return Response.json({error:'Method not allowed'},{status:405,headers})
+  return path==='/diner'?dinerPage(request):managementPage(request,true)
+ }
  if(!path.startsWith('/api/public/diner/'))return null
  const json=(data:unknown,status=200)=>Response.json(data,{status,headers})
  try{
@@ -104,8 +112,14 @@ export async function dinerResponse(request:Request,env:Bindings):Promise<Respon
   const p=await jsonBody(request)
   if(path==='/api/public/diner/request')return json(await requestCode(env,p),202)
   if(path==='/api/public/diner/verify')return json(await verify(env.DB,p))
-  if(!['/api/public/diner/account','/api/public/diner/preferences','/api/public/diner/logout','/api/public/diner/forget'].includes(path))return json({error:'Not found'},404)
+  if(!['/api/public/diner/account','/api/public/diner/preferences','/api/public/diner/logout','/api/public/diner/forget','/api/public/diner/management/status','/api/public/diner/management/preview','/api/public/diner/management/commit'].includes(path))return json({error:'Not found'},404)
   const s=await session(env.DB,p),{state,version}=await load(env.DB)
+  if(path.startsWith('/api/public/diner/management/')){
+   if(typeof p.bookingId!=='string'||!s.bookings.some(b=>b.id===p.bookingId))unavailable()
+   const authority={digest:s.digest,accountId:s.account.id,bookingId:p.bookingId,email:s.account.email,expiresAt:s.expiresAt}
+   const action=path.split('/').at(-1)
+   return json(await (action==='status'?readManagement:action==='preview'?previewManagement:commitManagement)(env.DB,p,authority))
+  }
   if(path==='/api/public/diner/account')return json({email:s.account.email,venue:publicVenue(state.venue),favorite:!!s.account.favorite,preferences:s.account.preferences,bookings:s.bookings,rebookUrl:'/book'})
   if(path==='/api/public/diner/logout'){await env.DB.prepare('DELETE FROM pm_diner_sessions WHERE digest=?').bind(s.digest).run();return json({signedOut:true})}
   if(p.acknowledged!==true)fail(400,'Confirm the diner account change.')

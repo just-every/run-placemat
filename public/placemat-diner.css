@@ -1,0 +1,10 @@
+.diner-shell{overflow-wrap:anywhere}
+.diner-shell fieldset{min-width:0}
+.diner-shell textarea{width:100%;max-width:100%;font:inherit;padding:12px;border:1px solid var(--pm-rule);border-radius:8px;background:var(--pm-surface);color:var(--pm-ink)}
+.diner-shell code{overflow-wrap:anywhere;font-size:14px}
+.diner-shell summary{cursor:pointer;font-weight:600}
+.diner-bookings{padding:0;list-style:none}
+.diner-bookings li{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;padding:16px 0}
+.diner-bookings p{margin:4px 0}
+.diner-bookings .actions{align-self:center;flex-wrap:wrap}
+@media(max-width:600px){.diner-shell .actions{display:flex;flex-wrap:wrap;gap:16px}.diner-bookings li{display:block}.diner-bookings .actions{margin-top:12px}}

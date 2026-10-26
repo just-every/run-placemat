@@ -252,8 +252,9 @@ test('Declared needs: exact staff review, stale clarification, dated corrections
 })
 
 test('Diner verification attaches only one booking and supports independent devices with revocable venue preferences',async()=>{
- const {verifiedDinerJourney}=await import('./diner-journeys.mjs')
+ const {verifiedDinerJourney,dinerManagementJourney}=await import('./diner-journeys.mjs')
  await verifiedDinerJourney()
+ await dinerManagementJourney()
 })
 test('Diner credentials expire and stay out of archives while guest erasure removes account custody',async()=>{
  const {dinerCustodyJourney,failedDinerMailJourney}=await import('./diner-journeys.mjs')
