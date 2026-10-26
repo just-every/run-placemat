@@ -1,3 +1,4 @@
+import {experienceContext} from './experience-fit'
 import {bookingFit,serviceBy,instant} from './availability'
 import {checkBookingRules} from './booking-rules'
 import {searchTables} from './reservation-search'
@@ -20,8 +21,9 @@ export function relocationFit(s:State,b:Booking,p:any){
  // Required access remains binding. A guest reviews an explicit change of dining area.
  const area=p.area===undefined?b.requiredArea:p.area
  const ledger={...s,bookings:s.bookings.filter(row=>row.id!==b.id)}
- const {state:eligible,requiredArea}=searchTables(ledger,area,b.requiredAccessTags)
- const {tables,...slot}=bookingFit(eligible,service,b.partySize,startAt,'online',p.tableIds)
+ const experience=experienceContext(ledger,service,{},b.partySize,b.experience)
+ const {state:eligible,requiredArea}=searchTables(experience.state,area,b.requiredAccessTags)
+ const {tables,...slot}=bookingFit(eligible,experience.service,b.partySize,startAt,'online',p.tableIds)
  const next={...b,...slot,serviceId:service.id,tableIds:tables.map(t=>t.id),requiredArea}
  if(!slot.combination)delete next.combination
  delete next.expectedEndAt;delete next.ruleOverride;delete next.pacingOverride

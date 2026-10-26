@@ -7,8 +7,8 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   const checkout=createCheckout({api,root,esc,notice,formatTime:value=>fullTime(value),onConfirmed:confirmed,onReleased:()=>run(()=>search(query),'Refreshing availability…')});
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
-  let areas = [], accessTags = [], menus = new Map();
-  let contact = {name: '', email: '', phone: ''}, requests;
+  let areas = [], accessTags = [], experiences = [], menus = new Map();
+  let contact = {name: '', email: '', phone: ''}, requests, closureEmailConsent=false;
   const find = selector => root.querySelector(selector);
   const action = (label, value, disabled = false) => `<button type="button" class="secondary" data-public-action="${value}"${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
   const fullTime = value => new Intl.DateTimeFormat('en-US', {
@@ -24,28 +24,50 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     const form = find('[data-public-command="book"]');
     if (!form) return;
     const values = new FormData(form);
+    closureEmailConsent=values.has('closureEmailConsent');
     requests={...readRequests(form),preorders:readPreorders(form,menus.get(selected?.serviceId))};
     contact = Object.fromEntries(['name', 'email', 'phone'].map(name => [name, String(values.get(name) || '')]));
   }
   function preferences(form) {
     const values = new FormData(form);
     return {date: String(values.get('date')), partySize: Number(values.get('partySize')),
-      area: String(values.get('area') || ''), requiredAccessTags: values.getAll('requiredAccessTags').map(String)};
+      area: String(values.get('area') || ''), requiredAccessTags: values.getAll('requiredAccessTags').map(String),
+      experienceId: String(values.get('experienceId') || ''), ticketClassId: String(values.get('ticketClassId') || '')};
   }
   function constraints() {
     const inventory=response?.inventoryOptions?.find(i=>i.name===query.area);
     return `${query.partySize} guests · ${inventory?`${inventory.kind==='pool'?'Unassigned covers':'Counter seats'}: ${query.area}; hosts may transfer to physical seating`:query.area ? `Area guaranteed: ${query.area}` : 'Any available area'} · ${query.requiredAccessTags.length ? `Required access guaranteed: ${query.requiredAccessTags.join(', ')}` : 'No access requirements selected'}`;
   }
   function slotLabel(slot) {
-    return `${slot.alternative ? 'Nearby date alternative' : 'Requested date'} · ${fullTime(slot.startAt)} · ${slot.serviceName} · until ${fullTime(slot.endAt)}`;
+    return `${slot.alternative ? 'Nearby date alternative' : 'Requested date'} · ${fullTime(slot.startAt)} · ${slot.serviceName}${slot.experienceId ? ` · ${slot.experienceName} · ${slot.className}` : ''} · until ${fullTime(slot.endAt)}`;
+  }
+  const price = entry => {
+    const amount=new Intl.NumberFormat('en-US',{style:'currency',currency:entry.currency}).format(entry.amountCents/100);
+    return entry.kind==='free'?`Free experience · ${amount}`:`Required ${entry.kind==='deposit'?'deposit':'prepayment'}: ${amount} per guest`;
+  };
+  function renderExperienceClasses(experienceId,classId='') {
+    const target=find('[data-experience-class-filter]'),entry=experiences.find(row=>row.id===experienceId);
+    target.innerHTML=entry?select('Ticket class','ticketClassId',[['','Choose a ticket class'],...entry.ticketClasses.map(row=>[row.id,`${row.name} · quantity limit ${row.quantityLimit}`])],classId):'';
+    target.hidden=!entry;
+  }
+  function renderExperienceCatalog(experienceId='') {
+    find('[data-public-experiences]').innerHTML=experiences.length?`<section aria-label="Dining experiences"><h2>Dining experiences</h2>${experiences.map(entry=>`<details class="card"${entry.id===experienceId?' open':''}><summary>${esc(entry.name)} · ${esc(price(entry))}</summary>${entry.image?`<img src="${esc(entry.image)}" alt="${esc(entry.name)}" width="320" loading="lazy" style="max-width:100%;height:auto">`:''}<h3>Menu</h3><p style="white-space:pre-wrap">${esc(entry.menu)}</p><h3>Dates and seating</h3><ul>${entry.dates.map(date=>`<li>${esc(date.name)} · ${esc(fullTime(date.startAt))} to ${esc(fullTime(date.endAt))} · last seating ${esc(fullTime(date.lastSeatingAt))}</li>`).join('')}</ul><p>Seating areas: ${esc(entry.areas.join(', '))}</p><p>${entry.turnMinutes} minutes dining · ${entry.cleanupMinutes} minutes cleanup</p><h3>Ticket classes</h3><ul>${entry.ticketClasses.map(ticket=>`<li>${esc(ticket.name)} · quantity limit ${ticket.quantityLimit}</li>`).join('')}</ul><h3>Cancellation rules</h3><p style="white-space:pre-wrap">${esc(entry.cancellationRules)}</p><p>${entry.bookingAvailable?'Choose this experience and a ticket class, then search for available times.':'Online experience checkout is not available. This listing takes no payment and creates no reservation.'}</p></details>`).join('')}</section>`:'';
+  }
+  function experienceDisclosure(entry) {
+    return `<section class="wide booking-policy" aria-label="Experience terms"><h3>${esc(selected.experienceName)} · ${esc(selected.className)}</h3><p>${esc(price(entry))} · ${entry.turnMinutes} minutes dining · ${entry.cleanupMinutes} minutes cleanup.</p><p style="white-space:pre-wrap">Cancellation rules: ${esc(entry.cancellationRules)}</p><label><input type="checkbox" name="acknowledgedExperienceTerms" required> I agree to this experience’s price, dining duration, cleanup and cancellation rules.</label></section>`;
   }
   function renderSearch() {
     // Keep unavailable submitted constraints visible so guests can change them explicitly.
     const availableAreas = [...new Set([...areas, ...(query.area ? [query.area] : [])])];
     const tags = [...new Set([...accessTags, ...query.requiredAccessTags])];
-    root.innerHTML = `<form data-public-command="search"><fieldset><div class="form-grid">${field('Arrival date', 'date', 'date', query.date, 'required')}${field('Party size', 'partySize', 'number', query.partySize, 'required min="1" max="500"')}${select('Required area', 'area', [['', 'Any available area'], ...availableAreas.map(area => [area, area])], query.area)}<fieldset class="wide"><legend>Required table access</legend>${tags.length ? tags.map(tag => `<label><input type="checkbox" name="requiredAccessTags" value="${esc(tag)}"${query.requiredAccessTags.includes(tag) ? ' checked' : ''}>${esc(tag)}</label>`).join('') : '<p class="help">No table access features are listed. Contact the venue if you need an access feature.</p>'}<p class="help">Choose every feature your party needs. Results must meet all selected requirements.</p></fieldset><div class="wide"><button type="submit">Find available times</button></div></div></fieldset></form><div id="public-search-results" aria-live="polite"></div><div id="public-booking-form"></div>`;
+    const experienceOptions=[['','Ordinary reservation'],...experiences.map(entry=>[entry.id,`${entry.name}${entry.bookingAvailable?'':' · online checkout unavailable'}`])];
+    if(query.experienceId&&!experiences.some(entry=>entry.id===query.experienceId))experienceOptions.push([query.experienceId,'Previously selected experience · unavailable']);
+    root.innerHTML = `<form data-public-command="search"><fieldset><div class="form-grid">${field('Arrival date', 'date', 'date', query.date, 'required')}${field('Party size', 'partySize', 'number', query.partySize, 'required min="1" max="500"')}${select('Required area', 'area', [['', 'Any available area'], ...availableAreas.map(area => [area, area])], query.area)}${select('Dining experience','experienceId',experienceOptions,query.experienceId)}<div data-experience-class-filter></div><fieldset class="wide"><legend>Required table access</legend>${tags.length ? tags.map(tag => `<label><input type="checkbox" name="requiredAccessTags" value="${esc(tag)}"${query.requiredAccessTags.includes(tag) ? ' checked' : ''}>${esc(tag)}</label>`).join('') : '<p class="help">No table access features are listed. Contact the venue if you need an access feature.</p>'}<p class="help">Choose every feature your party needs. Results must meet all selected requirements.</p></fieldset><div class="wide"><button type="submit">Find available times</button></div></div></fieldset></form><div data-public-experiences></div><div id="public-search-results" aria-live="polite"></div><div id="public-booking-form"></div>`;
     // An empty area means no constraint; this selector must permit that value.
     find('[name="area"]').required = false;
+    find('[name="experienceId"]').required = false;
+    renderExperienceClasses(query.experienceId,query.ticketClassId);
+    renderExperienceCatalog(query.experienceId);
   }
   function clock(value) {
     const [hour, minute] = value.split(':').map(Number);
@@ -77,7 +99,9 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   function renderBooking() {
     const target = find('#public-booking-form');
     if (!selected) { target.innerHTML = ''; return; }
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<label class="wide"><input type="checkbox" name="closureEmailConsent">Email me about a closure or proposed relocation for this reservation.</label>${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
+    const experience=selected.experienceId?experiences.find(entry=>entry.id===selected.experienceId):undefined;
+    if(selected.experienceId&&(!experience||!experience.bookingAvailable||experience.kind!=='free')){target.innerHTML='<p role="alert">This experience is not available for online booking. Search again or contact the venue. No booking has been made.</p>';return;}
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<label class="wide"><input type="checkbox" name="closureEmailConsent"${closureEmailConsent?' checked':''}>Email me about a closure or proposed relocation for this reservation.</label>${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}${experience?experienceDisclosure(experience):''}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
   }
   function counterSeats(){
     const inventory=response?.inventoryOptions?.find(i=>i.name===query.area&&i.kind==='counter');
@@ -94,11 +118,13 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     renderSearch();
     renderResults();
     const params = new URLSearchParams({date: query.date, partySize: String(query.partySize), area: query.area});
+    if(query.experienceId){params.set('experienceId',query.experienceId);params.set('ticketClassId',query.ticketClassId);}
     query.requiredAccessTags.forEach(tag => params.append('requiredAccessTags', tag));
     response = await api(`/api/public/search?${params}`);
     venue = response.venue;
     areas = response.areas;
     accessTags = response.accessTags;
+    experiences = response.experiences;
     document.querySelector('#venue-line').textContent = `${venue.name} · All times in ${venue.timezone}`;
     let info=document.querySelector('#restaurant-contact');if(!info){info=document.createElement('div');info.id='restaurant-contact';document.querySelector('#venue-line').after(info);}
     info.innerHTML=`${venue.logo?`<img src="${esc(venue.logo)}" alt="Restaurant logo" width="80" height="80" style="object-fit:contain">`:''}<p>${esc([venue.address,venue.phone,venue.email,venue.website,venue.currency].filter(Boolean).join(' · '))}</p>`;
@@ -108,10 +134,12 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   }
   async function book(review=false) {
     if (!selected) throw new Error('Choose an available arrival time before confirming.');
+    if(selected.experienceId&&!find('[name="acknowledgedExperienceTerms"]')?.checked)throw new Error('Read and agree to the experience terms before confirming.');
     const embedOrigin = document.body.dataset.embedOrigin;
     const payload = {...contact,...requests, closureEmailConsent:find('[name="closureEmailConsent"]')?.checked===true, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
       ...(find('[name="counterSeats"]')?.value?{tableIds:find('[name="counterSeats"]').value.split(',')} : {}),
-      requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt};
+      requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt,
+      ...(selected.experienceId?{experienceId:selected.experienceId,ticketClassId:selected.ticketClassId,experienceVersion:selected.experienceVersion,acknowledgedExperienceTerms:true}:{})};
     const seats=find('[name="counterSeats"]');if(seats)seats.required=false;
     let result;
     try { if(review){await checkout.review(payload);return}result=await checkout.finish(payload); }
@@ -130,8 +158,8 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     confirmed(result);
   }
   function confirmed(result){
-    const partySize=result.partySize;query={...(query||{}),partySize,area:result.area||'',requiredAccessTags:result.requiredAccessTags||[]};
-    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2><p>${contact.name?esc(contact.name)+', your':'Your'} reservation for ${partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(query?constraints():result.area||'Your selected visit')}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${result.assignment?`<p>${esc(result.assignment)}</p>`:''}${action('Make another booking', 'another')}</article>`;
+    const partySize=result.partySize;query={...(query||{}),partySize,area:result.area||'',requiredAccessTags:result.requiredAccessTags||[],experienceId:result.experienceId||'',ticketClassId:result.ticketClassId||''};
+    root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2>${result.experienceId?`<p>${esc(result.experienceName)} · ${esc(result.className)}</p>`:''}<p>${contact.name?esc(contact.name)+', your':'Your'} reservation for ${partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(query?constraints():result.area||'Your selected visit')}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${result.assignment?`<p>${esc(result.assignment)}</p>`:''}${action('Make another booking', 'another')}</article>`;
     notice('Your booking is confirmed.', 'success');
   }
   async function run(work, message) {
@@ -156,13 +184,14 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     // This endpoint also serves existing clients; only venue metadata bootstraps the search.
     const bootstrap = await api('/api/public/services?partySize=2');
     venue = bootstrap.venue;
+    experiences = bootstrap.experiences;
     document.querySelector('#venue-line').textContent = `${venue.name} · All times in ${venue.timezone}`;
     menus = new Map(bootstrap.services.map(s=>[s.id,s.preorderItems||[]]));
     analytics.offer(bootstrap.analytics, venue);
-    contact = {name: '', email: '', phone: ''};requests=undefined;
-    query??={date:today(),partySize:2,area:'',requiredAccessTags:[]};
+    contact = {name: '', email: '', phone: ''};requests=undefined;closureEmailConsent=false;
+    query??={date:today(),partySize:2,area:'',requiredAccessTags:[],experienceId:'',ticketClassId:''};
     if(await checkout.recover())return true;
-    await search({date: today(), partySize: 2, area: '', requiredAccessTags: []});
+    await search({date: today(), partySize: 2, area: '', requiredAccessTags: [],experienceId:'',ticketClassId:''});
     return false;
   }
   root.addEventListener('submit', event => {
@@ -181,6 +210,10 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if (working) return;
     if (event.target.closest('[data-public-command="search"]')) {
       rememberContact();
+      if(event.target.name==='experienceId'){
+        renderExperienceClasses(event.target.value);
+        renderExperienceCatalog(event.target.value);
+      }
       selected = undefined;
       response = undefined;
       renderResults();

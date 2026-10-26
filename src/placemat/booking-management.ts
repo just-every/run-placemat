@@ -1,3 +1,4 @@
+import {experienceContext} from './experience-fit'
 import {bookingFit,instant} from './availability'
 import {checkBookingRules} from './booking-rules'
 import {searchTables} from './reservation-search'
@@ -100,8 +101,9 @@ function planFor(c:Context,change:Change,tableIds?:string[]):Plan {
   if(b.assignmentLocked)fail(409,'Contact the venue manager to change this locked reservation.')
   checkBookingRules(s,service,partySize,startAt,'online')
   const ledger={...s,bookings:s.bookings.filter(row=>row.id!==b.id)}
-  const {state:eligible}=searchTables(ledger,b.requiredArea,b.requiredAccessTags)
-  const {tables,...slot}=bookingFit(eligible,service,partySize,startAt,'online',tableIds)
+  const experience=experienceContext(ledger,service,{},partySize,b.experience)
+  const {state:eligible}=searchTables(experience.state,b.requiredArea,b.requiredAccessTags)
+  const {tables,...slot}=bookingFit(eligible,experience.service,partySize,startAt,'online',tableIds)
   Object.assign(next,slot,{partySize,tableIds:tables.map(t=>t.id)})
   if(!slot.combination)delete next.combination
   delete next.expectedEndAt;delete next.ruleOverride;delete next.pacingOverride

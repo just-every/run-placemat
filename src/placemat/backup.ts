@@ -26,7 +26,7 @@ export async function restore(db:D1Database,archive:any,actor:string,journal?:an
  if(!Array.isArray(archive)||archive.length<2||archive[0]?.product!=='hospitality/placemat')fail(400,'Choose a Placemat backup array.')
  // A staff read may have created an empty state row. Remove only that empty
  // product row; actual product rows and every erasure fence remain untouched.
- await db.prepare("DELETE FROM pm_state WHERE COALESCE(json_array_length(data,'$.serviceNotes'),0)=0 AND COALESCE(json_array_length(data,'$.serviceChanges'),0)=0 AND COALESCE(json_array_length(data,'$.rooms'),0)=0 AND json_array_length(data,'$.tables')=0 AND json_array_length(data,'$.services')=0 AND json_array_length(data,'$.bookings')=0 AND json_array_length(data,'$.proposals')=0 AND json_array_length(data,'$.waitlist')=0 AND json_array_length(data,'$.audit')=0").run()
+ await db.prepare("DELETE FROM pm_state WHERE COALESCE(json_array_length(data,'$.experiences'),0)=0 AND COALESCE(json_array_length(data,'$.serviceNotes'),0)=0 AND COALESCE(json_array_length(data,'$.serviceChanges'),0)=0 AND COALESCE(json_array_length(data,'$.rooms'),0)=0 AND json_array_length(data,'$.tables')=0 AND json_array_length(data,'$.services')=0 AND json_array_length(data,'$.bookings')=0 AND json_array_length(data,'$.proposals')=0 AND json_array_length(data,'$.waitlist')=0 AND json_array_length(data,'$.audit')=0").run()
  const service=await portability(db),manifest=archive[0] as Manifest,closing=archive.at(-1) as Closing
  const later=journal?.[0]
  if(journal!==undefined&&(!Array.isArray(journal)||later?.product!=='hospitality/placemat'||later?.kind!=='manifest'))fail(400,'Choose a trusted later Placemat backup for the erasure journal.')

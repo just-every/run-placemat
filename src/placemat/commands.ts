@@ -1,3 +1,5 @@
+import {experienceContext} from './experience-fit'
+import {executeExperience} from './experiences'
 import {reviewRelocation,cancelAffected} from './service-relocation'
 import {executeLate} from './late-arrivals'
 import {executeNeeds} from './needs'
@@ -56,8 +58,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  const leadCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','booking.walkin','waitlist.seat']
  const hostCommands=['booking.late','waitlist.quote','waitlist.priority','waitlist.status','waitlist.followup','booking.needs','booking.phone','booking.phone.change','booking.handover','booking.handover.assign','booking.handover.complete','booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='lead'&&s.leadIds?.includes(actor.id)&&leadCommands.includes(command))&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
+ if(['experienceId','ticketClassId','experienceVersion'].some(key=>p[key]!==undefined))fail(400,'Experience reservations use the guest experience availability and booking doors. No reservation was made.')
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
+ case 'experience.save':case 'experience.publish':case 'experience.withdraw':{result=executeExperience(s,actor,command,p,now);break}
  case 'booking.late':{result=executeLate(s,actor,p,now);break}
  case 'booking.needs':{result=executeNeeds(s,actor,p,now);break}
  case 'outage.sheet':{result=outageSheet(s,actor,p,version,now);break}
@@ -286,8 +290,10 @@ export async function onlineBook(db:D1Database,input:any):Promise<{partySize:num
  if(service.closedAt)fail(409,'This service is closed. Choose an open service; no booking has been made.')
  const partySize=number(p.partySize,'Party size',1,500),attribution=bookingAttribution(s,p.embedOrigin)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
- const {state:filtered,requiredArea,requiredAccessTags}=searchTables(s,p.area,p.requiredAccessTags)
- const fit=bookingFit(filtered,service,partySize,p.startAt,'online',held?.hold.tableIds??p.tableIds),{tables,...slot}=fit
+ const experience=experienceContext(s,service,p,partySize)
+ if(experience.experience&&p.acknowledgedExperienceTerms!==true)fail(400,'Acknowledge this experience menu, dining time and cancellation terms before booking.')
+ const {state:filtered,requiredArea,requiredAccessTags}=searchTables(experience.state,p.area,p.requiredAccessTags)
+ const fit=bookingFit(filtered,experience.service,partySize,p.startAt,'online',held?.hold.tableIds??p.tableIds),{tables,...slot}=fit
  if(held)for(const key of ['startAt','endAt','cleanupEndAt','setupStartAt'] as const)if((slot[key]??slot.startAt)!==(held.hold[key]??held.hold.startAt))fail(409,'The held turn changed. Release this checkout and choose availability again; no payment was made.')
  if(Date.parse(slot.startAt)<Date.now())fail(409,'Choose a future booking time.')
  if(!p.email)fail(400,'Email is required for an online booking.')
@@ -296,10 +302,10 @@ export async function onlineBook(db:D1Database,input:any):Promise<{partySize:num
  const preorders=normalizePreorders(service,p.preorders)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={...(p.closureEmailConsent===true?{closureEmailConsent:{at:new Date().toISOString(),emailHash:await hash(entry.guest.email.toLowerCase()),source:'guest-supplied' as const}}:{}),preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
+ const b:Booking={...(experience.experience?{experience:experience.experience}:{}),...(p.closureEmailConsent===true?{closureEmailConsent:{at:new Date().toISOString(),emailHash:await hash(entry.guest.email.toLowerCase()),source:'guest-supplied' as const}}:{}),preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
- const result={assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
+ const result={...(experience.experience?{experienceId:experience.experience.id,ticketClassId:experience.experience.classId,experienceName:experience.experience.name,className:experience.experience.className}:{}),assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
  const response=held?completionResult(result):result
  try{await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[]),...(held?completionStatements(db,held,response,version):[])])}
  catch(error){if(held){const recovered=await holdForCompletion(db,{...checkout,booking:p});if(recovered.replay)return Object.defineProperty(recovered.replay,'checkoutReplay',{value:true}) as {partySize:number;[key:string]:any}}throw error}

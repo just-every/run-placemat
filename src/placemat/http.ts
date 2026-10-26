@@ -1,3 +1,4 @@
+import {publicExperiences} from './experiences'
 import {paymentOperationsResponse} from './payment-operations-http'
 import {moneyWebhook,readMoneyLedger,importPayout,adjustMoneyLedger} from './money-ledger'
 import {scheduledReportResponse} from './scheduled-reports'
@@ -167,7 +168,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   if(path==='/api/public/services'){
    if(request.method!=='GET')return json({error:'Method not allowed'},405)
    const {state}=await load(env.DB)
-   return json({venue:publicVenue(state.venue),analytics:activeProviders(state,await savedKeys(env.DB)),services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,managerPreorders,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
+   return json({experiences:publicExperiences(state),venue:publicVenue(state.venue),analytics:activeProviders(state,await savedKeys(env.DB)),services:state.services.filter(s=>s.status==='published'&&!s.closedAt).map(({staffing,managerPreorders,...service})=>({...service,slots:slots(state,{...service,staffing},url.searchParams.get('partySize')??2)}))})
   }
   if(path==='/api/public/analytics'){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)

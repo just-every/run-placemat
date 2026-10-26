@@ -1,3 +1,4 @@
+import {experienceContext,type ExperienceCommitment} from './experience-fit'
 import {bookingFit,instant,serviceBy} from './availability'
 import {checkBookingRules} from './booking-rules'
 import {searchTables} from './reservation-search'
@@ -7,7 +8,7 @@ import {hash,load} from './store'
 
 /** An allocation commitment, never a booking or guest identity. Exclude from projections. */
 export type HoldAllocation=Partial<ServingAssignment>&{
- kind:'hold';id:string;serviceId:string;partySize:number;tableIds:string[];
+ experience?:ExperienceCommitment;kind:'hold';id:string;serviceId:string;partySize:number;tableIds:string[];
  startAt:string;endAt:string;cleanupEndAt?:string;setupStartAt?:string;
  combination?:CombinationSnapshot;requiredArea?:string;requiredAccessTags:string[];expiresAt:string
 }
@@ -60,11 +61,13 @@ export async function createHold(db:D1Database,p:HoldInput){
  const partySize=number(booking.partySize,'Party size',1,500),startAt=instant(booking.startAt,'Arrival')
  if(Date.parse(startAt)<=Date.now())fail(409,'Choose a future arrival.')
  checkBookingRules(s,service,partySize,startAt,'online')
- const filtered=searchTables(s,booking.area,booking.requiredAccessTags)
- const {tables,...slot}=bookingFit(filtered.state,service,partySize,startAt,'online',booking.tableIds)
+ const experience=experienceContext(s,service,booking,partySize)
+ if(experience.experience&&booking.acknowledgedExperienceTerms!==true)fail(400,'Acknowledge the experience terms before reserving inventory.')
+ const filtered=searchTables(experience.state,booking.area,booking.requiredAccessTags)
+ const {tables,...slot}=bookingFit(filtered.state,experience.service,partySize,startAt,'online',booking.tableIds)
  const ttlSeconds=p.ttlSeconds===undefined?120:number(p.ttlSeconds,'Hold lifetime seconds',5,300)
  const createdAt=new Date().toISOString(),expiresAt=new Date(Math.min(Date.now()+ttlSeconds*1000,Date.parse(startAt))).toISOString()
- const allocation:HoldAllocation={kind:'hold',id:id(),serviceId:service.id,partySize,...slot,tableIds:tables.map(t=>t.id),requiredAccessTags:filtered.requiredAccessTags,...filtered.requiredArea?{requiredArea:filtered.requiredArea}:{},...servingFor(s,service.id,tables.map(t=>t.id))??{},expiresAt}
+ const allocation:HoldAllocation={...(experience.experience?{experience:experience.experience}:{}),kind:'hold',id:id(),serviceId:service.id,partySize,...slot,tableIds:tables.map(t=>t.id),requiredAccessTags:filtered.requiredAccessTags,...filtered.requiredArea?{requiredArea:filtered.requiredArea}:{},...servingFor(s,service.id,tables.map(t=>t.id))??{},expiresAt}
  try{await db.batch([stateFence(db,version),db.prepare("INSERT INTO pm_booking_holds(request_hash,id,token_hash,payload_hash,allocation,created_at,expires_at,state) VALUES(?,?,?,?,?,?,?,'active')").bind(requestHash,allocation.id,tokenHash,payloadHash,JSON.stringify(allocation),createdAt,expiresAt),db.prepare('DELETE FROM pm_assertions'),db.prepare('UPDATE pm_state SET version=version+1 WHERE id=1 AND version=?').bind(version)])}
  catch(error){
   const raced=await find(db,requestHash)
@@ -96,7 +99,7 @@ export async function holdForCompletion(db:D1Database,p:HoldInput):Promise<HoldC
  * An expired/abandoned/consumed hold aborts guest inserts and booking persistence together. */
 export function completionResult(result:Record<string,unknown>):Record<string,unknown>{
  // Guest-supplied requests and rendered request terms never enter recovery records.
- return Object.fromEntries(['id','assignment','startAt','endAt','cleanupEndAt','partySize','area','requiredAccessTags','confirmation','timezone','preorders'].filter(key=>result[key]!==undefined).map(key=>[key,result[key]]))
+ return Object.fromEntries(['experienceId','ticketClassId','experienceName','className','id','assignment','startAt','endAt','cleanupEndAt','partySize','area','requiredAccessTags','confirmation','timezone','preorders'].filter(key=>result[key]!==undefined).map(key=>[key,result[key]]))
 }
 export function completionStatements(db:D1Database,c:HoldCompletion,result:Record<string,unknown>,version:number):D1PreparedStatement[]{
  if(typeof result.id!=='string'||!result.id)fail(500,'A completed checkout requires its saved booking reference.')
