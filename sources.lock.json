@@ -4170,7 +4170,7 @@
       "executable": false
     },
     "tests/api/service-changes.test.mjs": {
-      "sha256": "e960f7b56e324baf403db705dc67b93a992a6a16a848cba7505381255b59adf3",
+      "sha256": "f21ca9dbda164f4a16c19c2cbeb32b4f537b7fae13a2a73ffd75abda38bc5f10",
       "executable": false
     },
     "tests/api/service-close-report-fixture.mjs": {
@@ -4342,7 +4342,7 @@
       "executable": false
     },
     "tests/search-ui.mjs": {
-      "sha256": "6eee8e6951c29f36277e7ba7d0603f58f1226daac8e9a2dcd4ff825005725eaa",
+      "sha256": "84510ac4606f4ffb275b9f662b24590d742f687bd0c8f176d46cc5864119f046",
       "executable": false
     },
     "tests/server-ui.mjs": {

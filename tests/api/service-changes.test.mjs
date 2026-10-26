@@ -195,13 +195,14 @@ test('Affected guests explicitly accept reviewed relocation; permitted single-bo
 })
 
 test('Relocation capabilities expire, rotate, decline and revalidate stale inventory without changing original commitments or retrying mail',async()=>{
- const h=await installation()
+ let failMail=false;const messages=[]
+ const h=await installation({mailEdge:async request=>{messages.push(await request.json());return failMail?new Response(null,{status:503}):Response.json({id:'synthetic-placemat-'+messages.length})}})
  try{
   const {service:s,floor}=await service(h,{tables:2,covers:20});await h.command('table.save',{...floor[1],area:'Patio'})
   const b=(await h.api('/api/public/book',publicGuest(s,0,{area:'Dining room',closureEmailConsent:true}),{as:'',status:201})).result
   const plan=await prepare(h,s);await h.command('proposal.approve',{proposalId:plan.id})
   let view=await h.api('/api/state');const original=structuredClone(view.state.bookings[0]),change=view.state.serviceChanges[0],task={changeId:change.id,taskId:change.tasks[0].id},review={...task,serviceId:s.id,startAt:s.startAt,tableIds:[floor[1].id],area:'Patio',reason:'synthetic-placemat-5'}
-  const send=async()=>{await h.command('service.relocation',review);await h.command('service.outreach',{...task,acknowledged:true});return new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/relocation#[^\s]+/)[0]).hash.slice(1)).get('token')}
+  const send=async()=>{await h.command('service.relocation',review);await h.command('service.outreach',{...task,acknowledged:true});return new URLSearchParams(new URL(messages.at(-1).text.match(/https:\/\/[^\s]+\/relocation#[^\s]+/)[0]).hash.slice(1)).get('token')}
   const token=await send()
   await h.api('/api/public/relocation/decline',{token,acknowledged:true},{as:''});assert.deepEqual((await h.api('/api/state')).state.bookings[0],original)
   await h.api('/api/public/relocation/accept',{token,acknowledged:true},{as:'',status:404})
@@ -214,5 +215,10 @@ test('Relocation capabilities expire, rotate, decline and revalidate stale inven
   const row=await h.db.prepare('SELECT data FROM pm_state WHERE id=1').first(),state=JSON.parse(row.data);state.serviceChanges[0].tasks[0].relocation.expiresAt=new Date(Date.now()-60000).toISOString();await h.db.prepare('UPDATE pm_state SET data=?,version=version+1 WHERE id=1').bind(JSON.stringify(state)).run()
   await h.api('/api/public/relocation/status',{token:third},{as:'',status:404})
   assert.deepEqual((await h.api('/api/state')).state.bookings.find(row=>row.id===b.id),original)
+  review.startAt=new Date(Date.parse(s.startAt)+120*60000).toISOString();failMail=true
+  const failedToken=await send(),attempts=messages.length
+  assert.equal((await h.api('/api/state')).state.serviceChanges[0].tasks[0].outreach.state,'unconfirmed')
+  await h.api('/api/public/relocation/status',{token:failedToken},{as:'',status:404})
+  await h.command('service.outreach',{...task,acknowledged:true},{status:409});assert.equal(messages.length,attempts,'An uncertain attempt never retries mail automatically')
  }finally{await h.close()}
 })
