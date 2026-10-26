@@ -41,6 +41,10 @@ try{for(const width of [1440,390]){
   }
   const tasting=await publish('Chef tasting dinner','Dining room',120,15),patio=await publish('Free patio evening','Patio',60,15)
   await shot('published-catalog')
+  const serverCookie=await h.signIn('experience-browser-server@example.test'),serverOperator=(await h.api('/auth/operators')).find(row=>row.email==='experience-browser-server@example.test')
+  await h.command('team.server',{operatorId:serverOperator.id,enabled:true})
+  const linkedServer=await h.command('server.save',{serviceId:f.service.id,name:'Ana',operatorId:serverOperator.id,coverCap:20}),otherServer=await h.command('server.save',{serviceId:f.service.id,name:'Mateo',coverCap:20})
+  await h.command('section.save',{serviceId:f.service.id,name:'Window',serverId:linkedServer.id,tableIds:[f.floor[0].id]});await h.command('section.save',{serviceId:f.service.id,name:'Garden and patio',serverId:otherServer.id,tableIds:[f.floor[1].id,f.floor[2].id]})
   await h.api('/api/public/book',publicGuest(f.service,0,{tableIds:[f.floor[1].id]}),{as:'',status:201})
   const diner=await guest.newPage();diner.on('pageerror',error=>errors.push(error.message));await diner.goto(transport.origin+'/book');await diner.locator('[name=experienceId]').waitFor();await diner.locator('#public-content[aria-busy]').waitFor({state:'detached'})
   async function search(entry,area,tags=false){
@@ -62,7 +66,10 @@ try{for(const width of [1440,390]){
   const state=(await h.api('/api/state')).state,experienceBookings=state.bookings.filter(b=>b.experience)
   assert.equal(experienceBookings.length,3);assert.equal(experienceBookings[0].endAt,f.at(120));assert.equal(experienceBookings[0].cleanupEndAt,f.at(135));assert.equal(experienceBookings[2].startAt,f.at(165));assert.equal(experienceBookings[2].cleanupEndAt,f.at(240));assert.equal(experienceBookings[0].experienceCart.ticketQuantity,4);assert.equal(experienceBookings[0].experienceCart.items.find(item=>item.name==='Wine pairing').quantity,2);assert.equal(experienceBookings[0].experienceCart.items.find(item=>item.name==='Limited mushroom supplement').quantity,1)
   await page.goto(transport.origin+'/kitchen?serviceId='+f.service.id);await page.getByRole('heading',{name:'Experience options',exact:true}).waitFor();await shot('kitchen-options')
-  await page.goto(transport.origin+'/preshift?date='+f.service.startAt.slice(0,10));await page.getByText(/Unverified dietary choice: Guest 1/).waitFor();await shot('sheet-options');assert.deepEqual(errors,[])
+  await page.goto(transport.origin+'/preshift?date='+f.service.startAt.slice(0,10));await page.getByText(/Unverified dietary choice: Guest 1/).waitFor();await shot('sheet-options')
+  await owner.clearCookies();await owner.addCookies(serverCookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
+  await page.goto(transport.origin+'/kitchen?serviceId='+f.service.id);await page.getByText(/Unverified dietary choice: Guest 1/).waitFor();assert.equal(await page.getByRole('heading',{name:'Experience options',exact:true}).count(),0);await shot('server-kitchen-options')
+  await page.goto(transport.origin+'/preshift?date='+f.service.startAt.slice(0,10));await page.getByText(/Unverified dietary choice: Guest 1/).waitFor();assert.ok(!(await page.locator('article').innerText()).includes('mia@example.test'));await shot('server-sheet-options');assert.deepEqual(errors,[])
   console.log(`EXP-001 manager publication, guest tasting and patio bookings, shared tables, full turns, stale reselection and last seating passed at ${width}`)
  }finally{await guest.close();await owner.close();await transport.close();await h.close()}
 }}finally{await browser.close()}

@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/data-portability.md": {
-      "sha256": "7251ec601f4a320a61f50723f3f9acfb224cb37c54c9deecac2cc1c186757edd",
+      "sha256": "1866669f12c76b5868d85accd65e1d951de8c4a6e2b4b0a5a6289ac2f7d7af7d",
       "executable": false
     },
     "docs/deploy.md": {
@@ -278,7 +278,7 @@
       "executable": false
     },
     "docs/experiences.md": {
-      "sha256": "c76a27882bd9bce8cb9cb8b9525b0fa969ad874f556e0df3919a6884d7c349ec",
+      "sha256": "4fa01ac39d9a4cae611062b0d7cb9457857748fd7e6c8149851aaf8a90ccd451",
       "executable": false
     },
     "docs/floor-and-bookings.md": {
@@ -4294,7 +4294,7 @@
       "executable": false
     },
     "tests/experiences-ui.mjs": {
-      "sha256": "7f17ab129efecc669b7b4dd63cd214f2000ab9a5304092beb6d4ef919500fce4",
+      "sha256": "c9f0881843d224e8f03e5f27391d412dfe5da224b88de510f564f1a85d97e35a",
       "executable": false
     },
     "tests/fees-ui.mjs": {
