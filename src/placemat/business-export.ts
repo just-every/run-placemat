@@ -6,13 +6,13 @@ export const businessCsvVersion=1
 export const businessExportKinds=[
  'venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
- 'money-items','money-receipts','money-payouts','money-adjustments','card-guarantees','card-collections','fee-policies','fee-consents','fee-assessments','fee-events','fee-disputes','payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins','report-schedules','report-deliveries',
+ 'payment-cases','payment-reviews','accounting-exports','money-items','money-receipts','money-payouts','money-adjustments','card-guarantees','card-collections','fee-policies','fee-consents','fee-assessments','fee-events','fee-disputes','payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins','report-schedules','report-deliveries',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
 export type BusinessPerformanceReport={id:string;service_id:string;published_at:string;published_by:string;floor_version:number;data:string}
 type RecordValue=Record<string,unknown>
-export type BusinessFinancialRecords={moneyItems?:RecordValue[];moneyReceipts?:RecordValue[];moneyPayouts?:RecordValue[];moneyAdjustments?:RecordValue[];reportSchedules?:RecordValue[];reportDeliveries?:RecordValue[];cardGuarantees?:RecordValue[];cardCollections?:RecordValue[];feePolicies?:RecordValue[];feeConsents?:RecordValue[];feeAssessments?:RecordValue[];feeEvents?:RecordValue[];feeDisputes?:RecordValue[];paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
+export type BusinessFinancialRecords={paymentCases?:RecordValue[];paymentReviews?:RecordValue[];accountingExports?:RecordValue[];moneyItems?:RecordValue[];moneyReceipts?:RecordValue[];moneyPayouts?:RecordValue[];moneyAdjustments?:RecordValue[];reportSchedules?:RecordValue[];reportDeliveries?:RecordValue[];cardGuarantees?:RecordValue[];cardCollections?:RecordValue[];feePolicies?:RecordValue[];feeConsents?:RecordValue[];feeAssessments?:RecordValue[];feeEvents?:RecordValue[];feeDisputes?:RecordValue[];paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
 const noFinancialRecords:BusinessFinancialRecords={paymentRequests:[],refundCharges:[],refunds:[],refundEvents:[]}
 type Dataset={fields:readonly string[];rows:readonly unknown[]}
 
@@ -45,6 +45,9 @@ function refundHistory(finance:BusinessFinancialRecords){
 }
 function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[],merges:unknown[],finance:BusinessFinancialRecords):Dataset {
  switch(kind) {
+  case 'payment-cases':return {fields:['id','booking_id','charge_id','amount_cents','currency','reason','status','due_at','opened_by','opened_at','ledger_json'],rows:(finance.paymentCases??[]).map(r=>({...r,ledger:JSON.parse(String(r.ledger))}))}
+  case 'payment-reviews':return {fields:['id','case_id','digest','response','created_by','created_at','approved_by','approved_at','evidence_json'],rows:(finance.paymentReviews??[]).map(r=>({...r,evidence:JSON.parse(String(r.evidence))}))}
+  case 'accounting-exports':return {fields:['id','case_id','review_id','actor_id','created_at','state','provider_id','code','trace_id','updated_at','ledger_json','journal_json'],rows:(finance.accountingExports??[]).map(r=>({...r,ledger:JSON.parse(String(r.ledger)),journal:JSON.parse(String(r.journal))}))}
   case 'money-items':return {fields:['source_id','kind','charge_id','booking_id','amount_cents','currency','recorded_at'],rows:finance.moneyItems??[]}
   case 'money-receipts':return {fields:['event_id','source_id','received_at'],rows:finance.moneyReceipts??[]}
   case 'money-payouts':return {fields:['id','amount_cents','currency','items_json','actor_id','recorded_at'],rows:(finance.moneyPayouts??[]).map(r=>({...r,items:JSON.parse(String(r.items))}))}

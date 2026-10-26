@@ -1,3 +1,4 @@
+import {paymentOperationsResponse} from './payment-operations-http'
 import {moneyWebhook,readMoneyLedger,importPayout,adjustMoneyLedger} from './money-ledger'
 import {scheduledReportResponse} from './scheduled-reports'
 import {readGuarantees,issueGuarantee,endGuarantee,guestGuarantee} from './card-guarantees'
@@ -77,6 +78,7 @@ const paths=new Set(['/api/payments/ledger','/api/payments/ledger/payout','/api/
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
+ const operations=await paymentOperationsResponse(request,env);if(operations)return operations
  const costs=await costsResponse(request,env);if(costs)return costs
  const privacy=await privacyResponse(request,env);if(privacy)return privacy
  const url=new URL(request.url),path=url.pathname

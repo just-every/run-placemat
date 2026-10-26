@@ -7,7 +7,7 @@ import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import assert from 'node:assert/strict'
-export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge,mailEdge,origin='https://venue.example.test',peers={},clock}={}){
+export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge,accountingEdge,mailEdge,origin='https://venue.example.test',peers={},clock}={}){
  const directory=await mkdtemp(join(tmpdir(),'placemat-api-'))
  const bundled=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
  const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),messages=[]
@@ -19,6 +19,7 @@ export async function installation({entry='tests/api/worker.ts',bindings={},stri
   // A peer venue is another real installation reached through its own Worker; only the network hop is faked.
   if(peers[url.hostname])return peers[url.hostname]().mf.dispatchFetch(request)
   if(url.hostname==='api.stripe.com'){assert.ok(stripeEdge,'Stripe requests require an explicit network edge fixture');return stripeEdge(request)}
+  if(url.hostname==='sandbox-quickbooks.api.intuit.com'){assert.ok(accountingEdge,'Accounting requests require an explicit network edge fixture');return accountingEdge(request)}
   if(!['www.google-analytics.com','graph.facebook.com'].includes(url.hostname))return mail(request)
   analytics.push({url:url.href,method:request.method,headers:Object.fromEntries(request.headers),body:await request.clone().json()})
   return answer.provider(request)

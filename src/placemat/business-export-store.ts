@@ -3,7 +3,10 @@ import {emptyState,type Guest,type State} from './model'
 
 /** One D1 batch keeps venue, guest, journal and financial records in the same read transaction. */
 export async function readBusinessCsv(db:D1Database,kind:string):Promise<string>{
- const [moneyItems,moneyReceipts,moneyPayouts,moneyAdjustments,floor,people,merges,reports,payments,charges,refunds,events,contacts,links,admins,notices,webhooks,followups,feePolicies,feeConsents,feeAssessments,feeEvents,feeDisputes,cardCollections,cardGuarantees,reportSchedules,reportDeliveries]=await db.batch<{data:string}>([
+ const [paymentCases,paymentReviews,accountingExports,moneyItems,moneyReceipts,moneyPayouts,moneyAdjustments,floor,people,merges,reports,payments,charges,refunds,events,contacts,links,admins,notices,webhooks,followups,feePolicies,feeConsents,feeAssessments,feeEvents,feeDisputes,cardCollections,cardGuarantees,reportSchedules,reportDeliveries]=await db.batch<{data:string}>([
+  db.prepare('SELECT * FROM pm_payment_cases ORDER BY opened_at,id'),
+  db.prepare('SELECT * FROM pm_payment_reviews ORDER BY created_at,id'),
+  db.prepare('SELECT * FROM pm_accounting_exports ORDER BY created_at,id'),
   db.prepare('SELECT * FROM pm_money_items ORDER BY recorded_at,source_id'),
   db.prepare('SELECT * FROM pm_money_receipts ORDER BY received_at,event_id'),
   db.prepare('SELECT * FROM pm_money_payouts ORDER BY recorded_at,id'),
@@ -34,6 +37,6 @@ export async function readBusinessCsv(db:D1Database,kind:string):Promise<string>
  ])
  const state:State=floor.results[0]?JSON.parse(floor.results[0].data):emptyState()
  const guests:Guest[]=people.results.map(row=>JSON.parse(row.data))
- const finance={moneyItems:moneyItems.results,moneyReceipts:moneyReceipts.results,moneyPayouts:moneyPayouts.results,moneyAdjustments:moneyAdjustments.results,reportSchedules:reportSchedules.results,reportDeliveries:reportDeliveries.results,cardGuarantees:cardGuarantees.results,cardCollections:cardCollections.results,feePolicies:feePolicies.results,feeConsents:feeConsents.results,feeAssessments:feeAssessments.results,feeEvents:feeEvents.results,feeDisputes:feeDisputes.results,paymentRequests:payments.results,refundCharges:charges.results,refunds:refunds.results,refundEvents:events.results,refundNotices:notices.results,refundWebhooks:webhooks.results,refundFollowups:followups.results,bookingContacts:contacts.results,groupLinks:links.results,groupAdmins:admins.results} as unknown as BusinessFinancialRecords
+ const finance={paymentCases:paymentCases.results,paymentReviews:paymentReviews.results,accountingExports:accountingExports.results,moneyItems:moneyItems.results,moneyReceipts:moneyReceipts.results,moneyPayouts:moneyPayouts.results,moneyAdjustments:moneyAdjustments.results,reportSchedules:reportSchedules.results,reportDeliveries:reportDeliveries.results,cardGuarantees:cardGuarantees.results,cardCollections:cardCollections.results,feePolicies:feePolicies.results,feeConsents:feeConsents.results,feeAssessments:feeAssessments.results,feeEvents:feeEvents.results,feeDisputes:feeDisputes.results,paymentRequests:payments.results,refundCharges:charges.results,refunds:refunds.results,refundEvents:events.results,refundNotices:notices.results,refundWebhooks:webhooks.results,refundFollowups:followups.results,bookingContacts:contacts.results,groupLinks:links.results,groupAdmins:admins.results} as unknown as BusinessFinancialRecords
  return businessCsv(state,guests,kind,reports.results as unknown as BusinessPerformanceReport[],merges.results.map(row=>JSON.parse(row.data)),finance)
 }

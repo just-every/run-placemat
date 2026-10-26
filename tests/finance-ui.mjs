@@ -1,3 +1,4 @@
+import './payment-operations-ui.mjs'
 // ROLE-004: the owner grants finance access and the finance identity reconciles charges and downloads a finance CSV, seeing no guest values.
 import assert from 'node:assert/strict'
 import {mkdir,readFile} from 'node:fs/promises'

@@ -83,3 +83,72 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   }finally{await restored.close()}
  }finally{await h.close()}
 })
+
+import {operationClock,operationApi,operationEdge,operationBooking,operationBindings,operationAccounts} from './payment-operations-fixture.mjs'
+
+test('A dispute response preserves exact booking, policy and message evidence, and a rejected accounting handoff remains owned without automatic retry',async()=>{
+ const edge=operationEdge(),h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>operationClock,bindings:operationBindings,stripeEdge:edge.stripe,accountingEdge:edge.accounting})
+ try{
+  const {booking,policy,disputeId}=await operationBooking(h,edge),owner=(await h.api('/api/state')).actor.id,manager=await h.signIn('synthetic-placemat-operations@example.test','admin')
+  for(const path of ['/payment-operations','/api/payments/operations','/api/payments/operations/bundle?reviewId=absent','/api/payments/operations/journal?exportId=absent'])for(const as of ['',manager])assert.equal((await h.request(path,{as})).status,as?403:401)
+  for(const action of ['open','assemble','approve','export'])await operationApi(h,action,{}, {as:manager,status:403})
+  assert.equal(edge.accountingCalls.length,0)
+  await operationApi(h,'open',{bookingId:'synthetic-placemat-other',disputeId},{status:409})
+  const c=(await operationApi(h,'open',{bookingId:booking.id,disputeId})).result
+  assert.equal(c.charge_id,'synthetic-placemat-charge-1');assert.equal(c.amount_cents,9000)
+  assert.deepEqual((await operationApi(h,'open',{bookingId:booking.id,disputeId})).result,c)
+  let view=await operationApi(h,'');assert.equal(view.tasks.length,1);assert.equal(view.tasks[0].ownerId,owner);assert.equal(view.tasks[0].dueAt,c.due_at)
+  const review=(await operationApi(h,'assemble',{caseId:c.id})).result,evidence=JSON.parse(review.evidence)
+  assert.equal(evidence.attendance[0].status,'arrived');assert.equal(evidence.attendance[0].source,'staff-recorded');assert.equal(evidence.booking.id,booking.id);assert.equal(evidence.booking.status,'booked');assert.equal(evidence.policies[0].id,policy.id);assert.equal(evidence.consents[0].review_text,policy.reviewText)
+  assert.equal(evidence.messages.inquiries[0].messages.length,3);assert.equal(evidence.messages.inquiries[0].messages[2].message,'We accept this exact table offer.')
+  const approval={reviewId:review.id,digest:review.digest,response:'The reservation and exact agreed terms are attached with the guest conversation.',acknowledged:true}
+  await operationApi(h,'approve',{...approval,acknowledged:false},{status:400});await operationApi(h,'approve',{...approval,digest:'changed'},{status:409})
+  await operationApi(h,'export',{caseId:c.id,reviewId:review.id,accounts:operationAccounts,acknowledged:true},{status:409})
+  const approved=(await operationApi(h,'approve',approval)).result;assert.equal(approved.approved_by,owner);assert.equal(approved.evidence,review.evidence)
+  await operationApi(h,'approve',{...approval,response:'Changed after approval'},{status:409})
+  const response=await h.request('/api/payments/operations/bundle?reviewId='+review.id);assert.equal(response.status,200);assert.deepEqual((await response.json()).review.response,approval.response)
+  const send={caseId:c.id,reviewId:review.id,accounts:operationAccounts,acknowledged:true}
+  await operationApi(h,'export',{...send,acknowledged:false},{status:400})
+  const rejected=(await operationApi(h,'export',send)).result;assert.equal(rejected.state,'rejected');assert.equal(rejected.code,'2500');assert.equal(rejected.trace_id,'synthetic-placemat-trace-1')
+  assert.deepEqual((await operationApi(h,'export',send)).result,rejected);assert.equal(edge.accountingCalls.length,1)
+  const sent=edge.accountingCalls[0];assert.equal(sent.url.searchParams.get('requestid'),rejected.id);assert.equal(sent.body.Line.length,6)
+  const total=posting=>sent.body.Line.filter(l=>l.JournalEntryLineDetail.PostingType===posting).reduce((n,l)=>n+Math.round(l.Amount*100),0)
+  assert.equal(total('Debit'),20000);assert.equal(total('Credit'),20000);assert.ok(!JSON.stringify(sent.body).includes('Alex Rowan'))
+  view=await operationApi(h,'');const task=view.tasks.find(t=>t.id==='accounting-'+rejected.id);assert.equal(task.ownerId,owner);assert.equal(task.dueAt,rejected.created_at);assert.ok(task.text.includes(rejected.id));assert.ok(!JSON.stringify(view).includes('synthetic secret body'))
+  await h.command('booking.handover.complete',{bookingId:booking.id,taskId:task.id,outcome:'Provider rejected the mapped account; accountant owns a manual correction.'})
+  await operationApi(h,'export',send);assert.ok((await operationApi(h,'')).tasks.find(t=>t.id===task.id).history.some(e=>e.action==='completed'))
+  for(const kind of ['payment-cases','payment-reviews','accounting-exports'])assert.equal((await h.request('/api/business-export/'+kind+'.csv')).status,200)
+  const audit=(await h.api('/api/audit')).rows;assert.ok(audit.some(r=>r.action==='payment.dispute-approve'));assert.ok(audit.some(r=>r.action==='payment.accounting-result'))
+  const archive=await h.api('/api/backup'),copy=await installation()
+  try{
+   const invalid=structuredClone(archive),item=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_accounting_exports');item.row.review_id='synthetic-placemat-absent'
+   const content=new ContentVerifier(invalid[0]),integrity=new ArchiveVerifier(invalid[0]);for(let i=1;i<invalid.length-1;i++){invalid[i]=await makePart(invalid[i].index,invalid[i].items);integrity.add(invalid[i]);for(const row of invalid[i].items)content.add(row)}invalid.at(-1).contentHash=content.digest();invalid.at(-1).archiveHash=integrity.digest()
+   await copy.api('/api/restore',{archive:invalid,confirm:'RESTORE'},{status:400});assert.equal((await operationApi(copy,'')).cases.length,0)
+   await copy.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await operationApi(copy,'')).cases,view.cases);assert.equal((await operationApi(copy,'export',send)).result.id,rejected.id)}finally{await copy.close()}
+  const guestId=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id).guestId
+  await h.command('guest.erase',{guestId,confirm:'ERASE'})
+  view=await operationApi(h,'');assert.deepEqual(JSON.parse(view.reviews[0].evidence),{erased:true});assert.equal(view.reviews[0].response,'');assert.equal(view.tasks.length,0);assert.equal(view.exports[0].state,'rejected')
+  const erasedCopy=await installation();try{await erasedCopy.api('/api/restore',{archive:await h.api('/api/backup'),confirm:'RESTORE'});assert.deepEqual(JSON.parse((await operationApi(erasedCopy,'')).reviews[0].evidence),{erased:true})}finally{await erasedCopy.close()}
+  await operationApi(h,'assemble',{caseId:c.id},{status:409});assert.equal(edge.accountingCalls.length,1);assert.ok(edge.stripeCalls.every(call=>call.method==='GET'))
+ }finally{await h.close()}
+})
+
+test('An accepted or uncertain accounting attempt is never repeated and historical approvals cannot send after restore',async()=>{
+ for(const outcome of ['accepted','unconfirmed']){
+  const edge=operationEdge();edge.setAccountingState(outcome)
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>operationClock,bindings:operationBindings,stripeEdge:edge.stripe,accountingEdge:edge.accounting})
+  try{
+   const {booking,disputeId}=await operationBooking(h,edge)
+   await operationApi(h,'open',{bookingId:booking.id,disputeId});const review=(await operationApi(h,'assemble',{caseId:disputeId})).result
+   await operationApi(h,'approve',{reviewId:review.id,digest:review.digest,response:'Reviewed exact evidence.',acknowledged:true})
+   const p={caseId:disputeId,reviewId:review.id,accounts:operationAccounts,acknowledged:true},copy=await installation()
+   try{await copy.api('/api/restore',{archive:await h.api('/api/backup'),confirm:'RESTORE'});await operationApi(copy,'export',p,{status:409})}finally{await copy.close()}
+   await operationApi(h,'export',{...p,accounts:{...operationAccounts,revenue:operationAccounts.clearing}},{status:400});assert.equal(edge.accountingCalls.length,0)
+   await Promise.all([operationApi(h,'export',p),operationApi(h,'export',p)])
+   const first=await operationApi(h,'export',p);assert.equal(first.result.state,outcome);await operationApi(h,'export',p);assert.equal(edge.accountingCalls.length,1)
+   const view=await operationApi(h,'');assert.equal(view.exports.length,1);assert.ok(view.tasks.some(t=>t.id==='accounting-'+first.result.id))
+   if(outcome==='accepted')assert.equal(first.result.provider_id,'12345')
+   const download=await h.request('/api/payments/operations/journal?exportId='+first.result.id);assert.equal(download.status,200);assert.equal((await download.json()).ledger.length,3)
+  }finally{await h.close()}
+ }
+})
