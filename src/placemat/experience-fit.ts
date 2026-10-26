@@ -14,6 +14,10 @@ export function validateExperiencePublication(s:State,entry:Experience){
  for(const serviceId of entry.serviceIds){
   const service=s.services.find(row=>row.id===serviceId)??fail(409,'The experience service is no longer available.')
   const effective=experienceService(service,entry)
+  for(const ticket of entry.ticketClasses){
+   const reserved=s.bookings.filter(b=>b.serviceId===service.id&&b.experience?.id===entry.id&&b.experience.classId===ticket.id&&['booked','seated','completed'].includes(b.status)).reduce((n,b)=>n+b.partySize,0)
+   if(reserved>ticket.quantityLimit)fail(409,'The ticket quantity cannot exclude existing experience reservations.')
+  }
   for(const area of entry.areas){
    const tables=s.tables.filter(t=>!t.retiredAt&&!t.inventoryId&&(t.area??'Dining room')===area)
    if(!tables.length)fail(409,'Every published experience area must retain active physical tables.')
@@ -43,7 +47,9 @@ export function experienceContext(s:State,service:Service,p:any,partySize:number
  if(!experience.serviceIds.includes(service.id))fail(409,'Choose a published seating date for this experience.')
  const used=s.bookings.filter(b=>b.serviceId===service.id&&['booked','seated','completed'].includes(b.status)&&b.experience?.id===experience.id&&b.experience.classId===experience.classId).reduce((n,b)=>n+b.partySize,0)
  const held=(s.holds??[]).filter(h=>h.serviceId===service.id&&h.expiresAt>new Date().toISOString()&&h.experience?.id===experience.id&&h.experience.classId===experience.classId).reduce((n,h)=>n+h.partySize,0)
- if(used+held+partySize>experience.quantityLimit)fail(409,'This experience ticket class is sold out for that date. Choose another class or date.')
+ const currentClass=s.experiences?.find(e=>e.id===experience.id)?.ticketClasses.find(t=>t.id===experience.classId)
+ const limit=currentClass?currentClass.quantityLimit:experience.quantityLimit
+ if(used+held+partySize>limit)fail(409,'This experience ticket class is sold out for that date. Choose another class or date.')
  return {state:{...s,tables:s.tables.filter(t=>!t.inventoryId&&experience.areas.includes(t.area??'Dining room'))},service:experienceService(service,experience),experience}
 }
 /** Current door changes cannot discard a saved experience promise or exceed its ticket inventory. */

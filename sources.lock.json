@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/data-portability.md": {
-      "sha256": "92b0e5ce22f89dcce8e7fdd38655a8a984606e1f9d0dcd298a784791eebf9e51",
+      "sha256": "7251ec601f4a320a61f50723f3f9acfb224cb37c54c9deecac2cc1c186757edd",
       "executable": false
     },
     "docs/deploy.md": {
@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "bc53ab02bf7ddd16589dfda8d6464f8900cfa517943c4071dd931c070ffeb22b",
+      "sha256": "c99da45fe397dabeafc4d01961eed79152c9dfa54433ed61fe0b89c02d378447",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -330,7 +330,7 @@
       "executable": false
     },
     "docs/tables-and-services.md": {
-      "sha256": "5e97077807ebca89e980a31c7d4b3dba2f11cba5db95de1065be4fe24657fd57",
+      "sha256": "782f30c8a25fd344ce55d7a615c252f554a56aca45aec2f73f1cd02751e07b3c",
       "executable": false
     },
     "edition.json": {
@@ -702,7 +702,7 @@
       "executable": false
     },
     "public/placemat-experiences.js": {
-      "sha256": "f2e1109dfaf0e8e1a4ea28990d9ec13dcc72d38194176199e389534c0372cf7e",
+      "sha256": "646ddcd275bb9995cee8d28403dab6d15415e49e5763435bcc8c0be21f887d9a",
       "executable": false
     },
     "public/placemat-fees.js": {
@@ -3374,11 +3374,11 @@
       "executable": false
     },
     "src/placemat/experience-fit.ts": {
-      "sha256": "b414469445c04a48c4e88bb392296ed9efc2f69a51d68bc0723c9cdae0452e42",
+      "sha256": "1067a32b8cb50e7432139c8f74e332f23364bfac7ca9685948ae2419c3a94db4",
       "executable": false
     },
     "src/placemat/experiences-archive.mjs": {
-      "sha256": "c632f07f267f7e1136832c836d3098d8508647db70473034759f8ac49f25351e",
+      "sha256": "17b10c1d4b9f534372f11c4c17e36888f5e4a94abf82403b66d5ac1763a9b5f1",
       "executable": false
     },
     "src/placemat/experiences.ts": {
@@ -4045,6 +4045,10 @@
       "sha256": "fea9fc70cd75068f9c826b51e147b6a9d0588ae1a2d7e470dbe9e49fdd2b5ff1",
       "executable": false
     },
+    "tests/api/experience-fixture.mjs": {
+      "sha256": "f1c48956c91396a3c345bc2ee810966955fe99270824b5c94aa1633a324fef51",
+      "executable": false
+    },
     "tests/api/experience-journeys.mjs": {
       "sha256": "1834aa29b97118be33637a02ae624291155a7b09f22fe0ddc515585eac45e6ab",
       "executable": false
@@ -4271,6 +4275,10 @@
     },
     "tests/embed-ui.mjs": {
       "sha256": "380f4ddf4bf93a7efce38afb9fea193ca4a49cd78e12d74649e95a51443ca75e",
+      "executable": false
+    },
+    "tests/experiences-ui.mjs": {
+      "sha256": "79ae5c82ae64c47b697cf992f7d9273a1923926dc579ca53de91119f85702bd1",
       "executable": false
     },
     "tests/fees-ui.mjs": {

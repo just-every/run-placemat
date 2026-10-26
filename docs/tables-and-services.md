@@ -30,3 +30,7 @@ Press **Prepare publication** on the draft. Placemat records the exact service, 
 Expand **Exact plan** to read what will be published, then press **Approve plan**. The service is now **published**: it appears on the guest booking page, and staff can seat walk-ins and keep a waitlist for it.
 
 Publication fixes the service's hours, turn duration and cover limit. Editing a draft after preparing it makes the old plan stale; prepare a new one. To offer another sitting, create another service.
+
+## Dining experiences
+
+Use **Experience catalog** in this section to publish tasting menus and events against existing services. [Dining experiences](experiences.md) explains publication, shared inventory, ticket quantities, guest booking and retained terms.

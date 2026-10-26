@@ -48,6 +48,7 @@ export function validateExperienceBookings(s){
   if(!record(e)||!entry||!integer(e.version,1,entry.version)||!label(e.classId,100)||!label(e.className,120)||!integer(e.quantityLimit,1,500)||!label(e.name,120)||!label(e.menu,8000)||!label(e.cancellationRules,4000)||e.kind!=='free'||e.amountCents!==0||e.currency!=='USD'||!distinct(e.serviceIds,31)||!e.serviceIds.includes(b.serviceId)||!distinct(e.areas,30)||!integer(e.turnMinutes,15,360)||!integer(e.cleanupMinutes,0,120)||!record(e.lastSeatingAt)||e.serviceIds.some(id=>!s.services.some(row=>row.id===id)||!instant(e.lastSeatingAt[id])))invalid('Invalid frozen experience commitment')
   if(b.tableIds.some(id=>!e.areas.includes(s.tables.find(t=>t.id===id)?.area??'Dining room'))||b.startAt>e.lastSeatingAt[b.serviceId]||Date.parse(b.endAt)-Date.parse(b.startAt)<e.turnMinutes*60000||Date.parse(b.cleanupEndAt??b.endAt)-Date.parse(b.endAt)<e.cleanupMinutes*60000)invalid('Broken experience reservation fit')
   const used=s.bookings.filter(row=>row.serviceId===b.serviceId&&row.experience?.id===e.id&&row.experience.classId===e.classId&&['booked','seated','completed'].includes(row.status)).reduce((n,row)=>n+row.partySize,0)
-  if(used>e.quantityLimit)invalid('Oversold experience ticket inventory')
+  const currentClass=entry.ticketClasses.find(t=>t.id===e.classId),limit=currentClass?currentClass.quantityLimit:Math.max(...s.bookings.filter(row=>row.experience?.id===e.id&&row.experience.classId===e.classId).map(row=>row.experience.quantityLimit))
+  if(used>limit)invalid('Oversold experience ticket inventory')
  }
 }

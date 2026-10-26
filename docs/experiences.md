@@ -1,0 +1,11 @@
+# Dining experiences
+
+Open **Services & tables**, then **Experience catalog**. Create a tasting menu or event with its menu, optional uploaded PNG, JPEG or WebP image, published service dates, seating areas, ticket classes, quantities and cancellation rules. Set dining time, cleanup and last seating for each date. Save the draft, review its exact details and explicitly publish it. Changed drafts require a fresh publication. Withdraw a published listing before changing its terms.
+
+The catalog supports free, deposit and prepaid terms. Free experiences book on the existing guest page: choose the experience and ticket class, search for a fitting arrival, review the terms and confirm. Priced listings explain that online payment checkout is unavailable; publishing them takes no payment and creates no reservation. EXP-002 retains payment collection, itemized tickets and paid add-on obligations.
+
+Experiences use the same physical tables, joins, closures, service covers, staffing and pacing as ordinary reservations. A ticket never creates a seat. Each class quantity is a guest-cover limit for each dated service, counting active and completed experience reservations and live checkout holds; cancellation and no-show release free inventory. Availability is not a hold. A stale choice preserves the guest's contact inputs and requires another explicit selection.
+
+Experience dining time is a minimum; longer table, area or party turn rules still apply. Cleanup uses the longer of the experience and service reset. Last seating respects both policies, and publication requires the full applicable turn and cleanup to fit. Ordinary reservations keep their existing policy. New experience checkout in EXP-002 inherits these exact inventory, turn, reset and hold rules.
+
+A confirmed reservation keeps its original menu, class, dining time, cleanup and cancellation terms when the catalog changes. Existing guest management and reviewed closure relocation preserve those commitments. A live checkout prevents changing or withdrawing its exact experience. Catalog CSV and structured archives include uploaded image bytes and all catalog fields; reservation CSV includes its experience terms. Existing guest erasure removes guest contact and personal operational data while preserving business catalog records and anonymous accountability.
