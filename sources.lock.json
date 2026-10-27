@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7cf3ba2863f1f3df5ba6fb660a1bbd8ed17be8ec3e80bc0732e3df01255abe1c",
+      "sha256": "7354e05dfb4d88f01c60e8fdaee5360e73bb010e49b0abaed7f15dfe3393b6fe",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "324392d3c5ae1b1b701b33927c9f456d895a9211abf1282060717193e25bc1fb",
+      "sha256": "20f54f0f92309546ef4d42938ca36ca61f354f784628bd992de59f59304074fe",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1239,6 +1239,10 @@
     },
     "scripts/service-change-sandbox.mjs": {
       "sha256": "17d670b0dae884ef3eb93f562204605e693e8c0c42d4cb6573ec4ebd3594f4a2",
+      "executable": false
+    },
+    "scripts/test-api-shard.mjs": {
+      "sha256": "443f9db1e222070cef03a3a1746957b8bfb9deb1262af86638c4d8c7c06e6b43",
       "executable": false
     },
     "scripts/verify-app.mjs": {
@@ -4462,11 +4466,11 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "4336c8850226f7e63a768056de61ea9d36efe92218ccd7e55f986a629f7695ce",
+      "sha256": "59def3a4e9297dbfa2c184850ee3e0642b8d1f4599b8163f5a4d17ab78b23ab2",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
-      "sha256": "97d25a60dabe02ab4c30efbe226c8967b8fbac25b39f61467c2ef5a26186261d",
+      "sha256": "f5b511d16c871e167173d157fe6f828648c5ef4143f4ff7959cbe3af7ccc7966",
       "executable": false
     },
     "vite.config.ts": {
