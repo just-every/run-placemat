@@ -9,11 +9,19 @@
       ]
     },
     {
-      "name": "api",
+      "name": "api-1",
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run test:api"
+        "node scripts/test-api-shard.mjs 1"
+      ]
+    },
+    {
+      "name": "api-2",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "node scripts/test-api-shard.mjs 2"
       ]
     },
     {
@@ -74,7 +82,8 @@
       "commands": [
         "PLACEMAT_FLOOR_ONLY=hoststand node tests/floor-ui.mjs",
         "node tests/group-ui.mjs",
-        "node tests/finance-ui.mjs"
+        "node tests/finance-ui.mjs",
+        "node tests/diner-ui.mjs"
       ]
     }
   ],

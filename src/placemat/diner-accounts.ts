@@ -1,3 +1,6 @@
+import {dinerPage} from './diner-view'
+import {managementPage} from './booking-management-view'
+import {readManagement,previewManagement,commitManagement} from './booking-management'
 import type {Bindings} from '../auth.server'
 import {operatorMail} from '../mail.server.mjs'
 import {originCheck,jsonBody} from './access'
@@ -47,7 +50,7 @@ async function requestCode(env:Bindings,p:any){
  const count=await env.DB.prepare('INSERT INTO pm_diner_mail_limits(booking_id,day,count) VALUES(?,?,1) ON CONFLICT(booking_id,day) DO UPDATE SET count=count+1 RETURNING count').bind(bookingId,day).first<{count:number}>()
  if((count?.count??0)>5)return result
  const token=random(),digest=await hash(token),expires=Date.now()+15*60000
- c.state.audit.push({id:id(),at:new Date().toISOString(),actor:'guest',action:'diner.verification.requested',subject:c.booking.id,source:'guest-supplied'})
+ c.state.audit.push({id:id(),at:new Date().toISOString(),actor:'guest',action:'diner.verification.requested',subject:c.booking.id,source:'guest-supplied',changes:[{kind:'dinerVerification',id:c.booking.id,before:{requested:false},after:{requested:true}}]})
  await save(env.DB,c.state,c.version,[...contactFence(env.DB,c),
   env.DB.prepare('DELETE FROM pm_diner_challenges WHERE booking_id=? OR expires_at<=?').bind(bookingId,Date.now()),
   env.DB.prepare('INSERT INTO pm_diner_challenges(digest,booking_id,guest_id,email,contact_digest,expires_at) VALUES(?,?,?,?,?,?)').bind(digest,bookingId,c.guest.id,address,c.digest,expires)])
@@ -66,7 +69,7 @@ async function verify(db:D1Database,p:any){
  const current=c!
  const existing=await db.prepare('SELECT * FROM pm_diner_accounts WHERE email=?').bind(proof.email).first<Account>()
  const accountId=existing?.id??id(),token=random(),sessionDigest=await hash(token),at=new Date().toISOString(),expires=Date.now()+86400000
- current.state.audit.push({id:id(),at,actor:'guest',action:'diner.booking.verified',subject:current.booking.id,source:'guest-supplied'})
+ current.state.audit.push({id:id(),at,actor:'guest',action:'diner.booking.verified',subject:current.booking.id,source:'guest-supplied',changes:[{kind:'dinerVerification',id:current.booking.id,before:{verified:false},after:{verified:true}}]})
  await save(db,current.state,current.version,[...contactFence(db,current),
   db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_diner_challenges WHERE digest=? AND expires_at>? AND contact_digest=?) THEN 1 ELSE 0 END').bind(digest,Date.now(),proof.contact_digest),
   db.prepare('INSERT OR IGNORE INTO pm_diner_accounts(id,email,created_at,updated_at) VALUES(?,?,?,?)').bind(accountId,proof.email,at,at),
@@ -79,8 +82,9 @@ async function verify(db:D1Database,p:any){
 }
 async function session(db:D1Database,p:any){
  const digest=await hash(bearer(p.token))
+ const device=await db.prepare('SELECT expires_at FROM pm_diner_sessions WHERE digest=? AND expires_at>?').bind(digest,Date.now()).first<{expires_at:number}>()
  const a=await db.prepare('SELECT a.* FROM pm_diner_accounts a JOIN pm_diner_sessions s ON s.account_id=a.id WHERE s.digest=? AND s.expires_at>?').bind(digest,Date.now()).first<Account>()
- if(!a)unavailable()
+ if(!a||!device)unavailable()
  const links=(await db.prepare('SELECT booking_id,guest_id FROM pm_diner_bookings WHERE account_id=?').bind(a!.id).all<{booking_id:string;guest_id:string}>()).results
  const bookings=[]
  for(const link of links){
@@ -89,10 +93,14 @@ async function session(db:D1Database,p:any){
  }
  // Restored links are records only: absent sessions cannot open them.
  if(!bookings.length)unavailable()
- return {account:a!,digest,bookings}
+ return {account:a!,digest,bookings,expiresAt:device!.expires_at}
 }
 export async function dinerResponse(request:Request,env:Bindings):Promise<Response|null>{
  const path=new URL(request.url).pathname
+ if(path==='/diner'||path==='/diner/manage'){
+  if(!['GET','HEAD'].includes(request.method))return Response.json({error:'Method not allowed'},{status:405,headers})
+  return path==='/diner'?dinerPage(request):managementPage(request,true)
+ }
  if(!path.startsWith('/api/public/diner/'))return null
  const json=(data:unknown,status=200)=>Response.json(data,{status,headers})
  try{
@@ -104,15 +112,22 @@ export async function dinerResponse(request:Request,env:Bindings):Promise<Respon
   const p=await jsonBody(request)
   if(path==='/api/public/diner/request')return json(await requestCode(env,p),202)
   if(path==='/api/public/diner/verify')return json(await verify(env.DB,p))
-  if(!['/api/public/diner/account','/api/public/diner/preferences','/api/public/diner/logout','/api/public/diner/forget'].includes(path))return json({error:'Not found'},404)
+  if(!['/api/public/diner/account','/api/public/diner/preferences','/api/public/diner/logout','/api/public/diner/forget','/api/public/diner/management/status','/api/public/diner/management/preview','/api/public/diner/management/commit'].includes(path))return json({error:'Not found'},404)
   const s=await session(env.DB,p),{state,version}=await load(env.DB)
+  if(path.startsWith('/api/public/diner/management/')){
+   if(typeof p.bookingId!=='string'||!s.bookings.some(b=>b.id===p.bookingId))unavailable()
+   const authority={digest:s.digest,accountId:s.account.id,bookingId:p.bookingId,email:s.account.email,expiresAt:s.expiresAt}
+   const action=path.split('/').at(-1)
+   return json(await (action==='status'?readManagement:action==='preview'?previewManagement:commitManagement)(env.DB,p,authority))
+  }
   if(path==='/api/public/diner/account')return json({email:s.account.email,venue:publicVenue(state.venue),favorite:!!s.account.favorite,preferences:s.account.preferences,bookings:s.bookings,rebookUrl:'/book'})
   if(path==='/api/public/diner/logout'){await env.DB.prepare('DELETE FROM pm_diner_sessions WHERE digest=?').bind(s.digest).run();return json({signedOut:true})}
   if(p.acknowledged!==true)fail(400,'Confirm the diner account change.')
   const fence=env.DB.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_diner_sessions WHERE digest=? AND account_id=? AND expires_at>?) THEN 1 ELSE 0 END').bind(s.digest,s.account.id,Date.now())
   if(path==='/api/public/diner/forget'){
    await erasureCheckpoint(env.DB)
-   state.audit.push({id:id(),at:new Date().toISOString(),actor:'guest',action:'diner.account.forgotten',subject:'venue',source:'guest-supplied'})
+   for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='dinerAccounts'&&change.id===s.account.id){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
+   state.audit.push({id:id(),at:new Date().toISOString(),actor:'guest',action:'diner.account.forgotten',subject:'venue',source:'guest-supplied',changes:[{kind:'dinerAccounts',id:s.account.id,before:{present:true},after:null}]})
    await save(env.DB,state,version,[fence,
     env.DB.prepare('DELETE FROM pm_diner_challenges WHERE email=?').bind(s.account.email),
     env.DB.prepare('DELETE FROM pm_diner_sessions WHERE account_id=?').bind(s.account.id),
@@ -123,7 +138,7 @@ export async function dinerResponse(request:Request,env:Bindings):Promise<Respon
   }
   if(typeof p.favorite!=='boolean'||typeof p.preferences!=='string'||p.preferences.length>500)fail(400,'Choose a favorite and preferences of at most 500 characters.')
   await erasureCheckpoint(env.DB)
-  state.audit.push({id:id(),at:new Date().toISOString(),actor:'guest',action:p.preferences?'diner.preferences.saved':'diner.preferences.revoked',subject:'venue',source:'guest-supplied'})
+  state.audit.push({id:id(),at:new Date().toISOString(),actor:'guest',action:p.preferences?'diner.preferences.saved':'diner.preferences.revoked',subject:'venue',source:'guest-supplied',changes:[{kind:'dinerAccounts',id:s.account.id,before:{bookingIds:s.bookings.map(b=>b.id),favorite:!!s.account.favorite,preferences:s.account.preferences},after:{bookingIds:s.bookings.map(b=>b.id),favorite:p.favorite,preferences:p.preferences.trim()}}]})
   await save(env.DB,state,version,[fence,env.DB.prepare('UPDATE pm_diner_accounts SET favorite=?,preferences=?,updated_at=? WHERE id=?').bind(p.favorite?1:0,p.preferences.trim(),new Date().toISOString(),s.account.id)])
   await erasureCheckpoint(env.DB)
   return json({favorite:p.favorite,preferences:p.preferences.trim()})

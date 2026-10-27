@@ -50,7 +50,7 @@ function conflict(error:unknown):never{
 }
 /** Store.load attaches these to State.holds; allocators count them, read projections omit them. */
 export async function readActiveHolds(db:D1Database):Promise<HoldAllocation[]>{
- const rows=await db.prepare("SELECT allocation FROM pm_booking_holds WHERE state='active' AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') ORDER BY id").all<{allocation:string}>()
+ const rows=await db.prepare("SELECT allocation FROM pm_booking_holds WHERE state='active' AND expires_at>? ORDER BY id").bind(new Date().toISOString()).all<{allocation:string}>()
  return rows.results.map(row=>({...JSON.parse(row.allocation),kind:'hold' as const}))
 }
 /** Create/reload uses the same client-owned capability; only its digest is retained. */
@@ -105,5 +105,5 @@ export function completionResult(result:Record<string,unknown>):Record<string,un
 }
 export function completionStatements(db:D1Database,c:HoldCompletion,result:Record<string,unknown>,version:number):D1PreparedStatement[]{
  if(typeof result.id!=='string'||!result.id)fail(500,'A completed checkout requires its saved booking reference.')
- return [stateFence(db,version),db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_booking_holds WHERE request_hash=? AND token_hash=? AND payload_hash=? AND state='active' AND expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')) THEN 1 ELSE 0 END").bind(c.requestHash,c.tokenHash,c.payloadHash),db.prepare("UPDATE pm_booking_holds SET state='completed',booking_id=?,result=? WHERE request_hash=? AND token_hash=? AND state='active'").bind(result.id,JSON.stringify(completionResult(result)),c.requestHash,c.tokenHash)]
+ return [stateFence(db,version),db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_booking_holds WHERE request_hash=? AND token_hash=? AND payload_hash=? AND state='active' AND expires_at>?) THEN 1 ELSE 0 END").bind(c.requestHash,c.tokenHash,c.payloadHash,new Date().toISOString()),db.prepare("UPDATE pm_booking_holds SET state='completed',booking_id=?,result=? WHERE request_hash=? AND token_hash=? AND state='active'").bind(result.id,JSON.stringify(completionResult(result)),c.requestHash,c.tokenHash)]
 }

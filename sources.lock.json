@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b91e914459593a2695c44d0e07be3134ae156e0ccfd90401d75a1ad89ba6b5b8",
+      "sha256": "35f6f1fadf86b364b8c54c4b7c3a8c727860a6b86f66bfd911a225125eb2f6f7",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3f51e41c454b1259b9bb58cc95b61620a6d3f69be1b18ed5292d0e93b64770c3",
+      "sha256": "6d0f71215e66cce33e61787f6feeaf8636232aa9976531b4a42eee0b9673c7f0",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/data-portability.md": {
-      "sha256": "1866669f12c76b5868d85accd65e1d951de8c4a6e2b4b0a5a6289ac2f7d7af7d",
+      "sha256": "863d072727793dc2063b5581ac96125ba64b24dfb5e7c8a47c24ef207ea27bf0",
       "executable": false
     },
     "docs/deploy.md": {
@@ -294,7 +294,7 @@
       "executable": false
     },
     "docs/guests.md": {
-      "sha256": "e2a634e7d84e5b2ad06cbb3471b8b331bdd9667515ce3e3275903d50dd4c8ffe",
+      "sha256": "14590b7d72d8ce55aa97237153ad8bdb3ad84009823914b319479b70d6398b29",
       "executable": false
     },
     "docs/host-stand-security.md": {
@@ -302,7 +302,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "190e840ea2ee9e931a5496b46e06b6b8d5f29a60cb855a3c6e3fa2e156c4f9e1",
+      "sha256": "e376cd763edbea0ac0d904bca40c9e2481dcc20fa34d01c72e40bfee87592344",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -529,6 +529,10 @@
       "sha256": "59d21cfffbac5a51e40c337345cb2a18299d07c614247fa22ab185ffbdb08d6a",
       "executable": false
     },
+    "migrations/core/0049_diner_management.sql": {
+      "sha256": "ca70ba84acd6a69ae7bc7a85b94b0119dde3eaf5774402249971fbde25e678eb",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -666,7 +670,7 @@
       "executable": false
     },
     "public/placemat-booking-manage.js": {
-      "sha256": "b52c2a714eff7957c078358e6518b20f2b1198bbc30e0548b9fd41ab85a9fb90",
+      "sha256": "5ed092ec9134e2398895b75bae00a0b25bb249a29a78d8ba17cf9ca8a6e354ee",
       "executable": false
     },
     "public/placemat-booking-management-staff.js": {
@@ -703,6 +707,14 @@
     },
     "public/placemat-delegation.js": {
       "sha256": "997769b3224763e765b621e9d5e89ececc83be69751a4869b23182ddbf62a698",
+      "executable": false
+    },
+    "public/placemat-diner.css": {
+      "sha256": "8749fc4dca7f66b67cd27b3acce6214ef48a9dd08675c3be698a8e5293733dde",
+      "executable": false
+    },
+    "public/placemat-diner.js": {
+      "sha256": "ec1344ab236953522afb196d44094594639bd93c3152457644b4dbdd2be9a348",
       "executable": false
     },
     "public/placemat-embed.js": {
@@ -870,7 +882,7 @@
       "executable": false
     },
     "public/placemat-search.js": {
-      "sha256": "bb880848459f4211dff452002f954b6644769fd040e5b69bf72c4aa7f7bd39d3",
+      "sha256": "41ab1a9dde02ff2e34f8bc2e31d2240314f1c5d5e5d6144502dd10851a959607",
       "executable": false
     },
     "public/placemat-service-changes.js": {
@@ -1227,6 +1239,10 @@
     },
     "scripts/service-change-sandbox.mjs": {
       "sha256": "17d670b0dae884ef3eb93f562204605e693e8c0c42d4cb6573ec4ebd3594f4a2",
+      "executable": false
+    },
+    "scripts/test-api-shard.mjs": {
+      "sha256": "443f9db1e222070cef03a3a1746957b8bfb9deb1262af86638c4d8c7c06e6b43",
       "executable": false
     },
     "scripts/verify-app.mjs": {
@@ -3282,7 +3298,7 @@
       "executable": false
     },
     "src/placemat/booking-holds.ts": {
-      "sha256": "eea6cab8322ebeae2e691f3f8e65e17c8374b610046a1ab13ae87d6869e8dc8f",
+      "sha256": "375c26882821d56028118658dc02c7cae6141614d3e7175d4d9671f5ca3af140",
       "executable": false
     },
     "src/placemat/booking-management-mail.ts": {
@@ -3290,11 +3306,11 @@
       "executable": false
     },
     "src/placemat/booking-management-view.ts": {
-      "sha256": "3a101158b5916e3cc0848ddb31eb9923bd310f67dabb21298faed5a880cdb01c",
+      "sha256": "313b492bd0742755113bd0e3e79922ca94e864e6a323347d0b38046a1f589fc3",
       "executable": false
     },
     "src/placemat/booking-management.ts": {
-      "sha256": "1b6e3a378aa89c0631f50d02550da887d23650681b405f206371726260bc642b",
+      "sha256": "5d33c7c74059c29616f4118b3b3e0e46f64cce089c84f5f44f63320885e2446e",
       "executable": false
     },
     "src/placemat/booking-requests.ts": {
@@ -3374,11 +3390,15 @@
       "executable": false
     },
     "src/placemat/diner-accounts.ts": {
-      "sha256": "076dbbae120b2903b72d1108275d2b0c0f7d664b46b9c8dbf1fef5fb93e4aba5",
+      "sha256": "ca1b26b435d357a0fb6b7858024d62c00ef71b00d52962f7417f92a054653aed",
       "executable": false
     },
     "src/placemat/diner-archive.mjs": {
-      "sha256": "7a1eb44c59e62dfb886dbe0dd6c35e374a6fe21850595163e80afee2d62326b7",
+      "sha256": "84fb7432ff1c536f8c2e2ba48e035eac2c7118d9fb63a9a34fc10e479c3f4c7e",
+      "executable": false
+    },
+    "src/placemat/diner-view.ts": {
+      "sha256": "b1cb2619fff35c4122c6e36d7a9069d78baba1f07e6ea02ea42cbded21d9faad",
       "executable": false
     },
     "src/placemat/direct-inventory.ts": {
@@ -3862,7 +3882,7 @@
       "executable": false
     },
     "src/placemat/views.ts": {
-      "sha256": "910fc523e72eda6d27a9ef3c83496e431318b4e8561277586d81cfeebf37b1b6",
+      "sha256": "2351381a136ee8e7846e2cba44cc393106865ef87f06bd577c8ad1132e9a5cf3",
       "executable": false
     },
     "src/placemat/wait-join.ts": {
@@ -4069,8 +4089,28 @@
       "sha256": "e84d33771deb65a60e7cbe2e8ded7c031be838a5c279cc269d983f37de116462",
       "executable": false
     },
+    "tests/api/diner-client.mjs": {
+      "sha256": "96875d1348dce43bbf9745888577076213e19e2484b671f284f9623c41539459",
+      "executable": false
+    },
+    "tests/api/diner-custody-journey.mjs": {
+      "sha256": "3ac1968c84213b9f2b768db8816baf1ca31df8647df515df795163c690f9fc73",
+      "executable": false
+    },
+    "tests/api/diner-fixture.mjs": {
+      "sha256": "73234d10097208003eb420a6d9b1d35357aee2e9ef350905497c429b8184bf89",
+      "executable": false
+    },
     "tests/api/diner-journeys.mjs": {
-      "sha256": "018eaa16b06d3cce82b37bb1e0b0a207657009ea596a9640471028f8408b8e41",
+      "sha256": "c55b51609bd7976ae8a7269ea2412ed5ef0f389f004b9056927dabf384ad23ef",
+      "executable": false
+    },
+    "tests/api/diner-management-journey.mjs": {
+      "sha256": "d5b6714abaef544a6bf34eb56bd8073eb840e1932b79b429b1e55c483e18a079",
+      "executable": false
+    },
+    "tests/api/diner-portability.mjs": {
+      "sha256": "8e3679e38d0e0bd0edb0e2f8c9f8a44faea6d2a331f3ce478121a4c7e145d58d",
       "executable": false
     },
     "tests/api/embed.test.mjs": {
@@ -4114,7 +4154,7 @@
       "executable": false
     },
     "tests/api/guests.test.mjs": {
-      "sha256": "4a843c6f84aa65a7e44975e2eca946caf9a8b2c21230cdc2bb49454b73905ef1",
+      "sha256": "7560ecdfa043a0562062d6ea182559a5e2e1f97769cfbb614603616047045a02",
       "executable": false
     },
     "tests/api/harness.mjs": {
@@ -4305,6 +4345,10 @@
       "sha256": "1f4f0372ea3508da68f901d0ae8ffb443f6817d66605de26564c1e2c747e716a",
       "executable": false
     },
+    "tests/diner-ui.mjs": {
+      "sha256": "10fa9df4a97cc5bff498bf2c4bd5689c7fd536370c1d884436dc421d240032c9",
+      "executable": false
+    },
     "tests/embed-ui.mjs": {
       "sha256": "380f4ddf4bf93a7efce38afb9fea193ca4a49cd78e12d74649e95a51443ca75e",
       "executable": false
@@ -4438,11 +4482,11 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "efe1b53eafb3f41dc97f39777a6777b78c524bcfefc55a09729e8c4065cbb2e6",
+      "sha256": "59def3a4e9297dbfa2c184850ee3e0642b8d1f4599b8163f5a4d17ab78b23ab2",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
-      "sha256": "97d25a60dabe02ab4c30efbe226c8967b8fbac25b39f61467c2ef5a26186261d",
+      "sha256": "f5b511d16c871e167173d157fe6f828648c5ef4143f4ff7959cbe3af7ccc7966",
       "executable": false
     },
     "vite.config.ts": {

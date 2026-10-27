@@ -466,10 +466,10 @@ Both public read doors include the intentionally public `experiences` projection
 
 Experience allocations stay in the same dated service and physical ledger as ordinary reservations. Class quantities count guest covers per dated service, including live holds. Committing the real reservation consumes its own hold atomically. A saved experience promise cannot be replaced through another staff command; guest management and closure relocation retain its frozen terms. CSV and structured archives document catalog records, uploaded images and reservation snapshots. EXP-002 inherits this inventory and checkout protection before payment collection ships.
 
-### Optional diner accounts (DIST-005, partial)
+### Optional diner accounts (DIST-005, PARTIAL)
 
 Guest checkout at `POST /api/public/book` remains available without an account.
-The native diner API is an initial slice; no diner account screen is shipped.
+The public `/diner` screen requests verification, opens the account and manages its favorite, preferences and individually verified reservations.
 This door grants no venue role and never merges guest profiles. Favorites and
 preferences belong only to the current restaurant installation. They are not
 applied to a booking or exposed in staff projections automatically.
@@ -485,6 +485,9 @@ to the public request limit. Supply these fields:
 | `/api/public/diner/preferences` | `token`, boolean `favorite`, string `preferences`, `acknowledged: true` | Saves up to 500 characters for this restaurant. Empty preferences revoke the saved text; false removes the favorite. |
 | `/api/public/diner/logout` | `token` | Revokes that device session. |
 | `/api/public/diner/forget` | `token`, `acknowledged: true` | Removes the restaurant account, all its links, pending codes and all device sessions. Reservations stay unchanged. |
+| `/api/public/diner/management/status` | `token`, `bookingId` | Only a booking individually verified for this account, with its current matching contact. Financial obligations require manager review. |
+| `/api/public/diner/management/preview` | `token`, `bookingId`, `action` and the existing BOOK-004 change fields | Saves one exact reviewed plan for this device without changing the reservation. |
+| `/api/public/diner/management/commit` | `token`, `bookingId`, `previewId`, `acknowledged: true` | Commits only that device’s current preview, with live identity, capacity, state and money guards; consumes the preview. |
 
 The code is 32 random bytes, stored only as SHA-256, consumed atomically and
 expires in 15 minutes. A new request supersedes the earlier code for that
@@ -500,19 +503,21 @@ with the same email or phone is not attached automatically. Current contact
 matching is checked on reads. The API exposes no internal guest ID, staff notes,
 allergy records or other diners.
 
-The existing `/book` page performs a fresh capacity-checked guest booking.
-Account-led prefill, account screens and management of upcoming bookings from
-the account remain unbuilt. Existing private booking-management links retain
-their own authority and financial restrictions.
+A favorite’s Book again action opens the existing `/book` page for a fresh capacity-checked guest booking. Contact and preferences are not copied automatically; the new booking needs separate verification before appearing in the account.
 
-Owner-only CSV kinds `diner-accounts` and `diner-bookings` and structured
-archives contain the business records. Codes and sessions are excluded, so a
-restored account needs new email proof. Preference changes and forgetting fence
-older archives through the existing redaction checkpoint. Guest erasure removes
-linked diner account custody and every associated device session; privacy access
-exports include the linked account's saved preferences. Retention review includes
-the latest diner preference update.
+The `/diner/manage` screen reuses BOOK-004’s explicit preview and acknowledgment for time, party size, reservation contact, reconfirmation and cancellation. It grants no email-link issuance authority. Existing private booking-management links retain their own authority and financial restrictions. A changed contact email removes the old account’s access; proving the new address is required. Financially implicated reservations stay in manager review. Each device holds one reviewed reservation preview at a time; a replacement preview, changed reservation, consumed confirmation, expired session or revocation prevents reuse. Device credentials remain in tab session storage, never a URL, and all previews are excluded with sessions from archives.
 
-Default ADOPTED pending ct: explicit booking-scoped proof, no automatic outbound
-action, no cross-installation identity or permission pooling. DIST-006 and
-GUEST-006 must independently establish review eligibility and group consent.
+Owner-only CSV kinds `diner-accounts` and `diner-bookings` contain `csv_version`, `data_json` and these complete business fields. Structured archives retain the same fields in the named tables:
+
+| CSV kind and archive table | Portable fields |
+| --- | --- |
+| `diner-accounts`, `pm_diner_accounts` | `id`: stable account ID; `email`: trimmed lowercase verified email; `created_at`: creation instant; `updated_at`: latest favorite or preference update instant, initially creation; `favorite`: integer `0` or `1` for this restaurant; `preferences`: saved text of at most 500 characters, empty when revoked. |
+| `diner-bookings`, `pm_diner_bookings` | `account_id`: account link; `booking_id`: reservation link; `guest_id`: recorded guest link; `verified_at`: latest successful explicit verification instant for that account and reservation. The account and booking pair is the composite key; there is no separate link ID. |
+
+The [portability guide](./data-portability.md#diner-records-relationships-and-custody) defines reconciliation, relationships and exclusions. Staged restore rejects duplicate or malformed accounts and links, missing account, reservation or non-erased guest references, a link whose guest differs from its reservation’s guest, invalid timestamps, unsupported favorite values and overlong preferences before applying staged product records. Restored links are historical records; absent sessions require fresh email proof and live current-contact checks before access.
+
+`pm_diner_challenges`, `pm_diner_sessions` and `pm_diner_mail_limits` are archive exclusions and have no business CSV kind. Live pending proofs, their private booking, guest and current-contact references, code digests and expiry are excluded. Device digests, expiry and every reservation-management preview field are excluded with sessions. Raw codes and device bearers are never portable fields. Preference changes and forgetting fence older archives through the existing redaction checkpoint. Guest erasure removes linked diner accounts, verified links, pending proofs and associated device sessions; privacy access exports include linked account fields and saved preferences. Retention review includes the latest diner preference update. A new destination requires a trusted later same-source journal to recognize a forget or erasure absent from an old archive.
+
+CT approved the booking-scoped verification and management scope with riders in both 26 October 2026 rulings. The approved controls above retain explicit current-contact proof for each attached booking, independent expiring devices, explicit confirmation of fresh device-bound previews, unchanged financial obligations requiring manager review, and no charge, refund, fee waiver or automatic message authority. Verification grants no staff role, marketing permission, review eligibility or group-sharing permission. There is no cross-installation identity or permission pooling. The complete favorite, prior-visit repeat-booking and upcoming-reservation management target across devices remains binding, with DATA-003 portability, DATA-002 erasure and AUDIT-001 accountability. DIST-006 and GUEST-006 must independently establish review eligibility and group consent under their preserved receiving duties.
+
+DIST-005 remains PARTIAL under the 27 October 2026 CT ruling. Approval of this scope does not establish completion: every original acceptance point, both approved rider paragraphs and all DONE-RIDERS rows must pass, including direct public-door assertions and exact-candidate landing evidence, before DONE can be claimed.

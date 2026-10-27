@@ -4,23 +4,26 @@ if(location.hash.startsWith('#card=')){await cardMode();}else{
 
 const root=document.querySelector('#management-content'),notice=document.querySelector('#notice')
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const diner=document.body.hasAttribute('data-diner-management'),bookingId=new URLSearchParams(location.search).get('booking')
 const tokenFromLink=new URLSearchParams(location.hash.slice(1)).get('token')
-let token=tokenFromLink,view,preview,busy=false
-// Keep the bearer out of browser history and subsequent referrers. It is held only by this page.
-history.replaceState(null,'',location.pathname)
+let token=diner?sessionStorage.getItem('placemat-diner-session'):tokenFromLink,view,preview,busy=false
+// Email-link bearers stay in page memory. Diner sessions remain in this tab's session storage.
+// Neither credential enters browser history or subsequent referrers.
+history.replaceState(null,'',location.pathname+(diner?location.search:''))
 const field=(label,name,type,value,attrs='')=>`<label>${label}<input name="${name}" type="${type}" value="${esc(value)}" ${attrs}></label>`
+const endedMessage=diner?'Your reservation contact has been updated. Verify this booking again using its updated email to restore account access.':'Your reservation contact has been updated. Ask the venue for a new link.'
 const time=value=>new Intl.DateTimeFormat('en-US',{timeZone:view.venue.timezone,dateStyle:'full',timeStyle:'short'}).format(new Date(value))
 async function api(action,p={}){
- const response=await fetch('/api/public/booking-management/'+action,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,...p})})
+ const response=await fetch((diner?'/api/public/diner/management/':'/api/public/booking-management/')+action,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,...(diner?{bookingId}:{}),...p})})
  const result=await response.json();if(!response.ok)throw new Error(result.error??'The request could not be completed.');return result
 }
 function render(){
  document.querySelector('#venue-line').textContent=`${view.venue.name} · All times in ${view.venue.timezone}`
- root.innerHTML=`<article class="card"><h2>${esc(view.guest.name)}</h2><p>${esc(view.service.name)} · ${esc(time(view.booking.startAt))}</p><p>${view.booking.partySize} guests · ${esc(view.booking.status)}${view.booking.serviceStatus?' · '+esc(view.booking.serviceStatus):''}</p><p class="help">${view.booking.area?'Required area: '+esc(view.booking.area)+'. ':''}${view.booking.requiredAccessTags.length?'Required table access: '+esc(view.booking.requiredAccessTags.join(', '))+'.':''}</p><p class="help">This private link expires ${esc(time(view.expiresAt))}. Contact the venue if it expires or the reservation changes elsewhere.</p></article>`
+ root.innerHTML=`<article class="card"><h2>${esc(view.guest.name)}</h2><p>${esc(view.service.name)} · ${esc(time(view.booking.startAt))}</p><p>${view.booking.partySize} guests · ${esc(view.booking.status)}${view.booking.serviceStatus?' · '+esc(view.booking.serviceStatus):''}</p><p class="help">${view.booking.area?'Required area: '+esc(view.booking.area)+'. ':''}${view.booking.requiredAccessTags.length?'Required table access: '+esc(view.booking.requiredAccessTags.join(', '))+'.':''}</p><p class="help">${diner?'This device session expires':'This private link expires'} ${esc(time(view.expiresAt))}. ${diner?'Verify again if your session expires. Refresh your account if the reservation changes elsewhere.':'Contact the venue if it expires or the reservation changes elsewhere.'}</p></article>`
  if(view.managerReviewRequired){root.insertAdjacentHTML('beforeend',`<article class="card"><h2>Manager review required</h2><p>${esc(view.managerReviewMessage)}</p><p>Your reservation stays unchanged. No fee is charged and no refund is submitted by this page.</p></article>`);return}
- if(view.managementAccessEnded){root.insertAdjacentHTML('beforeend','<p>Your reservation contact has been updated. This link is closed. Ask the venue to explicitly send a new private link to the updated email address.</p>');return}
+ if(view.managementAccessEnded){root.insertAdjacentHTML('beforeend',diner?'<p>'+esc(endedMessage)+'</p>':'<p>Your reservation contact has been updated. This link is closed. Ask the venue to explicitly send a new private link to the updated email address.</p>');return}
  if(view.booking.status!=='booked'){root.insertAdjacentHTML('beforeend','<p>This reservation is resolved. Contact the venue for help.</p>');return}
- root.insertAdjacentHTML('beforeend',`<article class="card"><h2>Change your visit</h2><form data-management="change"><fieldset><div class="form-grid">${field('Arrival time','startAt','datetime-local',localTime(view.booking.startAt,view.venue.timezone),'required')}${field('Party size','partySize','number',view.booking.partySize,'required min="1" max="500"')}${field('Reservation contact name','name','text',view.guest.name,'required maxlength="200"')}${field('Reservation contact email','email','email',view.guest.email,'required')}${field('Reservation contact phone (optional)','phone','tel',view.guest.phone)}<p class="help wide">Your area and access requirements remain in place. A failed availability check keeps your current reservation. Contact edits apply to this reservation only. Changing the email closes this link; ask the venue to send a new link to the updated address.</p><div class="wide"><button type="submit">Review changes</button></div></div></fieldset></form></article><article class="card"><h2>Confirm or cancel</h2><div class="actions"><button type="button" data-management-action="reconfirm">Review reconfirmation</button><button type="button" class="secondary" data-management-action="cancel">Review cancellation</button></div></article><div id="management-preview"></div>`)
+ root.insertAdjacentHTML('beforeend',`<article class="card"><h2>Change your visit</h2><form data-management="change"><fieldset><div class="form-grid">${field('Arrival time','startAt','datetime-local',localTime(view.booking.startAt,view.venue.timezone),'required')}${field('Party size','partySize','number',view.booking.partySize,'required min="1" max="500"')}${field('Reservation contact name','name','text',view.guest.name,'required maxlength="200"')}${field('Reservation contact email','email','email',view.guest.email,'required')}${field('Reservation contact phone (optional)','phone','tel',view.guest.phone)}<p class="help wide">Your area and access requirements remain in place. A failed availability check keeps your current reservation. Contact edits apply to this reservation only. ${diner?'Changing the email removes this account’s access to this booking. Verify it again using the updated email.':'Changing the email closes this link; ask the venue to send a new link to the updated address.'}</p><div class="wide"><button type="submit">Review changes</button></div></div></fieldset></form></article><article class="card"><h2>Confirm or cancel</h2><div class="actions"><button type="button" data-management-action="reconfirm">Review reconfirmation</button><button type="button" class="secondary" data-management-action="cancel">Review cancellation</button></div></article><div id="management-preview"></div>`)
 }
 function showPreview(result){
  preview=result
@@ -43,7 +46,7 @@ root.addEventListener('submit',event=>{
    showPreview(await api('preview',{action:'change',startAt,partySize:Number(data.get('partySize')),contact:Object.fromEntries(['name','email','phone'].map(key=>[key,String(data.get(key)||'')]))}));notice.textContent='Review the consequences before confirming.'
   }else{
    const result=await api('commit',{previewId:preview.previewId,acknowledged:new FormData(form).get('acknowledged')==='on'})
-   token=result.token;view=result;preview=undefined;render();notice.textContent=result.managementAccessEnded?'Your reservation contact has been updated. Ask the venue for a new link.':result.booking.status==='cancelled'?'Your reservation is cancelled.':'Your reservation has been updated.'
+   token=result.token;view=result;preview=undefined;render();notice.textContent=result.managementAccessEnded?endedMessage:result.booking.status==='cancelled'?'Your reservation is cancelled.':'Your reservation has been updated.'
   }
  })
 })

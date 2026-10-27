@@ -29,3 +29,15 @@ Placemat removes the guest's name, contact details, profile preferences, dated n
 Erasure includes reviewed aliases and any later-edited profile that still retains that merged identity pending assignment. It removes the merge snapshots and permanently prevents reversal. Previously reversed profiles stay separate; their shared journal snapshots are still removed.
 
 Only the owner can erase guests.
+
+## Optional diner account
+
+Guests can keep booking without an account. From the booking confirmation or the **Your diner account** link on the booking page, they can request a private code using one booking reference and its recorded email. The email code expires after 15 minutes and attaches only that booking. Another booking with the same email or a shared phone never appears without its own verification.
+
+Each device verifies a booking independently and stays signed in for up to 24 hours in that tab. The account shows upcoming and previous verified reservations, a favorite for this restaurant and separately saved preferences. **Book again** opens a fresh guest booking; contact details and preferences are not copied automatically.
+
+**Manage reservation** opens the existing reviewed change flow for an upcoming verified visit. The diner reviews exact time, party size or contact changes, reconfirmation or cancellation and acknowledges the consequences before confirmation. Failed availability checks preserve the original reservation. Financial obligations require the venue manager’s review; no automatic payment or refund occurs. Changing the reservation email ends the old account’s access to that booking.
+
+**Revoke saved preferences** clears this restaurant’s saved text on every signed-in device when refreshed. It leaves the favorite and restaurant reservations in place. **Sign out this device** ends only that device session. Under **Account settings**, **Forget diner account** removes this restaurant’s account records and signs out every device while preserving the restaurant’s reservations. Accounts and preferences are never shared between installations.
+
+Diner verification and account changes retain guest attribution, timestamps, source and explicit before-and-after audit values. Account forget redacts saved preference values copied into that history. An older archive is refused when the destination knows the later forget checkpoint or receives its trusted later journal; an isolated destination cannot infer an unseen forget.

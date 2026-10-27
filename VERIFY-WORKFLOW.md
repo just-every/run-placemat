@@ -80,6 +80,15 @@ not remove it from full local or release verification.
 
 ## Keep coverage while splitting work
 
+Placemat discovers every API test file and splits them between `api-1` and
+`api-2` through `scripts/test-api-shard.mjs`. The long flow journey file runs alone in
+the first job; the remaining files together form the second partition.
+Each job keeps file concurrency at one. New API test files join the partition
+without maintaining separate file lists. Both shards are mandatory in the final
+aggregate; no API test moves to nightly. Inspect either exact selection with
+`node scripts/test-api-shard.mjs 1 --list` or the corresponding `2` command.
+The local `pnpm run test:api` command still runs the whole API selection.
+
 The reference seed's push shards cover typechecking, local setup, the emitted
 Worker and browser checks, and the remaining local-journey files. Split browser
 journeys by test file so each job has a bounded, understandable unit of work.
