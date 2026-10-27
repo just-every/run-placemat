@@ -104,6 +104,9 @@ for(const width of [1440,390]){
   await rebookingPage.goto(transport.origin+await second.getByRole('link',{name:'Book again at Cedar & Salt',exact:true}).getAttribute('href'))
   const rebook=await book(rebookingPage,'Alex Rowan')
   assert.notEqual(rebook,booking)
+  const freshBooking=(await h.api('/api/state')).state.bookings.find(b=>b.id===rebook)
+  assert.equal(freshBooking.requests?.seatingPreference??'','')
+  assert.ok(!JSON.stringify(freshBooking).includes('Quiet table requested'),'Favorite-led rebooking does not auto-apply saved preferences')
   await shot(rebookingPage,'favorite-repeat-booking')
   // Rebooking is a fresh guest action and does not implicitly link the new reservation.
   await second.getByRole('button',{name:'Refresh account',exact:true}).click()

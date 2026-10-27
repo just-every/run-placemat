@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cd8857da53d00829a88d7d6dec7c35ad8b96f1b9e13719b98bee8d46c532ec50",
+      "sha256": "7cf3ba2863f1f3df5ba6fb660a1bbd8ed17be8ec3e80bc0732e3df01255abe1c",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0fe68805f2deb3a9652d03bfa17c1ccd4e3ef1f7cb3688ebe9e9374b8af72807",
+      "sha256": "324392d3c5ae1b1b701b33927c9f456d895a9211abf1282060717193e25bc1fb",
       "executable": false
     },
     "deploy-demo.json": {
@@ -294,7 +294,7 @@
       "executable": false
     },
     "docs/guests.md": {
-      "sha256": "2f6470e4592ac9fb84d2694496e8d650e809aaeabad0b11b23f32277fc5339d3",
+      "sha256": "14590b7d72d8ce55aa97237153ad8bdb3ad84009823914b319479b70d6398b29",
       "executable": false
     },
     "docs/host-stand-security.md": {
@@ -3386,7 +3386,7 @@
       "executable": false
     },
     "src/placemat/diner-accounts.ts": {
-      "sha256": "1d73cefbc304ffbbbbb4aaf8a86fd788f7f82e63c2ee56f1f06992b2241c5b1d",
+      "sha256": "ca1b26b435d357a0fb6b7858024d62c00ef71b00d52962f7417f92a054653aed",
       "executable": false
     },
     "src/placemat/diner-archive.mjs": {
@@ -4090,7 +4090,7 @@
       "executable": false
     },
     "tests/api/diner-journeys.mjs": {
-      "sha256": "7451bc7ddf21ae9879ef887f35fa4f03e17be84003a38490b6b2def262add2fa",
+      "sha256": "ec92485053d0870c486851d1d01d5c5900dd7d8186ca56fff431598081baa40a",
       "executable": false
     },
     "tests/api/embed.test.mjs": {
@@ -4326,7 +4326,7 @@
       "executable": false
     },
     "tests/diner-ui.mjs": {
-      "sha256": "bad4eaf6262f6f25f5a96b6ab3c91f9be95f46c9b69f624fcf56b31d13a63bd1",
+      "sha256": "6430a1c3aa7be29dc2023ecda0b897b3e1f0d8063cd903eba353b9b6ee775e00",
       "executable": false
     },
     "tests/embed-ui.mjs": {
