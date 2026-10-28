@@ -7231,9 +7231,9 @@
       "file": "CONTRACT.md",
       "line": 187,
       "text": "Only a full personal venue owner may use the interim ledger-read, payout-import and explicit unmatched-attribution doors.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-ROLE-001"
+        "PAY-006"
       ]
     },
     {
@@ -10662,7 +10662,43 @@
     {
       "file": "CONTRACT.md",
       "line": 301,
-      "text": "Integration and agent credentials are least-privilege, venue/purpose scoped, revocable and incapable of approving their own proposals.",
+      "text": "Integration and agent credentials are",
+      "to": "clause",
+      "ids": [
+        "ROLE-004"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 301,
+      "text": "least-privilege,",
+      "to": "base",
+      "ids": [
+        "BASE-AGENT-005"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 301,
+      "text": "venue/purpose scoped,",
+      "to": "clause",
+      "ids": [
+        "ROLE-004"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 301,
+      "text": "revocable and",
+      "to": "base",
+      "ids": [
+        "BASE-AGENT-004"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 301,
+      "text": "incapable of approving their own proposals.",
       "to": "clause",
       "ids": [
         "ROLE-004"
@@ -10708,10 +10744,7 @@
       "file": "CONTRACT.md",
       "line": 301,
       "text": "Marketing identities, scoped integration or execution credentials with job-time revocation, and settlement reconciliation await CRM-001 to CRM-003, PAY-006 and a job queue, which do not exist.",
-      "to": "clause",
-      "ids": [
-        "ROLE-004"
-      ]
+      "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
@@ -20724,9 +20757,9 @@
       "file": "ACCEPTANCE.md",
       "line": 173,
       "text": "Only a full personal venue owner may use the interim ledger-read, payout-import and explicit unmatched-attribution doors.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-ROLE-001"
+        "PAY-006"
       ]
     },
     {

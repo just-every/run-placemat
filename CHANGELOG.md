@@ -1725,3 +1725,7 @@ Import a US restaurant’s guestbook and past/future bookings from each named in
 **AUDIT-001 historical context.** Current changes have version-fenced snapshots, source and filtered owner CSV; missing merge/send/payment workflows inherit before shipping.
 
 **AGENT-005 historical context.** All acceptance points asserted through native HTTP and 1440/390 manager journeys.
+
+## Contract rewrite wording carry — 28 October 2026
+
+ROLE-004’s prior status note said: Marketing identities, scoped integration or execution credentials with job-time revocation, and settlement reconciliation await CRM-001 to CRM-003, PAY-006 and a job queue, which do not exist. The current Gap keeps those unfinished workflows; the requirement keeps their dependency references. PAY-006 keeps its personal-owner restriction for the interim finance doors as a seed-specific delta.
