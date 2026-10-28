@@ -238,7 +238,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "b2ca2922cd4f9d36682331bfbc4fb7914f9345591883903bccb326791812f51d",
+      "sha256": "cf9afb8c6341a65fa487072bce6b71cceb9ee33aeec787e67ce38f3b7bb9bd8b",
       "executable": false
     },
     "composition.lock.json": {
@@ -546,7 +546,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "2fe5cb30685ecdfddc377eb627e5bcbc6c44900975ddcfa2fcfec9dcbdcc7a3c",
+      "sha256": "b932d6c8c7fa891fd0ba4893ce4d019b9951d931ebc305723098542e11c7adeb",
       "executable": false
     },
     "packaging.json": {
@@ -554,7 +554,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "cf025c878d864378cf2d429ae821e1267c033b722987d785eb82a33efc004965",
+      "sha256": "b11aed4617eb130d85a3a9f108596dc7cd984ba43f7048abac7b56c8bc17d0d2",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -3138,7 +3138,7 @@
       "executable": false
     },
     "src/modules/portability/import-lease.mjs": {
-      "sha256": "3b9e2568e6c6864b7739bec8468a6e3092cad3539398dcb0e465daed9ee91f7c",
+      "sha256": "d90ee22de822a0d88cb705a20d324780db2351628236a92b768aabd0c0fe7d28",
       "executable": false
     },
     "src/modules/portability/import-safety.mjs": {
