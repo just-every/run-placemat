@@ -55,7 +55,7 @@ for(const width of [1440,390]){
   const attributed=guest.waitForResponse(r=>r.url().endsWith('/api/public/retention/attribution')&&r.ok())
   await booking.getByRole('button',{name:'Confirm booking',exact:true}).click();await guest.getByRole('heading',{name:'Booking confirmed',exact:true}).waitFor();await attributed;await shot(guest,'repeat-booking')
   const repeat=(await h.api('/api/state')).state.bookings.find(b=>b.serviceId===s.id);await f.complete(repeat)
-  await owner.reload();await owner.getByText('1 repeat bookings',{exact:false}).waitFor();await shot(owner,'attributed-return-visit')
+  await owner.reload();await owner.locator('[data-workflow] .meta').filter({hasText:'1 repeat bookings'}).waitFor();await shot(owner,'attributed-return-visit')
   await guest.goto(transport.origin+'/retention#'+token);await guest.getByRole('button',{name:'Unsubscribe from marketing',exact:true}).click();await guest.getByRole('heading',{name:'Unsubscribed',exact:true}).waitFor();await shot(guest,'unsubscribed')
   await owner.getByRole('button',{name:'Stop workflow',exact:true}).click();await owner.getByText('Workflow stopped.',{exact:true}).waitFor();await shot(owner,'workflow-stopped')
   // New guests request and confirm purpose-specific permission through the public page.

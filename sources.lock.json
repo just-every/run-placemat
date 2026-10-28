@@ -4566,7 +4566,7 @@
       "executable": false
     },
     "tests/retention-ui.mjs": {
-      "sha256": "344c5516873adcbca6dca28e37cc4eabab8e87fddd88c38944b117aa6b61cdcc",
+      "sha256": "f04f69119aa4f8add8dfe6385f8760f937e929a8b5161516948da3b13d6b5aad",
       "executable": false
     },
     "tests/risk-ui.mjs": {
