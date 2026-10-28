@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ff96fdd338b335061a670e5baabade28d13cd9cb855e916f61406e49f7efc2ce",
+      "sha256": "fc89861537f2426546d440737a4fbd78d7050bcff45d073f27fa29eca83fe1d0",
       "executable": false
     },
     "deploy-demo.json": {
@@ -327,6 +327,10 @@
     },
     "docs/reminders.md": {
       "sha256": "2a34d744dfa16540a5a3c62d96d38cf2df3516bfb6829270fac29d7967d8e7ff",
+      "executable": false
+    },
+    "docs/retention-workflows.md": {
+      "sha256": "4a91d2a4e20706c670d35c3fc0af494fba27fb3d2d2687a4f88b42421e4ce894",
       "executable": false
     },
     "docs/site.json": {
