@@ -9,6 +9,6 @@ function pin(now:number){
  } as DateConstructor
 }
 export default {
- fetch(request:Request,env:any,ctx:ExecutionContext){pin(Number(request.headers.get('x-placemat-test-clock')));return worker.fetch(request,env,ctx)},
+ fetch(request:Request,env:any,ctx:ExecutionContext){const clock=request.headers.get('x-placemat-test-clock');if(clock===null)throw Error('A pinned journey clock is required');pin(Number(clock));return worker.fetch(request,env,ctx)},
  scheduled(event:ScheduledController,env:any){pin(Number(event.scheduledTime));return worker.scheduled(event,env)}
 }

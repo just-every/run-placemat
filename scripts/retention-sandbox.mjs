@@ -46,7 +46,7 @@ try{
  assert.equal(submissions.length,2)
  const offerToken=submissions[1].text.match(/\/retention#([a-f0-9]{64})/)[1];await delivered(submissions[1],offerToken,'approved first-to-second invitation')
  const offer=await h.api('/api/public/retention/status',{token:offerToken},{as:''});assert.equal(offer.offer,draft.preview.offer)
- transport=await browserServer(h);browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]});context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true})
+ transport=await browserServer(h);browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]});context=await browser.newContext({viewport:{width:390,height:844},ignoreHTTPSErrors:true,extraHTTPHeaders:{'x-placemat-test-clock':String(now)}})
  const page=await context.newPage();await page.goto(transport.origin+'/retention#'+offerToken);await page.getByRole('heading',{name:'Your invitation',exact:true}).waitFor();await page.getByText(draft.preview.offer,{exact:true}).waitFor()
  await page.getByRole('button',{name:'Unsubscribe from marketing',exact:true}).click();await page.getByRole('heading',{name:'Unsubscribed',exact:true}).waitFor()
  await h.api('/api/public/retention/status',{token:offerToken},{as:'',status:404})

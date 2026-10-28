@@ -28,7 +28,7 @@ for(const width of [1440,390]){
  try{
   const owner=await context.newPage(),guest=await guestContext.newPage(),errors=[],urls=[]
   for(const page of [owner,guest]){page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>urls.push(r.url()))}
-  const cookies=()=>context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
+  const cookies=async()=>{await context.setExtraHTTPHeaders({'x-placemat-test-clock':String(h.now())});await guestContext.setExtraHTTPHeaders({'x-placemat-test-clock':String(h.now())});return context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))}
   const shot=async(page,name,scope='main')=>{await layout(page,scope);if(screenshots)await page.screenshot({path:resolve(screenshots,`CRM-002-${name}-${width}.png`),fullPage:true})}
   await cookies();await owner.goto(transport.origin+'/setup');await owner.getByRole('checkbox').check();await owner.getByRole('button',{name:'Finish setup',exact:true}).click();await owner.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
   await owner.getByRole('link',{name:'Settings',exact:true}).click();await owner.locator('#settings').scrollIntoViewIfNeeded();await owner.getByRole('link',{name:'Guest retention workflows',exact:true}).waitFor();await shot(owner,'settings-entry','#settings')

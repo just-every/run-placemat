@@ -1273,6 +1273,10 @@
       "sha256": "75634028cad5af8b2c2abd55aa13481fa075ad8049e815fc84fd6b722ee08829",
       "executable": false
     },
+    "scripts/retention-sandbox.mjs": {
+      "sha256": "5729df7daa13dd5e5fc45d0e658c843959fc624382f81def559509b9ae51427f",
+      "executable": false
+    },
     "scripts/service-change-sandbox.mjs": {
       "sha256": "17d670b0dae884ef3eb93f562204605e693e8c0c42d4cb6573ec4ebd3594f4a2",
       "executable": false
@@ -4362,7 +4366,7 @@
       "executable": false
     },
     "tests/api/retention-worker.ts": {
-      "sha256": "5b9b8186637e8567c33206680674541e2613f0f48c6049340c08d5a9a16cf332",
+      "sha256": "aaab099e86f9a72621525b68ccad6d00f1db01539acf5e39a886092604c6d9b2",
       "executable": false
     },
     "tests/api/retention.test.mjs": {
@@ -4562,7 +4566,7 @@
       "executable": false
     },
     "tests/retention-ui.mjs": {
-      "sha256": "366f1c996bd92729e02fb6b68d8581f2561cd7899fea94cd1e0103612cc58274",
+      "sha256": "344c5516873adcbca6dca28e37cc4eabab8e87fddd88c38944b117aa6b61cdcc",
       "executable": false
     },
     "tests/risk-ui.mjs": {
