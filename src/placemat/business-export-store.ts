@@ -34,7 +34,7 @@ export async function readBusinessCsv(db:D1Database,kind:string):Promise<string>
   db.prepare('SELECT * FROM pm_fee_disputes ORDER BY at,id'),
   db.prepare('SELECT * FROM pm_stripe_collections ORDER BY created_at,id'),
   db.prepare('SELECT * FROM pm_card_guarantees ORDER BY created_at,id'),
-  db.prepare('SELECT id,owner_id,recipient_id,venues,timezone,next_at,approved_at,enabled FROM pm_report_schedules ORDER BY approved_at,id'),
+  db.prepare('SELECT id,owner_id,recipient_id,report_kind,service_id,venues,timezone,next_at,approved_at,enabled FROM pm_report_schedules ORDER BY approved_at,id'),
   db.prepare('SELECT * FROM pm_report_deliveries ORDER BY due_at,id'),
  ])
  const state:State=floor.results[0]?JSON.parse(floor.results[0].data):emptyState()

@@ -533,6 +533,10 @@
       "sha256": "ca70ba84acd6a69ae7bc7a85b94b0119dde3eaf5774402249971fbde25e678eb",
       "executable": false
     },
+    "migrations/core/0050_recurring_report_types.sql": {
+      "sha256": "4daec0d5746bc0f64f88ca3a920c02825e28a0168fe708f918891e009b4e1b39",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -858,7 +862,7 @@
       "executable": false
     },
     "public/placemat-report-schedules.js": {
-      "sha256": "45e980c42ac5d7b7b05d322312e2afa6d989f2cb0a213d90a728628bea10eade",
+      "sha256": "81ed3e19e9d4dc308b69e90f3ade54ccad11544fd9af44c7cc1efac8313f8eb3",
       "executable": false
     },
     "public/placemat-reports.js": {
@@ -3322,11 +3326,11 @@
       "executable": false
     },
     "src/placemat/business-export-store.ts": {
-      "sha256": "7f6bc87a440c02821aaf3a6b9e16219cd9268600c3581be90350540d355a8811",
+      "sha256": "aa75a3e6903b50acda4022d5d2e9ea0ea90fdc2e2d44b13736fb545cce545d9b",
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "1d7bc98cc24c94281c252752b573b574a3a7dcecdd3b7893f423956c9d89fe81",
+      "sha256": "5206ee96693681b41df9f09f834b70d7932092251afb8aa11de50d85380e57bc",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3745,6 +3749,10 @@
       "sha256": "7cd060fc438bfb14bdc555539f5e47cfc14edeb1793f60b8f323e473729ef1ae",
       "executable": false
     },
+    "src/placemat/recurring-report-data.ts": {
+      "sha256": "6f9988c249227e7a6873fcb39f8e4b0cfcacb85c7b91f8c2015d73b7ec110a2f",
+      "executable": false
+    },
     "src/placemat/refund-events.ts": {
       "sha256": "190e0bba6ea1844b5606643d9057dac5e11f09588d9770f9b6784c63ffa4fa49",
       "executable": false
@@ -3770,7 +3778,7 @@
       "executable": false
     },
     "src/placemat/scheduled-reports.ts": {
-      "sha256": "d19f57c47dc1cf6aed069c71d8936fa4b4fe1eb1f33b1a944e272f2311779dac",
+      "sha256": "fb07c5f6645220b63fd20a7813d78a8ea68e92cab628dd557fa528d06ff9e8f6",
       "executable": false
     },
     "src/placemat/schedules.ts": {
@@ -4234,11 +4242,11 @@
       "executable": false
     },
     "tests/api/report-schedule-fixture.mjs": {
-      "sha256": "875e2d5637e5fcda6eda83cbd5bfd9c03e2a21f8c33f9fdf487ff89ac3a10311",
+      "sha256": "e0ff9be3391658a011e3ca96944545d5c9e665d1dc0dbdf6d667112229063a17",
       "executable": false
     },
     "tests/api/reports.test.mjs": {
-      "sha256": "2d3e3bef78f3f7684eb37bae60e698cc33416cf2a7b9c8b9615160fbfc23246b",
+      "sha256": "9d952e985e81c917d08239fad5e1381f83a7df45b97dc8c1fdac44689ae085a6",
       "executable": false
     },
     "tests/api/reservation-api.test.mjs": {
@@ -4374,7 +4382,7 @@
       "executable": false
     },
     "tests/group-ui.mjs": {
-      "sha256": "28ab903e3cde583133fb5842b37236464da0cfb7b384120b0aca9befe545329e",
+      "sha256": "1386c357187c94df6dff57167dc366425430cce3ea73aa941618169484d476fc",
       "executable": false
     },
     "tests/guarantees-ui.mjs": {

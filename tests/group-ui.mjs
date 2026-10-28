@@ -61,16 +61,20 @@ for(const width of [1440,390]){
  const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]})
  try{
   const errors=[]
-  const open=async(cookie,setup=false)=>{
+  const open=async(cookie,setup=false,financeOnly=false)=>{
    const context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
    await context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
    const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+   if(financeOnly){await page.goto(transport.origin+'/finance');return {page,context}}
    if(setup){await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click()}else await page.goto(transport.origin+'/app')
    await page.locator('.app-main[aria-busy=false]').waitFor();await page.getByRole('link',{name:'Settings',exact:true}).click();return {page,context}
   }
   const historical=await publishReportService(f.home,'Historical visit','2020-11-03T01:00:00Z'),table=(await f.home.api('/api/state')).state.tables[0]
   const visit=await f.home.command('booking.walkin',{serviceId:historical.id,startAt:historical.startAt,tableIds:[table.id],name:'Synthetic visit',email:'synthetic-placemat-visit@example.test',partySize:2})
   await f.home.command('booking.status',{bookingId:visit.id,status:'completed'});await f.home.command('booking.stage',{bookingId:visit.id,stage:'ready'})
+  const financeEmail='synthetic-placemat-weekly-finance'+String.fromCharCode(64)+'example.test',financeCookie=await f.signIn(financeEmail,'member','Weekly finance reader')
+  const people=await f.home.api('/auth/operators'),financeId=people.find(p=>p.email===financeEmail).id,ownerId=people.find(p=>p.role==='owner').id
+  await f.home.command('team.finance',{operatorId:financeId,enabled:true})
   const owner=await open(f.home.cookie,true),settings=()=>owner.page.locator('#report-schedule-settings')
   await settings().evaluate(el=>el.open=true)
   const form=owner.page.locator('#report-schedule-create')
@@ -78,7 +82,7 @@ for(const width of [1440,390]){
   for(const box of await form.locator('[name=venueId]').all())await box.check()
   await form.locator('[name=acknowledged]').check();await form.getByRole('button',{name:'Approve weekly report'}).click()
   await settings().getByText('Report schedule saved.',{exact:true}).waitFor()
-  const shot=async(page,name,locator)=>{const iconOnly=await (locator||page.locator('body')).locator('button,a,[role=button]').evaluateAll(items=>items.filter(el=>el.querySelector('svg')&&!el.textContent.trim()).map(el=>el.getAttribute('aria-label')));assert.deepEqual(iconOnly,[],'Touched report controls keep visible text labels');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'REPORT-005 fits viewport');if(shots)await (locator||page).screenshot({path:resolve(shots,`REPORT-005-${name}-${width}.png`)})}
+  const shot=async(page,name,locator)=>{const iconOnly=await (locator||page.locator('body')).locator('button,a,[role=button]').evaluateAll(items=>items.filter(el=>el.querySelector('svg')&&!el.textContent.trim()).map(el=>el.getAttribute('aria-label')));assert.deepEqual(iconOnly,[],'Touched report controls keep visible text labels');const smallText=await (locator||page.locator('body')).locator('p,label,legend,summary,button,select,input,h4').evaluateAll(items=>items.filter(el=>el.getClientRects().length&&parseFloat(getComputedStyle(el).fontSize)<13).map(el=>el.tagName));assert.deepEqual(smallText,[],'Report text stays at least 13px');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'REPORT-005 fits viewport');if(shots)await (locator||page).screenshot({path:resolve(shots,`REPORT-005-${name}-${width}.png`)})}
   await shot(owner.page,'approved',settings())
   f.mail.uncertain=true;await f.tick();await owner.page.reload();await owner.page.locator('.app-main[aria-busy=false]').waitFor();await owner.page.getByRole('link',{name:'Settings',exact:true}).click();await settings().evaluate(el=>el.open=true)
   await settings().getByText('delivery unconfirmed',{exact:true}).waitFor();const resend=settings().locator('form[data-resend-report]');await resend.locator('[name=acknowledged]').check();await shot(owner.page,'unconfirmed',settings())
@@ -94,11 +98,42 @@ for(const width of [1440,390]){
   await f.home.api('/api/group/admin/revoke',{operatorId:f.recipientId});await f.tick('2031-11-10T18:00:00.000Z')
   await owner.page.reload();await owner.page.locator('.app-main[aria-busy=false]').waitFor();await owner.page.getByRole('link',{name:'Settings',exact:true}).click();await settings().evaluate(el=>el.open=true);await settings().getByText('blocked',{exact:true}).waitFor();await shot(owner.page,'revoked',settings())
   await settings().getByRole('button',{name:'Stop weekly report'}).click();await settings().getByText('Schedule stopped',{exact:false}).waitFor();await shot(owner.page,'stopped',settings())
+  // Local schedules use the same approval form and deliver only to the nominated native identity.
+  const manager=await open(f.manager),finance=await open(financeCookie,false,true)
+  const homeService=(await f.home.api('/api/state')).state.services.find(s=>s.id===f.bookings[0].serviceId)
+  for(const local of [
+   {kind:'reservations',label:'Local reservations',recipientId:f.managerId,session:manager,serviceId:homeService.id,subject:'Your weekly reservation report',header:/bookingId,serviceId,service,venue,serviceDate/,body:f.bookings[0].id},
+   {kind:'guests',label:'Local guests',recipientId:ownerId,session:owner,serviceId:null,subject:'Your weekly guest report',header:/bookingId,serviceDate,guestId,name,email,phone,confirmationConsent,contactPreference,marketingPermission/,body:'guest0@example.test'},
+   {kind:'finance',label:'Local finance',recipientId:financeId,session:finance,serviceId:null,subject:'Your weekly finance report',header:/kind,bookingId,recordId,amountCents,currency,state,pendingCents,succeededCents,remainingCents/},
+  ]){
+   const localForm=owner.page.locator('#report-schedule-create')
+   await localForm.locator('[name=reportKind]').selectOption(local.kind)
+   assert.equal(await localForm.locator('[data-group-venues]').isVisible(),false)
+   await localForm.locator('[name=serviceId]').selectOption(local.serviceId||'')
+   await localForm.locator('[name=recipientId]').selectOption(local.recipientId);await localForm.locator('[name=nextAt]').fill(firstDue.slice(0,16));await localForm.locator('[name=acknowledged]').check()
+   const created=owner.page.waitForResponse(r=>r.url().endsWith('/api/report-schedules')&&r.request().method()==='POST')
+   await localForm.getByRole('button',{name:'Approve weekly report'}).click();const response=await created;assert.equal(response.status(),201)
+   const scheduleId=(await response.json()).id;await settings().getByText('Report schedule saved.',{exact:true}).waitFor()
+   const card=settings().locator('article').filter({has:owner.page.locator(`[data-stop-report="${scheduleId}"]`)})
+   assert.ok((await card.innerText()).includes(local.label));if(local.serviceId)assert.ok((await card.innerText()).includes(homeService.name))
+   const saved=(await f.home.api('/api/report-schedules')).schedules.find(s=>s.id===scheduleId)
+   assert.equal(saved.report_kind,local.kind);assert.equal(saved.service_id,local.serviceId);assert.deepEqual(saved.venues,['home'])
+   await shot(owner.page,'local-'+local.kind,settings());const before=f.mail.messages.length;await f.tick()
+   const sent=f.mail.messages.slice(before).find(m=>m.subject===local.subject);assert.ok(sent,local.kind+' sends its own report type')
+   const localLink=new URL(sent.text.match(/https:\/\/[^\s]+/)[0]),opened=await local.session.context.request.get(transport.origin+localLink.pathname)
+   assert.equal(opened.status(),200);assert.match(opened.headers()['content-type'],/text\/csv/);const csv=await opened.text();assert.match(csv.split('\n')[0].replaceAll('"',''),local.header);if(local.body)assert.ok(csv.includes(local.body))
+   const denied=await recipient.context.request.get(transport.origin+localLink.pathname);assert.equal(denied.status(),403);assert.ok(!(await denied.text()).includes(csv.split('\n')[0]))
+   await card.getByRole('button',{name:'Stop weekly report'}).click()
+   await owner.page.locator(`[data-stop-report="${scheduleId}"]`).waitFor({state:'detached'})
+   assert.equal((await f.home.api('/api/report-schedules')).schedules.find(s=>s.id===scheduleId).enabled,0)
+   assert.equal((await local.session.context.request.get(transport.origin+localLink.pathname)).status(),403,'Stopped local schedule closes its link')
+  }
+  await manager.context.close();await finance.context.close()
   // Every control added here has a visible text label; the existing app navigation also keeps its visible labels at phone width.
   await owner.page.getByRole('link',{name:'Reservation reports',exact:true}).click()
   const filters=owner.page.locator('#reservation-filters');await filters.locator('[name=period]').selectOption('future');await filters.getByRole('button',{name:'Apply report filters'}).click()
   const matching=owner.page.getByRole('link',{name:'Download matching rows CSV'});await matching.waitFor();let fileEvent=owner.page.waitForEvent('download');await matching.click();let downloaded=await fileEvent;let contents=await(await import('node:fs/promises')).readFile(await downloaded.path(),'utf8');assert.ok(contents.includes(f.bookings[0].id)&&!contents.includes(visit.id));await shot(owner.page,'future-bookings',owner.page.locator('#reports-content'))
   await filters.locator('[name=period]').selectOption('past');await filters.getByRole('button',{name:'Apply report filters'}).click();const visits=owner.page.getByRole('link',{name:'Download attended visits CSV'});await visits.waitFor();fileEvent=owner.page.waitForEvent('download');await visits.click();downloaded=await fileEvent;contents=await(await import('node:fs/promises')).readFile(await downloaded.path(),'utf8');assert.ok(contents.includes(visit.id)&&!contents.includes('synthetic-placemat-visit@example.test'));await shot(owner.page,'historical-visits',owner.page.locator('#reports-content'))
-  assert.deepEqual(errors,[]);await recipient.context.close();await owner.context.close();console.log(`REPORT-005 approval, uncertain delivery, manual resend, group comparison, download and revocation passed at ${width}`)
+  assert.deepEqual(errors,[]);await recipient.context.close();await owner.context.close();console.log(`REPORT-005 approval, uncertain delivery, manual resend, group comparison, download, revocation and local reservation/guest/finance delivery passed at ${width}`)
  }finally{await browser.close();await transport.close();await f.close()}
 }
