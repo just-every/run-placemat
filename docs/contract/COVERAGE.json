@@ -2,10 +2,11 @@
   "schema": 1,
   "seed": "placemat-product",
   "old": {
-    "commit": "ff96cd354e54aeedaf3e80c61750dd38b144a912",
+    "commit": "a25d6160aacc5b6d8e9d2540bde28c36d0efb1e4",
     "files": [
       "CONTRACT.md",
-      "ACCEPTANCE.md"
+      "ACCEPTANCE.md",
+      "docs/CLAIMS.md"
     ]
   },
   "fragments": [
@@ -1965,7 +1966,7 @@
     {
       "file": "CONTRACT.md",
       "line": 448,
-      "text": "Judged from the code and tests at commit `6e8e9d86f5ab6f99db9b7736e138b2eba5f5a895` (22 October 2026). That pin is the historical review baseline for unchanged rows, not a judgment of this candidate. CT judged DIST-005 at `90fbab254ae525906eded2f2f27752c1799dda30` on 27 October 2026 and accepted it as done. Receiving duties and MSG-008 provenance were reconciled on 27 October 2026. Changed rows in sx-placemat-c39: BOOK-004 riders, role boundaries and the fee and refund prerequisites have named assertions and live receipts below. FLOOR-007, SEC-002 and ROLE-002 retain their approved main evidence; unchanged rows retain their existing evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.",
+      "text": "Judged from the code and tests at commit `6263325b615bfed2cc3d724bf6b896ce87b1c4fd` (28 October 2026). REPORT-008 and REPORT-005 use that source and test revision; the final candidate adds only contract projections, the edition lock and journey diagnostic wording. Unchanged rows retain their historical review at `6e8e9d86f5ab6f99db9b7736e138b2eba5f5a895`. That pin is the historical review baseline for unchanged rows, not a judgment of this candidate. CT judged DIST-005 at `90fbab254ae525906eded2f2f27752c1799dda30` on 27 October 2026 and accepted it as done. Receiving duties and MSG-008 provenance were reconciled on 27 October 2026. Changed rows in sx-placemat-c39: BOOK-004 riders, role boundaries and the fee and refund prerequisites have named assertions and live receipts below. FLOOR-007, SEC-002 and ROLE-002 retain their approved main evidence; unchanged rows retain their existing evidence. Completion requires every acceptance point to be asserted through a public door; clause IDs in test labels are optional traceability.",
       "to": "section",
       "section": "Status"
     },
@@ -2637,26 +2638,6 @@
       "to": "gap",
       "ids": [
         "REPORT-004"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 556,
-      "cell": "gap",
-      "text": "Weekly group cover schedules, authenticated live CSV links, current-authority refusal, uncertain-send manual recovery, local-date group comparisons and scoped future-booking and historical-visit CSVs are built. Ct APPROVED PARTIAL, 25 October 2026 at 20:08Z: explicit personal owner or admin recipient approval; authority rechecked on every attempt and open; no bearer access or retained snapshot; private schedule metadata; audited denials; uncertain delivery never resent automatically. REPORT-005 stays PARTIAL. External recipients require owner approval of that exact address, represented by a native identity and an owner-created schedule; admins may schedule only an address with that recorded owner approval. Changed addresses require renewed owner approval. Broader scheduled guest-personal and finance reports remain unbuilt and retain existing restricted manual export doors.",
-      "to": "gap",
-      "ids": [
-        "REPORT-005"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 557,
-      "cell": "gap",
-      "text": "Broader authorized recurring reservation, guest and finance delivery remains unbuilt; REPORT-005 retains its approved partial weekly cover slice.",
-      "to": "gap",
-      "ids": [
-        "REPORT-008"
       ]
     },
     {
@@ -3776,14 +3757,14 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 245,
-      "text": "**REPORT-005 — Scheduled exports and group reporting.** **Status: partial.** Schedule a weekly group cover report for a permitted manager, export future bookings and historical visits, then revoke access before the next scheduled delivery and prove it is blocked. **Evidence:** `tests/api/reports.test.mjs` — “Report exports retain service scopes, future bookings and historical visits without disclosing personal fields after erasure” proves future bookings, historical visits, field minimization, manager scopes and erasure; “Group comparisons use identical venue-local date labels and fail closed when any current grant or venue is unavailable” proves location comparison, local dates and denied or unreachable venues; “Weekly group delivery requires explicit recipient approval, authenticates links and blocks every attempt after recipient or schedule-owner revocation” proves approval, scheduled controlled mail edge, recipient-bound links, repeated-tick claims, revocation and archive exclusions; “Uncertain report submissions stay unconfirmed across scheduler replay and require an explicit manual resend with fresh authority” proves uncertain outcomes and explicit resend; `tests/group-ui.mjs` — REPORT-005 approval, uncertain delivery, manual resend, group comparison, download and revocation at 1440 and 390. Existing owner guest and finance CSV permission evidence remains in `tests/api/business-export.test.mjs` and `tests/api/finance-role.test.mjs`. `scripts/report-schedule-sandbox.mjs` — held-key local scheduled journey received on 2026-10-25 at 23:03:11.444Z: SendGrid message 5UHZ_vZsS1qUbwwUE7HAyA, controlled QA inbox receipt 68ecc13f-60b2-44c4-aee6-64b680c4a805, trusted DMARC pass. Exactly one provider submission delivered the authenticated link for attempt 045d18e0-1ad4-4d84-ae9e-38598e70ed6a; the approved recipient downloaded the live CSV, signed-out and other identities were denied, a repeated tick did not resend, revocation denied the received link, and the next weekly attempt was blocked before the provider edge. This proves the controlled weekly cover slice, not broader recurring guest or finance delivery. **Remaining:** Weekly group cover schedules, authenticated live CSV links, current-authority refusal, uncertain-send manual recovery, local-date group comparisons and scoped future-booking and historical-visit CSVs are built. Ct APPROVED PARTIAL, 25 October 2026 at 20:08Z: explicit personal owner or admin recipient approval; authority rechecked on every attempt and open; no bearer access or retained snapshot; private schedule metadata; audited denials; uncertain delivery never resent automatically. REPORT-005 stays PARTIAL. External recipients require owner approval of that exact address, represented by a native identity and an owner-created schedule; admins may schedule only an address with that recorded owner approval. Changed addresses require renewed owner approval. Broader scheduled guest-personal and finance reports remain unbuilt and retain existing restricted manual export doors.",
+      "text": "**REPORT-005 — Scheduled exports and group reporting.** **Status: done.** Schedule a weekly group cover report for a permitted manager, export future bookings and historical visits, then revoke access before the next scheduled delivery and prove it is blocked. Ct APPROVED PARTIAL, 25 October 2026 at 20:08Z: a personal venue-wide owner or admin explicitly approves each native group recipient. External recipients require owner approval of that exact address through an owner-created schedule; an admin may only reuse that recorded identity and address approval. Changed addresses require renewed owner approval. Current schedule-owner authority, recipient identity and every selected venue grant are checked on each delivery attempt and authenticated download; removal, changed recipient email, disconnection or an unreachable venue refuses. Email contains only an authenticated link, never an anonymous or bearer link or report snapshot. No report snapshot is retained. Private schedule and attempt metadata is owner-exportable but excluded from restorable archives, so restore cannot resume sends. Uncertain submission remains “delivery unconfirmed” for explicit manual resend. Recipient approval, attempts and every recheck or foreign-identity refusal are audited. Group comparisons use ROLE-001 read-only tokens with member-to-home checks on every call and identical inclusive local service-date labels in each venue timezone. Operational CSVs inherit current manager service scopes; guest personal and finance fields retain their existing restricted export doors, consent and erasure. DATA-001, DATA-002 and DATA-003 continue to govern these records; MSG-003 and MSG-007 inherit authenticated report custody and uncertain-send handling before richer delivery receipts or retries ship. **Evidence:** `tests/api/reports.test.mjs` — “Report exports retain service scopes, future bookings and historical visits without disclosing personal fields after erasure” proves future bookings, historical visits, field minimization, manager scopes and erasure; “Group comparisons use identical venue-local date labels and fail closed when any current grant or venue is unavailable” proves location comparison, local dates and denied or unreachable venues; “Weekly group delivery requires explicit recipient approval, authenticates links and blocks every attempt after recipient or schedule-owner revocation” proves approval, scheduled controlled mail edge, recipient-bound links, repeated-tick claims, revocation and archive exclusions; “Uncertain report submissions stay unconfirmed across scheduler replay and require an explicit manual resend with fresh authority” proves uncertain outcomes and explicit resend; `tests/group-ui.mjs` — REPORT-005 approval, uncertain delivery, manual resend, group comparison, download and revocation at 1440 and 390. Existing owner guest and finance CSV permission evidence remains in `tests/api/business-export.test.mjs` and `tests/api/finance-role.test.mjs`. `scripts/report-schedule-sandbox.mjs` — held-key local scheduled journey received on 2026-10-25 at 23:03:11.444Z: SendGrid message 5UHZ_vZsS1qUbwwUE7HAyA, controlled QA inbox receipt 68ecc13f-60b2-44c4-aee6-64b680c4a805, trusted DMARC pass. Exactly one provider submission delivered the authenticated link for attempt 045d18e0-1ad4-4d84-ae9e-38598e70ed6a; the approved recipient downloaded the live CSV, signed-out and other identities were denied, a repeated tick did not resend, revocation denied the received link, and the next weekly attempt was blocked before the provider edge. This proves the controlled weekly cover slice, not broader recurring guest or finance delivery. Latest recurring report proof: `tests/api/reports.test.mjs` — “Recurring native reports recheck purpose, service scope, consent facts and erasure on delivery, open and replay” proves recurring reservation, guest and finance delivery, exact native field authority, current manager service scopes, recorded declined and unknown contact consent without marketing permission, current erasure on old and subsequent links, correct charge and refund values, revocation before the next attempt, duplicate-tick suppression and inert restore; `tests/group-ui.mjs` — REPORT-005 Settings approval, authenticated local report downloads, foreign-identity refusal and stop at 1440 and 390; `scripts/recurring-reports-sandbox.mjs` — three controlled SendGrid deliveries with received DMARC-pass messages, authenticated CSV, denied signed-out and stopped links, and no replay or stopped-schedule sends.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
       "line": 247,
-      "text": "**REPORT-008 — Scheduled recurring report delivery.** **Status: missing.** Schedule authorized recurring reservation, guest and finance reports; prove field permissions, consent, erasure and access revocation on each delivery. **Remaining:** Broader recurring delivery beyond the approved partial REPORT-005 weekly cover slice is unbuilt.",
+      "text": "**REPORT-008 — Scheduled recurring report delivery.** **Status: done.** Schedule authorized recurring reservation, guest and finance reports; prove field permissions, consent, erasure and access revocation on each delivery. **Evidence:** `tests/api/reports.test.mjs` — “Recurring native reports recheck purpose, service scope, consent facts and erasure on delivery, open and replay” proves recurring reservation, guest and finance delivery, exact native field authority, current manager service scopes, recorded declined and unknown contact consent without marketing permission, current erasure on old and subsequent links, correct charge and refund values, revocation before the next attempt, duplicate-tick suppression and inert restore; `tests/group-ui.mjs` — REPORT-005 Settings approval, authenticated local report downloads, foreign-identity refusal and stop at 1440 and 390; `scripts/recurring-reports-sandbox.mjs` — three controlled SendGrid deliveries with received DMARC-pass messages, authenticated CSV, denied signed-out and stopped links, and no replay or stopped-schedule sends.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
@@ -4038,6 +4019,834 @@
       "text": "Import a US restaurant’s guestbook and past/future bookings from each named incumbent; reconcile identity, consent, tables, covers and payment obligations. Publish the next service, book direct/Google/social/phone traffic against shared inventory, collect a deposit, reconfirm guests, run the waitlist and host floor, match and redeem the POS check, deliver feedback/recovery outreach and reconcile attended covers, refunds and actual repeat revenue. Exercise failed delivery, lost POS feed, late guest reply and duplicate payment events. Owners control policy exceptions and agent plans. The target is complete only when every clause above is done with its public-door evidence.",
       "to": "docs",
       "path": "docs/verify.md"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 3,
+      "text": "Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 5,
+      "text": "Inventory: 56 done, 29 partial, 50 missing; 135 total.",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 7,
+      "text": "| Clause | Status | Evidence |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 9,
+      "text": "| ACCESS-001 | done | `src/placemat/access.ts`; `src/placemat/http.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 10,
+      "text": "| PRIVACY-001 | done | `src/placemat/http.ts`; `src/placemat/commands.ts`; `tests/api/privacy.test.mjs`; `public/placemat-analytics.js`; `tests/api/embed.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 11,
+      "text": "| BOOK-001 | done | `src/placemat/http.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 12,
+      "text": "| FLOOR-001 | done | `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 13,
+      "text": "| SERVICE-001 | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 14,
+      "text": "| PLAN-001 | done | `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs`; `tests/api/reminders.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 15,
+      "text": "| MSG-001 | done | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/reminders.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 16,
+      "text": "| WAIT-001 | done | `src/placemat/commands.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 17,
+      "text": "| GUEST-001 | done | `src/placemat/guests.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 18,
+      "text": "| MIG-001 | done | `src/placemat/import/index.ts`; `src/placemat/import/plan.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 19,
+      "text": "| DATA-001 | done | `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs`; `tests/api/embed.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 20,
+      "text": "| DATA-002 | done | `src/placemat/import/erase.ts`; `src/placemat/backup.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 21,
+      "text": "| SITE-001 | done | `tests/site.mjs`; `tests/install.mjs`; `src/placemat/model.ts` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 22,
+      "text": "| OSS-001 | done | `LICENSE`; `tests/site.mjs`; `tests/install.mjs`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 23,
+      "text": "| BOUND-001 | done | `tests/api/flows.test.mjs`; `tests/site.mjs`; `tests/boundary-ui.mjs`; `docs/getting-started.md`; `docs/HTTP-CONTRACT.md` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 24,
+      "text": "| SETUP-001 | done | `src/placemat/onboarding.ts`; `src/placemat/onboarding-preview.ts`; `src/placemat/local-time.ts`; `src/placemat/service-input.ts`; `public/placemat-onboarding.js`; `tests/api/onboarding.test.mjs`; `tests/onboarding-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 25,
+      "text": "| SERVICE-002 | done | `src/placemat/schedules.ts`; `public/placemat-schedules.js`; `tests/api/schedules.test.mjs`; `tests/schedules-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 26,
+      "text": "| SERVICE-003 | done | `tests/api/service-changes.test.mjs`; `tests/service-changes-ui.mjs`; `tests/search-ui.mjs`; `scripts/service-change-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 27,
+      "text": "| SERVICE-004 | done | `src/placemat/booking-rules.ts`; `src/placemat/commands.ts`; `src/placemat/availability.ts`; `public/placemat-rules.js`; `tests/api/booking-rules.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 28,
+      "text": "| SERVICE-005 | done | `src/placemat/pacing.ts`; `src/placemat/pacing-review.ts`; `src/placemat/commands.ts`; `public/placemat-pacing.js`; `tests/api/pacing.test.mjs`; `tests/pacing-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 29,
+      "text": "| SERVICE-006 | done | `src/placemat/turn-policy.ts`; `src/placemat/turn-fit.ts`; `src/placemat/capacity.ts`; `src/placemat/commands.ts`; `public/placemat-turns.js`; `tests/api/turns.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 30,
+      "text": "| SERVICE-007 | done | `src/placemat/pacing.ts`; `src/placemat/pacing-review.ts`; `src/placemat/commands.ts`; `public/placemat-pacing.js`; `tests/api/pacing.test.mjs`; `tests/pacing-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 31,
+      "text": "| BOOK-002 | done | `src/placemat/embed.ts`; `src/placemat/views.ts`; `src/server.ts`; `public/placemat-embed.js`; `public/placemat-widget.js`; `src/placemat/analytics.ts`; `src/placemat/analytics-events.ts`; `migrations/core/0024_analytics.sql`; `public/placemat-analytics.js`; `public/placemat-analytics-settings.js`; `tests/api/embed.test.mjs`; `tests/embed-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 32,
+      "text": "| BOOK-003 | done | `src/placemat/reservation-search.ts`; `src/placemat/http.ts`; `src/placemat/commands.ts`; `public/placemat-search.js`; `tests/api/booking-rules.test.mjs`; `tests/search-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 33,
+      "text": "| BOOK-004 | partial | `tests/api/booking-rules.test.mjs`; `tests/search-ui.mjs`; `scripts/booking-management-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 34,
+      "text": "| BOOK-005 | partial | `src/placemat/phone-bookings.ts`; `public/placemat-phone.js`; `tests/api/flows.test.mjs`; `tests/api/phone-booking-journeys.mjs`; `tests/phone-bookings-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 35,
+      "text": "| BOOK-006 | done | `tests/api/flows.test.mjs`; `tests/api/booking-holds-journeys.mjs`; `tests/api/checkout-payment-journeys.mjs`; `tests/checkout-ui.mjs`; `scripts/checkout-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 36,
+      "text": "| BOOK-007 | done | `src/placemat/inquiries.ts`; `src/placemat/booking-requests.ts`; `src/placemat/inquiry-views.ts`; `public/placemat-inquiry.js`; `public/placemat-inquiries.js`; `public/placemat-requests.js`; `tests/api/inquiries.test.mjs`; `tests/inquiries-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 37,
+      "text": "| DIST-001 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 38,
+      "text": "| DIST-002 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 39,
+      "text": "| DIST-003 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 40,
+      "text": "| DIST-004 | partial | `tests/api/assignments.test.mjs`; `tests/allocation-ui.mjs`; `tests/api/embed.test.mjs`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 41,
+      "text": "| DIST-005 | done | `tests/diner-ui.mjs`; `tests/api/guests.test.mjs`; `tests/api/diner-journeys.mjs`; `tests/api/diner-management-journey.mjs`; `tests/api/diner-custody-journey.mjs`; `tests/api/diner-journeys.mjs`; `tests/api/diner-portability.mjs`; `docs/data-portability.md` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 42,
+      "text": "| DIST-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 43,
+      "text": "| FLOOR-002 | done | `src/placemat/floor-plan.ts`; `src/placemat/combinations.ts`; `public/placemat-floor-plan.js`; `tests/api/combinations.test.mjs`; `tests/floor-plan-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 44,
+      "text": "| FLOOR-003 | done | `src/placemat/combinations.ts`; `src/placemat/capacity.ts`; `src/placemat/assignments.ts`; `public/placemat-combinations.js`; `tests/api/combinations.test.mjs`; `tests/combinations-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 45,
+      "text": "| FLOOR-004 | done | `src/placemat/staffing.ts`; `src/placemat/staffing-capacity.ts`; `public/placemat-staffing.js`; `tests/api/staffing.test.mjs`; `tests/staffing-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 46,
+      "text": "| FLOOR-005 | done | `src/placemat/timeline.ts`; `src/placemat/capacity.ts`; `public/placemat-timeline.js`; `tests/api/timeline.test.mjs`; `tests/floor-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 47,
+      "text": "| FLOOR-006 | done | `src/placemat/service-status.ts`; `public/placemat-service-status.js`; `tests/api/service-status.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 48,
+      "text": "| FLOOR-007 | done | `tests/api/timeline.test.mjs`; `tests/timeline-search-ui.mjs`; `tests/floor-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 49,
+      "text": "| FLOOR-008 | partial | `tests/api/assignments.test.mjs`; `tests/floor-plan-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 50,
+      "text": "| FLOOR-009 | done | `src/placemat/assignments.ts`; `src/placemat/commands.ts`; `src/placemat/access.ts`; `public/placemat-assignments.js`; `tests/api/assignments.test.mjs`; `tests/floor-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 51,
+      "text": "| FLOOR-010 | done | `tests/api/assignments.test.mjs`; `tests/preshift-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 52,
+      "text": "| FLOOR-011 | partial | `tests/api/flows.test.mjs`; `tests/operations-ui-journey.mjs`; `tests/queue-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 53,
+      "text": "| FLOOR-012 | done | `src/placemat/preshift.ts`; `src/placemat/preshift-view.ts`; `src/placemat/http.ts`; `tests/api/preshift.test.mjs`; `tests/preshift-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 54,
+      "text": "| FLOOR-013 | done | `src/placemat/service-notes.ts`; `src/placemat/service-notes-archive.mjs`; `src/placemat/kitchen-view.ts`; `public/placemat-service-notes.js`; `tests/api/service-notes.test.mjs`; `tests/service-notes-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 55,
+      "text": "| WAIT-002 | done | `src/placemat/wait-join.ts`; `src/placemat/queue-views.ts`; `src/placemat/queue-qr.ts`; `public/placemat-queue-join.js`; `tests/api/wait-join.test.mjs`; `tests/queue-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 56,
+      "text": "| WAIT-003 | partial | `tests/api/queue.test.mjs`; `tests/operations-ui-journey.mjs`; `tests/queue-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 57,
+      "text": "| WAIT-004 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 58,
+      "text": "| WAIT-005 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 59,
+      "text": "| WAIT-006 | done | `src/placemat/queue.ts`; `src/placemat/commands.ts`; `src/placemat/people.ts`; `public/placemat-queue.js`; `tests/api/queue.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 60,
+      "text": "| MSG-002 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 61,
+      "text": "| MSG-003 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 62,
+      "text": "| MSG-004 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 63,
+      "text": "| MSG-005 | partial | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 64,
+      "text": "| MSG-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 65,
+      "text": "| MSG-007 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 66,
+      "text": "| MSG-008 | partial | `src/placemat/wait-join.ts`; `src/placemat/guest-state-erasure.ts`; `tests/api/wait-join.test.mjs`; `tests/api/audit.test.mjs`; `tests/api/guests.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 67,
+      "text": "| MSG-009 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 68,
+      "text": "| MSG-010 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 69,
+      "text": "| MSG-011 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 70,
+      "text": "| PAY-001 | partial | `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 71,
+      "text": "| PAY-002 | partial | `tests/api/checkout-payment-journeys.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 72,
+      "text": "| PAY-003 | partial | `tests/api/card-hold-journey.mjs`; `tests/api/fee-expiry-journeys.mjs`; `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 73,
+      "text": "| PAY-004 | partial | `src/placemat/fee-policy.ts`; `src/placemat/fees.ts`; `tests/api/fee-journeys.mjs`; `tests/fees-ui.mjs`; `tests/pacing-ui.mjs`; `scripts/fees-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 74,
+      "text": "| PAY-005 | partial | `src/placemat/refunds.ts`; `tests/api/flows.test.mjs`; `tests/pacing-ui.mjs`; `tests/api/flows.test.mjs`; `scripts/refund-sandbox.mjs`; `scripts/refund-webhook-sandbox.mjs`; `tests/api/refund-notice-journeys.mjs`; `tests/refund-notices-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 75,
+      "text": "| PAY-006 | partial | `tests/api/money-ledger-journeys.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 76,
+      "text": "| PAY-007 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 77,
+      "text": "| PAY-008 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 78,
+      "text": "| PAY-009 | partial | `tests/api/money-ledger-journeys.mjs`; `tests/payment-operations-ui.mjs`; `docs/payment-operations.md`; `scripts/payment-operations-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 79,
+      "text": "| PAY-010 | partial | `src/placemat/payment-links.ts`; `tests/api/timeline.test.mjs`; `tests/api/preshift.test.mjs`; `tests/floor-ui.mjs`; `tests/preshift-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 80,
+      "text": "| EXP-001 | done | `tests/api/experience-journeys.mjs`; `tests/experiences-ui.mjs`; `docs/experiences.md`; `docs/data-portability.md` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 81,
+      "text": "| EXP-002 | partial | `tests/api/experience-journeys.mjs`; `tests/experiences-ui.mjs`; `docs/experiences.md`; `docs/data-portability.md` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 82,
+      "text": "| EXP-003 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 83,
+      "text": "| EXP-004 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 84,
+      "text": "| EXP-005 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 85,
+      "text": "| GUEST-002 | done | `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 86,
+      "text": "| GUEST-003 | partial | `tests/api/guests.test.mjs`; `tests/api/assignments.test.mjs`; `tests/operations-ui-journey.mjs`; `tests/queue-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 87,
+      "text": "| GUEST-004 | done | `tests/api/guests.test.mjs`; `tests/guest-review-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 88,
+      "text": "| GUEST-005 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 89,
+      "text": "| GUEST-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 90,
+      "text": "| CRM-001 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 91,
+      "text": "| CRM-002 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 92,
+      "text": "| CRM-003 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 93,
+      "text": "| CRM-004 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 94,
+      "text": "| CRM-005 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 95,
+      "text": "| CRM-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 96,
+      "text": "| POS-001 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 97,
+      "text": "| POS-002 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 98,
+      "text": "| POS-003 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 99,
+      "text": "| POS-004 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 100,
+      "text": "| POS-005 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 101,
+      "text": "| POS-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 102,
+      "text": "| POS-007 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 103,
+      "text": "| REPORT-001 | done | `src/placemat/reports.ts`; `src/placemat/http.ts`; `public/placemat-reports.js`; `tests/api/reports.test.mjs`; `tests/service-close-report-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 104,
+      "text": "| REPORT-002 | done | `src/placemat/performance.ts`; `src/placemat/performance-store.ts`; `public/placemat-performance.js`; `tests/api/reports.test.mjs`; `tests/api/pacing.test.mjs`; `tests/performance-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 105,
+      "text": "| REPORT-003 | partial | `src/placemat/model.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 106,
+      "text": "| REPORT-004 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 107,
+      "text": "| REPORT-005 | done | `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `tests/api/business-export.test.mjs`; `tests/api/finance-role.test.mjs`; `scripts/report-schedule-sandbox.mjs`; `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `scripts/recurring-reports-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 108,
+      "text": "| REPORT-008 | done | `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `scripts/recurring-reports-sandbox.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 109,
+      "text": "| REPORT-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 110,
+      "text": "| REPORT-007 | done | `src/placemat/service-close-report.ts`; `src/placemat/recovery.ts`; `src/placemat/pdf.ts`; `public/placemat-close-report.js`; `tests/api/service-close-report.test.mjs`; `tests/service-close-report-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 111,
+      "text": "| COST-001 | partial | `tests/api/costs.test.mjs`; `tests/costs-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 112,
+      "text": "| MIG-002 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 113,
+      "text": "| MIG-003 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 114,
+      "text": "| MIG-004 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 115,
+      "text": "| MIG-005 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 116,
+      "text": "| MIG-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 117,
+      "text": "| MIG-007 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 118,
+      "text": "| MIG-008 | partial | `src/placemat/import/plan.ts`; `src/placemat/import/index.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 119,
+      "text": "| DATA-003 | done | `src/placemat/business-export.ts`; `src/placemat/business-export-store.ts`; `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `docs/data-portability.md`; `tests/api/business-export.test.mjs`; `tests/business-export-ui.mjs`; `tests/api/embed.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 120,
+      "text": "| ROLE-001 | done | `src/placemat/access.ts`; `src/placemat/http.ts`; `src/placemat/group.ts`; `src/placemat/group-access.ts`; `src/placemat/group-store.ts`; `tests/api/group.test.mjs`; `tests/group-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 121,
+      "text": "| ROLE-002 | done | `tests/api/flows.test.mjs`; `tests/pacing-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 122,
+      "text": "| ROLE-003 | done | `src/placemat/access.ts`; `src/placemat/http.ts`; `src/placemat/preshift.ts`; `src/placemat/service-notes.ts`; `tests/api/server-role.test.mjs`; `tests/api/preshift.test.mjs`; `tests/server-ui.mjs`; `tests/api/pacing.test.mjs`; `tests/pacing-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 123,
+      "text": "| ROLE-009 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 124,
+      "text": "| ROLE-010 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 125,
+      "text": "| ROLE-004 | partial | `src/placemat/access.ts`; `src/placemat/http.ts`; `src/placemat/finance.ts`; `src/placemat/finance-view.ts`; `tests/api/finance-role.test.mjs`; `tests/finance-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 126,
+      "text": "| SEC-001 | partial | `src/modules/operator-auth/accounts/admin.mjs`; `src/modules/operator-auth/accounts/native.mjs`; `tests/runtime.mjs`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 127,
+      "text": "| SEC-002 | done | `tests/api/flows.test.mjs`; `tests/api/timeline.test.mjs`; `tests/floor-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 128,
+      "text": "| AUDIT-001 | done | `src/placemat/audit.ts`; `src/placemat/store.ts`; `src/placemat/commands.ts`; `src/placemat/guest-state-erasure.ts`; `public/placemat-audit.js`; `tests/api/audit.test.mjs`; `tests/api/embed.test.mjs`; `tests/audit-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 129,
+      "text": "| API-001 | done | `docs/HTTP-CONTRACT.md`; `src/placemat/http.ts`; `tests/api/flows.test.mjs`; `tests/api/privacy.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 130,
+      "text": "| API-002 | partial | `docs/HTTP-CONTRACT.md`; `tests/api/flows.test.mjs`; `tests/api/integration-schema.test.mjs`; `tests/api/reservation-api.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 131,
+      "text": "| VOICE-001 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 132,
+      "text": "| MOBILE-001 | partial | `src/placemat/views.ts`; `public/placemat.css`; `public/placemat.js` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 133,
+      "text": "| OPS-001 | partial | `src/placemat/backup.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 134,
+      "text": "| DATA-004 | partial | `tests/api/privacy.test.mjs`; `tests/privacy-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 135,
+      "text": "| SITE-002 | partial | `src/site/landing/hero.ts`; `deploy-demo.json`; `.github/workflows/run-demo.yml`; `src/demo.ts`; `tests/api/demo.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 136,
+      "text": "| AGENT-001 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 137,
+      "text": "| AGENT-002 | partial | `src/placemat/commands.ts`; `src/placemat/availability.ts`; `tests/api/flows.test.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 138,
+      "text": "| AGENT-003 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 139,
+      "text": "| AGENT-004 | done | `src/placemat/allocation-advisor.ts`; `src/placemat/inventory-advisor.ts`; `src/placemat/shift-advisor.ts`; `src/placemat/direct-inventory.ts`; `public/placemat-allocation.js`; `public/placemat-allocation-policy.js`; `tests/api/assignments.test.mjs`; `tests/allocation-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 140,
+      "text": "| AGENT-005 | done | `src/placemat/no-show.ts`; `public/placemat-risk.js`; `tests/api/risk.test.mjs`; `tests/risk-ui.mjs` |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 141,
+      "text": "| AGENT-006 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 142,
+      "text": "| AGENT-007 | missing |  |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 143,
+      "text": "| AGENT-008 | missing |  |",
+      "to": "changelog"
     }
   ]
 }

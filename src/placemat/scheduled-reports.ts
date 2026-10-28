@@ -8,9 +8,10 @@ import {groupRead} from './group-access'
 import {reservationReport,reportCsv,type ReservationReport} from './reports'
 import {authorizeReports} from './delegation'
 import {serviceDate} from './preshift'
+import {localReportCsv,reportKinds,reportLabels,type ReportKind} from './recurring-report-data'
 
 const WEEK=7*86400000
-export type Schedule={id:string;owner_id:string;recipient_id:string;recipient_hash:string;venues:string;timezone:string;next_at:string;approved_at:string;enabled:number}
+export type Schedule={id:string;owner_id:string;recipient_id:string;recipient_hash:string;venues:string;timezone:string;next_at:string;approved_at:string;enabled:number;report_kind:ReportKind;service_id:string|null}
 type Delivery={id:string;schedule_id:string;due_at:string;date_from:string;date_to:string;state:string;reason:string}
 type Operator={id:string;name:string;email:string;role:string;status:string}
 const operator=(db:D1Database,who:string)=>db.prepare('SELECT id,display_name AS name,email,role,status FROM oa_operators WHERE id=?').bind(who).first<Operator>()
@@ -23,11 +24,12 @@ async function audit(db:D1Database,actor:string,action:string,subject:string,rea
  state.audit.push({id:id(),at:new Date().toISOString(),actor,action,subject,reason})
  await save(db,state,version,statements)
 }
-async function manager(db:D1Database,actor:Actor){
+async function manager(db:D1Database,actor:Actor,kind:ReportKind='group-covers'){
  person(actor)
  if(actor.deviceId)fail(403,'Use a personal manager session.')
  const current=await operator(db,actor.id),{state}=await load(db)
- if(!current||current.status!=='active'||!['owner','admin'].includes(current.role)||current.role==='admin'&&state.reportScopes?.[actor.id]!==undefined)fail(403,'A current venue-wide manager must approve group report schedules.')
+ if(!current||current.status!=='active'||!['owner','admin'].includes(current.role)||current.role==='admin'&&kind!=='reservations'&&state.reportScopes?.[actor.id]!==undefined)fail(403,'A current manager with the required report scope must approve schedules.')
+ if(['guests','finance'].includes(kind)&&current!.role!=='owner')fail(403,'The owner must approve personal guest or finance report delivery.')
 }
 function dates(search:URLSearchParams){
  const from=search.get('dateFrom'),to=search.get('dateTo')
@@ -73,18 +75,28 @@ async function authority(env:Bindings,s:Schedule){
  if(!s.enabled)fail(403,'The schedule is stopped.')
  const owner=await operator(env.DB,s.owner_id)
  if(!owner)fail(403,'The schedule owner is no longer active.')
- await manager(env.DB,{id:owner!.id,name:owner!.name,role:owner!.role})
+ await manager(env.DB,{id:owner!.id,name:owner!.name,role:owner!.role},s.report_kind)
  const recipient=await operator(env.DB,s.recipient_id)
  if(!recipient||recipient.status!=='active'||await hash(recipient.email)!==s.recipient_hash)fail(403,'The approved recipient identity changed or was removed.')
  if(owner!.role!=='owner')await ownerApprovedAddress(env.DB,s.recipient_id,s.recipient_hash)
  return recipient!
 }
 async function scheduleById(db:D1Database,scheduleId:string){return await db.prepare('SELECT * FROM pm_report_schedules WHERE id=?').bind(scheduleId).first<Schedule>()??fail(404,'Report schedule not found.')}
+async function reportFor(env:Bindings,s:Schedule,search:URLSearchParams){
+ const recipient=await authority(env,s)
+ if(s.report_kind==='group-covers')return comparisonCsv(await groupComparison(env,s.recipient_id,JSON.parse(s.venues),search))
+ if(JSON.stringify(JSON.parse(s.venues))!==JSON.stringify(['home']))fail(403,'Personal reports stay in their own venue.')
+ if(s.service_id)search.set('serviceId',s.service_id)
+ // Both current identities must still have the report's native authority.
+ const owner=await operator(env.DB,s.owner_id)
+ await localReportCsv(env.DB,{id:owner!.id,name:owner!.name,role:owner!.role},s.report_kind,search)
+ return localReportCsv(env.DB,{id:recipient.id,name:recipient.name,role:recipient.role},s.report_kind,search)
+}
 async function deliver(env:Bindings,s:Schedule,attempt:Delivery){
  let submitted=false
  try{
   const recipient=await authority(env,s)
-  await groupComparison(env,s.recipient_id,JSON.parse(s.venues),new URLSearchParams({dateFrom:attempt.date_from,dateTo:attempt.date_to}))
+  await reportFor(env,s,new URLSearchParams({dateFrom:attempt.date_from,dateTo:attempt.date_to}))
   const sender=operatorMail(env)
   if(!sender||!env.MAIL_FROM||env.AUTH_LOCAL==='true'||env.RER_DEMO==='1')fail(409,'A production mail sender is required.')
   // Recheck after the group calls and immediately before the outbound edge.
@@ -93,7 +105,7 @@ async function deliver(env:Bindings,s:Schedule,attempt:Delivery){
   let accepted=false
   try{
    submitted=true
-   const result=await sender!.send({deliveryId:attempt.id,from:env.MAIL_FROM!,to:[recipient.email],subject:'Your weekly group cover report',text:`Sign in as the approved recipient to open your report: ${url.href}\nLocal service dates: ${attempt.date_from} through ${attempt.date_to}. The link grants no access by itself. Current permissions and erasure apply whenever it is opened.`,html:`<p>Sign in as the approved recipient to open your <a href="${url.href}">weekly group cover report</a>.</p><p>The link grants no access by itself. Current permissions and erasure apply whenever it is opened.</p>`,headers:{'Auto-Submitted':'auto-generated'}})
+   const result=await sender!.send({deliveryId:attempt.id,from:env.MAIL_FROM!,to:[recipient.email],subject:'Your weekly '+reportLabels[s.report_kind]+' report',text:`Sign in as the approved recipient to open your report: ${url.href}\nLocal service dates: ${attempt.date_from} through ${attempt.date_to}. The link grants no access by itself. Current permissions and erasure apply whenever it is opened.`,html:`<p>Sign in as the approved recipient to open your <a href="${url.href}">${reportLabels[s.report_kind]} report</a>.</p><p>The link grants no access by itself. Current permissions and erasure apply whenever it is opened.</p>`,headers:{'Auto-Submitted':'auto-generated'}})
    accepted=result.status==='accepted'
   }catch{/* An uncertain submission is never retried automatically. */}
   await env.DB.prepare('UPDATE pm_report_deliveries SET state=? WHERE id=?').bind(accepted?'provider accepted':'delivery unconfirmed',attempt.id).run()
@@ -129,6 +141,7 @@ export async function scheduledReportResponse(request:Request,env:Bindings):Prom
  if(path==='/api/report-export.csv'){
   if(request.method!=='GET')fail(405,'Use GET for report downloads.')
   const kind=url.searchParams.get('kind')??'reservations'
+  if(kind==='guests'||kind==='finance')return csv(await localReportCsv(env.DB,actor!,kind,url.searchParams))
   const gate=new URL('/api/reports/reservations.csv',env.AUTH_ORIGIN);gate.search=url.search
   await authorizeReports(env.DB,actor!,request,gate);person(actor!)
   const {state}=await load(env.DB),r=reservationReport(state,url.searchParams)
@@ -151,36 +164,48 @@ export async function scheduledReportResponse(request:Request,env:Bindings):Prom
   try{
    if(!attempt||!s||actor!.agent||actor!.deviceId||actor!.id!==s.recipient_id||attempt.state==='blocked')fail(403,'Only the approved identity may open this report.')
    await authority(env,s!)
-   const report=await groupComparison(env,s!.recipient_id,JSON.parse(s!.venues),new URLSearchParams({dateFrom:attempt!.date_from,dateTo:attempt!.date_to}))
+   const report=await reportFor(env,s!,new URLSearchParams({dateFrom:attempt!.date_from,dateTo:attempt!.date_to}))
    await audit(env.DB,actor!.id,'report.link-opened',attempt!.id)
-   return csv(comparisonCsv(report))
+   return csv(report)
   }catch(error){await audit(env.DB,actor!.id,'report.link-refused',attempt?.id??'unknown','No report disclosed.');throw error}
  }
- await manager(env.DB,actor!)
+ await manager(env.DB,actor!,'reservations')
  if(path==='/api/report-schedules'&&request.method==='GET'){
   const all=actor!.role==='owner',schedules=(await env.DB.prepare(all?'SELECT * FROM pm_report_schedules ORDER BY approved_at':'SELECT * FROM pm_report_schedules WHERE owner_id=? ORDER BY approved_at').bind(...(all?[]:[actor!.id])).all<Schedule>()).results
   const deliveries=(await env.DB.prepare('SELECT d.* FROM pm_report_deliveries d JOIN pm_report_schedules s ON s.id=d.schedule_id WHERE s.owner_id=? OR ? ORDER BY d.due_at DESC LIMIT 100').bind(actor!.id,all?1:0).all<Delivery>()).results
-  const recipients=(await env.DB.prepare("SELECT DISTINCT o.id,o.display_name AS name FROM oa_operators o JOIN pm_group_admins g ON g.operator_id=o.id WHERE o.role='member' AND o.status='active' AND EXISTS(SELECT 1 FROM json_each(g.rights) WHERE value='reports.read')").all<{id:string;name:string}>()).results
+  const recipients=(await env.DB.prepare("SELECT id,display_name AS name,role FROM oa_operators WHERE status='active' ORDER BY display_name,id").all<{id:string;name:string;role:string}>()).results
   const links=(await env.DB.prepare('SELECT id,name FROM pm_group_links WHERE revoked_at IS NULL').all<{id:string;name:string}>()).results
-  return Response.json({schedules:schedules.map(({recipient_hash,...s})=>({...s,venues:JSON.parse(s.venues)})),deliveries,recipients,venues:[{id:'home',name:(await load(env.DB)).state.venue.name},...links]},{headers:noStore})
+  return Response.json({schedules:schedules.map(({recipient_hash,...s})=>({...s,venues:JSON.parse(s.venues)})),deliveries,recipients,services:(await load(env.DB)).state.services.map(s=>({id:s.id,name:s.name})),venues:[{id:'home',name:(await load(env.DB)).state.venue.name},...links]},{headers:noStore})
  }
  if(request.method!=='POST')fail(405,'Use POST to change a schedule.')
  const p=await jsonBody(request)
  if(path==='/api/report-schedules'){
+  const reportKind=p.reportKind??'group-covers'
+  if(!reportKinds.includes(reportKind))fail(400,'Choose a supported report type.')
+  await manager(env.DB,actor!,reportKind)
+  if(p.serviceId!==undefined&&p.serviceId!==null&&typeof p.serviceId!=='string')fail(400,'Choose a service.')
+  const serviceId=p.serviceId||null
+  if(reportKind==='group-covers'&&serviceId)fail(400,'Group covers compare complete local dates.')
+  if(reportKind!=='group-covers'&&JSON.stringify(p.venueIds)!==JSON.stringify(['home']))fail(400,'Local reports may only select this venue.')
   if(p.acknowledged!==true)fail(400,'Explicitly approve this recipient and weekly email delivery.')
   if(!Array.isArray(p.venueIds)||!p.venueIds.length||p.venueIds.length>20||p.venueIds.some((v:unknown)=>typeof v!=='string')||new Set(p.venueIds).size!==p.venueIds.length)fail(400,'Choose distinct group venues.')
   if(typeof p.nextAt!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(p.nextAt)||!Number.isFinite(Date.parse(p.nextAt))||Date.parse(p.nextAt)<=Date.now())fail(400,'Choose a future first delivery instant in UTC.')
   const recipient=await operator(env.DB,String(p.recipientId)),{state}=await load(env.DB),day=serviceDate(p.nextAt,state.venue.timezone)
-  await groupComparison(env,String(p.recipientId),p.venueIds,new URLSearchParams({dateFrom:day,dateTo:day}))
+  if(serviceId&&!state.services.some(s=>s.id===serviceId))fail(400,'Choose an existing service.')
+  if(!recipient)fail(403,'Choose a current native recipient.')
+  const candidate:Schedule={id:'preview',owner_id:actor!.id,recipient_id:recipient!.id,recipient_hash:await hash(recipient!.email),venues:JSON.stringify(p.venueIds),timezone:state.venue.timezone,next_at:p.nextAt,approved_at:new Date().toISOString(),enabled:1,report_kind:reportKind,service_id:serviceId}
   if(actor!.role!=='owner'){
    try{await ownerApprovedAddress(env.DB,recipient!.id,await hash(recipient!.email))}
    catch(error){await audit(env.DB,actor!.id,'report.recipient-refused',recipient!.id,'Owner approval of this recipient address is required.');throw error}
   }
+  try{await reportFor(env,candidate,new URLSearchParams({dateFrom:day,dateTo:day}))}
+  catch(error){await audit(env.DB,actor!.id,'report.recipient-refused',recipient!.id,'Current report-purpose authority refused approval.');throw error}
   const scheduleId=id(),at=new Date().toISOString()
-  await audit(env.DB,actor!.id,'report.recipient-approved',scheduleId,'Explicit weekly email approval for one native group identity; authenticated links only.',[env.DB.prepare('INSERT INTO pm_report_schedules(id,owner_id,recipient_id,recipient_hash,venues,timezone,next_at,approved_at) VALUES(?,?,?,?,?,?,?,?)').bind(scheduleId,actor!.id,recipient!.id,await hash(recipient!.email),JSON.stringify(p.venueIds),state.venue.timezone,p.nextAt,at)])
+  await audit(env.DB,actor!.id,'report.recipient-approved',scheduleId,'Explicit weekly email approval for one native identity; authenticated links only.',[env.DB.prepare('INSERT INTO pm_report_schedules(id,owner_id,recipient_id,recipient_hash,venues,timezone,next_at,approved_at,report_kind,service_id) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(scheduleId,actor!.id,recipient!.id,await hash(recipient!.email),JSON.stringify(p.venueIds),state.venue.timezone,p.nextAt,at,reportKind,serviceId)])
   return Response.json({id:scheduleId},{status:201,headers:noStore})
  }
  const s=await scheduleById(env.DB,String(p.scheduleId))
+ await manager(env.DB,actor!,s.report_kind)
  if(actor!.role!=='owner'&&s.owner_id!==actor!.id)fail(403,'Only this schedule owner or the venue owner may change it.')
  if(path==='/api/report-schedules/stop'){
   await audit(env.DB,actor!.id,'report.schedule-stopped',s.id,'',[env.DB.prepare('UPDATE pm_report_schedules SET enabled=0 WHERE id=?').bind(s.id)])

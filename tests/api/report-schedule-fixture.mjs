@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 export const reportDay='2031-11-02',firstDue='2031-11-03T18:00:00.000Z'
-export async function reportGroup({recipientEmail='synthetic-placemat-group@example.test',bindings={},reportMailEdge}={}){
+export async function reportGroup({recipientEmail='synthetic-placemat-group@example.test',bindings={},reportMailEdge,stripeEdge}={}){
  let home,tap,available=true
  const mail={uncertain:false,messages:[]}
  try{
- home=await installation({bindings,origin:'https://home.example.test',peers:{'tap.example.test':()=>{if(!available)throw Error('Synthetic unavailable venue');return tap}},mailEdge:async request=>{
+ home=await installation({bindings,stripeEdge,origin:'https://home.example.test',peers:{'tap.example.test':()=>{if(!available)throw Error('Synthetic unavailable venue');return tap}},mailEdge:async request=>{
   const wire=await request.clone().json(),message=wire.personalizations?{subject:wire.subject,to:wire.personalizations[0].to.map(p=>p.email),text:wire.content.find(p=>p.type==='text/plain')?.value}:wire;mail.messages.push(message)
-  if(reportMailEdge&&message.subject==='Your weekly group cover report')return reportMailEdge(request)
-  if(mail.uncertain&&message.subject==='Your weekly group cover report')throw Error('Synthetic uncertain acceptance')
+  if(reportMailEdge&&message.subject.startsWith('Your weekly '))return reportMailEdge(request)
+  if(mail.uncertain&&message.subject.startsWith('Your weekly '))throw Error('Synthetic uncertain acceptance')
   return Response.json({id:'synthetic-placemat-mail-'+mail.messages.length},{status:wire.personalizations?202:200,headers:{'x-message-id':'synthetic-placemat-mail-'+mail.messages.length}})
  }})
  tap=await installation({origin:'https://tap.example.test',peers:{'home.example.test':()=>home}})
