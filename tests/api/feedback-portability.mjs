@@ -34,6 +34,7 @@ export async function assertFeedbackPortability(h,f){
   await restored.api('/api/feedback/settings',{enabled:true,publicReviewUrl:feedbackReviewUrl})
   await restored.command('booking.status',{bookingId:pending.id,status:'seated'});await restored.command('booking.status',{bookingId:pending.id,status:'completed'})
   await feedbackTick(restored);assert.equal(restored.messages.length,0,'Restored consent and history cannot execute outbound work')
+  await assertMergedFeedbackRestore(h,f)
   const rules=Object.fromEntries(['guestNotes','messageContent','imports','financialEvidence'].map(k=>[k,{days:365,ground:'Recorded restaurant service and accounting purpose'}]))
   await h.api('/api/privacy/policy',{version:0,rules})
   const result=await h.api('/api/privacy/erase',{guestId:f.visits[0].guestId,confirm:'ERASE'})
@@ -45,4 +46,35 @@ export async function assertFeedbackPortability(h,f){
   for(const personal of ['Waited too long','We arrived on time','We are sorry about the wait'])assert.ok(!JSON.stringify(later).includes(personal))
   await erased.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400})
  }finally{await restored.close();await refused.close();await erased.close()}
+}
+
+/** A reviewed identity merge and its reversal keep the visit and thread restorable. */
+async function assertMergedFeedbackRestore(h,f){
+ const original=f.visits[0].guestId,guest=(await h.api('/api/state')).guests.find(g=>g.id===original)
+ const csv='guest_id,name,email,phone,notes,visit_date,party_size,visit_status\n'+['synthetic-placemat-feedback-merge',guest.name,guest.email,guest.phone,'','','',''].join(',')+'\n'
+ const preview=(await h.api('/api/import/dry-run',{csv})).result
+ await h.api('/api/import/apply',{csv,confirm:preview.fingerprint})
+ const survivor=(await h.api('/api/state')).guests.find(g=>g.id!==original&&g.email===guest.email)
+ assert.ok(survivor)
+ const review=await h.api('/api/guests/merge-preview?guestId='+survivor.id+'&duplicateId='+original)
+ const merged=await h.command('guest.merge',{guestId:survivor.id,duplicateId:original,review:review.review,confirm:'MERGE'})
+ const attempts=h.messages.length
+ for(const [guestId,reverse] of [[survivor.id,true],[original,false]]){
+  const archive=await h.api('/api/backup'),copy=await installation()
+  try{
+   await copy.api('/api/restore',{archive,confirm:'RESTORE'})
+   const feedback=await copy.api('/api/feedback'),visit=feedback.visits.find(v=>v.id===f.visits[0].id)
+   assert.equal(visit.guestId,guestId);assert.equal(visit.comment,'Waited too long');assert.equal(visit.case.state,'closed')
+   assert.ok(visit.messages.some(m=>m.author==='manager'&&m.state==='accepted'))
+   await copy.api('/api/public/feedback/status',{token:f.tokens[0]},{as:'',status:404})
+   await copy.api('/api/feedback/reply',{visitId:visit.id,message:'Restored merge replay',requestId:'synthetic-placemat-merge-replay'},{status:404})
+   await feedbackTick(copy);assert.equal(copy.messages.length,0)
+  }finally{await copy.close()}
+  await h.api('/api/public/feedback/status',{token:f.tokens[0]},{as:'',status:404})
+  if(reverse){
+   const undo=await h.api('/api/guests/unmerge-preview?mergeId='+merged.id)
+   await h.command('guest.unmerge',{mergeId:merged.id,review:undo.review,confirm:'UNMERGE'})
+  }
+ }
+ assert.equal(h.messages.length,attempts,'Identity changes never renew or send feedback links')
 }

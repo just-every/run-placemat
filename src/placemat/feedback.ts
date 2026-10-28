@@ -26,8 +26,9 @@ export async function submitFeedback(db:D1Database,p:any){
  if(!Number.isInteger(p.rating)||p.rating<1||p.rating>5||typeof p.comment!=='string'||p.comment.trim().length>4000||Object.keys(p).some(k=>!['token','rating','comment'].includes(k)))fail(400,'Choose a rating from 1 to 5 and a comment up to 4000 characters.')
  const comment=p.comment.trim()
  if(c.visit.rating!==null){if(c.visit.rating!==p.rating||c.visit.comment!==comment)fail(409,'This visit already has feedback. Use the reply thread to add information.');return publicView(db,c)}
- const poor=p.rating<=2,now=new Date().toISOString(),assigneeId=c.settings.recovery_assignee_id
- if(poor&&!await activeAssignee(db,assigneeId))fail(409,'Recovery assignment needs attention. Please contact the venue.')
+ const poor=p.rating<=2,now=new Date().toISOString()
+ // The enabling owner retains recovery responsibility when the selected manager is unavailable.
+ const assigneeId=poor&&await activeAssignee(db,c.settings.recovery_assignee_id)?c.settings.recovery_assignee_id:c.settings.owner_id
  await atomic(db,[...liveFences(db,c),...poor?[assigneeFence(db,assigneeId)]:[],db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_feedback_visits WHERE id=? AND rating IS NULL) THEN 1 ELSE 0 END').bind(c.visit.id),db.prepare('UPDATE pm_feedback_visits SET rating=?,comment=?,submitted_at=?,assignee_id=?,assigned_by=?,assigned_at=?,due_at=?,case_state=? WHERE id=?').bind(p.rating,comment,now,poor?assigneeId:null,poor?c.settings.owner_id:null,poor?now:null,poor?new Date(Date.parse(now)+48*3600000).toISOString():null,poor?'open':null,c.visit.id)])
  return publicView(db,await liveVisit(db,c.visit.id))
 }
