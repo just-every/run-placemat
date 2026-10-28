@@ -16,6 +16,7 @@ export async function assertFeedbackPortability(h,f){
  const restored=await installation(),refused=await installation(),erased=await installation()
  try{
   const access=await h.api('/api/privacy/access',{guestId:f.visits[0].guestId})
+  assert.equal(access.bookings[0].feedbackEmailConsent.source,'guest-supplied');assert.ok(access.bookings[0].feedbackEmailConsent.at)
   assert.equal(access.feedback.visits.length,1);assert.equal(access.feedback.visits[0].comment,'Waited too long')
   assert.ok(access.feedback.messages.some(m=>m.author==='manager'&&m.state==='accepted'))
   assert.ok(!JSON.stringify(access).includes('Lovely evening'));assert.ok(!f.tokens.some(token=>JSON.stringify(access).includes(token)))

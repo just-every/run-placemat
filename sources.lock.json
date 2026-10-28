@@ -3750,7 +3750,7 @@
       "executable": false
     },
     "src/placemat/privacy/access.ts": {
-      "sha256": "372d4252b1bbbef28aac8c0136fffccd0ee98590a9d5de33dca3ab4b13c0e1b9",
+      "sha256": "be2a40fbb7be1f061107aa9176a5acfc102f3eb7a9db6cf2a8e587ea958d2ea2",
       "executable": false
     },
     "src/placemat/privacy/archive.mjs": {
@@ -4198,7 +4198,7 @@
       "executable": false
     },
     "tests/api/feedback-portability.mjs": {
-      "sha256": "3ad2b3d80309342969f2805663ba68f461fa091b5be39a709582d3e718ce9a26",
+      "sha256": "b0f89b2ddf713989c9dd218a558f2453ee5219ee223625838e5e9d9c3afae4f8",
       "executable": false
     },
     "tests/api/feedback.test.mjs": {
@@ -4426,7 +4426,7 @@
       "executable": false
     },
     "tests/feedback-ui.mjs": {
-      "sha256": "c22fd57bfc589927b58ff5300a261a05898818c80633f8e18dbf630a84bd598b",
+      "sha256": "6d73a9e741c11f3a6c66c3e248fb1c48b1bff3e90f78cbdd5b13e229b2c26474",
       "executable": false
     },
     "tests/fees-ui.mjs": {

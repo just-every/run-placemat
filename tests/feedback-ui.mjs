@@ -27,7 +27,7 @@ async function checkLayout(page){
 }
 async function checkKeyboard(page){
  const expected=await page.evaluate(()=>{
-  const fields=[...document.querySelectorAll('main input,main textarea,main select')].filter(el=>!el.disabled&&el.getClientRects().length)
+  const fields=[...document.querySelectorAll('main input,main textarea,main select')].filter(el=>!el.disabled&&el.checkVisibility())
   const key=el=>(el.form?.id||el.form?.dataset.feedbackAction||'')+':'+el.name
   document.querySelector('h1').tabIndex=-1;document.querySelector('h1').focus()
   return [...new Set(fields.map(key))]
@@ -50,14 +50,39 @@ for(const width of [1440,390]){
   await h.signIn(publicGuest(f.service,4).email,'admin','Floor manager')
   const state=await h.api('/api/feedback'),manager=state.staff.find(s=>s.role==='admin')
   await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
-  const owner=await context.newPage(),guest=await guests.newPage(),positive=await guests.newPage()
-  for(const page of [owner,guest,positive]){page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()))}
+  const owner=await context.newPage(),guest=await guests.newPage(),positive=await guests.newPage(),booking=await guests.newPage()
+  for(const page of [owner,guest,positive,booking]){page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()))}
   const shot=async(page,name)=>{await checkLayout(page);await checkKeyboard(page);if(shots)await page.screenshot({path:resolve(shots,`CRM-005-${name}-${width}.png`),fullPage:true})}
   await owner.goto(transport.origin+'/setup');await owner.getByRole('checkbox').check();await owner.getByRole('button',{name:'Finish setup',exact:true}).click();await owner.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
+  await booking.goto(transport.origin+'/book')
+  await booking.locator('[data-public-command=search]').waitFor()
+  await booking.locator('#public-content[aria-busy]').waitFor({state:'detached'})
+  const search=booking.locator('[data-public-command=search]')
+  await search.locator('[name=date]').fill(new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(f.service.startAt)))
+  await search.getByRole('button',{name:'Find available times',exact:true}).click()
+  await booking.getByRole('status').filter({hasText:'Availability updated'}).waitFor()
+  const choices=booking.locator('[name=public-result]'),choice=choices.locator('option').filter({hasText:f.service.name}).first()
+  await choices.selectOption(await choice.getAttribute('value'))
+  const book=booking.locator('[data-public-command=book]'),permission=book.locator('[name=feedbackEmailConsent]')
+  assert.equal(await permission.isChecked(),false,'Feedback outreach starts without permission')
+  const input=publicGuest(f.service,2)
+  await book.locator('[name=name]').fill(input.name);await book.locator('[name=email]').fill(input.email);await permission.check();await book.locator('[name=requestsAcknowledged]').check()
+  await shot(booking,'booking-consent')
+  await book.getByRole('button',{name:'Confirm booking',exact:true}).click()
+  await booking.getByRole('heading',{name:'Booking confirmed',exact:true}).waitFor()
+  const booked=(await h.api('/api/state')).state.bookings.find(b=>!f.bookings.some(prior=>prior.id===b.id))
+  assert.equal(booked.feedbackEmailConsent.source,'guest-supplied');assert.ok(booked.feedbackEmailConsent.at&&booked.feedbackEmailConsent.emailHash)
   await owner.getByRole('link',{name:'Guests',exact:true}).click()
+  await owner.locator('#guests').scrollIntoViewIfNeeded()
+  if(shots)await owner.screenshot({path:resolve(shots,`CRM-005-guest-history-entry-${width}.png`)})
   await owner.locator('a[href="/feedback/manage"]').click()
   await owner.locator('[data-feedback-visit]').first().waitFor()
-  await owner.getByRole('link',{name:'Feedback settings',exact:true}).click()
+  await owner.goto(transport.origin+'/app')
+  await owner.getByRole('link',{name:'Settings',exact:true}).click()
+  await owner.locator('a[href="/feedback/settings"]').waitFor()
+  await owner.locator('#settings').scrollIntoViewIfNeeded()
+  if(shots)await owner.screenshot({path:resolve(shots,`CRM-005-settings-entry-${width}.png`)})
+  await owner.locator('a[href="/feedback/settings"]').click()
   await owner.locator('#settings-state').getByText('Saved',{exact:true}).waitFor()
   const settings=owner.locator('#feedback-settings'),newReviewUrl=feedbackReviewUrl+'/public'
   await settings.locator('[name=publicReviewUrl]').fill(newReviewUrl)
@@ -93,6 +118,7 @@ for(const width of [1440,390]){
   await row.locator('summary').first().click();await row.getByText('Please contact me about the cold main course.',{exact:true}).waitFor()
   await row.getByText('Reassign follow-up',{exact:true}).click()
   const assignment=row.locator('[data-feedback-action=assign]')
+  await checkKeyboard(owner)
   await assignment.locator('[name=assigneeId]').selectOption(manager.id)
   // A past due time exercises the visible SLA state without a browser clock fake.
   await assignment.locator('[name=dueAt]').fill('2020-01-01T12:00')
@@ -107,6 +133,7 @@ for(const width of [1440,390]){
   await shot(owner,'provider-accepted-reply')
   await row.getByText('Close follow-up',{exact:true}).first().click()
   const closure=row.locator('[data-feedback-action=close]')
+  await checkKeyboard(owner)
   await closure.locator('[name=outcome]').fill('Kitchen reviewed the service issue; personal follow-up sent to the guest.')
   await closure.getByRole('button',{name:'Close follow-up',exact:true}).click();await row.getByRole('heading',{name:'Follow-up closed',exact:true}).waitFor()
   await shot(owner,'closed-case')
