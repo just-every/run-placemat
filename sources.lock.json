@@ -230,11 +230,11 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c928c0364aeeb3eb34971ae5c4ed1ac795eb4f7f0a837867eab3f0b9bd022d8b",
+      "sha256": "382d06b78ec48e0ba280442c3fbec7f5640e40c4f44b39a068357b499a5f8a5c",
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "ece2a329d680321d0b259d66e5883cd3ad22355923565c59b3fbda655db8eb74",
+      "sha256": "caac0c1e1d31ebe939b28c148015fe49dbf764703b63b967fb688dee218ee381",
       "executable": false
     },
     "base-copies.json": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e13bcdbfe00002e91821acdd38dd26a1baa3eaceeccf59305d006febfe4481cc",
+      "sha256": "1f0541ffcc25cada9b7e321746ec4631ec6390d0e1d25301dec23a14e46ba6cc",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "001435882070171610b92b56a316b9924c95c0cfd00312e4f0f6e1230d4660e0",
+      "sha256": "b94987e709571369977131b07d7be23ecfaff8dc3e006f4344616ac9c7789f6b",
       "executable": false
     },
     "docs/data-portability.md": {
@@ -898,7 +898,7 @@
       "executable": false
     },
     "public/placemat-search.js": {
-      "sha256": "83d70112a4476a78c681ced5a8daea6f4e53dacfb2f546d0895294cc9607e902",
+      "sha256": "a148c8b987937208b07bf7ee7dee0387c4f7bc78d483ea5df0f4351e0bd40aec",
       "executable": false
     },
     "public/placemat-service-changes.js": {
@@ -938,7 +938,7 @@
       "executable": false
     },
     "public/placemat.js": {
-      "sha256": "d212984bc9cab9532d5c3ab0cc83744af95cdb66bf9b6e640b60102f3526b6c8",
+      "sha256": "19372694655e380e42f4491137535b1054241b8a9f7a921d89d96f60df85163c",
       "executable": false
     },
     "public/plan.css": {
@@ -3306,7 +3306,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "9201b4addd04b57df9ebe3dec7d3b16f5a49e67755fc1d340bb7a353d60006b5",
+      "sha256": "09d1a5d535c41c6f17b8974045657ffa408fc194abf063a44e3dd1adec212d37",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -3350,11 +3350,11 @@
       "executable": false
     },
     "src/placemat/business-export-store.ts": {
-      "sha256": "a88eb1922211c29471eeb159e80fc10292c9befcff37fa5f1c975330ff9151c8",
+      "sha256": "b58ce6857d5d32decf95dbea2b5f247abc448f09769a7b74ab7814a304a60f3d",
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "72f5be37744d4fec2ec3519a05760871175577fdaf0c7ff3665daf2ff73ac2b5",
+      "sha256": "e64f3d6b5227db13c048960bedb8186739414613545cf2026077b872ffce3aee",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3546,7 +3546,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "c2804c253a5c164017a4bb87f32c19628a8c45736b67ba182b0689574eee16be",
+      "sha256": "d91ccc436aacb7985a3f527f2112714420b394720bbcde4062bf8c89df37316e",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -3566,7 +3566,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "f5251e349c9d999ce707780f4d465cf594be9b5fc3682bfcecf404f5e6f4a475",
+      "sha256": "73bb9be5e3122007ee8df669c66386bf393dc7f5e874e9b89bc083ebd31579bc",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -3750,7 +3750,7 @@
       "executable": false
     },
     "src/placemat/privacy/access.ts": {
-      "sha256": "be2a40fbb7be1f061107aa9176a5acfc102f3eb7a9db6cf2a8e587ea958d2ea2",
+      "sha256": "71d90a817f040ee5a58a048423b3e8d24824c84fe96561b6d7ab8487a31987dc",
       "executable": false
     },
     "src/placemat/privacy/archive.mjs": {
@@ -3762,7 +3762,7 @@
       "executable": false
     },
     "src/placemat/privacy/requests.ts": {
-      "sha256": "dbc8abb92189c2ce40cdf90e4f84ba81a2ce45bd4691c17a6e8d1d291273cf92",
+      "sha256": "842c4fd1e7724cf183df8aba36a91ccf0b4f529a7262f9bc763b61722da739b4",
       "executable": false
     },
     "src/placemat/privacy/store.ts": {
@@ -3962,7 +3962,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "3cea5cab69b8d9d047e5d32ca1666709f82916974b74cb693723ec0116479072",
+      "sha256": "178bf43d2c456d73bbc6576b672f605900b46fdb0733ccc189b76e8a1ca56e28",
       "executable": false
     },
     "src/site/docs/content.ts": {
@@ -4382,7 +4382,7 @@
       "executable": false
     },
     "tests/api/worker.ts": {
-      "sha256": "03501b26e1119a21157e7dff15abe69f38838f199f2fdfcc97ff7d0de99c7bd0",
+      "sha256": "0d9269fbb81f8731f2b0f949fa80f1a12423ea5ec1fd2a9b2ea93d25bc8b2c5d",
       "executable": false
     },
     "tests/audit-ui.mjs": {
@@ -4554,7 +4554,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "f57005c31847465532f4f91490a69d52a65b6649eec4c8726d44aa587613a4bd",
+      "sha256": "d1fd307ab19ddf9ead3822f64501c04576d4a74690089c991db887e1e6c01e57",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

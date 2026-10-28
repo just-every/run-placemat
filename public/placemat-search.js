@@ -5,6 +5,10 @@ import {requestFields,readRequests,requestSummary} from './placemat-requests.js'
 /* Guest availability and booking. Events stay inside the existing booking shell. */
 export function createPublicSearch({api, esc, field, select, notice, analytics}) {
   const root = document.querySelector('#public-content');
+  const campaignKey='placemat-campaign',campaignFromLink=new URLSearchParams(location.hash.slice(1)).get('campaign');
+  if(campaignFromLink&&/^[a-f0-9]{64}$/.test(campaignFromLink)){sessionStorage.setItem(campaignKey,campaignFromLink);history.replaceState(null,'',location.pathname+location.search);}
+  let campaignToken=sessionStorage.getItem(campaignKey);
+  if(campaignToken&&!/^[a-f0-9]{64}$/.test(campaignToken))campaignToken=null;
   const checkout=createCheckout({api,root,esc,notice,formatTime:value=>fullTime(value),onConfirmed:confirmed,onReleased:()=>run(()=>search(query),'Refreshing availability…')});
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
@@ -165,6 +169,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     const partySize=result.partySize;query={...(query||{}),partySize,area:result.area||'',requiredAccessTags:result.requiredAccessTags||[],experienceId:result.experienceId||'',ticketClassId:result.ticketClassId||''};
     root.innerHTML = `<article class="booking-confirmation"><h2>Booking confirmed</h2>${result.experienceId?`<p>${esc(result.experienceName)} · ${esc(result.className)}</p>`:''}<p>${contact.name?esc(contact.name)+', your':'Your'} reservation for ${partySize} guests is booked at ${esc(fullTime(result.startAt))}, until ${esc(fullTime(result.endAt))}.</p><p>${esc(query?constraints():result.area||'Your selected visit')}</p>${requestSummary(requests?.requests,esc)}${preorderSummary(result.preorders,esc)}${cartSummary(result.experienceCart,esc)}<p>Booking reference<br><code>${esc(result.id)}</code></p><p>${esc(result.confirmation)}</p>${result.assignment?`<p>${esc(result.assignment)}</p>`:''}${action('Make another booking', 'another')}<p><a href="/diner?booking=${encodeURIComponent(result.id)}">Optionally verify this booking in your diner account</a></p></article>`;
     notice('Your booking is confirmed.', 'success');
+    if(campaignToken){const token=campaignToken;campaignToken=null;sessionStorage.removeItem(campaignKey);api('/api/public/retention/attribution',{token,bookingId:result.id}).catch(()=>notice('Your booking is confirmed. The invitation could not be linked to this booking.','success'));}
   }
   async function run(work, message) {
     if (working) return;

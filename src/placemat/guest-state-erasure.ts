@@ -1,5 +1,6 @@
 import {localServiceDate} from './service-notes'
 import {eraseAudit} from './audit'
+import {hash} from './store'
 import {normalizeBookingRequests} from './booking-requests'
 import type {State} from './model'
 import type {D1Database,D1Sql} from './import/kit'
@@ -8,8 +9,23 @@ const proposalBookings=(plan:any)=>[...(plan?.preview?.unchangedBookings??[]),..
 
 /** Guest-linked operational free text follows the existing DATA-002 erasure. */
 export async function guestStateErasure(db:D1Database,guestIds:string|string[]):Promise<D1Sql[]>{
+ const selected=JSON.stringify(typeof guestIds==='string'?[guestIds]:guestIds)
+ const contacts=(await db.prepare('SELECT data FROM pm_guests WHERE id IN (SELECT value FROM json_each(?))').bind(selected).all()).results
+ const hashes=await Promise.all(contacts.map(row=>JSON.parse(row.data).email).filter((email:unknown):email is string=>typeof email==='string'&&!!email.trim()).map(email=>hash(email.trim().toLowerCase())))
+ // Recipient snapshots contain other guests too. Clear each whole preview and its authority.
+ const retention:D1Sql[]=[
+  {sql:'DELETE FROM pm_retention_requests WHERE email_hash IN (SELECT value FROM json_each(?)) OR email_hash IN (SELECT email_hash FROM pm_retention_tokens WHERE guest_id IN (SELECT value FROM json_each(?))) OR email_hash IN (SELECT email_hash FROM pm_retention_consents WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[JSON.stringify(hashes),selected,selected]},
+  {sql:'DELETE FROM pm_retention_tokens WHERE guest_id IN (SELECT value FROM json_each(?))',params:[selected]},
+  {sql:'DELETE FROM pm_retention_consents WHERE guest_id IN (SELECT value FROM json_each(?))',params:[selected]},
+  {sql:'DELETE FROM pm_retention_facts WHERE guest_id IN (SELECT value FROM json_each(?))',params:[selected]},
+  {sql:'DELETE FROM pm_retention_attributions WHERE guest_id IN (SELECT value FROM json_each(?)) OR delivery_id IN (SELECT id FROM pm_retention_deliveries WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[selected,selected]},
+  {sql:'DELETE FROM pm_retention_deliveries WHERE guest_id IN (SELECT value FROM json_each(?))',params:[selected]},
+  {sql:'DELETE FROM pm_retention_approvals',params:[]},
+  {sql:"UPDATE pm_retention_workflows SET preview_data=NULL,preview_hash=NULL,status='stopped'",params:[]},
+  {sql:"UPDATE pm_retention_deliveries SET state='cancelled' WHERE state='claimed'",params:[]},
+ ]
  const row=await db.prepare('SELECT version,data FROM pm_state WHERE id=1').first()
- if(!row)return []
+ if(!row)return retention
  const state=JSON.parse(row.data) as State
  for(const guestId of typeof guestIds==='string'?[guestIds]:guestIds){
  const noteDates=new Set(state.services.filter(s=>state.bookings.some(b=>b.guestId===guestId&&b.serviceId===s.id)).map(s=>localServiceDate(s.startAt,state.venue.timezone)))
@@ -68,6 +84,7 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  const dinerGuests=JSON.stringify(typeof guestIds==='string'?[guestIds]:guestIds)
  const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  ...retention,
   {sql:'DELETE FROM pm_feedback_credentials WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_feedback_messages WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},

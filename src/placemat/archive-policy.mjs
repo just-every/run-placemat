@@ -12,6 +12,7 @@ import {validateGuestMerges} from './guest-merge-archive.mjs'
 import {validateServiceNotes} from './service-notes-archive.mjs'
 import {validateOnboarding} from './onboarding-archive.mjs'
 import {validatePayments} from './payment-archive.mjs'
+import {portableRetentionRow,validateRetention} from './retention-archive.mjs'
 function validatePacing(s){
  for(const service of s.services){
   const p=service.pacing;if(p===undefined)continue
@@ -50,8 +51,9 @@ function validateStaffing(s,tables){
 export default {
  product:'hospitality/placemat',
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
- excludeTables:['pm_feedback_settings','pm_feedback_credentials','pm_diner_mail_limits','pm_diner_sessions','pm_diner_challenges','pm_payment_operation_custody','pm_report_schedules','pm_report_deliveries','pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
+ excludeTables:['pm_retention_settings','pm_retention_consents','pm_retention_tokens','pm_retention_requests','pm_retention_approvals','pm_feedback_settings','pm_feedback_credentials','pm_diner_mail_limits','pm_diner_sessions','pm_diner_challenges','pm_payment_operation_custody','pm_report_schedules','pm_report_deliveries','pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
+  if(table.startsWith('pm_retention_'))return portableRetentionRow(table,row)
   if(table==='pm_state'){const state=portableFeedbackState(JSON.parse(row.data));if(state.serviceChanges)state.serviceChanges=portableServiceChanges(state.serviceChanges);for(const p of state.proposals??[])if(p.plan?.snapshot?.serviceChanges)p.plan.snapshot.serviceChanges=portableServiceChanges(p.plan.snapshot.serviceChanges);return {...row,data:JSON.stringify(state)}}
   if(table==='pm_fee_assessments')return {...row,processing_until:0}
   if(table==='pm_refund_webhooks')return {...row,claim:''}
@@ -65,6 +67,7 @@ export default {
   await validatePaymentOperations(read,rows,guests)
   await validateMerchantCollections(read,guests,rows)
   await validatePrivacy(read,guests)
+  await validateRetention(read,rows,guests)
   await validateCosts(read)
   if(rows.length>1)throw Error('Invalid floor state')
   const ids=new Set(guests.map(row=>row.id))

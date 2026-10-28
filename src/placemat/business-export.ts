@@ -1,3 +1,4 @@
+import {portableRetentionRow} from './retention-archive.mjs'
 import {portableServiceChanges} from './service-change-archive.mjs'
 import {fail,type Guest,type State} from './model'
 import {analyticsSettings} from './analytics'
@@ -5,7 +6,7 @@ import {analyticsSettings} from './analytics'
 /** CSV business schema; independent of the structured backup format version. */
 export const businessCsvVersion=1
 export const businessExportKinds=[
- 'feedback-visits','feedback-messages','diner-accounts','diner-bookings','venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
+ 'retention-facts','retention-workflows','retention-deliveries','retention-attributions','feedback-visits','feedback-messages','diner-accounts','diner-bookings','venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
  'experiences','payment-cases','payment-reviews','accounting-exports','money-items','money-receipts','money-payouts','money-adjustments','card-guarantees','card-collections','fee-policies','fee-consents','fee-assessments','fee-events','fee-disputes','payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins','report-schedules','report-deliveries',
 ] as const
@@ -13,7 +14,7 @@ export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
 export type BusinessPerformanceReport={id:string;service_id:string;published_at:string;published_by:string;floor_version:number;data:string}
 type RecordValue=Record<string,unknown>
-export type BusinessFinancialRecords={feedbackVisits?:RecordValue[];feedbackMessages?:RecordValue[];dinerAccounts?:RecordValue[];dinerBookings?:RecordValue[];paymentCases?:RecordValue[];paymentReviews?:RecordValue[];accountingExports?:RecordValue[];moneyItems?:RecordValue[];moneyReceipts?:RecordValue[];moneyPayouts?:RecordValue[];moneyAdjustments?:RecordValue[];reportSchedules?:RecordValue[];reportDeliveries?:RecordValue[];cardGuarantees?:RecordValue[];cardCollections?:RecordValue[];feePolicies?:RecordValue[];feeConsents?:RecordValue[];feeAssessments?:RecordValue[];feeEvents?:RecordValue[];feeDisputes?:RecordValue[];paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
+export type BusinessFinancialRecords={retentionFacts?:RecordValue[];retentionWorkflows?:RecordValue[];retentionDeliveries?:RecordValue[];retentionAttributions?:RecordValue[];feedbackVisits?:RecordValue[];feedbackMessages?:RecordValue[];dinerAccounts?:RecordValue[];dinerBookings?:RecordValue[];paymentCases?:RecordValue[];paymentReviews?:RecordValue[];accountingExports?:RecordValue[];moneyItems?:RecordValue[];moneyReceipts?:RecordValue[];moneyPayouts?:RecordValue[];moneyAdjustments?:RecordValue[];reportSchedules?:RecordValue[];reportDeliveries?:RecordValue[];cardGuarantees?:RecordValue[];cardCollections?:RecordValue[];feePolicies?:RecordValue[];feeConsents?:RecordValue[];feeAssessments?:RecordValue[];feeEvents?:RecordValue[];feeDisputes?:RecordValue[];paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
 const noFinancialRecords:BusinessFinancialRecords={paymentRequests:[],refundCharges:[],refunds:[],refundEvents:[]}
 type Dataset={fields:readonly string[];rows:readonly unknown[]}
 
@@ -46,6 +47,10 @@ function refundHistory(finance:BusinessFinancialRecords){
 }
 function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[],merges:unknown[],finance:BusinessFinancialRecords):Dataset {
  switch(kind) {
+  case 'retention-facts':return {fields:['guest_id','created_at','birthday','anniversary','provenance','updated_at'],rows:(finance.retentionFacts??[]).map(r=>portableRetentionRow('pm_retention_facts',r))}
+  case 'retention-workflows':return {fields:['id','data','status','created_at','updated_at'],rows:(finance.retentionWorkflows??[]).map(r=>portableRetentionRow('pm_retention_workflows',r))}
+  case 'retention-deliveries':return {fields:['id','workflow_id','guest_id','occurrence','offer_data','state','created_at','accepted_at','cap_until','provider_id'],rows:(finance.retentionDeliveries??[]).map(r=>portableRetentionRow('pm_retention_deliveries',r))}
+  case 'retention-attributions':return {fields:['booking_id','delivery_id','guest_id','created_at'],rows:finance.retentionAttributions??[]}
   case 'feedback-visits':return {fields:['id','booking_id','guest_id','visit_date','invite_state','created_at','provider_id','rating','comment','submitted_at','withdrawn_at','assignee_id','due_at','assigned_by','assigned_at','case_state','outcome','closed_at','closed_by'],rows:finance.feedbackVisits??[]}
   case 'feedback-messages':return {fields:['id','visit_id','author','actor_id','message','at','state','request_id','provider_id'],rows:finance.feedbackMessages??[]}
   case 'diner-accounts':return {fields:['id','email','created_at','updated_at','favorite','preferences'],rows:finance.dinerAccounts??[]}

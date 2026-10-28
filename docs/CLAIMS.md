@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 56 done, 30 partial, 49 missing; 135 total.
+Inventory: 56 done, 31 partial, 48 missing; 135 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -88,7 +88,7 @@ Inventory: 56 done, 30 partial, 49 missing; 135 total.
 | GUEST-005 | missing |  |
 | GUEST-006 | missing |  |
 | CRM-001 | missing |  |
-| CRM-002 | missing |  |
+| CRM-002 | partial | `tests/api/retention.test.mjs` |
 | CRM-003 | missing |  |
 | CRM-004 | missing |  |
 | CRM-005 | partial | `tests/api/feedback.test.mjs`; `tests/api/feedback-portability.mjs`; `tests/feedback-ui.mjs`; `scripts/feedback-sandbox.mjs` |
