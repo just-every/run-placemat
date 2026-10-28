@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "05893235f3ac49e122589a6dcff730337c645eb0c74cd3afe00af3d6257362ef",
+      "sha256": "c2f8fe4e26c66b04f413b8019c56042a3f12eb605ff848c104b6308c67ba23ea",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b77a46b044ef1f4bd698597e07717565952a9c44361bc1062aa0e251ba25e433",
+      "sha256": "d0f8d078884d8e247d46ab10b1b7ac6fc3f01948e59da201a17a1b0c92f6dbc6",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "4b823c89bd39fe8e6db56fea0c9ef5522d2899b1499d1b19d4d05aee3adb1d2a",
+      "sha256": "a6e233f16551c0c128b07255f2ea82b023ecddb0d43675ad337aa132ba233aa9",
       "executable": false
     },
     "docs/data-portability.md": {
@@ -4258,7 +4258,7 @@
       "executable": false
     },
     "tests/api/reports.test.mjs": {
-      "sha256": "972e67d8c1f3c348e17e73cf8bc159452fd5578471d454071b88a3808a47d9ed",
+      "sha256": "faef382da7a69f9f10c0efe106523123786e3bfec49fa1138d07f5fef59855c9",
       "executable": false
     },
     "tests/api/reservation-api.test.mjs": {

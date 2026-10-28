@@ -277,6 +277,57 @@ test('Weekly group delivery requires explicit recipient approval, authenticates 
   assert.ok(!JSON.stringify(archive.filter(l=>l.kind==='part')).includes('recipient_hash'))
   for(const kind of ['report-schedules','report-deliveries']){const csv=await(await f.home.request('/api/business-export/'+kind+'.csv')).text();assert.ok(csv.includes(schedule.id));assert.ok(!csv.includes('recipient_hash'))}
   const restored=await installation();try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/report-schedules')).schedules,[])}finally{await restored.close()}
+
+  // Renew through the same owner approval door after a native recipient changes address.
+  // Keep the superseded schedule live first: a stop must not mask the address fence.
+  const oldAddress='synthetic-placemat-group@example.test',newAddress='synthetic-placemat-group-renewed@example.test'
+  const stale=await f.approve({nextAt:'2031-11-24T18:00:00.000Z'})
+  const reports=()=>f.mail.messages.filter(m=>m.subject==='Your weekly group cover report')
+  const beforeAddressChange=reports().length
+  await f.tick('2031-11-24T18:00:00.000Z')
+  assert.equal(reports().length,beforeAddressChange+1)
+  assert.deepEqual(reports().at(-1).to,[oldAddress])
+  const stalePath=new URL(reports().at(-1).text.match(/https:\/\/[^\s]+/)[0]).pathname
+  assert.ok((await(await f.home.request(stalePath,{as:f.recipient})).text()).includes('Home Bistro'))
+  const changed=await f.home.api('/auth/email',{email:newAddress},{as:f.recipient})
+  assert.equal(changed.id,f.recipientId);assert.equal(changed.email,newAddress)
+  const refused=await f.home.request(stalePath,{as:f.recipient})
+  assert.equal(refused.status,403)
+  const refusal=await refused.text()
+  assert.match(refusal,/identity changed or was removed/)
+  for(const privateValue of ['Home Bistro','Tap Room','bookedCovers','guest0@example.test',oldAddress,newAddress])assert.ok(!refusal.includes(privateValue),'Stale-address refusal discloses no report or recipient data')
+  await f.home.api('/api/report-schedules/resend',{scheduleId:stale.id,deliveryId:(await f.home.api('/api/report-schedules')).deliveries.find(d=>d.schedule_id===stale.id).id,acknowledged:true})
+  await f.tick('2031-12-01T18:00:00.000Z')
+  assert.equal(reports().length,beforeAddressChange+1,'Neither manual resend nor the next weekly attempt sends to the superseded address')
+  const staleAttempts=(await f.home.api('/api/report-schedules')).deliveries.filter(d=>d.schedule_id===stale.id&&d.due_at!=='2031-11-24T18:00:00.000Z')
+  assert.equal(staleAttempts.length,2);assert.ok(staleAttempts.every(d=>d.state==='blocked'),'Both manual and weekly stale-address attempts are recorded as blocked')
+  // An admin cannot carry the old owner approval over to the new address.
+  await f.home.api('/auth/operator/status',{operatorId:f.managerId,status:'active'})
+  f.manager=await f.signIn('synthetic-placemat-manager@example.test','admin')
+  await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:'2031-12-08T18:00:00.000Z',acknowledged:true},{as:f.manager,status:403})
+  await f.home.api('/api/report-schedules/stop',{scheduleId:stale.id})
+  const renewed=await f.approve({nextAt:'2031-12-08T18:00:00.000Z'})
+  f.recipient=await f.signIn(newAddress)
+  const oldAddressReader=await f.signIn(oldAddress)
+  assert.notEqual((await f.home.api('/auth/operators')).find(p=>p.email===oldAddress).id,f.recipientId,'The stale mailbox is a different native identity after the change')
+  const renewedMailStart=f.mail.messages.length
+  await f.tick('2031-12-08T18:00:00.000Z')
+  const renewedMessages=f.mail.messages.slice(renewedMailStart).filter(m=>m.subject==='Your weekly group cover report')
+  assert.equal(renewedMessages.length,1)
+  assert.deepEqual(renewedMessages[0].to,[newAddress],'The next owner-approved weekly renewal goes only to the changed address')
+  assert.equal(reports().filter(m=>m.to.includes(oldAddress)).length,beforeAddressChange+1,'The old address receives no renewal')
+  const renewedPath=new URL(renewedMessages[0].text.match(/https:\/\/[^\s]+/)[0]).pathname
+  const renewedDownload=await f.home.request(renewedPath,{as:f.recipient})
+  assert.equal(renewedDownload.status,200);assert.equal(renewedDownload.headers.get('cache-control'),'no-store')
+  const renewedCsv=await renewedDownload.text();assert.ok(renewedCsv.includes('Home Bistro')&&renewedCsv.includes('Tap Room'));assert.ok(!renewedCsv.includes('guest0@example.test'))
+  for(const oldLink of [stalePath,renewedPath]){
+   const denied=await f.home.request(oldLink,{as:oldAddressReader});assert.equal(denied.status,403)
+   const body=await denied.text();for(const value of ['Home Bistro','Tap Room','bookedCovers',oldAddress,newAddress])assert.ok(!body.includes(value),'Reusing the stale mailbox never grants the report')
+  }
+  await f.tick('2031-12-08T18:00:00.000Z');assert.equal(reports().length,beforeAddressChange+2,'Renewal retains duplicate-tick suppression')
+  const renewalAudit=(await f.home.api('/api/audit')).rows
+  assert.ok(renewalAudit.some(e=>e.action==='report.recipient-approved'&&e.subject===renewed.id))
+  assert.ok(renewalAudit.some(e=>e.action==='report.recheck-refused'&&e.subject===stale.id))
  }finally{await f.close()}
 })
 
