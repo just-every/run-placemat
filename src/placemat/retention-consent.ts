@@ -49,7 +49,7 @@ export async function publicRetentionStatus(env:Bindings,p:any){
  if(config.expiresAt<=new Date().toISOString())unavailable()
  const booking=new URL('/book',env.AUTH_ORIGIN);booking.hash=`campaign=${p.token}`
  if(config.experienceId)booking.searchParams.set('experience',config.experienceId)
- return {kind:'offer',venueName:token.venue_scope,offer:config.offer,campaignId:message!.workflow_id,bookingUrl:booking.href,expiresAt:config.expiresAt,canUnsubscribe:true}
+ return {kind:'offer',venueName:token.venue_scope,offer:config.offer,campaignId:message!.workflow_id,bookingUrl:booking.pathname+booking.search+booking.hash,expiresAt:config.expiresAt,canUnsubscribe:true}
 }
 export async function publicRetentionUnsubscribe(env:Bindings,p:any){
  const db=env.DB,{token,contact:c}=await tokenContext(db,p)

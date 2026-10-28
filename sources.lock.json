@@ -3842,7 +3842,7 @@
       "executable": false
     },
     "src/placemat/retention-consent.ts": {
-      "sha256": "151a98ed7db23f5bd9b53b6f7b1e063507e049f595dd61210f00701e020a1211",
+      "sha256": "dcccfbf41dae00f9cd20611892b55f65ce7cce495b91e4b177111a8dd05e2e79",
       "executable": false
     },
     "src/placemat/retention-eligibility.ts": {
@@ -4366,7 +4366,7 @@
       "executable": false
     },
     "tests/api/retention.test.mjs": {
-      "sha256": "2547cb40f2547f859c82da15d74c03eb4f6ac0c5b0316ea42f533b9db544442d",
+      "sha256": "ec7df59f2ff673f8afac21af942af3ec9de100e4e0f17288a8f8e56372583151",
       "executable": false
     },
     "tests/api/risk-fixture.mjs": {

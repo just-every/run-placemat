@@ -28,7 +28,7 @@ test('Retention owner approves exact audiences and six triggers deliver only due
   assert.ok(sent.every(m=>m.text.includes(postVisit.preview.offer)))
   await retentionTick(h);assert.equal(marketingMessages(h).length,2)
   const firstGuest=f.guests.find(g=>g.id===f.bookings[0].guestId),message=sent.find(m=>m.to[0]===firstGuest.email),token=linkToken(message)
-  const offer=await pub(h,'status',{token});assert.equal(offer.offer,postVisit.preview.offer);assert.equal(new URL(offer.bookingUrl).searchParams.has('retention'),false);assert.equal(new URL(offer.bookingUrl).hash,'#campaign='+token)
+  const offer=await pub(h,'status',{token});assert.equal(offer.offer,postVisit.preview.offer);assert.equal(new URL(offer.bookingUrl,h.origin).searchParams.has('retention'),false);assert.equal(new URL(offer.bookingUrl,h.origin).hash,'#campaign='+token)
   const s=await futureService(h),repeat=(await h.api('/api/public/book',publicGuest(s,0,{name:firstGuest.name,email:firstGuest.email}),{as:'',status:201})).result
   await pub(h,'attribution',{token,bookingId:f.bookings[1].id},409)
   await pub(h,'attribution',{token,bookingId:repeat.id});await pub(h,'attribution',{token,bookingId:repeat.id})
