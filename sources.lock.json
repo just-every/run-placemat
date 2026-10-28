@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9734bd4e57239733f7405b41d59784ab198f74575e3e9f4a2f5496f5d8c8e849",
+      "sha256": "061ffdf95740f90f9287926d61d4175723a237b02c6b176262552bfae48e1850",
       "executable": false
     },
     "deploy-demo.json": {
@@ -273,12 +273,20 @@
       "sha256": "859403be7574bc369fe4e3291f0179fe124651f0d5a0b241a745748d05620dc8",
       "executable": false
     },
+    "docs/booking-interfaces.md": {
+      "sha256": "e876e0d88d40f790be42492917d0304243f0e44173b88ce00da495f9f33b3a10",
+      "executable": false
+    },
     "docs/CLAIMS.md": {
       "sha256": "8bb1e7cfc303ddd95113feea349d7d9b5fe653d410abaee014c567ab3082c0a1",
       "executable": false
     },
     "docs/contract/COVERAGE.json": {
       "sha256": "359052abee96cda95e453b926e1b8168dc3a36fd72fdbed39141247f9fda33dd",
+      "executable": false
+    },
+    "docs/contract/DONE-AUDIT.md": {
+      "sha256": "25989d0e0af9f39e31e40780fc3af833cb6e3641061afd751cabbfcfdfd5db72",
       "executable": false
     },
     "docs/contract/ID-MAP.json": {

@@ -1524,251 +1524,128 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company's policy decides every ca
 - **live:** a call changes published inventory, running service timing/pacing, connections or recovery behavior; facts name the affected service.
 
 | Tool | Does | Core clauses | Risk class | Today |
-
 | --- | --- | --- | --- | --- |
-
 | `placemat.keys.manage` | Native sessions and preparation authority | ACCESS-001 | access (+ security) | not served over MCP |
-
 | `placemat.guests.public_confirmation` | Public guest isolation | PRIVACY-001 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.bookings.create` | Live assigned reservations | BOOK-001 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.capacity.check` | Conflict-safe physical capacity | FLOOR-001 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.services.publish` | Reviewed dated service publication | SERVICE-001 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.plans.execute` | Exact plans and accountable decisions | PLAN-001 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.reminders.export` | Approved reminder CSV custody | MSG-001 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.waitlist.seat` | Staff walk-ins and waiting parties | WAIT-001 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.guests.history` | Guest visit history | GUEST-001 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.backups.restore` | Validated empty-destination backups | DATA-001 | destructive · security | not served over MCP |
-
 | `placemat.guests.erase` | Guest erasure and restore fences | DATA-002 | destructive (+ sensitive) | not served over MCP |
-
 | `placemat.venue.configure` | US restaurant onboarding | SETUP-001 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.venue.defaults` | Acknowledged restaurant service defaults | SETUP-002 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.services.generate` | Recurring shifts and seasonal schedules | SERVICE-002 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.services.close_or_relocate` | Closures and emergency service changes | SERVICE-003 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.services.booking_rules` | Party and advance-booking rules | SERVICE-004 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.services.pacing` | Arrival pacing and concurrent covers | SERVICE-005 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.services.turns` | Turn and cleanup rules | SERVICE-006 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.bookings.override_pacing` | Staff pacing overrides with warnings | SERVICE-007 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.widget.configure` | Branded website booking widget | BOOK-002 | security · live | not served over MCP |
-
 | `placemat.analytics.inspect` | Consent-aware booking analytics | BOOK-008 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.analytics.configure` | Booking analytics credential controls | BOOK-009 | security · live | not served over MCP |
-
 | `placemat.availability.search` | Reservation search and availability alternatives | BOOK-003 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.bookings.manage_link` | Secure guest modification and cancellation | BOOK-004 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.bookings.phone` | Staff telephone and concierge reservations | BOOK-005 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.checkout.hold` | Booking holds and duplicate submissions | BOOK-006 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.inquiries.manage` | Special requests and group inquiries | BOOK-007 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.discovery.publish` | Diner discovery and partner distribution | DIST-003 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.channels.allocate` | Channel inventory and attribution | DIST-004 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.diners.manage` | Guest accounts and repeat booking | DIST-005 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.reviews.respond` | Verified diner reviews and restaurant replies | DIST-006 | external · commitment | not served over MCP |
-
 | `placemat.floor.configure` | Rooms and editable floor plans | FLOOR-002 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.joins.configure` | Approved table combinations | FLOOR-003 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.staffing.configure` | Server sections and fair covers | FLOOR-004 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.timeline.inspect` | Timeline and overdue turns | FLOOR-005 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.service.observe` | Service statuses and handover | FLOOR-006 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.bookings.search` | Busy-service search and shift handover | FLOOR-007 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.callbacks.manage` | Owned guest requests and shift callbacks | FLOOR-014 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.devices.reconcile` | Concurrent devices and operational outage | FLOOR-008 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.outage.reconcile` | Captured outage actions and exact reconciliation | FLOOR-016 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.outage.expire` | Outage sheet expiry and key clearing | FLOOR-017 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.assignments.change` | Direct host table moves, swaps and locks | FLOOR-009 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.inventory.configure` | Counter seats and unassigned bar pools | FLOOR-010 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.arrivals.follow_up` | Late arrivals, holds and the no-show workflow | FLOOR-011 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.preshift.read` | Printable pre-shift sheet | FLOOR-012 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.notes.update` | Service notes and kitchen notes | FLOOR-013 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.kitchen.read` | Kitchen workload and declared needs | FLOOR-019 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.dishes.configure` | Unpaid dish pre-orders and source totals | FLOOR-020 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.waitlist.intake` | Remote and walk-up joining | WAIT-002 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.waitlist.quote` | Quoted waits and queue updates | WAIT-003 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.waitlist.offer` | Table-ready conversations and offer expiry | WAIT-004 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.notify.manage` | Future cancellation notifications | WAIT-005 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.waitlist.close` | Waitlist accountability | WAIT-006 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.notices.send` | Booking and cancellation delivery | MSG-004 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.reminders.schedule` | Scheduled reminders and reconfirmations | MSG-005 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.inbox.reply` | Unified two-way guest inbox | MSG-006 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.delivery.recover` | Delivery retry and failed-contact ownership | MSG-007 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.consent.update` | Consent and US messaging policy | MSG-008 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.templates.update` | Templates and guest communication preferences | MSG-009 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.replies.resolve` | Guest text actions: confirm, reschedule and captured requests | MSG-010 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.social.reply` | Instagram and Facebook direct messages | MSG-011 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.merchant.connect` | Stripe merchant connection and token custody | PAY-001 | accounts · security (+ gated) | not served over MCP |
-
 | `placemat.deposits.request` | Deposits and partial prepayment | PAY-002 | money (+ external) (+ commitment) | not served over MCP |
-
 | `placemat.guarantees.manage` | Card guarantees and authorization expiry | PAY-003 | money · commitment (+ sensitive) · external | not served over MCP |
-
 | `placemat.fees.decide` | No-show and late-cancellation fees | PAY-004 | money (+ external) (+ commitment) | not served over MCP |
-
 | `placemat.refunds.create` | Full and partial refunds with notices | PAY-005 | money (+ external) (+ commitment) | not served over MCP |
-
 | `placemat.ledger.reconcile` | Money ledger and processor reconciliation | PAY-006 | money (+ external) (+ commitment) | not served over MCP |
-
 | `placemat.checkout.totals` | Tax gratuity and service-charge disclosure | PAY-007 | money (+ external) (+ commitment) | not served over MCP |
-
 | `placemat.deposits.redeem` | Deposit redemption at the POS | PAY-008 | money (+ external) (+ commitment) | not served over MCP |
-
 | `placemat.disputes.respond` | Disputes and payment operations | PAY-009 | commitment · external (+ money) | not served over MCP |
-
 | `placemat.payment_links.send` | Staff-requested card and deposit links | PAY-010 | money (+ external) (+ commitment) | not served over MCP |
-
 | `placemat.experiences.publish` | Experience catalog and event inventory | EXP-001 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.tickets.purchase` | Ticketed checkout and add-ons | EXP-002 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.tickets.manage` | Experience guest management | EXP-003 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.experiences.settle` | Experience cancellation and event settlement | EXP-004 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.pickup.purchase` | Prepaid pickup experiences | EXP-005 | standard or commitment (+ external) (+ money) | not served over MCP |
-
 | `placemat.guests.update` | Searchable profiles and structured preferences | GUEST-002 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.needs.acknowledge` | Allergy and accessibility handoff | GUEST-003 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.guests.merge` | Duplicate review and household separation | GUEST-004 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.visits.match` | POS-linked visit and item history | GUEST-005 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.guestbook.share` | Shared guestbook across restaurant groups | GUEST-006 | standard (+ sensitive) (+ external) | not served over MCP |
-
 | `placemat.audiences.build` | Visit-based segments and audiences | CRM-001 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.campaigns.automate` | Retention and win-back automation | CRM-002 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.campaigns.send` | Campaign creation and conversion reporting | CRM-003 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.mailchimp.sync` | Mailchimp audience handoff | CRM-004 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.feedback.follow_up` | Post-visit feedback and manager follow-up | CRM-005 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.offers.create` | Return offers and loyalty handoff | CRM-006 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.checks.match` | Guest and check matching controls | POS-006 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.pace.observe` | Live check and kitchen pace | POS-007 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.reports.covers` | Covers cancellations and no-shows | REPORT-001 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.reports.performance` | Turns waits and server performance | REPORT-002 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.reports.retention` | Channels spend and repeat business | REPORT-003 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.reports.payments` | Experience and payment performance | REPORT-004 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.reports.group` | Scheduled exports and group reporting | REPORT-005 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.reports.schedule_group` | Weekly group report delivery | REPORT-009 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.reports.schedule_native` | Scheduled recurring report delivery | REPORT-008 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.benchmarks.contribute` | Local performance benchmarking | REPORT-006 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.reports.close` | End-of-service report | REPORT-007 | standard (+ external) (+ sensitive) | not served over MCP |
-
 | `placemat.costs.forecast` | Predictable operating costs | COST-001 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.records.export` | Complete portable business records | DATA-003 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.venues.grant` | Owner and group-administrator rights | ROLE-001 | access (+ security) | not served over MCP |
-
 | `placemat.managers.grant` | Manager and shift-lead rights | ROLE-002 | access (+ security) | not served over MCP |
-
 | `placemat.staff.grant` | Host server and read-only rights | ROLE-003 | access (+ security) | not served over MCP |
-
 | `placemat.conversations.assign` | Host guest conversations | ROLE-009 | access (+ security) | not served over MCP |
-
 | `placemat.groups.configure` | Group central management | ROLE-010 | access (+ security) | not served over MCP |
-
 | `placemat.finance.grant` | Finance marketing and integration rights | ROLE-004 | access (+ security) | not served over MCP |
-
 | `placemat.identity.configure` | Identity and session lifecycle | SEC-001 | access · security | not served over MCP |
-
 | `placemat.stands.register` | Shared host-stand device and quick staff switch | SEC-002 | access · security | not served over MCP |
-
 | `placemat.audit.search` | Reservation and financial change history | AUDIT-001 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.bookings.command` | Documented booking and guest HTTP doors | API-001 | standard (+ sensitive) | not served over MCP |
-
 | `placemat.integrations.configure` | Versioned integrations and event subscriptions | API-002 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.voice.configure` | Loman AI and telephone booking connection | VOICE-001 | standard or external (+ commitment) (+ money) (+ accounts) (+ gated) | not served over MCP |
-
 | `placemat.recovery.run` | Connection health and business recovery | OPS-001 | standard or live (+ commitment) (+ external) | not served over MCP |
-
 | `placemat.retention.dispose` | Privacy retention and group data controls | DATA-004 | destructive (+ sensitive) | not served over MCP |
-
 | `placemat.service_agent.book` | Live voice and message booking agent | AGENT-001 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
-
 | `placemat.refill.run` | Cancellation refill through completed conversations | AGENT-002 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
-
 | `placemat.waits.advise` | Honest waits from actual service pace | AGENT-003 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
-
 | `placemat.allocation.advise` | Feasible seating and booking improvements | AGENT-004 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
-
 | `placemat.risk.advise` | No-show risk and reconfirmation assistance | AGENT-005 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
-
 | `placemat.recovery.advise` | Evidence-based guest recovery | AGENT-006 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
-
 | `placemat.enrichment.apply` | Permissioned guest enrichment and next visit | AGENT-007 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
-
 | `placemat.experiments.apply` | Measured reversible service experiments | AGENT-008 | standard (+ external) (+ money) (+ commitment) (+ sensitive) (+ live) | not served over MCP |
 
 **Resources.** `placemat://venues/{venue}`, `placemat://services/{service}`, `placemat://bookings/{booking}`, `placemat://guests/{guest}`, `placemat://queue/{entry}`, `placemat://inquiries/{inquiry}`, `placemat://experiences/{experience}`, `placemat://payments/{operation}`, `placemat://reports/{report}` and `placemat://tasks/{task}` name restaurant records.
