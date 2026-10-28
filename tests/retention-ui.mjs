@@ -29,10 +29,12 @@ for(const width of [1440,390]){
   const owner=await context.newPage(),guest=await guestContext.newPage(),errors=[],urls=[]
   for(const page of [owner,guest]){page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>urls.push(r.url()))}
   const cookies=async()=>{await context.setExtraHTTPHeaders({'x-placemat-test-clock':String(h.now())});await guestContext.setExtraHTTPHeaders({'x-placemat-test-clock':String(h.now())});return context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))}
-  const shot=async(page,name,scope='main')=>{await layout(page,scope);if(screenshots)await page.screenshot({path:resolve(screenshots,`CRM-002-${name}-${width}.png`),fullPage:true})}
+  const shot=async(page,name,scope='main')=>{await layout(page,scope);if(screenshots)await page.screenshot({path:resolve(screenshots,`CRM-002-${name}-${width}.png`),fullPage:name!=='settings-entry'})}
   await cookies();await owner.goto(transport.origin+'/setup');await owner.getByRole('checkbox').check();await owner.getByRole('button',{name:'Finish setup',exact:true}).click();await owner.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
   await owner.getByRole('link',{name:'Settings',exact:true}).click();await owner.locator('#settings').scrollIntoViewIfNeeded();await owner.getByRole('link',{name:'Guest retention workflows',exact:true}).waitFor();await shot(owner,'settings-entry','#settings')
+  await h.api('/api/retention/facts',{guestId:(await h.api('/api/retention')).guests[0].id,birthday:'05-21',anniversary:'10-10'})
   await owner.getByRole('link',{name:'Guest retention workflows',exact:true}).click();await owner.getByRole('heading',{name:'Guest retention',exact:true}).waitFor()
+  await owner.getByText('Guest dates',{exact:true}).click();assert.equal(await owner.locator('[name=birthday]').inputValue(),'05-21');assert.equal(await owner.locator('[name=anniversary]').inputValue(),'10-10');await shot(owner,'recorded-guest-dates');await owner.getByText('Guest dates',{exact:true}).click()
   await owner.getByText('Create workflow',{exact:true}).click()
   const form=owner.locator('form[data-action=draft]')
   await form.locator('[name=name]').fill('After your first visit');await form.locator('[name=trigger]').selectOption('first-to-second');await form.locator('[name=offer]').fill('Come back for our seasonal menu. Quote CEDAR with your next reservation.')
@@ -62,7 +64,7 @@ for(const width of [1440,390]){
   const newGuest=publicGuest(s,4);await h.api('/api/public/book',newGuest,{as:'',status:201})
   await guest.goto(transport.origin+'/retention');await guest.locator('[name=email]').fill(newGuest.email);await guest.locator('[name=permission]').check();await shot(guest,'request-permission');await guest.getByRole('button',{name:'Send confirmation link',exact:true}).click();await guest.getByRole('heading',{name:'Check your email',exact:true}).waitFor()
   const confirm=linkToken(h.messages.findLast(m=>m.text?.includes('No marketing permission is active')))
-  await guest.goto(transport.origin+'/retention#'+confirm);await guest.getByRole('heading',{name:'Confirm marketing email',exact:true}).waitFor();await guest.locator('[name=permission]').check();await shot(guest,'confirm-permission');await guest.getByRole('button',{name:'Confirm email opt-in',exact:true}).click();await guest.getByRole('heading',{name:'Marketing email enabled',exact:true}).waitFor();await shot(guest,'permission-enabled')
+  await guest.goto(transport.origin+'/retention#'+confirm);await guest.getByRole('heading',{name:'Confirm marketing email',exact:true}).waitFor();assert.ok((await guest.locator('#confirm-consent').innerText()).includes((await h.api('/api/state')).state.venue.name));await guest.locator('[name=permission]').check();await shot(guest,'confirm-permission');await guest.getByRole('button',{name:'Confirm email opt-in',exact:true}).click();await guest.getByRole('heading',{name:'Marketing email enabled',exact:true}).waitFor();await shot(guest,'permission-enabled')
   await guest.getByRole('button',{name:'Unsubscribe from marketing',exact:true}).click();await guest.getByRole('heading',{name:'Unsubscribed',exact:true}).waitFor()
   assert.ok(urls.every(url=>!url.includes(token)&&!url.includes(confirm)),'Private campaign credentials stay out of HTTP URLs');assert.deepEqual(errors,[])
   console.log(`Retention Settings approval, delivered offer, attributed return visit and email consent passed at ${width}`)
