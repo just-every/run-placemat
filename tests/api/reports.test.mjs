@@ -256,7 +256,15 @@ test('Weekly group delivery requires explicit recipient approval, authenticates 
   assert.ok(!JSON.stringify(sent[0]).includes('bookedCovers')&&!JSON.stringify(sent[0]).includes('guest0@example.test'))
   const link=new URL(sent[0].text.match(/https:\/\/[^\s]+/)[0]),path=link.pathname
   assert.equal(link.search,'');assert.equal(link.hash,'')
+  const people=await f.home.api('/auth/operators'),ownerId=people.find(p=>p.role==='owner').id,otherId=people.find(p=>p.email.startsWith('synthetic-placemat-other')).id
+  const attemptId=(await f.home.api('/api/report-schedules')).deliveries[0].id
+  assert.equal(path,'/api/report-deliveries/'+attemptId+'.csv')
+  const auditEntries=async(action,subject)=>(await f.home.api('/api/audit')).rows.filter(e=>e.action===action&&e.subject===subject).map(({actor,reason})=>({actor,reason}))
+  assert.deepEqual(await auditEntries('report.delivery-attempt',schedule.id),[{actor:ownerId,reason:'Provider accepted; mailbox delivery unconfirmed.'}])
   for(const as of ['',f.other,f.home.cookie]){const denied=await f.home.api(path,undefined,{as,status:as?403:401});assert.ok(!JSON.stringify(denied).includes('Home Bistro'))}
+  assert.deepEqual(await auditEntries('report.link-refused',attemptId),[
+   {actor:ownerId,reason:'No report disclosed.'},{actor:otherId,reason:'No report disclosed.'},{actor:'anonymous',reason:''}
+  ])
   assert.ok((await(await f.home.request(path,{as:f.recipient})).text()).includes('Home Bistro'))
   await f.tick();assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1,'Durable due claim prevents a repeated send')
   await f.home.api('/api/group/admin/revoke',{operatorId:f.recipientId})
@@ -277,6 +285,30 @@ test('Weekly group delivery requires explicit recipient approval, authenticates 
   assert.ok(!JSON.stringify(archive.filter(l=>l.kind==='part')).includes('recipient_hash'))
   for(const kind of ['report-schedules','report-deliveries']){const csv=await(await f.home.request('/api/business-export/'+kind+'.csv')).text();assert.ok(csv.includes(schedule.id));assert.ok(!csv.includes('recipient_hash'))}
   const restored=await installation();try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/report-schedules')).schedules,[])}finally{await restored.close()}
+  // A native address change invalidates the recorded approval on both download and delivery.
+  const addressSchedule=await f.approve()
+  await f.tick()
+  const addressAttempt=(await f.home.api('/api/report-schedules')).deliveries.find(d=>d.schedule_id===addressSchedule.id)
+  const addressPath='/api/report-deliveries/'+addressAttempt.id+'.csv'
+  assert.equal((await f.home.request(addressPath,{as:f.recipient})).status,200)
+  const reportCount=()=>f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length
+  const beforeChange=reportCount(),changedEmail='synthetic-placemat-2'+String.fromCharCode(64)+'example.test'
+  await f.home.api('/auth/email',{email:changedEmail},{as:f.recipient})
+  await f.home.api(addressPath,undefined,{as:f.recipient,status:403})
+  assert.deepEqual(await auditEntries('report.link-refused',addressAttempt.id),[{actor:f.recipientId,reason:'No report disclosed.'}])
+  await f.tick('2031-11-10T18:00:00.000Z')
+  assert.equal(reportCount(),beforeChange,'A changed address receives no delivery under its old approval')
+  assert.equal((await f.home.api('/api/report-schedules')).deliveries.find(d=>d.schedule_id===addressSchedule.id&&d.due_at==='2031-11-10T18:00:00.000Z').state,'blocked')
+  assert.deepEqual(await auditEntries('report.recheck-refused',addressSchedule.id),[{actor:ownerId,reason:'Current authority refused delivery. No report or email was released.'}])
+  await f.home.api('/auth/operator/status',{operatorId:f.managerId,status:'active'})
+  const manager=await f.signIn('synthetic-placemat-manager'+String.fromCharCode(64)+'example.test','admin')
+  await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{as:manager,status:403})
+  assert.deepEqual(await auditEntries('report.recipient-refused',f.recipientId),[{actor:f.managerId,reason:'Owner approval of this recipient address is required.'}])
+  const renewed=await f.approve()
+  assert.deepEqual(await auditEntries('report.recipient-approved',renewed.id),[{actor:ownerId,reason:'Explicit weekly email approval for one native identity; authenticated links only.'}])
+  await f.tick()
+  assert.equal(reportCount(),beforeChange+1)
+  assert.deepEqual(f.mail.messages.findLast(m=>m.subject==='Your weekly group cover report').to,[changedEmail])
  }finally{await f.close()}
 })
 
@@ -288,6 +320,8 @@ test('Uncertain report submissions stay unconfirmed across scheduler replay and 
   await f.approve({nextAt:'2032-11-03T18:00:00.000Z'})
   const schedule=await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{as:f.manager,status:201});f.mail.uncertain=true;await f.tick()
   const deliveries=(await f.home.api('/api/report-schedules')).deliveries,attempt=deliveries[0]
+  const attempts=async()=>(await f.home.api('/api/audit')).rows.filter(e=>e.action==='report.delivery-attempt'&&e.subject===schedule.id).map(({actor,reason})=>({actor,reason}))
+  assert.deepEqual(await attempts(),[{actor:f.managerId,reason:'Delivery unconfirmed; owner must explicitly resend.'}])
   assert.equal(attempt.state,'delivery unconfirmed');assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)
   await f.tick();assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,1)
   await f.home.api('/api/report-schedules/resend',{scheduleId:schedule.id,deliveryId:attempt.id},{status:400})
@@ -295,6 +329,10 @@ test('Uncertain report submissions stay unconfirmed across scheduler replay and 
   f.mail.uncertain=false;await f.home.api('/api/report-schedules/resend',{scheduleId:schedule.id,deliveryId:attempt.id,acknowledged:true})
   assert.ok((await f.home.api('/api/audit')).rows.some(e=>e.action==='report.manual-resend-approved'&&e.actor===ownerId))
   assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,2)
+  assert.deepEqual(await attempts(),[
+   {actor:f.managerId,reason:'Provider accepted; mailbox delivery unconfirmed.'},
+   {actor:f.managerId,reason:'Delivery unconfirmed; owner must explicitly resend.'}
+  ])
   assert.ok((await f.home.api('/api/report-schedules')).deliveries.some(d=>d.state==='provider accepted'))
   await f.home.api('/api/group/admin/revoke',{operatorId:f.recipientId})
   await f.home.api('/api/report-schedules/resend',{scheduleId:schedule.id,deliveryId:attempt.id,acknowledged:true})
