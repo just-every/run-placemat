@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 56 done, 29 partial, 50 missing; 135 total.
+Inventory: 55 done, 30 partial, 50 missing; 135 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -104,7 +104,7 @@ Inventory: 56 done, 29 partial, 50 missing; 135 total.
 | REPORT-002 | done | `src/placemat/performance.ts`; `src/placemat/performance-store.ts`; `public/placemat-performance.js`; `tests/api/reports.test.mjs`; `tests/api/pacing.test.mjs`; `tests/performance-ui.mjs` |
 | REPORT-003 | partial | `src/placemat/model.ts`; `public/placemat.js`; `tests/api/flows.test.mjs` |
 | REPORT-004 | missing |  |
-| REPORT-005 | done | `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `tests/api/business-export.test.mjs`; `tests/api/finance-role.test.mjs`; `scripts/report-schedule-sandbox.mjs`; `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `scripts/recurring-reports-sandbox.mjs` |
+| REPORT-005 | partial | `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `tests/api/business-export.test.mjs`; `tests/api/finance-role.test.mjs`; `scripts/report-schedule-sandbox.mjs`; `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `scripts/recurring-reports-sandbox.mjs` |
 | REPORT-008 | done | `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `scripts/recurring-reports-sandbox.mjs` |
 | REPORT-006 | missing |  |
 | REPORT-007 | done | `src/placemat/service-close-report.ts`; `src/placemat/recovery.ts`; `src/placemat/pdf.ts`; `public/placemat-close-report.js`; `tests/api/service-close-report.test.mjs`; `tests/service-close-report-ui.mjs` |
