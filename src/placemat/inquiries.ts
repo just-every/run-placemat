@@ -7,6 +7,7 @@ import {checkStaffing,recordServing,servingFor} from './staffing-capacity'
 import {guestFor,guestGuard,guestInsert} from './guests'
 import {hash,load,save} from './store'
 import {normalizeBookingRequests,requestTerms,type BookingRequests} from './booking-requests'
+import {publicInquiryLimits} from './inquiry-limits.mjs'
 
 export type InquiryMessage={id:string;author:'guest'|'venue';actorId?:string;at:string;message:string}
 export type InquiryOffer={version:number;serviceId:string;startAt:string;endAt:string;cleanupEndAt:string;partySize:number;requiredArea?:string;requiredAccessTags:string[];guarantees:string[]}
@@ -26,6 +27,19 @@ const due=(value:unknown,now:string)=>{
 }
 function append(row:Inquiry,author:InquiryMessage['author'],message:unknown,now:string,actorId?:string){
  row.messages.push({id:id(),author,at:now,message:text(message,'Message',4000),...(actorId?{actorId}:{})})
+}
+function appendReply(row:Inquiry,author:InquiryMessage['author'],message:unknown,now:string,actorId?:string){
+ if(row.messages.length>=publicInquiryLimits.messagesPerInquiry)fail(413,'This inquiry has reached its conversation limit. Close it or continue outside Placemat.')
+ append(row,author,message,now,actorId)
+}
+const messageBytes=(messages:InquiryMessage[])=>messages.reduce((sum,message)=>sum+new TextEncoder().encode(message.message).byteLength,0)
+function appendPublic(s:State,row:Inquiry,message:unknown,now:string){
+ const value=text(message,'Message',4000),bytes=new TextEncoder().encode(value).byteLength
+ if(row.messages.length>=publicInquiryLimits.messagesPerInquiry)fail(429,'This inquiry has reached its guest reply limit. Contact the venue directly for more help.')
+ if(messageBytes(row.messages.filter(message=>message.author==='guest'))+bytes>publicInquiryLimits.messageBytesPerInquiry)fail(413,'This inquiry has reached its guest message size limit. Contact the venue directly for more help.')
+ const venueBytes=rows(s).filter(active).reduce((sum,inquiry)=>sum+messageBytes(inquiry.messages.filter(message=>message.author==='guest')),0)
+ if(venueBytes+bytes>publicInquiryLimits.activeMessageBytesPerVenue)fail(413,'Online inquiry replies are temporarily full. Contact the venue directly for more help.')
+ appendReply(row,'guest',value,now)
 }
 function audit(s:State,row:Inquiry,now:string,actor:string,action:string){s.audit.push({id:id(),at:now,actor,action,subject:row.id})}
 function view(s:State,row:Inquiry){
@@ -58,10 +72,10 @@ export async function publicCreateInquiry(db:D1Database,p:any){
  if(!owner)fail(409,'Online inquiries are unavailable. Contact the venue.')
  const row:Inquiry={id:id(),guestId:entry.guest.id,ownerId:owner!.id,status:'open',replyDueAt:new Date(Date.parse(now)+86400000).toISOString(),partySize,
   requiredAccessTags,...requiredArea?{requiredArea}:{},requests,...serviceId?{serviceId}:{},...requestedStartAt?{requestedStartAt}:{},messages:[],createdAt:now,updatedAt:now}
- if(p.message!==undefined&&p.message!=='')append(row,'guest',p.message,now)
+ if(p.message!==undefined&&p.message!=='')appendPublic(s,row,p.message,now)
  const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('')
  row.tokenHash=await hash(token);rows(s).push(row);audit(s,row,now,'guest','inquiry.create')
- await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])])
+ await save(db,s,version,[guestGuard(db,entry),...(entry.fresh?[guestInsert(db,entry.guest,version)]:[])],{maxBytes:publicInquiryLimits.stateBytes})
  return {...view(s,row),id:row.id,token}
 }
 export async function publicReadInquiry(db:D1Database,token:unknown){const {state:s}=await load(db);return view(s,await byToken(s,token))}
@@ -74,9 +88,9 @@ export async function publicReplyInquiry(db:D1Database,p:any){
   if(row.offer!.startAt<=now)fail(409,'This offer has passed. Ask the venue for a new offer.')
   row.acceptedOfferVersion=row.offer!.version;row.acceptedAt=now;row.status='accepted'
  }
- if(p.message!==undefined)append(row,'guest',p.message,now)
+ if(p.message!==undefined)appendPublic(s,row,p.message,now)
  row.updatedAt=now;audit(s,row,now,'guest',p.acceptOfferVersion===undefined?'inquiry.guest-reply':'inquiry.accept')
- await save(db,s,version)
+ await save(db,s,version,[],{maxBytes:publicInquiryLimits.stateBytes})
  return view(s,row)
 }
 
@@ -129,7 +143,7 @@ export async function executeInquiry(s:State,actor:Actor,command:string,p:any,no
   const offerPayload=p.offer??p,hasOffer=p.offer!==undefined||p.serviceId!==undefined||p.startAt!==undefined
   if(!hasOffer&&p.message===undefined)fail(400,'Write a reply or supply an exact offer.')
   if(hasOffer){row.offer=makeOffer(s,row,offerPayload,now);delete row.acceptedOfferVersion;delete row.acceptedAt;row.status='offered'}
-  if(p.message!==undefined)append(row,'venue',p.message,now,actor.id)
+  if(p.message!==undefined)appendReply(row,'venue',p.message,now,actor.id)
   if(p.replyDueAt!==undefined)row.replyDueAt=due(p.replyDueAt,now)
  }else if(command==='inquiry.close'){
   if(p.message!==undefined)append(row,'venue',p.message,now,actor.id)

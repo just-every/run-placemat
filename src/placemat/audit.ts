@@ -8,6 +8,17 @@ function snapshot(value:unknown):unknown {
  if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([key])=>!/token|secret|password|credential|bearer|authorization|cookie|session/i.test(key)).map(([key,item])=>[key,snapshot(item)]))
  return value
 }
+function inquirySnapshots(before:any,after:any):Pick<AuditChange,'before'|'after'>{
+ const priorMessages:Array<any>=before?.messages??[],nextMessages:Array<any>=after?.messages??[]
+ const appended=priorMessages.every((message,index)=>same(message,nextMessages[index]))?nextMessages.slice(priorMessages.length):[]
+ const withoutMessages=(value:any)=>{
+  if(value===null||value===undefined)return null
+  const {messages,...record}=value
+  return snapshot(record) as Record<string,unknown>
+ }
+ const prior=withoutMessages(before),next=withoutMessages(after)
+ return {before:prior,after:next&&appended.length?{...next,appendedMessages:snapshot(appended)}:next}
+}
 
 /** Attach all committed state changes to the command's existing accountable event. */
 export function captureAudit(previous:State,next:State):void {
@@ -23,7 +34,10 @@ export function captureAudit(previous:State,next:State):void {
    const old=new Map((before??[]).map((row:any)=>[row.id,row])),current=new Map((after??[]).map((row:any)=>[row.id,row]))
    // Primitive grant lists are a single policy record rather than anonymous rows.
    if([...(before??[]),...(after??[])].some(row=>!row||typeof row!=='object'||!row.id))changes.push({kind,id:kind,before:snapshot(before??null),after:snapshot(after??null)})
-   else for(const key of new Set([...old.keys(),...current.keys()]))if(!same(old.get(key),current.get(key)))changes.push({kind,id:String(key),before:snapshot(old.get(key)??null),after:snapshot(current.get(key)??null)})
+   else for(const key of new Set([...old.keys(),...current.keys()]))if(!same(old.get(key),current.get(key))){
+    const previous=old.get(key)??null,next=current.get(key)??null
+    changes.push({kind,id:String(key),...(kind==='inquiries'?inquirySnapshots(previous,next):{before:snapshot(previous),after:snapshot(next)})})
+   }
   }else changes.push({kind,id:kind,before:snapshot(before??null),after:snapshot(after??null)})
  }
  event.changes=[...(event.changes??[]),...changes]

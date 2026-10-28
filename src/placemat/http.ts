@@ -39,6 +39,7 @@ import {businessExportKinds} from './business-export'
 import {readBusinessCsv} from './business-export-store'
 import {inquiryPage} from './inquiry-views'
 import {publicCreateInquiry,publicReadInquiry,publicReplyInquiry} from './inquiries'
+import {publicInquiryLimits} from './inquiry-limits.mjs'
 import {adviseInventory} from './inventory-advisor'
 import {adviseShiftAdjustments} from './shift-advisor'
 import {adviseAllocations} from './allocation-advisor'
@@ -144,7 +145,16 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
     return json(await publicCreateInquiry(env.DB,p),201)
    }
    if(path==='/api/public/inquiries/status')return json(await publicReadInquiry(env.DB,p.token))
-   if(path==='/api/public/inquiries/reply')return json(await publicReplyInquiry(env.DB,p))
+   if(path==='/api/public/inquiries/reply'){
+    const minute=Math.floor(Date.now()/60000),ip=request.headers.get('CF-Connecting-IP')??'local',token=typeof p.token==='string'?p.token:'invalid'
+    const [ipResult,tokenResult]=await env.DB.batch<{count:number}>([
+     env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(await hash(ip+':inquiry-reply-ip:'+minute)),
+     env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(await hash(token+':inquiry-reply-token:'+minute)),
+     env.DB.prepare('DELETE FROM pm_public_limits WHERE rowid IN (SELECT rowid FROM pm_public_limits ORDER BY rowid DESC LIMIT -1 OFFSET 500)')
+    ])
+    if((ipResult.results[0]?.count??0)>publicInquiryLimits.replyIpPerMinute||(tokenResult.results[0]?.count??0)>publicInquiryLimits.replyTokenPerMinute)fail(429,'Too many inquiry replies. Please wait a minute.')
+    return json(await publicReplyInquiry(env.DB,p))
+   }
    return json({error:'Not found'},404)
   }
   if(path==='/queue'){if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);return queuePage(request)}

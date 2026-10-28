@@ -16,7 +16,7 @@ export async function load(db:D1Database):Promise<{state:State;version:number}> 
  return {state,version:row!.version}
 }
 export async function guests(db:D1Database):Promise<Guest[]> {return (await db.prepare('SELECT data FROM pm_guests ORDER BY id').all<{data:string}>()).results.map(r=>JSON.parse(r.data)).filter(g=>!g.mergedInto)}
-export async function save(db:D1Database,state:State,version:number,before:D1PreparedStatement[]=[]) {
+export async function save(db:D1Database,state:State,version:number,before:D1PreparedStatement[]=[],options:{maxBytes?:number}={}) {
  const previous=await db.prepare('SELECT data FROM pm_state WHERE id=1 AND version=?').bind(version).first<{data:string}>()
  if(!previous)fail(409,'The floor changed. Refresh and review the current availability.')
  const prior:State=JSON.parse(previous!.data);prior.holds=await readActiveHolds(db)
@@ -28,9 +28,11 @@ export async function save(db:D1Database,state:State,version:number,before:D1Pre
  assertHeldConfiguration(prior,state)
  const {holds,...persisted}=state
  captureAudit(prior,persisted)
+ const data=JSON.stringify(persisted)
+ if(options.maxBytes!==undefined&&new TextEncoder().encode(data).byteLength>=options.maxBytes)fail(413,'Online inquiry storage is temporarily full. Contact the venue directly for help.')
  const fence=db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END').bind(version)
  let out:D1Result[]
- try{out=await db.batch([fence,...(releaseFence?[releaseFence]:[]),...before,...reservationEvents(db,prior,state),db.prepare('DELETE FROM pm_assertions'),db.prepare('UPDATE pm_state SET data=?,version=version+1 WHERE id=1 AND version=?').bind(JSON.stringify(persisted),version)])}
+ try{out=await db.batch([fence,...(releaseFence?[releaseFence]:[]),...before,...reservationEvents(db,prior,state),db.prepare('DELETE FROM pm_assertions'),db.prepare('UPDATE pm_state SET data=?,version=version+1 WHERE id=1 AND version=?').bind(data,version)])}
  catch(error){if(/pm_assertions|CHECK constraint failed/.test(String(error)))fail(409,'The floor or authority changed. Refresh and review before saving.');throw error}
  if(out.at(-1)!.meta.changes!==1) fail(409,'The floor changed. Refresh and review the current availability.')
 }

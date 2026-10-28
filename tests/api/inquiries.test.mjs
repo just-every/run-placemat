@@ -1,8 +1,77 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
-import {installation} from './harness.mjs'
+import {installation,service,publicGuest} from './harness.mjs'
+import {publicInquiryLimits} from '../../src/placemat/inquiry-limits.mjs'
 import {inquiryService,inquiryPayload,requests} from './inquiries-fixture.mjs'
+
+test('public inquiry replies stop before shared state can crowd out manager and reservation writes',async()=>{
+ const h=await installation();try{
+  const {service:s}=await service(h,{tables:2,seats:4,covers:8})
+  const call=(name,body,ip='203.0.113.10')=>h.request('/api/public/inquiries/'+name,{method:'POST',as:'',headers:{'CF-Connecting-IP':ip},body})
+  const created=await (await call('create',{name:'Bounded guest',email:'bounded@example.test',partySize:6,message:'Please help with a group table.'})).json()
+  let refusal
+  for(let attempt=0;attempt<publicInquiryLimits.messagesPerInquiry+1;attempt++){
+   const response=await call('reply',{token:created.token,message:'x'.repeat(4000)})
+   if(!response.ok){refusal=response;break}
+  }
+  assert.ok(refusal,'the configured inquiry cap must refuse repeated maximum-size replies')
+  assert.ok([413,429].includes(refusal.status),await refusal.text())
+  const stored=await h.db.prepare('SELECT length(CAST(data AS BLOB)) bytes,data FROM pm_state WHERE id=1').first()
+  assert.ok(stored.bytes<publicInquiryLimits.stateBytes,`shared state used ${stored.bytes} bytes`)
+  const state=JSON.parse(stored.data),replyAudit=state.audit.findLast(row=>row.action==='inquiry.guest-reply')
+  const inquiryChange=replyAudit.changes.find(change=>change.kind==='inquiries'&&change.id===created.id)
+  assert.ok(!inquiryChange.before?.messages,'inquiry audit does not copy the prior conversation')
+  assert.equal(inquiryChange.after.appendedMessages.length,1)
+  assert.equal(inquiryChange.after.appendedMessages[0].message.length,4000)
+  assert.ok(!inquiryChange.after.messages,'inquiry audit stores the append delta only')
+  await h.command('inquiry.close',{inquiryId:created.id,message:'The venue has closed this inquiry at the guest reply cap.'})
+  const reservation=(await h.api('/api/public/book',publicGuest(s,0,{partySize:4}),{as:'',status:201})).result
+  assert.ok((await h.api('/api/state')).state.bookings.some(row=>row.id===reservation.id))
+  assert.ok((await h.db.prepare('SELECT length(CAST(data AS BLOB)) bytes FROM pm_state WHERE id=1').first()).bytes<publicInquiryLimits.stateBytes)
+ }finally{await h.close()}
+})
+
+test('public inquiry reply rate limits apply independently to an inquiry token and a source IP',async()=>{
+ const h=await installation();try{
+  const call=(name,body,ip)=>h.request('/api/public/inquiries/'+name,{method:'POST',as:'',headers:{'CF-Connecting-IP':ip},body})
+  const create=async(index,ip)=>{
+   const response=await call('create',{name:'Rate guest '+index,email:`rate-${index}@example.test`,partySize:6},ip)
+   assert.equal(response.status,201,await response.clone().text())
+   return response.json()
+  }
+  const tokenIp='203.0.113.20',tokenInquiry=await create('token',tokenIp)
+  for(let attempt=0;attempt<publicInquiryLimits.replyTokenPerMinute;attempt++)assert.equal((await call('reply',{token:tokenInquiry.token},tokenIp)).status,400)
+  assert.equal((await call('reply',{token:tokenInquiry.token},tokenIp)).status,429)
+
+  const sharedIp='203.0.113.30',inquiries=[]
+  for(let index=0;index<4;index++)inquiries.push(await create('ip-'+index,sharedIp))
+  for(const inquiry of inquiries)for(let attempt=0;attempt<publicInquiryLimits.replyIpPerMinute/inquiries.length;attempt++)assert.equal((await call('reply',{token:inquiry.token},sharedIp)).status,400)
+  assert.equal((await call('reply',{token:inquiries[0].token},sharedIp)).status,429)
+ }finally{await h.close()}
+})
+
+test('active inquiries share a venue-wide guest-message budget that closing an inquiry releases',async()=>{
+ const h=await installation();try{
+  const message='v'.repeat(4000),perInquiry=Math.floor(publicInquiryLimits.messageBytesPerInquiry/Buffer.byteLength(message)),created=[]
+  let refusal,last
+  for(let index=0;!refusal;index++){
+   const ip=`198.51.100.${index+1}`,made=await h.api('/api/public/inquiries/create',{name:'Venue cap '+index,email:`venue-cap-${index}@example.test`,partySize:6},{as:'',headers:{'CF-Connecting-IP':ip},status:201})
+   created.push(made);last={made,ip}
+   for(let attempt=0;attempt<perInquiry;attempt++){
+    const response=await h.request('/api/public/inquiries/reply',{method:'POST',as:'',headers:{'CF-Connecting-IP':ip},body:{token:made.token,message}})
+    if(!response.ok){refusal=response;break}
+   }
+  }
+  assert.equal(refusal.status,413,await refusal.text())
+  const before=(await h.api('/api/state')).state,activeGuestBytes=before.inquiries.filter(row=>!['closed','converted'].includes(row.status)).flatMap(row=>row.messages.filter(entry=>entry.author==='guest')).reduce((sum,entry)=>sum+Buffer.byteLength(entry.message),0)
+  assert.ok(activeGuestBytes<=publicInquiryLimits.activeMessageBytesPerVenue)
+  assert.ok(activeGuestBytes+Buffer.byteLength(message)>publicInquiryLimits.activeMessageBytesPerVenue)
+  await h.command('inquiry.close',{inquiryId:created[0].id})
+  assert.equal((await h.request('/api/public/inquiries/reply',{method:'POST',as:'',headers:{'CF-Connecting-IP':last.ip},body:{token:last.made.token,message}})).status,200)
+  assert.ok((await h.db.prepare('SELECT length(CAST(data AS BLOB)) bytes FROM pm_state WHERE id=1').first()).bytes<publicInquiryLimits.stateBytes)
+ }finally{await h.close()}
+})
 
 test('BOOK-007: required access and requested patio stay distinct; owned scoped inquiry offers need guest acceptance and fresh capacity before conversion',async()=>{
  const h=await installation();try{
