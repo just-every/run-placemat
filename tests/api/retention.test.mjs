@@ -73,6 +73,9 @@ test('Retention refuses missing authority and stale consent, stops queued recipi
   const fresh=await h.api('/api/retention/preview',{workflowId:draft.preview.workflowId});await pub(h,'unsubscribe',{token:f.unsubscribeTokens[2]})
   await h.api('/api/retention/approve',{workflowId:fresh.preview.workflowId,previewHash:fresh.preview.previewHash},{status:409})
   const current=await h.api('/api/retention/preview',{workflowId:draft.preview.workflowId});assert.equal(current.preview.recipients.length,2);await f.approve(current)
+  const managerId=(await h.api('/auth/operators')).find(o=>o.email===['retention-manager','example.test'].join('@')).id
+  await h.api('/auth/operator/status',{operatorId:managerId,status:'inactive'})
+  assert.equal((await h.api('/api/retention')).workflows.find(w=>w.id===current.preview.workflowId).status,'approved','Revoking an unrelated manager must preserve the owner-approved marketing workflow')
   await retentionTick(h,f.tickAt);assert.equal(marketingMessages(h).length,2)
   const token=linkToken(marketingMessages(h)[0]),subject=(await h.api('/api/retention')).guests.find(g=>g.email===marketingMessages(h)[0].to[0])
   const access=await h.api('/api/privacy/access',{guestId:subject.id});assert.ok(access.retention);assert.ok(!JSON.stringify(access).includes(token))

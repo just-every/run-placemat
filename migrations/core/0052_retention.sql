@@ -10,13 +10,13 @@ CREATE TABLE pm_retention_deliveries(id TEXT PRIMARY KEY,workflow_id TEXT NOT NU
 CREATE INDEX pm_retention_delivery_cap ON pm_retention_deliveries(guest_id,created_at);
 CREATE INDEX pm_retention_address_cap ON pm_retention_deliveries(email_hash,created_at);
 CREATE TABLE pm_retention_attributions(booking_id TEXT PRIMARY KEY,delivery_id TEXT NOT NULL REFERENCES pm_retention_deliveries(id) ON DELETE CASCADE,guest_id TEXT NOT NULL,created_at TEXT NOT NULL);
-CREATE TRIGGER pm_retention_owner_revoke AFTER UPDATE OF role,status ON oa_operators WHEN NEW.role!='owner' OR NEW.status!='active' BEGIN
+CREATE TRIGGER pm_retention_owner_revoke AFTER UPDATE OF role,status ON oa_operators WHEN (NEW.role!='owner' OR NEW.status!='active') AND EXISTS(SELECT 1 FROM pm_retention_settings WHERE owner_id=NEW.id) BEGIN
  DELETE FROM pm_retention_approvals WHERE owner_id=NEW.id;
  UPDATE pm_retention_settings SET enabled=0,revision=lower(hex(randomblob(16))) WHERE owner_id=NEW.id;
  UPDATE pm_retention_workflows SET status='stopped' WHERE status='approved';
  UPDATE pm_retention_deliveries SET state='cancelled' WHERE state='claimed';
 END;
-CREATE TRIGGER pm_retention_owner_delete AFTER DELETE ON oa_operators BEGIN
+CREATE TRIGGER pm_retention_owner_delete AFTER DELETE ON oa_operators WHEN EXISTS(SELECT 1 FROM pm_retention_settings WHERE owner_id=OLD.id) BEGIN
  DELETE FROM pm_retention_approvals WHERE owner_id=OLD.id;
  UPDATE pm_retention_settings SET enabled=0,revision=lower(hex(randomblob(16))) WHERE owner_id=OLD.id;
  UPDATE pm_retention_workflows SET status='stopped' WHERE status='approved';

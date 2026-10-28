@@ -550,7 +550,7 @@
       "executable": false
     },
     "migrations/core/0052_retention.sql": {
-      "sha256": "af3338d6a6e72b50deaf101ef8679b775c187b2787335f1a77e9eb146896f98c",
+      "sha256": "e2e7ad94fb2bb49d872febc41a0873810b91b759b4c625f2952d4583625d7240",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -4374,7 +4374,7 @@
       "executable": false
     },
     "tests/api/retention.test.mjs": {
-      "sha256": "ec7df59f2ff673f8afac21af942af3ec9de100e4e0f17288a8f8e56372583151",
+      "sha256": "44ad1415bb23cf0b1f1686b4b3acdd510c918f0d3128546ff9268f61e885ef19",
       "executable": false
     },
     "tests/api/risk-fixture.mjs": {
