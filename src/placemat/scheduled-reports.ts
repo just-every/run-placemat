@@ -198,7 +198,8 @@ export async function scheduledReportResponse(request:Request,env:Bindings):Prom
    try{await ownerApprovedAddress(env.DB,recipient!.id,await hash(recipient!.email))}
    catch(error){await audit(env.DB,actor!.id,'report.recipient-refused',recipient!.id,'Owner approval of this recipient address is required.');throw error}
   }
-  await reportFor(env,candidate,new URLSearchParams({dateFrom:day,dateTo:day}))
+  try{await reportFor(env,candidate,new URLSearchParams({dateFrom:day,dateTo:day}))}
+  catch(error){await audit(env.DB,actor!.id,'report.recipient-refused',recipient!.id,'Current report-purpose authority refused approval.');throw error}
   const scheduleId=id(),at=new Date().toISOString()
   await audit(env.DB,actor!.id,'report.recipient-approved',scheduleId,'Explicit weekly email approval for one native identity; authenticated links only.',[env.DB.prepare('INSERT INTO pm_report_schedules(id,owner_id,recipient_id,recipient_hash,venues,timezone,next_at,approved_at,report_kind,service_id) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(scheduleId,actor!.id,recipient!.id,await hash(recipient!.email),JSON.stringify(p.venueIds),state.venue.timezone,p.nextAt,at,reportKind,serviceId)])
   return Response.json({id:scheduleId},{status:201,headers:noStore})

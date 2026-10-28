@@ -308,6 +308,7 @@ test('Recurring native reports recheck purpose, service scope, consent facts and
  const edge=paymentEdge(),f=await reportGroup({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:edge.edge})
  try{
   const owner=(await f.home.api('/auth/operators')).find(p=>p.role==='owner'),booking=f.bookings[0],state=(await f.home.api('/api/state')).state,serviceId=state.bookings.find(b=>b.id===booking.id).serviceId
+  const phone=await f.home.command('booking.phone',{serviceId,startAt:new Date(Date.parse(state.services.find(s=>s.id===serviceId).startAt)+90*60000).toISOString(),name:'Synthetic consent guest',phone:'2025550118',partySize:2,staffIntake:{source:'phone',contactPreference:'none',confirmationConsent:false}})
   const chargeId=edge.charge(booking.id);await f.home.command('payment.charge-sync',{bookingId:booking.id,chargeId})
   await f.home.command('payment.refund',{bookingId:booking.id,chargeId,amountCents:4000,requestId:'synthetic-placemat-refund',reason:'Reviewed refund'})
   const finance=await f.signIn('synthetic-placemat-finance'+String.fromCharCode(64)+'example.test'),financeId=(await f.home.api('/auth/operators')).find(p=>p.email.startsWith('synthetic-placemat-finance')).id
@@ -327,12 +328,18 @@ test('Recurring native reports recheck purpose, service scope, consent facts and
   assert.ok(guests.includes('Alex Rowan'));assert.ok(guests.includes('"not recorded","not recorded","Not recorded"'),'No contact or marketing permission is manufactured')
   assert.ok(financeCsv.includes('"charge","'+booking.id+'","'+chargeId+'","15000"'))
   assert.ok(financeCsv.includes('"4000"')&&financeCsv.includes('"11000"'));assert.ok(!financeCsv.includes('Alex Rowan')&&!financeCsv.includes('Reviewed refund'))
+  assert.ok(guests.includes(phone.id)&&guests.includes('"false","none","Not recorded"'),'Declined purpose-specific contact stays declined')
+  for(const [kind,value] of [['guests','Alex Rowan'],['finance',chargeId]]){
+   const future=await f.home.request('/api/report-export.csv?kind='+kind+'&period=future'),past=await f.home.request('/api/report-export.csv?kind='+kind+'&period=past')
+   assert.equal(future.status,200);assert.equal(past.status,200);assert.ok((await future.text()).includes(value));assert.ok(!(await past.text()).includes(value))
+  }
+  assert.deepEqual((await f.home.api('/api/state')).state.bookings.find(b=>b.id===phone.id).staffIntake,{source:'phone',contactPreference:'none',confirmationConsent:false})
   assert.equal(f.mail.messages.filter(m=>m.subject.startsWith('Your weekly ')).length,3)
   for(const message of f.mail.messages.filter(m=>m.subject.startsWith('Your weekly ')))assert.ok(!message.text.includes('Alex Rowan')&&!message.text.includes(chargeId),'Only authenticated links leave the installation')
   for(const [s,as] of [[guest,f.manager],[guest,finance],[money,f.manager],[reservation,f.other],[money,'']])await f.home.api(path(s),undefined,{as,status:as?403:401})
   const personal=(await f.home.api('/api/state')).state.bookings.find(b=>b.id===booking.id).guestId
   await f.home.command('guest.erase',{guestId:personal,confirm:'ERASE'})
-  assert.ok(!(await download(guest,f.home.cookie)).includes('Alex Rowan'))
+  assert.ok(!(await download(guest,f.home.cookie)).includes(booking.id),'Erased guest rows leave the guest report')
   assert.ok((await download(money,finance)).includes('"11000"'),'Erasure preserves financial facts without personal fields')
   await f.tick();assert.equal(f.mail.messages.filter(m=>m.subject.startsWith('Your weekly ')).length,3,'Replayed captures never resend')
   await f.home.command('team.finance',{operatorId:financeId,enabled:false});await f.home.command('team.reports',{operatorId:f.managerId,serviceIds:[]})

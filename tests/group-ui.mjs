@@ -75,6 +75,7 @@ for(const width of [1440,390]){
   const financeEmail='synthetic-placemat-weekly-finance'+String.fromCharCode(64)+'example.test',financeCookie=await f.signIn(financeEmail,'member','Weekly finance reader')
   const people=await f.home.api('/auth/operators'),financeId=people.find(p=>p.email===financeEmail).id,ownerId=people.find(p=>p.role==='owner').id
   await f.home.command('team.finance',{operatorId:financeId,enabled:true})
+  await f.home.command('payment.request',{bookingId:f.bookings[0].id,amountCents:2000,dueAt:'2031-11-03T00:00:00.000Z',followupOwnerId:ownerId,reason:'Reviewed booking deposit'})
   const owner=await open(f.home.cookie,true),settings=()=>owner.page.locator('#report-schedule-settings')
   await settings().evaluate(el=>el.open=true)
   const form=owner.page.locator('#report-schedule-create')
@@ -100,11 +101,11 @@ for(const width of [1440,390]){
   await settings().getByRole('button',{name:'Stop weekly report'}).click();await settings().getByText('Schedule stopped',{exact:false}).waitFor();await shot(owner.page,'stopped',settings())
   // Local schedules use the same approval form and deliver only to the nominated native identity.
   const manager=await open(f.manager),finance=await open(financeCookie,false,true)
-  const homeService=(await f.home.api('/api/state')).state.services.find(s=>s.id===f.bookings[0].serviceId)
+  const localState=(await f.home.api('/api/state')).state,homeService=localState.services.find(s=>s.id===localState.bookings.find(b=>b.id===f.bookings[0].id).serviceId)
   for(const local of [
    {kind:'reservations',label:'Local reservations',recipientId:f.managerId,session:manager,serviceId:homeService.id,subject:'Your weekly reservation report',header:/bookingId,serviceId,service,venue,serviceDate/,body:f.bookings[0].id},
    {kind:'guests',label:'Local guests',recipientId:ownerId,session:owner,serviceId:null,subject:'Your weekly guest report',header:/bookingId,serviceDate,guestId,name,email,phone,confirmationConsent,contactPreference,marketingPermission/,body:'guest0@example.test'},
-   {kind:'finance',label:'Local finance',recipientId:financeId,session:finance,serviceId:null,subject:'Your weekly finance report',header:/kind,bookingId,recordId,amountCents,currency,state,pendingCents,succeededCents,remainingCents/},
+   {kind:'finance',label:'Local finance',recipientId:financeId,session:finance,serviceId:null,subject:'Your weekly finance report',header:/kind,bookingId,recordId,amountCents,currency,state,pendingCents,succeededCents,remainingCents/,body:'2000'},
   ]){
    const localForm=owner.page.locator('#report-schedule-create')
    await localForm.locator('[name=reportKind]').selectOption(local.kind)
