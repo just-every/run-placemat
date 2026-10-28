@@ -521,3 +521,32 @@ The [portability guide](./data-portability.md#diner-records-relationships-and-cu
 CT approved the booking-scoped verification and management scope with riders in both 26 October 2026 rulings. The approved controls above retain explicit current-contact proof for each attached booking, independent expiring devices, explicit confirmation of fresh device-bound previews, unchanged financial obligations requiring manager review, and no charge, refund, fee waiver or automatic message authority. Verification grants no staff role, marketing permission, review eligibility or group-sharing permission. There is no cross-installation identity or permission pooling. The complete favorite, prior-visit repeat-booking and upcoming-reservation management target across devices remains binding, with DATA-003 portability, DATA-002 erasure and AUDIT-001 accountability. DIST-006 and GUEST-006 must independently establish review eligibility and group consent under their preserved receiving duties.
 
 DIST-005 remains PARTIAL under the 27 October 2026 CT ruling. Approval of this scope does not establish completion: every original acceptance point, both approved rider paragraphs and all DONE-RIDERS rows must pass, including direct public-door assertions and exact-candidate landing evidence, before DONE can be claimed.
+
+
+### Recurring native report types
+
+The existing report-schedule door accepts `reportKind`: `group-covers` (the
+unchanged default), `reservations`, `guests` or `finance`. Local kinds select
+only `venueIds: ["home"]`, with an optional existing `serviceId`; all filters
+use the service's local start date. The seven-day cadence and complete-date
+window are unchanged. The same native identities, current service scopes and
+field permissions govern the scheduled check, each explicit resend and every
+open of the authenticated live CSV. Exact-address approval, no report snapshot,
+private metadata, no automatic uncertain resend and inert restore remain binding.
+
+Reservation recipients are native owners or managers; scoped managers must have
+the selected service. Guest recipients and schedule creators use existing personal
+owner authority. Guest rows omit erased people, private notes and requests,
+and preserve recorded booking contact consent and preference, including false
+and unknown states. An owner data report never grants permission to contact a
+guest or marketing permission. Finance creators are owners; recipients are owners
+or current separately granted finance readers under ROLE-004 and ct RL-105.
+Finance CSVs contain booking-bound request, charge and refund amounts and current
+reconciliation in integer cents, without guest contacts, private notes, free-text
+reasons or payment credentials. Group grants never confer guest or finance access.
+
+`GET /api/report-export.csv?kind=guests` uses personal owner authority;
+`kind=finance` uses personal owner or current finance authority. Both reuse the
+existing local date, period and service filters. All scheduled kinds are shown
+under Weekly report delivery in Settings. Existing group recipients and native
+finance scopes are unchanged; no marketing or provider authority is created.
