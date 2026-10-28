@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
+import { parseContract } from '../src/base/seed-contract.mjs'
 
 const cli = 'node_modules/@runeditrun/rer/global/rer.mjs'
 const build = spawnSync(process.execPath, [cli, 'build', '--site', ...(process.env.CI === 'true' ? ['--no-queue'] : [])], { encoding: 'utf8' })
@@ -42,8 +43,8 @@ console.log('Run site passed: homepage → /run, every listed guide published an
 // BOUND-001 compares the meaning of the published boundary, rather than pinning its copy.
 const boundary = text(home.match(/<p[^>]*class="[^"]*mi-not[^"]*"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '')
 const contract = await readFile(new URL('../CONTRACT.md', import.meta.url), 'utf8')
-const clause = contract.split('\n').find(line => line.startsWith('- **BOUND-001 —'))
-const declared = clause?.match(/homepage says “([^”]+)”/)?.[1]
+const clause = parseContract(contract).clauses.find(clause => clause.id === 'BOUND-001')
+const declared = clause?.text.match(/homepage says “([^”]+)”/)?.[1]
 assert.ok(declared, 'BOUND-001: contract declares the homepage boundary')
 const meaning = value => value.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
 assert.equal(meaning(boundary), meaning(declared), 'BOUND-001: built homepage and contract make the same exclusion statement')

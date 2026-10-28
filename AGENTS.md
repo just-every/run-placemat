@@ -135,11 +135,13 @@ their maintenance.
 Pinned reference: https://github.com/runeditrun/base/blob/c7cb0613120074c5ffca63f610533802afbda6bd/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/c7cb0613120074c5ffca63f610533802afbda6bd/default-seed
 
-## Changed contract rows
+## Contract documents
 
-Lander-Regenerate: `node scripts/contract-docs.mjs write REPORT-008 REPORT-005`
+CONTRACT.md is the source of acceptance text and status. Regenerate its tier,
+claims and count views after every contract edit, then refresh the edition lock.
 
-CONTRACT.md is the source. After changing these report rows, run that command and
-`node scripts/contract-docs.mjs check REPORT-008 REPORT-005`. The generator retains
-other clauses' recorded journeys and derives the summary and claims inventory.
-Regenerate the edition source lock last with `node scripts/edition-authoring/cli.mjs lock`.
+Lander-Regenerate: node src/base/contract-docs.mjs write
+Lander-Regenerate: node scripts/edition-authoring/cli.mjs lock
+
+Verify runs `node src/base/contract-docs.mjs check`; a stale generated view fails.
+The ID and coverage maps name the main commit the rewrite descends from.

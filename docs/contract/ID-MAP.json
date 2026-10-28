@@ -93,9 +93,10 @@
       ]
     },
     "SETUP-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "SETUP-001"
+        "SETUP-001",
+        "SETUP-002"
       ]
     },
     "SERVICE-002": {
@@ -135,9 +136,11 @@
       ]
     },
     "BOOK-002": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "BOOK-002"
+        "BOOK-002",
+        "BOOK-008",
+        "BOOK-009"
       ]
     },
     "BOOK-003": {
@@ -237,15 +240,20 @@
       ]
     },
     "FLOOR-007": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "FLOOR-007"
+        "FLOOR-007",
+        "FLOOR-014"
       ]
     },
     "FLOOR-008": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "FLOOR-008"
+        "FLOOR-008",
+        "FLOOR-015",
+        "FLOOR-016",
+        "FLOOR-017",
+        "FLOOR-018"
       ]
     },
     "FLOOR-009": {
@@ -273,9 +281,11 @@
       ]
     },
     "FLOOR-013": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "FLOOR-013"
+        "FLOOR-013",
+        "FLOOR-019",
+        "FLOOR-020"
       ]
     },
     "WAIT-002": {
@@ -591,9 +601,10 @@
       ]
     },
     "REPORT-005": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "REPORT-005"
+        "REPORT-005",
+        "REPORT-009"
       ]
     },
     "REPORT-008": {

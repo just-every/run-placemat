@@ -3,11 +3,15 @@
 // image fails the build.
 import manifest from '../../../docs/site.json'
 import run from '../run.json'
+import rulings from '../../../RULINGS.md?raw'
 import { renderMarkdown, type Rendered } from './render'
 
 export interface DocsPage { slug: string; file: string; title: string; summary: string; section: string }
 
-const files = import.meta.glob('../../../docs/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+const files: Record<string, string> = {
+  ...import.meta.glob('../../../docs/**/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>,
+  '../../../docs/../RULINGS.md': rulings,
+}
 const source = `${run.repository}/blob/main`
 
 export const docsSections = manifest.sections

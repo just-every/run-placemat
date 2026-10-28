@@ -1,12 +1,12 @@
 <!-- Generated from CONTRACT.md by contract-docs. Edit CONTRACT.md, then regenerate. -->
 
-# Placemat product homepage claims
+# Placemat homepage claims
 
 A claim is done when every clause behind it is done, missing when every one is missing, and partial otherwise.
 
 | # | Claim | Clauses | Status |
 | --- | --- | --- | --- |
-| 1 | Hero · "Placemat takes reservations from your site" | `BOOK-001` done; `BOOK-002` done | done |
+| 1 | Hero · "Placemat takes reservations from your site" | `BOOK-001` done; `BOOK-002` done; `BOOK-008` done; `BOOK-009` done | done |
 | 2 | Hero · "…Google…" (reservations from Google) | `DIST-001` missing | missing |
 | 3 | Hero · "…and Instagram" | `DIST-002` missing | missing |
 | 4 | Hero · "runs the host stand" | `FLOOR-002` done; `FLOOR-006` done; `WAIT-001` done | done |
@@ -38,7 +38,7 @@ A claim is done when every clause behind it is done, missing when every one is m
 | 30 | 4:10 PM · Confirmations · "4 tables offered to the waitlist" | `WAIT-005` missing; `AGENT-002` partial | partial |
 | 31 | 4:45 PM · Pre-shift · Pre-shift sheet: guests to know with allergy and occasion, deposits held | `FLOOR-012` done; `GUEST-003` partial; `GUEST-002` done | partial |
 | 32 | 4:45 PM · Pre-shift · Server sections Ana / Ben / Cole with their tables | `FLOOR-004` done; `FLOOR-012` done | done |
-| 33 | 4:45 PM · Pre-shift · Kitchen notes (halibut 12 portions, pace 16 covers per half hour, allergy at Table 12) | `FLOOR-013` done; `SERVICE-005` done; `GUEST-003` partial | partial |
+| 33 | 4:45 PM · Pre-shift · Kitchen notes (halibut 12 portions, pace 16 covers per half hour, allergy at Table 12) | `FLOOR-013` done; `FLOOR-019` done; `FLOOR-020` done; `SERVICE-005` done; `GUEST-003` partial | partial |
 | 34 | 6:40 PM · Host stand · Floor plan by section with combined tables (21+22) | `FLOOR-002` done; `FLOOR-003` done; `FLOOR-004` done | done |
 | 35 | 6:40 PM · Host stand · Six table states with timers (seated, mains, dessert, check dropped, reserved, needs bussing) | `FLOOR-006` done; `FLOOR-005` done | done |
 | 36 | 6:40 PM · Host stand · Waitlist of five with quotes and minutes waiting | `WAIT-001` done; `WAIT-003` partial | partial |
