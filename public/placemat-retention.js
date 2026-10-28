@@ -4,6 +4,7 @@ const labels={'welcome':'Welcome','birthday':'Birthday','anniversary':'Anniversa
 const field=(label,name,type='text',value='',extra='')=>`<label>${label}<input name="${name}" type="${type}" value="${esc(value)}" ${extra}></label>`
 async function api(path,p){const r=await fetch(path,{method:p===undefined?'GET':'POST',headers:{'content-type':'application/json'},...(p===undefined?{}:{body:JSON.stringify(p)})});const v=await r.json();if(!r.ok)throw Error(v.error||'Unable to save.');return v}
 let token=location.hash.slice(1);if(token)history.replaceState(null,'',location.pathname)
+window.addEventListener('hashchange',()=>{if(location.hash)location.reload()})
 let state,preview
 function workflow(row){return `<article class="panel" data-workflow="${esc(row.id)}"><h3>${esc(row.name)}</h3><p>${esc(labels[row.trigger]||row.trigger)} · ${esc(row.status)}</p><div class="offer">${esc(row.offer)}</div><p class="meta">${esc(state.deliveries.filter(d=>d.workflowId===row.id&&d.state==='accepted').length)} provider accepted · ${esc(state.deliveries.filter(d=>d.workflowId===row.id).reduce((n,d)=>n+d.repeatBookings,0))} repeat bookings</p>${row.status==='draft'?`<form data-action="preview"><input type="hidden" name="workflowId" value="${esc(row.id)}"><button>Preview recipients</button></form>`:''}${row.status==='approved'?`<form data-action="stop"><input type="hidden" name="workflowId" value="${esc(row.id)}"><button class="secondary">Stop workflow</button></form>`:''}</article>`}
 function render(){

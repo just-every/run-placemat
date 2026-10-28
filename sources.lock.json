@@ -890,7 +890,7 @@
       "executable": false
     },
     "public/placemat-retention.js": {
-      "sha256": "22c74b2d2c78cb6184a6d5951115eed34d00a814aecc6b75f89c08a906bc1919",
+      "sha256": "8e2951c513c8eeaf4abea5d0e71f2ab80ac85fb76796017c7d31ea9ab1190291",
       "executable": false
     },
     "public/placemat-risk.js": {
@@ -4566,7 +4566,7 @@
       "executable": false
     },
     "tests/retention-ui.mjs": {
-      "sha256": "f04f69119aa4f8add8dfe6385f8760f937e929a8b5161516948da3b13d6b5aad",
+      "sha256": "ad31c214b23a27bdb6d1fd6e49374e0aac1bb62da8fc48b78f00f3d45d239d3a",
       "executable": false
     },
     "tests/risk-ui.mjs": {
