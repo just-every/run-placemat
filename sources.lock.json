@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e424e0b81f835f68dafa5da786af9478d1cc22283b0224d4004ed13e5b45c6d1",
+      "sha256": "c928c0364aeeb3eb34971ae5c4ed1ac795eb4f7f0a837867eab3f0b9bd022d8b",
       "executable": false
     },
     "AGENTS.md": {
@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8afea8aae6c61079c4293c3b0566677bde55dbceb258331ba8fb4f6e6218bd91",
+      "sha256": "e13bcdbfe00002e91821acdd38dd26a1baa3eaceeccf59305d006febfe4481cc",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "583a086642f53a4d231bee050b86e94d90251dd361c030c5717588610a753c9a",
+      "sha256": "001435882070171610b92b56a316b9924c95c0cfd00312e4f0f6e1230d4660e0",
       "executable": false
     },
     "docs/data-portability.md": {
@@ -3378,7 +3378,7 @@
       "executable": false
     },
     "src/placemat/commands.ts": {
-      "sha256": "6e9dc6dc0745127fac487cfa624e42bcded671f0fb1a489c1e06d4425674480d",
+      "sha256": "d772eed1bddbe04034422349c95c8ceb4ef72f2ee331c0a325982a37d51da0ea",
       "executable": false
     },
     "src/placemat/costs-archive.mjs": {
@@ -3498,7 +3498,7 @@
       "executable": false
     },
     "src/placemat/feedback.ts": {
-      "sha256": "0c166145c68a163d59df431ff9428aa8f1951571db9c046bfd1f3f47c445032e",
+      "sha256": "b10dc5f8c35a75c436512676a76acb044a5491f15032b8a16f96de74b19f2cfa",
       "executable": false
     },
     "src/placemat/fees.ts": {
@@ -4198,11 +4198,11 @@
       "executable": false
     },
     "tests/api/feedback-portability.mjs": {
-      "sha256": "b0f89b2ddf713989c9dd218a558f2453ee5219ee223625838e5e9d9c3afae4f8",
+      "sha256": "eb07d766b32fe4cd1bb10ea3bd3f782d200b3d2e2b17fe8eb5631502df4df88b",
       "executable": false
     },
     "tests/api/feedback.test.mjs": {
-      "sha256": "b23025a0d3c0b404ebc28c962b45362e914e0571b9073815eefc6a017cfc509b",
+      "sha256": "250fb7d2e8f55c1cd32ef91cbb898067a8bb42a20beb8af1b70541a13a0b9087",
       "executable": false
     },
     "tests/api/finance-role.test.mjs": {
