@@ -7,11 +7,11 @@ import {publicGuest} from './api/harness.mjs'
 import {browserServer} from './browser-server.mjs'
 const screenshots=process.env.PLACEMAT_SCREENSHOTS
 if(screenshots)await mkdir(screenshots,{recursive:true})
-async function layout(page){
- const issues=await page.evaluate(()=>{
+async function layout(page,scope){
+ const issues=await page.evaluate(scope=>{
   const issues=[]
   if(document.documentElement.scrollWidth>innerWidth+1)issues.push('Horizontal overflow')
-  for(const el of document.querySelectorAll('main *')){
+  for(const el of document.querySelectorAll(scope+' *')){
    if(!el.getClientRects().length)continue
    const s=getComputedStyle(el),sides=['Top','Right','Bottom','Left'].map(side=>parseFloat(s['border'+side+'Width']))
    if([...el.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim())&&parseFloat(s.fontSize)<13)issues.push('Text below 13px')
@@ -19,7 +19,7 @@ async function layout(page){
    if(el.matches('button')&&!el.textContent.trim())issues.push('Icon-only control needs tooltip')
   }
   return issues
- });assert.deepEqual(issues,[])
+ },scope);assert.deepEqual(issues,[])
 }
 for(const width of [1440,390]){
  const f=await retentionFixture(),{h}=f,transport=await browserServer(h)
@@ -29,9 +29,9 @@ for(const width of [1440,390]){
   const owner=await context.newPage(),guest=await guestContext.newPage(),errors=[],urls=[]
   for(const page of [owner,guest]){page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>urls.push(r.url()))}
   const cookies=()=>context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
-  const shot=async(page,name)=>{await layout(page);if(screenshots)await page.screenshot({path:resolve(screenshots,`CRM-002-${name}-${width}.png`),fullPage:true})}
+  const shot=async(page,name,scope='main')=>{await layout(page,scope);if(screenshots)await page.screenshot({path:resolve(screenshots,`CRM-002-${name}-${width}.png`),fullPage:true})}
   await cookies();await owner.goto(transport.origin+'/setup');await owner.getByRole('checkbox').check();await owner.getByRole('button',{name:'Finish setup',exact:true}).click();await owner.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
-  await owner.getByRole('link',{name:'Settings',exact:true}).click();await owner.locator('#settings').scrollIntoViewIfNeeded();await owner.getByRole('link',{name:'Guest retention workflows',exact:true}).waitFor();await shot(owner,'settings-entry')
+  await owner.getByRole('link',{name:'Settings',exact:true}).click();await owner.locator('#settings').scrollIntoViewIfNeeded();await owner.getByRole('link',{name:'Guest retention workflows',exact:true}).waitFor();await shot(owner,'settings-entry','#settings')
   await owner.getByRole('link',{name:'Guest retention workflows',exact:true}).click();await owner.getByRole('heading',{name:'Guest retention',exact:true}).waitFor()
   await owner.getByText('Create workflow',{exact:true}).click()
   const form=owner.locator('form[data-action=draft]')

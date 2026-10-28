@@ -104,3 +104,24 @@ test('Retention refuses missing authority and stale consent, stops queued recipi
   const empty=await installation();try{await empty.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400})}finally{await empty.close()}
  }finally{await h.close()}
 })
+
+
+test('Retention suppresses an opt-out during the active run and never resends an uncertain provider attempt',async()=>{
+ let optOut,attempts=0
+ const f=await retentionFixture({onMarketingSend:async(h,message)=>{
+  if(!message.text?.includes('Unsubscribe from marketing:'))return
+  attempts++
+  if(attempts===1){await pub(h,'unsubscribe',{token:optOut});return new Response('Unconfirmed',{status:502})}
+ }}),{h}=f
+ try{
+  await f.complete(f.bookings[0]);await f.complete(f.bookings[1]);await h.command('booking.status',{bookingId:f.bookings[2].id,status:'cancelled'})
+  const draft=await f.draft('first-to-second'),eligible=draft.preview.recipients.filter(r=>f.bookings.slice(0,2).some(b=>b.guestId===r.guestId))
+  optOut=f.unsubscribeTokens[f.bookings.findIndex(b=>b.guestId===eligible[1].guestId)]
+  await f.approve(draft);await retentionTick(h,f.tickAt)
+  assert.equal(attempts,1,'The second due recipient opts out while the first provider call is in flight')
+  const view=await h.api('/api/retention');assert.equal(view.deliveries.length,1);assert.equal(view.deliveries[0].state,'unconfirmed')
+  await retentionTick(h);await retentionTick(h,h.now()+86400000);assert.equal(attempts,1,'Unconfirmed acceptance and scheduler replays never resend')
+  const token=linkToken(marketingMessages(h)[0]);await pub(h,'status',{token},404)
+  assert.equal((await h.api('/api/state')).state.bookings.length,3,'Marketing suppression preserves booking management')
+ }finally{await h.close()}
+})

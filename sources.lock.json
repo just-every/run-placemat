@@ -545,6 +545,10 @@
       "sha256": "f62d150b74f4209ff1d59e36429c58b28624c5d5279225fccb42f247005a4269",
       "executable": false
     },
+    "migrations/core/0052_retention.sql": {
+      "sha256": "af3338d6a6e72b50deaf101ef8679b775c187b2787335f1a77e9eb146896f98c",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -883,6 +887,10 @@
     },
     "public/placemat-requests.js": {
       "sha256": "6522c83246d32c86c870f588d775f569ab0be3260a3f86ca8082b0019af5e630",
+      "executable": false
+    },
+    "public/placemat-retention.js": {
+      "sha256": "22c74b2d2c78cb6184a6d5951115eed34d00a814aecc6b75f89c08a906bc1919",
       "executable": false
     },
     "public/placemat-risk.js": {
@@ -3825,6 +3833,42 @@
       "sha256": "33a56f45ab894d4ff67a511eba65c92723c30fad69432b9391119960e08e82a3",
       "executable": false
     },
+    "src/placemat/retention-archive.d.mts": {
+      "sha256": "d3e70114a84d0d49fd480304a54d7f186f9819c389ab48bf758a122b92f8cf7c",
+      "executable": false
+    },
+    "src/placemat/retention-archive.mjs": {
+      "sha256": "ff148886f98edaaf4228e9ae36455ab621d7bb5e6c9c9ef77798784d48fb399a",
+      "executable": false
+    },
+    "src/placemat/retention-consent.ts": {
+      "sha256": "151a98ed7db23f5bd9b53b6f7b1e063507e049f595dd61210f00701e020a1211",
+      "executable": false
+    },
+    "src/placemat/retention-eligibility.ts": {
+      "sha256": "7181d615c9c01638d1d958346e5158e953f318195ff2db7a0e7ec42b226f1fce",
+      "executable": false
+    },
+    "src/placemat/retention-http.ts": {
+      "sha256": "9710911bd3a487f9b61826289f045ddb39dd9abb8577b1e8036c1972b784c9ce",
+      "executable": false
+    },
+    "src/placemat/retention-mail.ts": {
+      "sha256": "5bc8542b1c36606dbfd5e5f6abdf604fb615f820bd5dc2e530a8da700da8b25d",
+      "executable": false
+    },
+    "src/placemat/retention-store.ts": {
+      "sha256": "51f7fa34c9ee3d7feecb0134c6399cdbc98cdd570556f64b45047feb6e087c04",
+      "executable": false
+    },
+    "src/placemat/retention-view.ts": {
+      "sha256": "8ccc7e7b7b8a50e0f0e14c05ca3e755727de405ecc27fe968ced69d9e66a3967",
+      "executable": false
+    },
+    "src/placemat/retention.ts": {
+      "sha256": "aa038a613cbee5fcc4aefb09fb86990eba6dfe9515c1ab62a427a082f7a5aaf7",
+      "executable": false
+    },
     "src/placemat/scheduled-reports.ts": {
       "sha256": "332c525c9e9d2c64dd0bc6619ef58e7a031a9155d6ccd2148284f3ba6df0850a",
       "executable": false
@@ -4313,6 +4357,18 @@
       "sha256": "e1d51299ba160d4f713324458f2ea5e017de10d2800ebe9749ee6b8f57791886",
       "executable": false
     },
+    "tests/api/retention-fixture.mjs": {
+      "sha256": "6e014d281c34b627f997953710ecabcfd028f6462ff03975b0f1319014662b34",
+      "executable": false
+    },
+    "tests/api/retention-worker.ts": {
+      "sha256": "5b9b8186637e8567c33206680674541e2613f0f48c6049340c08d5a9a16cf332",
+      "executable": false
+    },
+    "tests/api/retention.test.mjs": {
+      "sha256": "2547cb40f2547f859c82da15d74c03eb4f6ac0c5b0316ea42f533b9db544442d",
+      "executable": false
+    },
     "tests/api/risk-fixture.mjs": {
       "sha256": "aca214a20ef099d3f6d0caeeeaa05d9e0065263228c72658d5f60eed46bf3506",
       "executable": false
@@ -4503,6 +4559,10 @@
     },
     "tests/refund-notices-ui.mjs": {
       "sha256": "8bdc4c414a02dc123052e0b9c554d30fb0a500e8764b96ba97dad3c72911d723",
+      "executable": false
+    },
+    "tests/retention-ui.mjs": {
+      "sha256": "366f1c996bd92729e02fb6b68d8581f2561cd7899fea94cd1e0103612cc58274",
       "executable": false
     },
     "tests/risk-ui.mjs": {

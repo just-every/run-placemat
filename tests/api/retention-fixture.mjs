@@ -10,7 +10,8 @@ export async function retentionTick(h,at=h.now()){
 }
 export async function retentionFixture(options={}){
  let now=Date.now()
- const h=await installation({...options,entry:'tests/api/retention-worker.ts',clock:()=>now})
+ let h
+ h=await installation({...options,...(options.onMarketingSend?{mailEdge:async request=>{const message=await request.json();h.messages.push(message);return await options.onMarketingSend(h,message)??Response.json({id:'synthetic-placemat-'+h.messages.length})}}:{}),entry:'tests/api/retention-worker.ts',clock:()=>now})
  h.now=()=>now;h.setNow=at=>{now=Number(new Date(at))}
  const originalApi=h.api,originalRequest=h.request
  h.api=(path,p,opts={})=>originalApi(path,p,{as:h.cookie,...opts})
