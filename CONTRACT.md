@@ -228,7 +228,7 @@ Before shipping, GUEST-006 inherits DIST-005’s explicit booking identity and p
 
 - **CRM-004 — Mailchimp audience handoff.** Owners connect Mailchimp and map only permissioned guest fields, tags and segments. Subscribe/unsubscribe and deletion changes reconcile both ways with source/timestamps and failure tasks; syncing a list cannot upgrade an unknown consent state or resend suppressed guests. **Acceptance evidence:** Sync an opted-in segment, unsubscribe one contact in Mailchimp and erase another in Placemat; retry a failed sync and verify neither contact is reintroduced into a campaign.
 
-- **CRM-005 — Post-visit feedback and manager follow-up.** Completed visits trigger consent-appropriate surveys; feedback links are scoped to the visit and duplicate responses are handled. Poor feedback creates an assigned recovery case with SLA, guest reply thread and closure outcome; public-review requests avoid filtering guests by sentiment. **Acceptance evidence:** Complete two visits, submit low feedback on one and positive feedback on the other, verify consistent public-review invitation rules and resolve the manager’s recovery case with a delivered reply.
+- **CRM-005 — Post-visit feedback and manager follow-up.** *Cites:* DATA-002, DATA-003, ROLE-003. Completed visits trigger consent-appropriate surveys; feedback links are scoped to the visit and duplicate responses are handled. Poor feedback creates an assigned recovery case with SLA, guest reply thread and closure outcome; public-review requests avoid filtering guests by sentiment. **Acceptance evidence:** Complete two visits, submit low feedback on one and positive feedback on the other, verify consistent public-review invitation rules and resolve the manager’s recovery case with a delivered reply.
 
 - **CRM-006 — Return offers and loyalty handoff.** Managers create bounded, dated return offers and redemption terms, attribute them to recovery or campaigns and sync loyalty identity/status with the venue’s Toast/Square loyalty program where connected. Redemptions reconcile to a visit/check and cannot be duplicated or invent consent. **Acceptance evidence:** Approve a $20 return offer after a recovery, book its recipient, redeem on one POS check and refuse reuse; inspect actual repeat visit and net contribution.
 
@@ -452,8 +452,8 @@ REPORT-005 was reopened in sx-placemat-c-r005 for changed-address renewal and st
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 15 | 0 | 0 | 15 |
-| Target and push further | 41 | 29 | 50 | 120 |
-| All | 56 | 29 | 50 | 135 |
+| Target and push further | 41 | 30 | 49 | 120 |
+| All | 56 | 30 | 49 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -542,7 +542,7 @@ REPORT-005 was reopened in sx-placemat-c-r005 for changed-address renewal and st
 | `CRM-002` | Retention and win-back automation | target | missing |  | No implementation of this journey exists. Inherited ROLE-003 requirement: bulk marketing separately permissioned; this first marketing-send door must enforce a separate explicit grant. |
 | `CRM-003` | Campaign creation and conversion reporting | target | missing |  | No implementation of this journey exists. |
 | `CRM-004` | Mailchimp audience handoff | target | missing |  | No implementation of this journey exists. |
-| `CRM-005` | Post-visit feedback and manager follow-up | target | missing |  | No implementation of this journey exists. |
+| `CRM-005` | Post-visit feedback and manager follow-up | target | partial | `tests/api/feedback.test.mjs` — completed visits, equal review invitations, visit-scoped responses and recovery; `tests/api/feedback-portability.mjs` — subject access, CSV, inert restore and erasure; `tests/feedback-ui.mjs` — guest and manager journey at 1440 and 390; `scripts/feedback-sandbox.mjs` — controlled SendGrid delivery journey. | Implemented native email surveys with separate guest permission, recovery assignment and SLA, thread and closure, and equal review invitations. Browser execution, controlled-inbox delivery, integrated portability proof and exact-candidate Verify remain pending. |
 | `CRM-006` | Return offers and loyalty handoff | target | missing |  | No implementation of this journey exists. |
 | `POS-001` | Toast connection | target | missing |  | No implementation of this journey exists. |
 | `POS-002` | Square for Restaurants connection | target | missing |  | No implementation of this journey exists. |

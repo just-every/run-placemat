@@ -1,3 +1,4 @@
+import {runFeedbackSurveys} from './placemat/feedback-mail'
 import {runReportSchedules} from './placemat/scheduled-reports'
 import { withDemo } from './modules/demo/index.mjs'
 import { rejectedResponse } from './base/rejected-response'
@@ -28,7 +29,7 @@ function noTransform(response: Response): Response {
 
 export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async scheduled(_event, env, execution) {
-    execution.waitUntil(runReportSchedules(runtimeBindings(env),new Date(_event.scheduledTime)))
+    execution.waitUntil(Promise.all([runReportSchedules(runtimeBindings(env),new Date(_event.scheduledTime)),runFeedbackSurveys(runtimeBindings(env),new Date(_event.scheduledTime))]))
   },
   async fetch(request, env, execution) {
     return unframeable(request, await respond(request, env, execution))

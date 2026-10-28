@@ -1,3 +1,5 @@
+import {feedbackResponse} from './feedback-http'
+import {feedbackPage} from './feedback-view'
 import {dinerResponse} from './diner-accounts'
 import {publicExperiences} from './experiences'
 import {paymentOperationsResponse} from './payment-operations-http'
@@ -82,6 +84,13 @@ const paths=new Set(['/api/payments/ledger','/api/payments/ledger/payout','/api/
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
+ const feedback=await feedbackResponse(request,env);if(feedback)return feedback
+ if(new URL(request.url).pathname==='/feedback'&&['GET','HEAD'].includes(request.method))return feedbackPage(request,env,'public')
+ if(['/feedback/manage','/feedback/settings'].includes(new URL(request.url).pathname)){
+  const actor=await actorFor(request,env)
+  if(!actor)return new Response(null,{status:303,headers:{location:'/signin?returnTo='+encodeURIComponent(new URL(request.url).pathname)}})
+  try{person(actor,new URL(request.url).pathname==='/feedback/settings');if(actor.deviceId)fail(403,'Use your personal manager session.');return feedbackPage(request,env,new URL(request.url).pathname==='/feedback/settings'?'settings':'manage')}catch(error){if(error instanceof Problem)return Response.json({error:error.message},{status:error.status,headers});throw error}
+ }
  const diner=await dinerResponse(request,env);if(diner)return diner
  const operations=await paymentOperationsResponse(request,env);if(operations)return operations
  const costs=await costsResponse(request,env);if(costs)return costs

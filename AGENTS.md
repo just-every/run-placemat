@@ -137,9 +137,9 @@ Native-session/runtime evidence: https://github.com/runeditrun/base/tree/c7cb061
 
 ## Changed contract rows
 
-Lander-Regenerate: `node scripts/contract-docs.mjs write REPORT-008 REPORT-005`
+Lander-Regenerate: `node scripts/contract-docs.mjs write REPORT-008 REPORT-005 CRM-005`
 
 CONTRACT.md is the source. After changing these report rows, run that command and
-`node scripts/contract-docs.mjs check REPORT-008 REPORT-005`. The generator retains
+`node scripts/contract-docs.mjs check REPORT-008 REPORT-005 CRM-005`. The generator retains
 other clauses' recorded journeys and derives the summary and claims inventory.
 Regenerate the edition source lock last with `node scripts/edition-authoring/cli.mjs lock`.

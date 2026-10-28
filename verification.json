@@ -6,7 +6,7 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "node scripts/contract-docs.mjs check REPORT-008 REPORT-005"
+        "node scripts/contract-docs.mjs check REPORT-008 REPORT-005 CRM-005"
       ]
     },
     {
@@ -73,7 +73,8 @@
         "node tests/schedules-ui.mjs",
         "node tests/privacy-ui.mjs",
         "node tests/costs-ui.mjs",
-        "node tests/experiences-ui.mjs"
+        "node tests/experiences-ui.mjs",
+        "node tests/feedback-ui.mjs"
       ]
     },
     {
