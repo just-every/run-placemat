@@ -4,7 +4,7 @@ import {hash,load} from './store'
 import {embedOrigin,embedOrigins} from './embed'
 import {activeProviders,analyticsSettings,type AnalyticsProvider,type AnalyticsSettings} from './analytics'
 
-/** BOOK-002 server-side analytics events (GA4 Measurement Protocol, Meta Conversions API); no provider script ever loads on a Placemat page. */
+/** BOOK-008 server-side analytics events (GA4 Measurement Protocol, Meta Conversions API); no provider script ever loads on a Placemat page. */
 export type AnalyticsEvent='search'|'checkout-start'|'booking'
 export type AnalyticsSource={door:'widget';origin:string}|{door:'booking-page'}
 /** One consented page visit: the random visit ID lives only in the guest's page and in the provider requests; it is never stored. */

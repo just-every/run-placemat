@@ -55,7 +55,7 @@ for(const width of [1440,390]){
  }finally{await browser.close();await homeTransport.close();await tapTransport.close();await home.close();await tap.close()}
 }
 
-// REPORT-005 uses the same Settings components, two native venue Workers and authenticated downloads.
+// REPORT-005 / REPORT-008 / REPORT-009 use the same Settings components, two native venue Workers and authenticated downloads.
 for(const width of [1440,390]){
  const {reportGroup,reportDay,firstDue,publishReportService}=await import('./api/report-schedule-fixture.mjs'),f=await reportGroup(),transport=await browserServer(f.home)
  const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]})
@@ -135,6 +135,6 @@ for(const width of [1440,390]){
   const filters=owner.page.locator('#reservation-filters');await filters.locator('[name=period]').selectOption('future');await filters.getByRole('button',{name:'Apply report filters'}).click()
   const matching=owner.page.getByRole('link',{name:'Download matching rows CSV'});await matching.waitFor();let fileEvent=owner.page.waitForEvent('download');await matching.click();let downloaded=await fileEvent;let contents=await(await import('node:fs/promises')).readFile(await downloaded.path(),'utf8');assert.ok(contents.includes(f.bookings[0].id)&&!contents.includes(visit.id));await shot(owner.page,'future-bookings',owner.page.locator('#reports-content'))
   await filters.locator('[name=period]').selectOption('past');await filters.getByRole('button',{name:'Apply report filters'}).click();const visits=owner.page.getByRole('link',{name:'Download attended visits CSV'});await visits.waitFor();fileEvent=owner.page.waitForEvent('download');await visits.click();downloaded=await fileEvent;contents=await(await import('node:fs/promises')).readFile(await downloaded.path(),'utf8');assert.ok(contents.includes(visit.id)&&!contents.includes('synthetic-placemat-visit@example.test'));await shot(owner.page,'historical-visits',owner.page.locator('#reports-content'))
-  assert.deepEqual(errors,[]);await recipient.context.close();await owner.context.close();console.log(`REPORT-005 approval, uncertain delivery, manual resend, group comparison, download, revocation and local reservation, guest and finance delivery passed at ${width}`)
+  assert.deepEqual(errors,[]);await recipient.context.close();await owner.context.close();console.log(`REPORT-005 / REPORT-008 / REPORT-009 approval, uncertain delivery, manual resend, group comparison, download, revocation and local reservation, guest and finance delivery passed at ${width}`)
  }finally{await browser.close();await transport.close();await f.close()}
 }

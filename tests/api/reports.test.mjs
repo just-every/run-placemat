@@ -231,7 +231,7 @@ test('Report exports retain service scopes, future bookings and historical visit
  }finally{await h.close()}
 })
 
-test('Group comparisons use identical venue-local date labels and fail closed when any current grant or venue is unavailable',async()=>{
+test('REPORT-005: group comparisons use identical venue-local date labels and fail closed when any current grant or venue is unavailable',async()=>{
  const {reportGroup,reportDay}=await import('./report-schedule-fixture.mjs'),f=await reportGroup()
  try{
   const query=new URLSearchParams({dateFrom:reportDay,dateTo:reportDay});for(const id of f.venueIds)query.append('venueId',id)
@@ -245,7 +245,7 @@ test('Group comparisons use identical venue-local date labels and fail closed wh
  }finally{await f.close()}
 })
 
-test('Weekly group delivery requires explicit recipient approval, authenticates links and blocks every attempt after recipient or schedule-owner revocation',async()=>{
+test('REPORT-009: weekly group delivery requires explicit recipient approval, authenticates links and blocks every attempt after recipient or schedule-owner revocation',async()=>{
  const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),f=await reportGroup({bindings:{MAIL_PROVIDER:'sendgrid',MAIL_API_KEY:'synthetic-placemat-1'},reportMailEdge:async()=>new Response(null,{status:202,headers:{'x-message-id':'synthetic-placemat-1'}})})
  try{
   await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue},{status:400})
@@ -280,7 +280,7 @@ test('Weekly group delivery requires explicit recipient approval, authenticates 
  }finally{await f.close()}
 })
 
-test('Uncertain report submissions stay unconfirmed across scheduler replay and require an explicit manual resend with fresh authority',async()=>{
+test('REPORT-009: uncertain report submissions stay unconfirmed across scheduler replay and require an explicit manual resend with fresh authority',async()=>{
  const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),f=await reportGroup()
  try{
   await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{as:f.manager,status:403})
@@ -303,7 +303,7 @@ test('Uncertain report submissions stay unconfirmed across scheduler replay and 
  }finally{await f.close()}
 })
 
-test('Recurring native reports recheck purpose, service scope, consent facts and erasure on delivery, open and replay',async()=>{
+test('REPORT-008: recurring native reports recheck purpose, service scope, consent facts and erasure on delivery, open and replay',async()=>{
  const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),{paymentEdge}=await import('./payment-fixture.mjs')
  const edge=paymentEdge(),f=await reportGroup({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:edge.edge})
  try{

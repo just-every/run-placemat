@@ -5,7 +5,7 @@ import {installation,publicGuest} from './harness.mjs'
 import {restaurant,logo,floor72,nextService} from './onboarding-fixture.mjs'
 const problem=(h,command,payload,options)=>h.api('/api/commands',{command,payload},options)
 
-test('SETUP-001: owner onboards a 72-seat US restaurant, acknowledges editable versioned policies and previews without production data; exports and restore retain setup',async()=>{
+test('SETUP-001 / SETUP-002: owner onboards a 72-seat US restaurant, acknowledges editable versioned policies and previews without production data; exports and restore retain setup',async()=>{
  const h=await installation(),restored=await installation();try{
   const rules=(await h.api('/api/onboarding')).defaults,manager=await h.signIn('setup-manager@example.test','admin'),member=await h.signIn('setup-reader@example.test')
   await h.api('/api/onboarding',undefined,{as:'',status:401});await h.api('/api/onboarding',undefined,{as:member,status:403})
@@ -53,7 +53,7 @@ test('SETUP-001: owner onboards a 72-seat US restaurant, acknowledges editable v
  }finally{await h.close();await restored.close()}
 })
 
-test('SETUP-001: channel policies apply together, inquiries cover large parties, reasoned manager overrides cannot bypass cutoff or physical capacity, staff intake remains open',async()=>{
+test('SETUP-002: channel policies apply together, inquiries cover large parties, reasoned manager overrides cannot bypass cutoff or physical capacity, staff intake remains open',async()=>{
  const h=await installation();try{
   const defaults=(await h.api('/api/onboarding')).defaults
   await h.command('venue.onboard',{...restaurant,timezone:'America/New_York',bookingRules:defaults})

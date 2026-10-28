@@ -53,6 +53,7 @@ export function renderMarkdown(markdown: string, slugs: Map<string, string>, sou
       },
     },
   })
-  const html = marked.parse(markdown.replace(/^# .*\n+/, ''), { async: false }) as string
+  const body = markdown.replace(/^[\t ]*<!--[^\n]*-->[\t ]*\r?\n/gm, '').replace(/^# .*\n+/, '')
+  const html = marked.parse(body, { async: false }) as string
   return { html, toc, problems }
 }

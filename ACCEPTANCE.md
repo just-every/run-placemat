@@ -8,10 +8,10 @@ The primary journey: Bring the guest book in, configure service and capacity, re
 
 | Tier | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Core | 63 | 32 | 51 | 146 |
+| Core | 26 | 69 | 51 | 146 |
 | Agent surface | 0 | 0 | 5 | 5 |
 | Later | 0 | 0 | 0 | 0 |
-| Full target | 63 | 32 | 56 | 151 |
+| Full target | 26 | 69 | 56 | 151 |
 
 Judged from the code and tests at commit `6263325b615bfed2cc3d724bf6b896ce87b1c4fd` (28 October 2026). Field proof register: 12 rows; 0 passed, 0 failed, 12 not run.
 
@@ -58,7 +58,7 @@ Core · published · **done** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACC
 
 #### FLOOR-001 — Conflict-safe physical capacity
 
-Core · published · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · published · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** Half-open UTC intervals, full-turn fit, starts on the service slot interval (15 minutes by default, configurable under SERVICE-004), distinct table combinations and cumulative service covers protect allocation. A physical table cannot be sold twice across overlapping services. Writes compare the floor version; stale plans require renewed review.
 
@@ -66,7 +66,7 @@ Core · published · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT
 1. Book a combined table through HTTP, reject too few or duplicate tables and over-capacity arrivals, finish a turn and book a later one; attempt a clash across services and require refusal.
 
 **Evidence.** `src/placemat/availability.ts`; `src/placemat/store.ts`; `tests/api/flows.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: A combined booking occupies two tables; A later half-open turn is offered after the earlier turn. Unproved: Too-few-table and duplicate-table assignments are explicitly refused. The scenarios pass expected statuses to the shared HTTP harness; the actual status assertion lives outside this clause’s old Evidence set. The cited file asserts unchanged capacity and stale-plan state, not each refusal code directly.
 
 #### SERVICE-001 — Reviewed dated service publication
 
@@ -82,7 +82,7 @@ Core · published · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT
 
 #### PLAN-001 — Exact plans and accountable decisions
 
-Core · published · **done** · Cites BASE-AGENT-007, BASE-AGENT-008, BASE-AUDIT-001
+Core · published · **partial** · Cites BASE-AGENT-007, BASE-AGENT-008, BASE-AUDIT-001
 
 **Requirement.** Publication, prepared table-reassignment and reminder proposals bind exact inputs, preparer, reason and the deciding actor. Direct table moves, swaps and locks use FLOOR-009. A preparation key's grant ends at preparation. Executing a prepared service change carries live and commitment; publishing or exporting reminders to outside recipients carries external. The company's policy decides agent execution of each class. Under the held company policy a manager decides the exact revision; changed inputs and physical clashes invalidate that decision. Readable actor names identify people and preparation keys.
 
@@ -90,7 +90,7 @@ Core · published · **done** · Cites BASE-AGENT-007, BASE-AGENT-008, BASE-AUDI
 1. Under the held company policy, prepare with an owner-issued preparation-only key, refuse execution outside its scope, change a draft, refuse stale approval, then approve a fresh plan as manager and read its identities; prepare and approve a valid table move.
 
 **Evidence.** `src/placemat/commands.ts`; `src/placemat/people.ts`; `tests/api/flows.test.mjs`; `tests/api/reminders.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: Changed-draft approval preserves the existing exact state; The final manager decision reads back the preparer and approver names. Unproved: The named held company policy decides the agent’s commitment/live action. Old preparation-key tests enforce fixed person approval; no company-policy document or computed risk-class decision is asserted in the old Evidence set.
 
 #### MSG-001 — Approved reminder CSV custody
 
@@ -142,7 +142,7 @@ Core · published · **done** · Cites BASE-DATA-001, BASE-INPUT-001 · Register
 
 #### DATA-001 — Validated empty-destination backups
 
-Core · published · **done** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-006, BASE-BACKUP-001, BASE-SECRET-001
+Core · published · **partial** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-006, BASE-BACKUP-001, BASE-SECRET-001
 
 **Requirement.** A restore brings back BOOK-008 analytics settings but never their GA4 or Meta keys, so the restored venue asks no analytics question and sends nothing until the owner enters the keys again.
 
@@ -151,11 +151,11 @@ Core · published · **done** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-0
 2. Restore a venue with analytics on and prove nothing is offered or sent until the owner re-enters both keys.
 
 **Evidence.** `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `tests/api/flows.test.mjs`; `tests/api/embed.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: Restore into an empty installation reads back the booking and contact; A corrupted archive leaves the destination without any booking. Unproved: Refused overwrite leaves every destination record unchanged; Corrupt restore leaves every product record unchanged, not only booking count. The old backup test invokes the overwrite refusal but takes no complete destination snapshot after that attempt; the corrupt-empty case asserts only booking count, not the populated destination’s unchanged records. The cited corrupted-archive assertion reads only the empty booking count; it does not compare guest, policy, job and other destination records after refusal.
 
 #### DATA-002 — Guest erasure and restore fences
 
-Core · published · **done** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-006, BASE-BACKUP-001, BASE-SECRET-001
+Core · published · **partial** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-006, BASE-BACKUP-001, BASE-SECRET-001
 
 **Requirement.** Owner erasure removes live and import-custody personal values, suppresses known erased identities and fences known older backups. An isolated offline restore needs a trusted later erasure journal to learn erasures it has never seen.
 
@@ -163,7 +163,7 @@ Core · published · **done** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-0
 1. Import, back up and erase a guest; verify guest and retained archive custody no longer contain personal values, refuse reimport and refuse a pre-erasure restore when given the trusted later journal.
 
 **Evidence.** `src/placemat/import/erase.ts`; `src/placemat/backup.ts`; `tests/api/flows.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: The erased live guest has empty email and notes; Archived name and email are absent after erasure. Unproved: A trusted later journal refuses the pre-erasure restore without reintroducing personal custody; All live and retained personal values, including phone and imported note custody, are absent. The old Evidence set invokes this refusal through the HTTP harness but never asserts the destination or retained personal custody after the attempted restore. Live and later-archive name/email erasure are asserted. The old cited erasure case directly reads email/notes and archive name/email absence, but not the complete live and retained phone/note field set.
 
 #### SITE-001 — Runnable product and owner guides
 
@@ -182,7 +182,7 @@ Core · published · **done** · Cites BASE-DOCS-001, BASE-INSTALL-001, BASE-ACC
 
 #### OSS-001 — Free and open source, MIT licensed
 
-Core · published · **done** · Cites BASE-INSTALL-001, BASE-DATA-005
+Core · published · **partial** · Cites BASE-INSTALL-001, BASE-DATA-005
 
 **Requirement.** Placemat’s source is MIT licensed in its public repository. Restaurant provider charges are distinct: Stripe processing, Twilio messaging and voice, Google, Meta, POS and partner fees bill the restaurant directly under their own terms. COST-001 presents those provider costs before a channel is enabled.
 
@@ -190,11 +190,11 @@ Core · published · **done** · Cites BASE-INSTALL-001, BASE-DATA-005
 1. Read the MIT license and the license line on the homepage, README and /run; install with the /run command and run a complete service with no payment, plan or license prompt; enable a provider channel and prove the cost shown is that provider’s own (COST-001) and that Placemat bills nothing.
 
 **Evidence.** `LICENSE`; `tests/site.mjs`; `tests/install.mjs`; `tests/api/flows.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: Source and homepage grant MIT permissions; Each published entry identifies the source license. Unproved: An enabled provider channel displays that provider’s costs and no Placemat charge. The cited licensing, site, install and Friday-flow files do not assert an enabled restaurant provider’s cost disclosure; tests/api/costs.test.mjs is outside OSS-001’s old Evidence set.
 
 #### BOUND-001 — Stated boundary: online ordering, gift cards and the POS
 
-Core · published · **done**
+Core · published · **partial**
 
 **Requirement.** The homepage says “Not in Placemat: online ordering, gift cards or the POS itself”, and the product says the same. Placemat sells no gift cards, stored-value cards or vouchers, takes no online food orders and is not the point of sale. A PAY-002 deposit, an EXP-002 prepaid ticket and an EXP-005 pickup experience are each tied to one named booking or event, shown as a balance against it and refunded under PAY-005; none is transferable, can be topped up or spends as a general balance. Gift cards, online ordering and check taking stay in the restaurant’s POS or its payment provider’s own gift-card and ordering products, and a Toast, Square or Clover loyalty program stays there too (CRM-006 syncs only identity and redemption status). The homepage names no gift-card provider, so the docs give the same line without naming one. Every capability must conform to this boundary. Before their capabilities ship, PAY-002, EXP-002 and EXP-005 each inherit the booking/event-bound balance, PAY-005 refund, nontransferability, no-top-up and no-general-spending obligations and their payment acceptance points. Those payment journeys remain missing in their own clauses;
 
@@ -202,13 +202,13 @@ Core · published · **done**
 1. Read the homepage boundary line, this clause and the owner docs and find the same three exclusions and the same pointer to the venue’s POS or payment provider; search the staff app, public booking page, documented HTTP routes and exports for gift-card, stored-value, voucher and ordering surfaces and find none; pay a deposit and a prepaid ticket and prove neither can be transferred, topped up or redeemed outside its booking; a site test fails if the homepage names a gift-card or ordering capability this clause excludes, or this clause names one the page omits.
 
 **Evidence.** `tests/api/flows.test.mjs`; `tests/site.mjs`; `tests/boundary-ui.mjs`; `docs/getting-started.md`; `docs/HTTP-CONTRACT.md`
-**Gap.** None.
+**Gap.** Asserted: Homepage and contract name the same exclusions; Owner guides point to the venue POS or payment provider. Unproved: A paid deposit and prepaid ticket refuse transfer, top-up and redemption outside their booking. Old boundary evidence proves absence of excluded surfaces and current API refusal, not an actual paid deposit plus prepaid ticket followed by every transfer/top-up/cross-booking refusal. These paid outcomes remain owed, as the old point states.
 
 ### Venue setup and service policy
 
 #### SETUP-001 — US restaurant onboarding
 
-Core · target · **done** · Cites BASE-INPUT-001, BASE-INPUT-003
+Core · target · **partial** · Cites BASE-INPUT-001, BASE-INPUT-003
 
 **Requirement.** The owner sets legal/trading name, address, US phone, contact channels, logo, booking policies, USD currency and an IANA venue timezone. Setup previews a realistic service without creating fake production guests; Los Angeles and New York daylight-saving gaps and repeated hours require explicit resolution.
 
@@ -218,23 +218,23 @@ Core · target · **done** · Cites BASE-INPUT-001, BASE-INPUT-003
 3. PNG/JPEG/WebP restaurant logos are uploaded locally. USD is the edition currency. A transient preview uses the entered service and real floor through the current search/capacity engine and creates no service, guest, booking or proposal. Service creation and recurring generation refuse a DST gap and name its next valid local minute; repeated start or end times require an actual valid offset choice. Venue-local input resolves on the server and stored timestamps remain unambiguous instants. Restaurant fields, exact policies and acknowledgment export and restore under DATA-003 and DATA-001.
 
 **Evidence.** `src/placemat/onboarding.ts`; `src/placemat/onboarding-preview.ts`; `src/placemat/local-time.ts`; `src/placemat/service-input.ts`; `public/placemat-onboarding.js`; `tests/api/onboarding.test.mjs`; `tests/onboarding-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The onboarding preview has exactly 72 physical seats; Los Angeles spring gaps name the next valid minute and preserve state. Unproved: Saving restaurant email and optional website establishes no provider validation or send. The old cited onboarding assertions read phone, legal name, address, currency and logo, but do not read the saved email/website or compare outbound sends around saving those contact channels.
 
 #### SETUP-002 — Acknowledged restaurant service defaults
 
-Core · target · **done** · From SETUP-001 · Cites BASE-INPUT-001, BASE-INPUT-003
+Core · target · **partial** · From SETUP-001 · Cites BASE-INPUT-001, BASE-INPUT-003
 
 **Requirement.** Restaurant onboarding saves an exact, editable service-policy summary for dated and recurring services without changing already configured services.
 
 **Acceptance.**
-1. completing restaurant setup saves editable defaults for new dated and recurring services: online parties 1–8 with inquiry above the maximum, 60 inclusive venue-local days ahead, inclusive 16:00 same-day cutoff, 30 elapsed minutes lead and 15-minute slots.
+1. Completing restaurant setup saves editable defaults for new dated and recurring services: online parties 1–8 with inquiry above the maximum, 60 inclusive venue-local days ahead, inclusive 16:00 same-day cutoff, 30 elapsed minutes lead and 15-minute slots.
 2. Walk-in and waitlist defaults have no cutoff and zero lead.
 3. Every rule applies together; owner/admin may override party, horizon and lead with a recorded reason, never a cutoff or physical capacity.
 4. The owner acknowledges the exact summary, recorded with a monotonically increasing version, actor and instant; edits require a fresh acknowledgment.
 5. Existing services retain their own policies, and pre-onboarding installations retain their existing rules until the owner completes restaurant setup.
 
 **Evidence.** `src/placemat/onboarding.ts`; `src/placemat/onboarding-preview.ts`; `src/placemat/local-time.ts`; `src/placemat/service-input.ts`; `public/placemat-onboarding.js`; `tests/api/onboarding.test.mjs`; `tests/onboarding-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Edited defaults propagate into a new dated service; Edited defaults propagate into recurring service generation. Unproved: Initial online defaults are parties 1–8, sixty days, 16:00 cutoff, thirty-minute lead and fifteen-minute slots; An onboarding-default override cannot violate physical capacity; Existing and pre-onboarding services retain their earlier rules until the owner onboards. The old test explicitly changes every returned default rather than asserting the initial values; it proves exact edited-policy propagation, not the specified initial defaults. Physical refusal is invoked through the harness in this file, without a direct assertion of that specific refusal or a post-attempt capacity read. Other cited onboarding UI assertions cover DST and preview, not this override outcome. The old Evidence set asserts propagation to newly created dated/recurring services and setup retention on venue edits, not a populated legacy service’s policies across first onboarding.
 
 #### SERVICE-002 — Recurring shifts and seasonal schedules
 
@@ -276,7 +276,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT-00
 
 Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT-001 · Rules D-2, D-3
 
-**Requirement.** Managers set covers and parties per arrival interval, total service covers, simultaneous seated covers and kitchen pacing by area. Public, widget, Google, social and partner allocations are refused at these limits with clear reasons. A voice agent's or other agent's pacing exception carries commitment; the company's policy decides it. Staff bookings see the same limits as a warning and proceed past them only through a reasoned, audited SERVICE-007 override. Current limits are per service. Arrival intervals use whole elapsed minutes aligned to service start and half-open bounds; booked, seated and completed arrivals count, cancelled/no-show parties do not. Total service covers use those same statuses. Simultaneous dining covers count overlapping booked/seated dining intervals, with ongoing seated parties counted past their forecast. Each party counts once per arrival interval and once against each configured area containing its assigned tables. Whole-number limits are 1–500 and intervals 5–120 minutes; absent older pacing settings add no arrival or simultaneous limit beyond the existing service-cover and FLOOR-004 kitchen caps. Managers configure the policy at service creation or with an attributed service.pacing command; existing commitments remain, and assignment changes cannot increase an exceeded limit without a new reviewed allocation. online booking, walk-in and waitlist seating, status reacquisition, direct/prepared assignments and retirement replacements retain pacing and every hard physical/server guard. New widget/phone/distribution/voice/agent doors (BOOK-002, BOOK-005, DIST-001–DIST-004, VOICE-001, AGENT-001) inherit these obligations before shipping. WAIT-002 queue intake stays open at pacing caps, labelled “queued only; no table or time promised”; pacing is enforced when a person seats, books or allocates from the queue.
+**Requirement.** Managers set covers and parties per arrival interval, total service covers, simultaneous seated covers and kitchen pacing by area. Public, widget, Google, social and partner allocations are refused at these limits with clear reasons. A voice agent's or other agent's pacing exception carries commitment; the company's policy decides it. Staff bookings see the same limits as a warning and proceed past them only through a reasoned, audited SERVICE-007 override. Current limits are per service. Arrival intervals use whole elapsed minutes aligned to service start and half-open bounds; booked, seated and completed arrivals count, cancelled/no-show parties do not. Total service covers use those same statuses. Simultaneous dining covers count overlapping booked/seated dining intervals, with ongoing seated parties counted past their forecast. Each party counts once per arrival interval and once against each configured area containing its assigned tables. Whole-number limits are 1–500 and intervals 5–120 minutes; absent older pacing settings add no arrival or simultaneous limit beyond the existing service-cover and FLOOR-004 kitchen caps. Managers configure the policy at service creation or with an attributed pacing change; existing commitments remain, and assignment changes cannot increase an exceeded limit without a new reviewed allocation. online booking, walk-in and waitlist seating, status reacquisition, direct/prepared assignments and retirement replacements retain pacing and every hard physical/server guard. New widget/phone/distribution/voice/agent doors (BOOK-002, BOOK-005, DIST-001–DIST-004, VOICE-001, AGENT-001) inherit these obligations before shipping. WAIT-002 queue intake stays open at pacing caps, labelled “queued only; no table or time promised”; pacing is enforced when a person seats, books or allocates from the queue.
 
 **Acceptance.**
 1. Set a 12-cover arrival limit and 48 simultaneous covers, book through two channels concurrently and prove the next public party is refused despite a physically free table, while a staff booking at the same moment receives a warning and needs a SERVICE-007 override.
@@ -299,7 +299,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT-00
 
 #### SERVICE-007 — Staff pacing overrides with warnings
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT-001 · Rules D-2, D-3
 
 **Requirement.** Permitted staff (managers by default, hosts when granted) can knowingly book or seat a party past an arrival-interval, simultaneous-cover, area-pacing or service-cover limit, or into a blocked timeslot, from the reservation book, a phone booking, a walk-in or waitlist seating. Before commit the screen and HTTP response name each limit exceeded and by how much; the staff member confirms with a reason. The override is audited with actor, limit, excess and reason, flagged on the booking and timeline, and counted separately in pacing and cover reports (REPORT-002). Public, widget, Google, social and partner allocations cannot override; a voice agent's or other agent's pacing exception carries commitment under the company's policy; WAIT-002 queue intake remains queued-only as SERVICE-005 states. No override can breach physical table capacity, overlapping turns or permitted combinations (FLOOR-001, FLOOR-003). owner/admin managers configure and override by their existing rights. An owner grants or revokes a separate pacing capability for an active FLOOR-009 host; it adds walk-in and waitlist seating with reasoned pacing overrides, never plan approval or venue administration. Each command rechecks the current grant. A native authenticated no-write preview names every limit/current/projected/excess and returns a five-minute HMAC review bound to the actor, command, exact payload, floor version and expiry. Commit needs that unchanged review, an explicit confirmation and a reason, and rechecks live fit. Review tokens are never stored or archived. Booking and audit retain actor/time/limit/excess/reason, the timeline flags the exception, and pacing and cover reports count and drill to overridden reservations separately (including later cancellations). Guest erasure clears linked override reasons in bookings, audit and retained proposal snapshots. Server caps/breaks, physical fit, access, joins and occupied turns always remain hard. BOOK-005 inherits future phone/concierge reservation-book creation; other new doors named in SERVICE-005 inherit these rules before shipping.
 
@@ -312,7 +312,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT-00
 6. Unrelated roster changes preserve existing reviewed kitchen exceptions; changing the kitchen cap itself still validates existing commitments.
 
 **Evidence.** `src/placemat/pacing.ts`; `src/placemat/pacing-review.ts`; `src/placemat/commands.ts`; `public/placemat-pacing.js`; `tests/api/pacing.test.mjs`; `tests/pacing-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The public pacing exception is refused with its arrival reason; Warning names limit and exact excess. Unproved: An agent pacing exception is refused by the held company’s commitment policy; A host without a pacing grant is refused without effect; The occupied-table override is explicitly refused; Server breaks remain a hard limit in this pacing exception; Unrelated roster edits preserve existing kitchen exceptions while cap edits validate commitments. The cited tests refuse a preparation key’s hard-coded scope; no held company-policy decision is asserted. Public pacing refusal is asserted. The old tests invoke host refusal through the shared harness; the status assertion is outside the clause’s old Evidence set, with no explicit post-attempt state comparison for that host action. The old Evidence set invokes occupied-table refusal through the harness without a cited direct assertion of its refusal or an exact post-attempt occupancy comparison. Staffing tests outside SERVICE-007’s old Evidence set assert break behavior; the cited pacing tests do not read the break-refusal outcome for this exception. No complete asserting sequence for both roster-change preservation and cap-change validation exists in this clause’s old Evidence set; staffing.test.mjs is not cited.
 
 ### Booking and distribution
 
@@ -320,7 +320,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-AUDIT-00
 
 Core · target · **done** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACCESSIBILITY-001, BASE-PUBLIC-002, BASE-SECRET-001, BASE-AUDIT-001 · Rules D-2, D-3 · Register R-1, R-2
 
-**Requirement.** Restaurants embed a responsive, accessible booking widget on their own WordPress, Squarespace, Wix or custom website with venue branding, locale, party/date/time search and policy disclosure. The standalone booking page and embed share inventory and preserve source attribution. Before shipping, this capability must inherit SERVICE-005 arrival/service/concurrent/area pacing and SERVICE-007 warning, reasoned override and hard physical-capacity obligations; public allocations cannot override; an agent's exception carries commitment and the company's policy decides it. Embedding follows ct’s 20 October 2026 ruling: the owner alone manages an explicit list of up to 20 exact `https` website origins for the embedded booking widget (no wildcards, credentials, paths, `http`, `localhost` or loopback addresses, in any environment), and every change is audited with actor, time and the before/after list. Only that widget response names the list in CSP `frame-ancestors`, and it omits `X-Frame-Options`, which cannot express a list; an empty list answers `frame-ancestors 'none'` with `X-Frame-Options: DENY`, as does every other response, so staff pages, the standalone page, the queue and inquiry pages stay unframeable. The widget never submits on its own: a booking needs the guest’s own Confirm booking press. It accepts no messages from the host page, posts only its height to the listed origin and shows no staff link or data. Widget bookings use the public booking door with the online channel’s rules, turn/reset, joins, staffing, pacing and physical capacity, never an override, and record `attribution with the widget door and listed origin (the listed origin the widget reported: attribution, not proof); other public bookings record the booking-page source. The widget uses this installation’s own branding and venue name, US English with venue-local times in the venue’s IANA time zone, and the standalone page’s request terms, availability re-check and inquiry routing; both list each searched service’s online booking rules (party range, large-party inquiry threshold, horizon, same-day cutoff, lead time and arrival interval) before the guest confirms.
+**Requirement.** Restaurants embed a responsive, accessible booking widget on their own WordPress, Squarespace, Wix or custom website with venue branding, locale, party/date/time search and policy disclosure. The standalone booking page and embed share inventory and preserve source attribution. Before shipping, this capability must inherit SERVICE-005 arrival/service/concurrent/area pacing and SERVICE-007 warning, reasoned override and hard physical-capacity obligations; public allocations cannot override; an agent's exception carries commitment and the company's policy decides it. the owner alone manages an explicit list of up to 20 exact `https` website origins for the embedded booking widget (no wildcards, credentials, paths, `http`, `localhost` or loopback addresses, in any environment), and every change is audited with actor, time and the before/after list. Only allowlisted websites can frame the widget; an empty list denies embedding. Staff pages, the standalone page, the queue and inquiry pages stay unframeable. The widget never submits on its own: a booking needs the guest’s own Confirm booking press. It accepts no messages from the host page, posts only its height to the listed origin and shows no staff link or data. Widget bookings use the public booking door with the online channel’s rules, turn/reset, joins, staffing, pacing and physical capacity, never an override, and record `attribution with the widget door and listed origin (the listed origin the widget reported: attribution, not proof); other public bookings record the booking-page source. The widget uses this installation’s own branding and venue name, US English with venue-local times in the venue’s IANA time zone, and the standalone page’s request terms, availability re-check and inquiry routing; both list each searched service’s online booking rules (party range, large-party inquiry threshold, horizon, same-day cutoff, lead time and arrival interval) before the guest confirms.
 
 **Acceptance.**
 1. Embed on an allowed test website, search and book at 1440 and 390 widths, navigate by keyboard and verify the same slot disappears on the standalone page.
@@ -332,7 +332,7 @@ Core · target · **done** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACCESS
 
 Core · target · **done** · From BOOK-002 · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACCESSIBILITY-001 · Rules D-2, D-3
 
-**Requirement.** Owners may enable consent-aware Google Analytics 4 and Meta Pixel/Conversions API events for search, checkout start and completed booking. While a provider is on and holds its key, the booking page and the widget ask once per page visit with Accept and Decline, naming each provider that is on and saying what is sent; the answer lives only in that page’s memory and is never stored or carried to another visit. Nothing is sent before Accept, on Decline or without an answer. After Accept the page creates a random visit ID, and Placemat’s server, never a script on the page, sends search (after each search the guest runs), checkout start (when the guest selects a time) and completed booking (after the booking commits) with exactly party size, booking source (`widget` with the listed origin, or `booking-page`) and the visit ID (Meta receives its SHA-256 as `external_id`), plus for Meta the browser user agent, the source page as `event_source_url` and the send time; never guest name or contact data, IP address, cookies, booking reference or reservation date/time. The visit ID is never stored on the booking or anywhere else. Sends run after the guest’s response with no retry queue, so a slow or failing provider never blocks or delays a booking. The owner sees each provider’s latest HTTP answer: GA4 never confirms an event (check DebugView) and Meta reports `events_received`; Placemat never claims a provider verified an event.
+**Requirement.** Owners may enable consent-aware Google Analytics 4 and Meta Pixel/Conversions API events for search, checkout start and completed booking. While a provider is on and holds its key, the booking page and the widget ask once per page visit with Accept and Decline, naming each provider that is on and saying what is sent; the answer lives only in that page’s memory and is never stored or carried to another visit. Nothing is sent before Accept, on Decline or without an answer. After Accept the page creates a random visit ID, and Placemat’s server, never a script on the page, sends search (after each search the guest runs), checkout start (when the guest selects a time) and completed booking (after the booking commits) with exactly party size, booking source (the widget with the listed origin, or the standalone booking page) and the visit ID (Meta receives its SHA-256 as its external identifier), plus for Meta the browser user agent, the source page as the event’s source URL and the send time; never guest name or contact data, IP address, cookies, booking reference or reservation date/time. The visit ID is never stored on the booking or anywhere else. Sends run after the guest’s response with no retry queue, so a slow or failing provider never blocks or delays a booking. The owner sees each provider’s latest HTTP answer: GA4 never confirms an event (check DebugView) and Meta reports the received event count; Placemat never claims a provider verified an event.
 
 **Acceptance.**
 1. Observe the GA4 and Meta test events for the completed booking with no guest contact data, then decline analytics consent and observe none.
@@ -344,12 +344,12 @@ Core · target · **done** · From BOOK-002 · Cites BASE-INPUT-001, BASE-PUBLIC
 
 Core · target · **done** · From BOOK-002 · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACCESSIBILITY-001, BASE-PUBLIC-002, BASE-SECRET-001, BASE-AUDIT-001 · Rules D-2, D-3
 
-**Requirement.** Only the owner switches Google Analytics 4 (Measurement Protocol: measurement ID and API secret, optional `debug_mode` test mode) and Meta (Conversions API to the owner’s Pixel/dataset ID: access token, optional `test_event_code`) on or off; every change is audited with actor, time and before/after settings. Switching a provider off stops its events; its saved key stays until the owner enters a new one or removes it. Following ct’s 21 October 2026 ruling, the owner alone (as one of the owner’s own controls; no finance or staff role) can press Remove saved key for each provider: it deletes the stored GA4 API secret or Meta access token, leaves that provider’s other settings unchanged and is audited under AUDIT-001 with actor, time and a saved-key state of false, never the key. While a provider is on without a key it sends nothing, the guest is not asked about it, and the settings say a key is needed; restores never bring a key back (DATA-001, DATA-003). The GA4 API secret and Meta access token are write-only: no state response, backup, archive, business CSV, audit row or log contains them (DATA-003 names the exclusion), so a restored installation sends nothing until the owner enters them again (DATA-001).
+**Requirement.** Only the owner switches Google Analytics 4 (Measurement Protocol: measurement ID and API secret, optional provider debug mode test mode) and Meta (Conversions API to the owner’s Pixel/dataset ID: access token, optional provider test-event mode) on or off; every change is audited with actor, time and before/after settings. Switching a provider off stops its events; its saved key stays until the owner enters a new one or removes it. the owner alone (as one of the owner’s own controls; no finance or staff role) can press Remove saved key for each provider: it deletes the stored GA4 API secret or Meta access token, leaves that provider’s other settings unchanged and is audited under AUDIT-001 with actor, time and a saved-key state of false, never the key. While a provider is on without a key it sends nothing, the guest is not asked about it, and the settings say a key is needed; restores never bring a key back (DATA-001, DATA-003). The GA4 API secret and Meta access token are write-only: no state response, backup, archive, business CSV, audit row or log contains them (DATA-003 names the exclusion), so a restored installation sends nothing until the owner enters them again (DATA-001).
 
 **Acceptance.**
 1. Switch each analytics provider off, replace its key and remove its saved key without changing unrelated settings; inspect the attributed settings history.
 2. With a provider enabled but its key absent, see that a key is needed, encounter no analytics question and send no analytics event; restore under DATA-001 and enter the key anew before any sending.
-3. Read state, archives, business CSVs, audit and logs and find no analytics credentials.
+3. Read state, archives, business CSVs, and audit and find no analytics credentials.
 
 **Evidence.** `src/placemat/embed.ts`; `src/placemat/views.ts`; `src/server.ts`; `public/placemat-embed.js`; `public/placemat-widget.js`; `src/placemat/analytics.ts`; `src/placemat/analytics-events.ts`; `migrations/core/0024_analytics.sql`; `public/placemat-analytics.js`; `public/placemat-analytics-settings.js`; `tests/api/embed.test.mjs`; `tests/embed-ui.mjs`
 **Gap.** None.
@@ -374,7 +374,7 @@ Core · target · **partial** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACC
 
 **Acceptance.**
 1. Use a delivered link to move a two-top to four, fail an unavailable move without losing the old booking, cancel with policy acknowledgment and refuse an expired or foreign token.
-2. an owner or a native admin manager holding reservation authority explicitly sends or reissues to the reservation's recorded email, with an actor audit on every issue.
+2. An owner or a native admin manager holding reservation authority explicitly sends or reissues to the reservation's recorded email, with an actor audit on every issue.
 3. Hosts and shared-device sessions have no issue scope. An agent issuing a guest link carries external and commitment, under the company's policy.
 4. At most five issues per reservation per venue-local calendar day, including reissues and failed-delivery attempts; refusal happens before email.
 5. A 32-byte random bearer is stored only as a digest, expires at the earlier of 24 hours and service start, and rotates on successful writes without extending expiry.
@@ -383,7 +383,7 @@ Core · target · **partial** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACC
 8. This door sends email only; MSG-008 must establish SMS consent before any future SMS send. No automatic payment, refund or outbound retry occurs. Reservations with payment obligations remain unchanged in manager review until PAY-004 (fee/cancellation policy) and PAY-005 (refund execution) ship their financial-consequence duties.
 
 **Evidence.** `tests/api/booking-rules.test.mjs`; `tests/search-ui.mjs`; `scripts/booking-management-sandbox.mjs`
-**Gap.** Zero-money management is implemented and proven through public HTTP and the guest page. Ct approved as adopted with riders (22 October 2026, 18:30Z): an owner or a native admin manager holding reservation authority explicitly sends or reissues to the reservation's recorded email, with an actor audit on every issue. Hosts, shared-device sessions and agents cannot issue. At most five issues per reservation per venue-local calendar day, including reissues and failed-delivery attempts; refusal happens before email. A 32-byte random bearer is stored only as a digest, expires at the earlier of 24 hours and service start, and rotates on successful writes without extending expiry. Reissue or a changed reservation invalidates the prior link. Changing the recorded email closes link access; sending to the new address requires the same explicit issue action. This door sends email only; MSG-008 must establish SMS consent before any future SMS send. No automatic payment, refund or outbound retry occurs. Reservations with payment obligations remain unchanged in manager review until PAY-004 (PARTIAL fee/cancellation policy) and PAY-005 (PARTIAL refund execution) ship their financial-consequence duties. Unproved: fee/refund consequences for financially implicated bookings — PAY-004 and PAY-005 remain PARTIAL. The ct-approved zero-money path and all five riders are implemented; BOOK-004 stays PARTIAL under rider 5. The complete acceptance remains binding.
+**Gap.** Zero-money management is implemented and proven through public HTTP and the guest page. an owner or a native admin manager holding reservation authority explicitly sends or reissues to the reservation's recorded email, with an actor audit on every issue. Hosts, shared-device sessions and agents cannot issue. At most five issues per reservation per venue-local calendar day, including reissues and failed-delivery attempts; refusal happens before email. A 32-byte random bearer is stored only as a digest, expires at the earlier of 24 hours and service start, and rotates on successful writes without extending expiry. Reissue or a changed reservation invalidates the prior link. Changing the recorded email closes link access; sending to the new address requires the same explicit issue action. This door sends email only; MSG-008 must establish SMS consent before any future SMS send. No automatic payment, refund or outbound retry occurs. Reservations with payment obligations remain unchanged in manager review until PAY-004 (PARTIAL fee/cancellation policy) and PAY-005 (PARTIAL refund execution) ship their financial-consequence duties. Unproved: fee/refund consequences for financially implicated bookings — PAY-004 and PAY-005 remain PARTIAL. The ct-approved zero-money path and all five riders are implemented; BOOK-004 stays PARTIAL under rider 5. The complete acceptance remains binding.
 
 #### BOOK-005 — Staff telephone and concierge reservations
 
@@ -399,13 +399,13 @@ Core · target · **partial** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACC
 
 #### BOOK-006 — Booking holds and duplicate submissions
 
-Core · target · **done** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACCESSIBILITY-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACCESSIBILITY-001 · Rules D-2, D-3
 
 **Requirement.** Short-lived checkout/experience holds reserve scarce inventory across channels, display expiry and release on abandonment or failed payment. Stable request identity ensures reloads and retried submits return the same reservation; no guest can be charged for a lost slot.
 
 **Acceptance.**
 1. Two guests start checkout for the final four-top, expire one hold, complete the other and retry its booking/payment request after a network interruption; find one booking and one charge.
-2. public checkout holds last at most five minutes, bind an exact booking payload to a client-generated random capability, and count against current channel, physical, turn/reset, pacing, staffing and seat-inventory allocators.
+2. Public checkout holds last at most five minutes, bind an exact booking payload to a client-generated random capability, and count against current channel, physical, turn/reset, pacing, staffing and seat-inventory allocators.
 3. Expiry does not renew on replay.
 4. Explicit abandonment releases a hold; conversion atomically saves the reservation and consumes its allocation.
 5. Reload and interrupted-response recovery return that same reservation.
@@ -414,7 +414,7 @@ Core · target · **done** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ACCESS
 8. An unresolved Checkout attempt protects its reservation until a personal owner or manager recovers the stable processor request and observes an authoritative terminal state; local deadlines and uncertain expiry acknowledgments cannot release it. Closing collection and cancelling a reservation remain separate explicit actions. EXP-002 inherits this hold and duplicate-submission obligation before experience checkout ships.
 
 **Evidence.** `tests/api/flows.test.mjs`; `tests/api/booking-holds-journeys.mjs`; `tests/api/checkout-payment-journeys.mjs`; `tests/checkout-ui.mjs`; `scripts/checkout-sandbox.mjs`
-**Gap.** None.
+**Gap.** Asserted: Only one checkout wins the final fitting table; The first expired hold is observed as expired. Unproved: Every channel, turn/reset, pacing, staffing and seat-inventory allocator counts the checkout hold; Recovery records contain no guest contact or request text and erasure ends recovery. The cited hold journey exercises a simple table and several refused doors; it does not assert each listed allocator on populated pacing, staffing, counter and pool fixtures. Archive exclusion is asserted, but the cited evidence does not inspect populated recovery-record fields for the complete contact/request-text absence or read back erased recovery custody.
 
 #### BOOK-007 — Special requests and group inquiries
 
@@ -481,7 +481,7 @@ Core · target · **partial** · Cites BASE-INPUT-001, BASE-OPS-003, BASE-PUBLIC
 
 Core · target · **done** · Cites BASE-INPUT-001, BASE-OPS-003, BASE-PUBLIC-001, BASE-ROLE-001, BASE-MAIL-001 · Rules D-2, D-3
 
-**Requirement.** Diners can optionally keep verified contact details, favorite restaurants, manage upcoming reservations and rebook prior visits across devices, with saved preferences controlled per restaurant. Guest checkout remains available and identity never merges distinct people solely because they share a phone. A diner explicitly proves access to the selected booking’s current recorded email before attaching that booking. Thirty-two-byte random one-use codes are stored only as digests and expire after fifteen minutes; independent device bearers are stored only as digests and expire after twenty-four hours. Each additional booking needs its own current-contact proof. Shared phone numbers confer no identity, booking or account authority. Favorites and preferences are controlled per restaurant; verification grants no staff role, marketing permission, review eligibility or group-sharing permission. Logout revokes the selected device; account forget revokes all account sessions without cancelling reservations. DATA-003 portability, DATA-002 erasure fences and AUDIT-001 accountability apply to these records, while verification and device custody remain excluded from archives. The complete diner-facing favorite, repeat-booking and upcoming-reservation management target across devices remains binding. Group sharing remains the separate GUEST-006 target. The earlier DIST-005 ruling remains binding. Pending email proof may retain the private booking, guest and current-contact references needed to validate that single booking, while storing the random code only as a digest, expiring it after fifteen minutes and consuming it once. An independent digest-only device session expires after twenty-four hours and grants management only for individually verified bookings whose current recorded contact still matches. Every change, reconfirmation or cancellation requires a fresh booking-specific preview and explicit diner confirmation; the preview is bound to that device, booking and current state, is revocable and is excluded from archives. Capacity failure, stale state, replay, revoked access or changed contact grants no mutation authority. Recorded payment obligations require manager review and remain unchanged through this diner door; this grants no charge, refund, fee waiver or automatic message authority. Current-contact, custody, audit, portability and erasure riders remain binding.
+**Requirement.** Diners can optionally keep verified contact details, favorite restaurants, manage upcoming reservations and rebook prior visits across devices, with saved preferences controlled per restaurant. Guest checkout remains available and identity never merges distinct people solely because they share a phone. A diner explicitly proves access to the selected booking’s current recorded email before attaching that booking. Thirty-two-byte random one-use codes are stored only as digests and expire after fifteen minutes; independent device bearers are stored only as digests and expire after twenty-four hours. Each additional booking needs its own current-contact proof. Shared phone numbers confer no identity, booking or account authority. Favorites and preferences are controlled per restaurant; verification grants no staff role, marketing permission, review eligibility or group-sharing permission. Logout revokes the selected device; account forget revokes all account sessions without cancelling reservations. DATA-003 portability, DATA-002 erasure fences and AUDIT-001 accountability apply to these records, while verification and device custody remain excluded from archives. The complete diner-facing favorite, repeat-booking and upcoming-reservation management target across devices remains binding. Group sharing remains the separate GUEST-006 target. Pending email proof may retain the private booking, guest and current-contact references needed to validate that single booking, while storing the random code only as a digest, expiring it after fifteen minutes and consuming it once. An independent digest-only device session expires after twenty-four hours and grants management only for individually verified bookings whose current recorded contact still matches. Every change, reconfirmation or cancellation requires a fresh booking-specific preview and explicit diner confirmation; the preview is bound to that device, booking and current state, is revocable and is excluded from archives. Capacity failure, stale state, replay, revoked access or changed contact grants no mutation authority. Recorded payment obligations require manager review and remain unchanged through this diner door; this grants no charge, refund, fee waiver or automatic message authority.
 
 **Acceptance.**
 1. Book without an account, verify a diner account, attach only the verified booking, rebook a favorite on another device and revoke saved preferences.
@@ -519,7 +519,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-00
 
 #### FLOOR-003 — Approved table combinations
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** Managers explicitly permit which adjacent tables can join, their combined capacity, accessible fit and setup buffer. Allocation cannot combine distant or incompatible tables merely because their seats sum to the party size. Before explicit join definitions ship, enforce FLOOR-009 permitted combinations on direct and prepared moves as well as all booking doors. Managers confirm adjacency explicitly for an exact set; joins can cross named areas only when explicitly approved, while a booking’s required area must match every constituent. Approved capacity is an integer no greater than the constituent seats, and every approved access tag must exist on every constituent. Setup is 0–120 whole elapsed minutes immediately before arrival, within the service, with half-open occupancy from setup start through the preserved turn/reset and any ongoing overrun; single tables need no setup. public search/booking, staff walk-ins, waitlist seating, direct move/swap/lock and prepared assignments all enforce these definitions. Active booked/seated commitments freeze join settings and setup; disabling prevents new assignments while preserving those commitments, and structural edits wait until they finish. Changes to join configuration invalidate prepared publication or reassignment review. Future booking doors (BOOK-002, BOOK-005, DIST-001–DIST-004, VOICE-001, AGENT-001) inherit exact joins and full setup before shipping.
 
@@ -527,11 +527,11 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-00
 1. Permit T1+T2 but prohibit T1+T8; request six guests, verify the permitted join is used and reject a host attempting the prohibited join.
 
 **Evidence.** `src/placemat/combinations.ts`; `src/placemat/capacity.ts`; `src/placemat/assignments.ts`; `public/placemat-combinations.js`; `tests/api/combinations.test.mjs`; `tests/combinations-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The six-top uses exactly the permitted table pair; Join setup begins at the expected service instant. Unproved: The prohibited join returns a directly asserted refusal. The cited combination journey invokes expected-refusal helpers for prohibited joins; its retained pair assertions prove no assignment change but do not directly assert each refusal result. The response assertion is in uncited harness code.
 
 #### FLOOR-004 — Server sections and fair covers
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** Managers create shift-specific sections, assign servers and tables, record breaks and cap covers per server. Hosts see seated/expected covers and rotation, while reassignment preserves the serving history and checks kitchen and server capacity. Before server sections ship, expose assigned server filtering in the FLOOR-005 timeline and enforce FLOOR-009 server capacity and serving history on moves. Servers are named shift roster entries, not new sign-in roles. Each table belongs to at most one section per service, and an assignment or join must fit wholly within one section once sections are configured. Server and configured kitchen-area caps count overlapping booked or seated dining covers in half-open arrival-to-forecast-departure intervals; setup and cleanup still reserve physical tables separately. Ongoing seated parties remain counted past forecast departure. Expected covers total the shift’s booked and seated parties; seated covers total its currently seated parties, with exact booking drilldowns and missing seating history labeled. Each party counts against every kitchen area containing its assigned tables. Breaks exclude new assignments and seating, while an existing seated party can retain its server during a same-section move. Rotation considers a requested party size and live fitting tables, breaks and caps, then orders eligible servers by seated covers, oldest last seating (never seated first) and stable server id. Active section mappings cannot silently change; move or finish affected parties before changing their mapping. New reservations, walk-ins, waitlist seating, status reacquisition, direct moves/swaps, reviewed proposals and retirement replacements all enforce these capacities and retain attributed serving events. FLOOR-008 inherits offline staffing reconciliation, ROLE-003 inherits server-specific sign-in visibility, and SERVICE-005/007 inherit wider interval pacing and permitted overrides; BOOK-002/005, DIST-001–DIST-004, VOICE-001 and AGENT-001 inherit staffing constraints before their new doors ship.
 
@@ -540,11 +540,11 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-00
 2. SERVICE-007 carries signed, reasoned exceptions to the configured concurrent kitchen-area cap; server caps and breaks remain hard.
 
 **Evidence.** `src/placemat/staffing.ts`; `src/placemat/staffing-capacity.ts`; `public/placemat-staffing.js`; `tests/api/staffing.test.mjs`; `tests/staffing-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Each booking is assigned to the intended section and server; Uneven seated covers equal five and three. Unproved: A signed kitchen-cap exception preserves hard server caps and breaks. The point restates SERVICE-007’s exception. Its signed-exception assertions are in tests/api/pacing.test.mjs, outside FLOOR-004’s old Evidence set; the cited staffing evidence proves ordinary server capacity and breaks.
 
 #### FLOOR-005 — Timeline and overdue turns
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** A searchable day/service timeline shows arrivals, assigned tables, expected/actual seating and departure, cleanup, late arrivals and overdue turns. Hosts zoom or filter by room/server and resolve an overrun by moving the next arrival in one host action (FLOOR-009) or accepting a proposed replacement, never silently moving a confirmed reservation. observations are staff-recorded, not POS verification. An extension changes only the expected departure, retains the originally confirmed seating/departure/reset and appends actor, receipt time, prior/new forecast and reason; no reservation moves until a separate direct host command or agent proposal runs under the company's policy for commitment. The original cleanup duration follows the extended forecast, and an ongoing seated party remains physically occupied even past its forecast. Late means an actual arrival after the promised start, or an unarrived booked party past that start; overdue means an ongoing seated party past expected departure. Raw elapsed minutes are returned, while labels round to the nearest minute. The inclusive next window is now through now plus the selected elapsed minutes; seated/due/average totals use the displayed filtered parties. Average actual turn is the mean corrected seating-to-completed duration for parties actually completed today in venue time; missing actual timestamps are excluded and an empty mean stays unknown. Each total opens its exact party ids. Search matches guest name/contact, reservation id, service and tables without changing identity. The selected date is the venue-local service-start date. room/area and time-scale filters work on existing tables; FLOOR-004 inherits populated server assignments and server filtering before sections ship. Corrections retain both original observations and restored facts.
 
@@ -553,11 +553,11 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-00
 2. The host header shows seated covers now, covers due within a configurable next window and the average actual turn so far today, each opening its parties.
 
 **Evidence.** `src/placemat/timeline.ts`; `src/placemat/capacity.ts`; `public/placemat-timeline.js`; `tests/api/timeline.test.mjs`; `tests/floor-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The six-top is late and has actual arrival/seating observations; Turn extension retains the original confirmed end/reset. Unproved: Average actual turn equals the mean of completed parties. The cited timeline test asserts average.minutes >= 0 and the contributing booking id, rather than the computed mean against the recorded seating/completion instants. The browser reads the party drilldown, not the numeric average.
 
 #### FLOOR-006 — Service statuses and handover
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** Hosts manage confirmed, reconfirmed, arrived, partially arrived, seated, ordering, check open, paid, clearing, completed, late, canceled and no-show states. Status changes carry timestamps and actor; POS observations cannot falsely mark a dirty table ready. owner/admin staff and owner-granted FLOOR-009 hosts record service observations; ROLE-003 carries further host/server rights before those roles ship. observations are explicitly staff-recorded, including paid, which does not claim a POS payment. POS-007 inherits all status, timestamp, dirty-table and correction obligations before connected observations ship. Service and floor histories append the actor and server receipt time; a correction requires a reason, restores only the latest observation’s prior state and retains both rows, refusing physical clashes. Paid and completed leave the table needing bussing; only staff ready permits another seating. Future online reservations still use the promised turn/reset, and ready never shortens that protected interval. Floor timers show elapsed whole minutes since the last course/floor change; missing legacy observations are labeled not recorded. A read of shift handover shows current stages and their full observations, including corrections.
 
@@ -566,11 +566,11 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-00
 2. The floor plan marks each table reserved, seated, mains, dessert, check dropped or needs bussing with a timer since its last transition, from host taps or POS signals (POS-007), and a legend names the same states.
 
 **Evidence.** `src/placemat/service-status.ts`; `public/placemat-service-status.js`; `tests/api/service-status.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: The service progresses through arrived; The service progresses through paid. Unproved: The floor legend names the same six states and each timer measures the elapsed time. The old Evidence set cites the API service-status test, not a browser assertion of the legend. The timer check is only elapsedMinutes >= 0, without an expected elapsed value.
 
 #### FLOOR-007 — Busy-service search and shift handover
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** Hosts find guests, bookings, phone numbers and table labels quickly, filter by service/source/status and see VIP, allergy, access and unpaid-policy alerts with PAY-010 deadlines.
 
@@ -581,11 +581,11 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-00
 4. It displays existing VIP/regular facts, guest-supplied allergy/accommodation requests and required table access/area, without certifying food safety or claiming a payment.
 
 **Evidence.** `tests/api/timeline.test.mjs`; `tests/timeline-search-ui.mjs`; `tests/floor-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Phone suffix identifies the arriving guest; Normalized name finds the intended bookings. Unproved: Service-name substring search returns the intended parties. The cited search evidence covers phone, normalized name/email, booking id and table labels; it does not assert service-name substring lookup.
 
 #### FLOOR-014 — Owned guest requests and shift callbacks
 
-Core · target · **done** · From FLOOR-007 · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · From FLOOR-007 · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** A handover lists unresolved guest requests, late parties and promised callbacks with owners and due times. Completing a follow-up records an operational outcome without marking a deposit paid.
 
@@ -597,7 +597,7 @@ Core · target · **done** · From FLOOR-007 · Cites BASE-ROLE-001, BASE-AUDIT-
 5. Every active host and manager sees each open item's kind, booking, guest, due time, assignee and state. Free text is shown only to managers and the current assignee; preparation keys have no free-text scope, while an agent's sensitive read remains bounded by its sponsor's assignment and the company's policy, and leaves the SEC-002 stand page on lock or switch.
 
 **Evidence.** `tests/api/timeline.test.mjs`; `tests/timeline-search-ui.mjs`; `tests/floor-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The access request retains the required wheelchair/access need; Handover changes the callback owner from first to next host. Unproved: A non-owner host cannot reassign another host’s item while a manager can; Every active host can read kind for an open item; Every active host can read booking for an open item; Every active host can read guest for an open item; Every active host can read due time for an open item; Every active host can read assignee for an open item; Every active host can read state for an open item; An agent’s sensitive read follows the sponsor’s assignment and company policy. The old test invokes expected-refusal helpers for unassigned writers and does not directly assert both complete routing outcomes in its cited file. Current-owner reassignment history is asserted. Old assertions check callback presence, selected ownership fields and privacy, not the full six-field projection for every active host; the point retains that complete projection. Existing preparation-key absence is proved, but sensitive class computation and company-policy decisions are not asserted by the old evidence.
 
 #### FLOOR-008 — Concurrent devices and operational outage
 
@@ -676,9 +676,9 @@ Core · target · **missing** · From FLOOR-008 · Cites BASE-ROLE-001, BASE-AUD
 
 #### FLOOR-009 — Direct host table moves, swaps and locks
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
-**Requirement.** A host or manager moves a booked, arrived or seated party to a free fitting table or permitted combination, swaps two parties’ tables, or locks an assignment, each in one direct action (drag on the floor plan or timeline, or Change assignment on the reservation) on tablet, phone and web. No manager approval is needed. At commit each action checks the live floor version, physical fit, overlapping turns, permitted joins and required access needs, refuses a move into an occupied or clashing table with the reason, and writes one audit row with actor, before/after tables, time and optional reason. A locked assignment is never changed by automatic allocation, reflow or agent proposals until a person unlocks it. Preparation keys keep PLAN-001 preparation scope; an agent's execution of a move carries commitment and the company's policy decides it. The owner grants or revokes the venue host capability for an active native member; native account roles remain unchanged. Hosts use direct assignment, service-observation and WAIT-002 intake/party-update commands, never proposal approval, venue administration or bulk guest export. Every direct assignment command requires the exact current floor version. Current combinations must stay in one dining area and each selected table must contain every exact required access tag recorded on the booking. FLOOR-002 and GUEST-003 inherit richer table/access attributes; FLOOR-003 inherits explicit permitted adjacent joins and setup buffers; FLOOR-004 inherits server capacity and serving-history constraints before those capabilities ship. and future allocation and agent doors must retain locked assignments until a separately authorized unlock; an agent unlock carries commitment under the company's policy, and direct moves or swaps also need an unlocked assignment. An atomic swap validates the final two-party floor, then writes one audit row containing both parties. Assignment reasons and guest-linked access tags follow DATA-002 erasure.
+**Requirement.** A host or manager moves a booked, arrived or seated party to a free fitting table or permitted combination, swaps two parties’ tables, or locks an assignment, each in one direct action (drag on the floor plan or timeline, or Change assignment on the reservation) on tablet, phone and web. No manager approval is needed. At commit each action checks the live floor version, physical fit, overlapping turns, permitted joins and required access needs, refuses a move into an occupied or clashing table with the reason, and writes one audit row with actor, before/after tables, time and optional reason. A locked assignment is not changed by automatic allocation or reflow until a separately authorized unlock. An agent unlock carries commitment and the company's policy decides it. Preparation keys keep PLAN-001 preparation scope; an agent's execution of a move carries commitment and the company's policy decides it. The owner grants or revokes the venue host capability for an active native member; native account roles remain unchanged. Hosts use direct assignment, service-observation and WAIT-002 intake/party-update commands, never proposal approval, venue administration or bulk guest export. Every direct assignment command requires the exact current floor version. Current combinations must stay in one dining area and each selected table must contain every exact required access tag recorded on the booking. FLOOR-002 and GUEST-003 inherit richer table/access attributes; FLOOR-003 inherits explicit permitted adjacent joins and setup buffers; FLOOR-004 inherits server capacity and serving-history constraints before those capabilities ship. and future allocation and agent doors must retain locked assignments until a separately authorized unlock; an agent unlock carries commitment under the company's policy, and direct moves or swaps also need an unlocked assignment. An atomic swap validates the final two-party floor, then writes one audit row containing both parties. Assignment reasons and guest-linked access tags follow DATA-002 erasure.
 
 **Acceptance.**
 1. Signed in as a host, not a manager, move a seated four-top to a free fitting table, swap two booked parties and lock a third assignment, each in one HTTP command and one floor-screen gesture at 1440 and 390 widths; read the three audit rows.
@@ -687,31 +687,31 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-00
 4. Prove a preparation key can still only prepare a `table.assign` proposal.
 
 **Evidence.** `src/placemat/assignments.ts`; `src/placemat/commands.ts`; `src/placemat/access.ts`; `public/placemat-assignments.js`; `tests/api/assignments.test.mjs`; `tests/floor-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The caller is a host without becoming a manager; A direct move writes exactly the chosen table. Unproved: Occupied and next-turn collision moves are explicitly refused. The cited assignment tests invoke these through shared expected-status helpers. Subsequent snapshots prove other retained assignments but do not directly assert both specified refusal results in a cited file.
 
 #### FLOOR-010 — Counter seats and unassigned bar pools
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** Managers define bars and chef’s counters as seat-level inventory (a 10-seat counter where a two-top takes 2 seats, adjacent where required) and lounge or bar areas as unassigned cover pools with their own pacing and turn times. Counter seats are chosen at booking or assigned at arrival; a pool reservation holds covers without a table until the host seats it. Seats and pools share the one capacity ledger, turns and pacing with tables, and hosts can move a pool or counter party to a table under FLOOR-009. Before counter seats or pools ship, include their assignments on FLOOR-012 screen, print and PDF and assert the chef’s-counter acceptance there.
 
 **Acceptance.**
 1. Define a 10-seat counter and a 20-cover lounge pool; book five two-tops at the counter and refuse a sixth for the same turn; seat two adjacent counter guests and prove those seats are not sold twice across overlapping turns.
 2. Book a lounge reservation, seat it at assigned bar seats on arrival and then move it to a table, reading pool and table occupancy after each step.
-3. inventory settings and identities are immutable for history.
+3. Inventory settings and identities are immutable for history.
 4. Counter units are physical one-person seats; pool units are anonymous cover holds, not physical seats.
 5. Pool inventory requires explicit area selection; hosts assign physical seats before seating, then may transfer to a table while retaining confirmed times and required access.
 6. Transfers refuse a destination requiring a longer turn.
 7. Counters count individually in physical-seat utilization; anonymous pool capacity is reported separately. Existing correction histories and immutable report publication apply.
 
 **Evidence.** `tests/api/assignments.test.mjs`; `tests/preshift-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Five two-tops occupy ten distinct counter seats; Each party receives adjacent seats. Unproved: The sixth counter party and an overlapping counter turn are explicitly refused; Inventory settings and identities cannot mutate historical inventory; A host transfer preserves required access after explicitly selecting an area; Transfer to a longer-turn destination is refused. These refusal outcomes are invoked through seat-fixture/harness helpers outside the old Evidence set. The cited file directly asserts five two-tops and ten distinct seats, not each refusal response. Structural-edit refusals are invoked, but the cited test does not read back the entire pre/post inventory definition to assert immutable historical settings and identities. The cited sequence reads retained times and final tables but not the transferred party’s exact required access and area through each pool/counter/table step. The refusal is not directly asserted in this clause’s old Evidence set; the corresponding allocator scenario is outside its cited files.
 
 #### FLOOR-011 — Late arrivals, holds and the no-show workflow
 
 Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
-**Requirement.** Past a configurable grace time a booked party shows as late on the floor and timeline. A host (or the service agent inside a company's policy) logs each contact attempt, an outbound call or text, against the booking with its outcome: answered, no answer, voicemail, delivered or failed. When a guest says they are running late, the table is held to a stated time only if the next turn on it allows; otherwise the host sees the clash and the fitting alternatives. A person marks the no-show; the timeline records each step with actor and time, the party’s capacity returns to the shared ledger, the PAY-004 fee policy runs on recorded consent and the freed table is offered to fitting waiting parties under WAIT-004 with a stated hold window. A guest who arrives after release is seated at the next fitting table, never over a reassigned one.
+**Requirement.** Past a configurable grace time a booked party shows as late on the floor and timeline. A host (or the service agent inside the company's policy) logs each contact attempt, an outbound call or text, against the booking with its outcome: answered, no answer, voicemail, delivered or failed. When a guest says they are running late, the table is held to a stated time only if the next turn on it allows; otherwise the host sees the clash and the fitting alternatives. A person marks the no-show; the timeline records each step with actor and time, the party’s capacity returns to the shared ledger, the PAY-004 fee policy runs on recorded consent and the freed table is offered to fitting waiting parties under WAIT-004 with a stated hold window. A guest who arrives after release is seated at the next fitting table, never over a reassigned one.
 
 **Acceptance.**
 1. Book a four-top for 7:15, reach the grace time with no arrival, log two unanswered calls and mark the no-show at 7:30 as a host; read the timeline with each step, actor and time; verify the table returns to availability, one PAY-004 fee is recorded and a fitting waiting party receives a table-ready text with its hold window and is seated.
@@ -722,57 +722,55 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT
 
 #### FLOOR-012 — Printable pre-shift sheet
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
-**Requirement.** Before service a host or manager opens one sheet for the service date, printable from the browser, downloadable as PDF and readable on host devices. It lists the guests to know (VIP and regular status with visit count, occasion, declared allergies and access needs from GUEST-003, seating preference and the notes the viewer’s role may see), deposits and card guarantees held with amounts (PAY-002, PAY-003) and unpaid PAY-010 deadlines, the server sections with their tables and expected covers (FLOOR-004), the pacing limits (SERVICE-005) and the kitchen notes of FLOOR-019. It reflects bookings and changes up to the moment it is opened and shows when it was generated. Roles without rights (ROLE-003, ROLE-004) never see restricted notes or contact details on it, and erased guests (DATA-002) never appear with personal values.
+**Requirement.** Before service a host or manager opens one sheet for the service date, printable from the browser, downloadable as PDF and readable on host devices. It lists the guests to know (VIP and regular status with visit count, occasion, declared allergies and access needs from GUEST-003, seating preference and the notes the viewer’s role may see), deposits and card guarantees held with amounts (PAY-002, PAY-003) and unpaid PAY-010 deadlines, the server sections with their tables and expected covers (FLOOR-004), the pacing limits (SERVICE-005) and the kitchen notes of FLOOR-019. It reflects bookings and changes up to the moment it is opened and shows when it was generated. Roles without rights (ROLE-003, ROLE-004) never see restricted notes or contact details on it, and erased guests (DATA-002) never appear with personal values. Before their capabilities ship, PAY-002, PAY-003, PAY-010, FLOOR-013, GUEST-003, FLOOR-010, ROLE-003 (server acceptance step) and ROLE-004 each inherit their full sheet duties and acceptance in both documents. The deposit eight-top, chef’s-counter and server acceptance steps remain binding in those receivers;
 
 **Acceptance.**
 1. Prepare a Friday with a shellfish-allergic anniversary regular, an eight-top with a deposit and a chef’s-counter booking; open the pre-shift sheet as manager and print it to PDF; read each guest’s flags, deposit and section; change a booking and reopen to see the change and a new generated time; open it as a server and find restricted notes absent; erase one guest and prove a new sheet holds none of their values.
-2. owner/admin get the full current sheet; owner-granted hosts get names, VIP/regular level, recorded attended visit count, occasion, unverified guest-supplied dietary/allergy/access requests, seating preferences, table/section/server and pacing only.
+2. Owner/admin get the full current sheet; owner-granted hosts get names, VIP/regular level, recorded attended visit count, occasion, unverified guest-supplied dietary/allergy/access requests, seating preferences, table/section/server and pacing only.
 3. Hosts receive no contact, guest notes or tags.
 4. Plain members and preparation keys are refused.
 5. One server-side projection feeds HTML, print and on-demand PDF; no sheet or PDF is stored.
 6. The date is venue-local; every service starting on that date is included, with current non-canceled/non-no-show bookings and a generated instant.
 7. Erased guests show only “Erased guest”, time, party size and table.
-8. Saved deposit requests show protection state and their pay-by deadline in the live sheet, print and PDF for managers and hosts; only server-verified paid state establishes protection. No card guarantee or held-deposit amount is inferred; PAY-002 and PAY-003 retain their amount/guarantee duties. Before their capabilities ship, PAY-002, PAY-003, PAY-010, FLOOR-013, GUEST-003, FLOOR-010, ROLE-003 (server acceptance step) and ROLE-004 each inherit their full sheet duties and acceptance in both documents. The deposit eight-top, chef’s-counter and server acceptance steps remain binding in those receivers; proof uses an ordinary eight-top, guest-supplied requests and a granted host.
+8. Saved deposit requests show protection state and their pay-by deadline in the live sheet, print and PDF for managers and hosts; only server-verified paid state establishes protection. No card guarantee or held-deposit amount is inferred; PAY-002 and PAY-003 retain their amount/guarantee duties.
 
 **Evidence.** `src/placemat/preshift.ts`; `src/placemat/preshift-view.ts`; `src/placemat/http.ts`; `tests/api/preshift.test.mjs`; `tests/preshift-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Manager reads the guest’s regular status; Manager reads the guest’s visit count. Unproved: The eight-top’s held deposit and chef-counter booking are present in the manager sheet/PDF; A server reads the own-section sheet without restricted notes; Each allowed host field in the complete enumerated projection is returned; No generated sheet or PDF is stored server-side; host HTML/print shows unpaid protection state and deadline; host PDF shows unpaid protection state and deadline. The old FLOOR-012 Evidence set proves an ordinary eight-top and unpaid/paid protection states, not held deposit amounts or counter inventory; counter-sheet assertions are in assignments.test.mjs outside this old set. Server-sheet assertions are in tests/api/server-role.test.mjs, outside FLOOR-012’s old Evidence set. Granted-host projection is asserted. The old cited test asserts host audience, payment protection and excluded private values, without a full positive assertion of names, visit count, every request/source, section/server and pacing for the host projection. The old Evidence set asserts no-store HTTP headers and on-demand output, but does not inspect persisted rows/archive custody to prove no stored sheet/PDF. The old cited test reads the unpaid host JSON projection and paid host HTML/PDF. It does not assert unpaid host HTML/PDF before provider confirmation.
 
 #### FLOOR-013 — Service notes and kitchen notes
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
-**Requirement.** Managers attach free-text shift notes (for example “regular booked Thursday, seat in Ana’s section”) and kitchen notes to a service date. Every host device and the pre-shift sheet (FLOOR-012) show them, and edits keep author, time and history. Before service notes ship, feed current authorized shift/kitchen notes into FLOOR-012 through its one server-filtered projection for screen, print and PDF.
+**Requirement.** Managers attach free-text shift notes (for example “regular booked Thursday, seat in Ana’s section”) and kitchen notes to a service date. Every host device and the pre-shift sheet (FLOOR-012) show them, and edits keep author, time and history. Before service notes ship, feed current authorized shift/kitchen notes into FLOOR-012 through its one server-filtered projection for screen, print and PDF. FLOOR-013 must add DATA-003 CSV/archive coverage, DATA-001 restore validation and DATA-002 erasure before shipping.
 
 **Acceptance.**
 1. As manager add the kitchen note “Halibut: 12 portions” and a shift note; as host open the floor on a second device and read both; edit the note and read author, time and history.
-2. FLOOR-013 must add DATA-003 CSV/archive coverage, DATA-001 restore validation and DATA-002 erasure before shipping.
-3. Service-date notes use the venue-local date on which the service starts. Owner/admin write notes; owner/admin and granted hosts read shift notes. Note edits append text, actor and instant history; hosts receive live changes.
-4. Notes and history export in business CSVs and structured archives with validated dates, shapes and relationships. Erasure clears shared note text and history on the erased guest’s booked service dates and redacts corresponding audit snapshots; anonymous dates, actors and instants remain.
+2. Service-date notes use the venue-local date on which the service starts. Owner/admin write notes; owner/admin and granted hosts read shift notes. Note edits append text, actor and instant history; hosts receive live changes.
+3. Notes and history export in business CSVs and structured archives with validated dates, shapes and relationships. Erasure clears shared note text and history on the erased guest’s booked service dates and redacts corresponding audit snapshots; anonymous dates, actors and instants remain.
 
 **Evidence.** `src/placemat/service-notes.ts`; `src/placemat/service-notes-archive.mjs`; `src/placemat/kitchen-view.ts`; `public/placemat-service-notes.js`; `tests/api/service-notes.test.mjs`; `tests/service-notes-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Both note types are visible to the authorized host; The edit retains the two text revisions. Unproved: Anonymous note dates, actors and instants remain after erasure. The cited erasure checks remove populated note text from state/archive/CSV but do not read back every retained anonymous date, actor and instant.
 
 #### FLOOR-019 — Kitchen workload and declared needs
 
-Core · target · **done** · From FLOOR-013 · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · From FLOOR-013 · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
-**Requirement.** The kitchen view of a service shows the arrival pacing limit and covers expected per interval (SERVICE-005), large parties, counts of dishes, add-ons or tasting choices that guests supplied at booking (BOOK-007, EXP-002) totaled by item, and each declared allergy and access need by table (GUEST-003) with no diagnosis and no statement that food is safe. Counts come only from guest-supplied booking data or manager entry and say which; Placemat never estimates portions.
+**Requirement.** The kitchen view of a service shows the arrival pacing limit and covers expected per interval (SERVICE-005), large parties, counts of dishes, add-ons or tasting choices that guests supplied at booking (BOOK-007, EXP-002) totaled by item, and each declared allergy and access need by table (GUEST-003) with no diagnosis and no statement that food is safe. Counts come only from guest-supplied booking data or manager entry and say which; Placemat never estimates portions. Paid/ticketed add-ons and tasting choices receive item/source totals and sheet coverage through EXP-002; ROLE-003 supplies server sign-in with own-section allergies.
 
 **Acceptance.**
 1. Read each declared allergy and access need by table beside the arrival pacing limit; open the kitchen as a server and find only that server’s section allergies.
 2. Kitchen totals and covers include booked, seated and completed reservations, excluding cancelled/no-show parties; large parties are eight or more.
 3. Owner/admin, granted hosts and plain members read the identity-free kitchen view; preparation-only keys have no kitchen scope. The kitchen offers live updates and explicit refresh.
 4. Kitchen allergy/access fields are unverified guest-supplied requests by table, with no guest identity/contact fields, diagnosis or safety claim. GUEST-003 supplies declared and acknowledged sources.
-5. Paid/ticketed add-ons and tasting choices receive item/source totals and sheet coverage through EXP-002; ROLE-003 supplies server sign-in with own-section allergies.
 
 **Evidence.** `src/placemat/service-notes.ts`; `src/placemat/service-notes-archive.mjs`; `src/placemat/kitchen-view.ts`; `public/placemat-service-notes.js`; `tests/api/service-notes.test.mjs`; `tests/service-notes-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The kitchen displays allergy by the exact table; Kitchen displays declared access and the pacing limit. Unproved: A server sees only their section’s allergies; Kitchen totals apply the specified rule to seated parties; Kitchen totals apply the specified rule to completed parties; Kitchen totals apply the specified rule to no-show parties; Kitchen live updates and explicit refresh both expose a changed current view; Declared/acknowledged source distinctions and no diagnosis/safety claim are explicit. Own-section server assertions live in tests/api/server-role.test.mjs, which FLOOR-013 did not cite. Its cited kitchen test uses owner/admin/host/plain-member roles. The cited kitchen fixture has booked parties followed by one cancellation. It does not assert this named status’s inclusion/exclusion in the kitchen totals. The cited browser journey uses waits and refresh actions without separately asserting both live-update and explicit-refresh outcomes on changed kitchen facts. Old evidence reads declared Shellfish/Wheelchair values and identity absence, not every declared/acknowledged source label, diagnosis absence and safety-claim absence.
 
 #### FLOOR-020 — Unpaid dish pre-orders and source totals
 
-Core · target · **done** · From FLOOR-013 · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
+Core · target · **partial** · From FLOOR-013 · Cites BASE-ROLE-001, BASE-AUDIT-001, BASE-INPUT-001 · Rules D-2, D-3
 
 **Requirement.** Ordinary reservations capture unpaid dish pre-orders from a manager-published per-service list. Paid or ticketed add-ons belong to EXP-002.
 
@@ -784,13 +782,13 @@ Core · target · **done** · From FLOOR-013 · Cites BASE-ROLE-001, BASE-AUDIT-
 5. Erase a guest and clear their booking quantities and needs while retaining anonymous stock facts.
 
 **Evidence.** `src/placemat/service-notes.ts`; `src/placemat/service-notes-archive.mjs`; `src/placemat/kitchen-view.ts`; `public/placemat-service-notes.js`; `tests/api/service-notes.test.mjs`; `tests/service-notes-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Three guest pre-orders sum to six beside twelve manager-entered portions; Withdrawal keeps the previous guest quantity. Unproved: A withdrawn dish refuses new selection while preserving its original item name; A captured unpaid dish request never establishes a paid order. Old evidence invokes withdrawal refusal through the harness and reads the retained quantity, but does not directly assert the refusal or name after withdrawal. The cited kitchen tests assert exact source totals and no invalid mutation, without an assertion of a populated payment/order projection after capture.
 
 ### Waitlist and cancellation demand
 
 #### WAIT-002 — Remote and walk-up joining
 
-Core · target · **done** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ROLE-001 · Rules D-2, D-3
+Core · target · **partial** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ROLE-001 · Rules D-2, D-3
 
 **Requirement.** Guests join by QR, website or host intake, state party size, preferred time/area, access needs and contact consent, receive a secure queue-status link and leave or update their party. Duplicate active entries are explained; online joining can be paused independently of staff intake. The QR and website open the same queue public door; joining reserves no table. An online join requires email for the existing normalized exact-email guest lookup, while staff intake can record a guest without email. Same name or phone never merges people. An active duplicate means the same existing guest id in the same service in queued, offered, accepted or arrived state (including legacy waiting); public refusals give one generic next action without disclosing contact existence. Each intake returns a new private status link once; 32 random bytes form the bearer and only its SHA-256 digest is persisted. The fragment link scopes read, update and leave to that one entry, never guestbook/contact/history reads; rotation replaces its hash and immediately invalidates the old link. The guest saves/copies the link: no email or text send is claimed. Online pause is an owner/admin service setting and affects new public joins only; owner-granted hosts can add a staff party or change its party preferences while paused, but cannot pause intake, approve plans, administer the venue or export guests. Public-created entries and no-phone follow-ups have an active native owner; guest actions are labeled guest-supplied, not verified identity. Preferred times are offset instants inside the service (start inclusive, end exclusive), preferred areas name existing areas, and declared required access tags are exact case-sensitive strings carried into capacity-checked seating and FLOOR-009 assignment. Preferences do not promise a table. Contact permission is an explicit optional boolean for this queue, independent of marketing and of joining; changes keep source, actor and receipt time. SERVICE-004 channel checks govern public join/update and SERVICE-006 full-turn/reset checks still govern actual seating. Resolved entries remain readable by their link but cannot be changed or rotated. DATA-002 erasure clears the link hash and guest-linked preference/contact-permission/history values; the link then returns the same generic unavailable response as an unknown link, while anonymous timing and accountability remain behind existing restore fences.
 
@@ -799,7 +797,7 @@ Core · target · **done** · Cites BASE-INPUT-001, BASE-PUBLIC-001, BASE-ROLE-0
 2. WAIT-002 queue intake stays open at pacing caps, labelled “queued only; no table or time promised”; pacing is enforced when a person seats, books or allocates from the queue.
 
 **Evidence.** `src/placemat/wait-join.ts`; `src/placemat/queue-views.ts`; `src/placemat/queue-qr.ts`; `public/placemat-queue-join.js`; `tests/api/wait-join.test.mjs`; `tests/queue-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Public intake creates the queued party with its preferences; A duplicate gets a generic actionable refusal. Unproved: Intake remains queued-only at pacing caps and actual seating enforces pacing. The cap-intake and queued-only wording assertions are in tests/api/pacing.test.mjs, outside WAIT-002’s old Evidence set; the cited wait-join test does not populate an exhausted pacing cap.
 
 #### WAIT-003 — Quoted waits and queue updates
 
@@ -994,7 +992,7 @@ Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001, BASE-AUDI
 
 Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001, BASE-AUDIT-001, BASE-DATA-006, BASE-OPS-003 · Rules D-4, D-5
 
-**Requirement.** Managers require fixed or per-person deposits by service, party size, experience or channel, disclose terms before checkout and link the receipt to one capacity-held reservation. Failures and abandoned checkout release holds; deposit balance is available for POS settlement. Before shipping, this capability inherits BOUND-001: each payment is tied to one named booking or event, shown as a balance against it and refunded under PAY-005; it is nontransferable, cannot be topped up and cannot be redeemed outside that booking or event or spent as a general balance. The interim workflow uses existing personal owner or native admin-manager authority to create fixed-USD or per-person booking-bound deposit requests and explicitly close collection. For a per-person request, preserve the original booking reference, party count, integer-cent USD rate, total and saved deadline; later booking or policy changes do not rewrite that request or authorize another collection through its original scope. Existing PAY-010 host authority, including a live authorized host PIN session, may issue or copy the saved request and use existing status-verification doors without acquiring request-setting, waiver, refund, payment-administration or ledger authority. Stripe retains payment credentials and money movement; Placemat retains restricted references and recorded outcomes, not PAN/CVC or merchant funds. Creating or copying a hosted link establishes neither delivery nor guest receipt or consent, collected money, bank settlement, POS credit, seating release or refund. Paid/protected claims require matching authenticated provider facts. PAY-002 pre-checkout disclosure, BOOK-004 financial-consequence consent, applicable PAY-003/PAY-004 agreement and MSG-008 channel-permission duties remain separate and binding. This slice authorizes no automatic send, reservation release, refund or seating settlement. Unresolved Checkout collection preserves the reservation; collection closure and any permitted booking cancellation remain separate explicit actions under BOOK-006. The complete original payment, refund, capacity, display and seating acceptance remains binding. Before deposits ship, FLOOR-012 shows held deposit amounts on its manager sheet and only amounts permitted by the receiving role policy; assert the deposited eight-top in its screen, print and PDF.
+**Requirement.** Managers require fixed or per-person deposits by service, party size, experience or channel, disclose terms before checkout and link the receipt to one capacity-held reservation. Failures and abandoned checkout release holds; deposit balance is available for POS settlement. Before shipping, this capability inherits BOUND-001: each payment is tied to one named booking or event, shown as a balance against it and refunded under PAY-005; it is nontransferable, cannot be topped up and cannot be redeemed outside that booking or event or spent as a general balance. The interim workflow uses existing personal owner or native admin-manager authority to create fixed-USD or per-person booking-bound deposit requests and explicitly close collection. For a per-person request, preserve the original booking reference, party count, integer-cent USD rate, total and saved deadline; later booking or policy changes do not rewrite that request or authorize another collection through its original scope. Existing PAY-010 host authority, including a live authorized host PIN session, may issue or copy the saved request and use existing status-verification doors without acquiring request-setting, waiver, refund, payment-administration or ledger authority. Stripe retains payment credentials and money movement; Placemat retains restricted references and recorded outcomes, not PAN/CVC or merchant funds. Creating or copying a hosted link establishes neither delivery nor guest receipt or consent, collected money, bank settlement, POS credit, seating release or refund. Paid/protected claims require matching authenticated provider facts. PAY-002 pre-checkout disclosure, BOOK-004 financial-consequence consent, applicable PAY-003/PAY-004 agreement and MSG-008 channel-permission duties remain separate and binding. Creating a request alone authorizes no send, release, refund or settlement. Unresolved Checkout collection preserves the reservation; collection closure and any permitted booking cancellation remain separate explicit actions under BOOK-006. The complete original payment, refund, capacity, display and seating acceptance remains binding. Before deposits ship, FLOOR-012 shows held deposit amounts on its manager sheet and only amounts permitted by the receiving role policy; assert the deposited eight-top in its screen, print and PDF.
 
 **Acceptance.**
 1. Require a $25-per-person deposit for four guests, pay $100, retry the callback and inspect one paid booking; fail another payment and verify its table becomes bookable.
@@ -1002,7 +1000,7 @@ Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001, BASE-AUDI
 3. Prove the inherited BOUND-001 boundary: inspect the booking/event-bound balance and PAY-005 refund, and refuse transfer, top-up, redemption against another booking/event and general-balance spending.
 
 **Evidence.** `tests/api/checkout-payment-journeys.mjs`
-**Gap.** Current documented slice: immutable original per-person request scope, explicit copied Stripe-hosted collection and authenticated status observation. Ct approved the interim default WITH RIDERS on 25 October 2026; PAY-002 stays PARTIAL. Still unproved: automatic fixed/per-person policy selection by service, party size, experience and channel; the complete original payment/callback journey; capacity-held checkout failure and abandonment release consistent with BOOK-006; complete pre-checkout terms and applicable consent evidence; booking and guest-confirmation amount, rate, card-last-four and seating-outcome displays; role-permitted deposited eight-top amounts in live, print and PDF pre-shift sheets; exactly-once seating hold release; booking-bound PAY-005 refund and explicit refusal of transfer, top-up, cross-booking redemption and general spending. Connected POS application remains PAY-008. AUDIT-001 and DATA-001–DATA-004 inheritance remains binding. The complete acceptance remains binding.
+**Gap.** Current documented slice: immutable original per-person request scope, explicit copied Stripe-hosted collection and authenticated status observation. Still unproved: automatic fixed/per-person policy selection by service, party size, experience and channel; the complete original payment/callback journey; capacity-held checkout failure and abandonment release consistent with BOOK-006; complete pre-checkout terms and applicable consent evidence; booking and guest-confirmation amount, rate, card-last-four and seating-outcome displays; role-permitted deposited eight-top amounts in live, print and PDF pre-shift sheets; exactly-once seating hold release; booking-bound PAY-005 refund and explicit refusal of transfer, top-up, cross-booking redemption and general spending. Connected POS application remains PAY-008. AUDIT-001 and DATA-001–DATA-004 inheritance remains binding. The complete acceptance remains binding.
 
 #### PAY-003 — Card guarantees and authorization expiry
 
@@ -1014,7 +1012,7 @@ Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001, BASE-AUDI
 1. Create a guaranteed reservation, expire an authorization and request renewed collection; prove an expired hold is not reported as protected and inspect guest consent to a permitted later fee.
 
 **Evidence.** `tests/api/card-hold-journey.mjs`; `tests/api/fee-expiry-journeys.mjs`; `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs`
-**Gap.** Remaining PAY-003 scope and proof: The original guarantee, expiry, recollection, permitted later fee and role-permitted sheet acceptance remains binding. A controlled provider receipt on the reviewed SHA has not established the complete guest mandate and original manual-authorization capture journey. Production processor eligibility, provider mandate acceptance and applicable US fee-term authority remain unestablished. Native proof remains absent for charging after material booking changes without fresh agreement, capture at the authorization deadline, preservation of the last verified held amount during unconfirmed release, and past-booking recollection refusal. Existing expiry, renewal, legacy migration, inert restore, erasure and held-amount assertions retain their stated native scope. PAY-003 remains PARTIAL.
+**Gap.** Remaining PAY-003 scope and proof: The original guarantee, expiry, recollection, permitted later fee and role-permitted sheet acceptance remains binding. A controlled provider receipt on the reviewed SHA has not established the complete guest mandate and original manual-authorization capture journey. Production processor eligibility, provider mandate acceptance and applicable US fee-term authority remain unestablished. Native proof remains absent for charging after material booking changes without fresh agreement, capture at the authorization deadline, preservation of the last verified held amount during unconfirmed release, and past-booking recollection refusal. Existing expiry, renewal, legacy migration, inert restore, erasure and held-amount assertions retain their stated native scope.
 
 #### PAY-004 — No-show and late-cancellation fees
 
@@ -1027,7 +1025,7 @@ Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001, BASE-AUDI
 2. Close the service and reconcile the charged and waived fees in its REPORT-007 report, CSV and PDF.
 
 **Evidence.** `src/placemat/fee-policy.ts`; `src/placemat/fees.ts`; `tests/api/fee-journeys.mjs`; `tests/fees-ui.mjs`; `tests/pacing-ui.mjs`; `scripts/fees-sandbox.mjs`
-**Gap.** Ct approved this first slice on 23 October 2026: full personal owners publish immutable venue-local policies, record evidence of the guest’s exact prior agreement verified against a matching successful off-session Stripe setup, and explicitly preview and charge or waive an actual recorded cancellation/no-show. A saved decision reserves the violation before Stripe with a stable processor key; no automatic retry or send. Named Gaps, not cuts: automatic normal policy execution under recorded consent; manager/host delegation through ROLE-002 exception approval; guest-captured consent through PAY-003; disputes through PAY-009. PAY-004 stays PARTIAL.
+**Gap.** full personal owners publish immutable venue-local policies, record evidence of the guest’s exact prior agreement verified against a matching successful off-session Stripe setup, and explicitly preview and charge or waive an actual recorded cancellation/no-show. A saved decision reserves the violation before Stripe with a stable processor key; no automatic retry or send. Named Gaps, not cuts: automatic normal policy execution under recorded consent; manager/host delegation through ROLE-002 exception approval; guest-captured consent through PAY-003; disputes through PAY-009.
 
 #### PAY-005 — Full and partial refunds with notices
 
@@ -1040,7 +1038,7 @@ Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001, BASE-AUDI
 2. Refund a no-show fee and reconcile it in the closed service’s REPORT-007 report, CSV and PDF.
 
 **Evidence.** `src/placemat/refunds.ts`; `tests/api/flows.test.mjs`; `tests/pacing-ui.mjs`; `scripts/refund-sandbox.mjs`; `scripts/refund-webhook-sandbox.mjs`; `tests/api/refund-notice-journeys.mjs`; `tests/refund-notices-ui.mjs`
-**Gap.** Ct approved this first slice on 23 October 2026: a full personal owner explicitly emails a reviewed saved outcome once per refund/outcome to the current recorded contact, with amount, remaining balance and provider acceptance distinguished from mailbox delivery. Changed or erased contacts refuse before sending. Every attempt atomically creates exactly one sender-owned callback due immediately while mailbox delivery is unconfirmed, including accepted or bounced mail, with a named human next action; duplicate requests cannot resend, recreate or reopen it. Captured charges, cumulative manager limits, signed-event reconciliation, processor references, failed-refund ownership, CSV/archive/erasure and fixed-close fee refund figures remain proven. Named Gaps: SMS delivery through MSG-002, manager-run and automatic notices, and provider delivery-status/bounce webhook ingestion. Human callback completion records the person’s outcome rather than asserting provider delivery. Retained refund records inherit DATA-004. PAY-005 stays PARTIAL.
+**Gap.** a full personal owner explicitly emails a reviewed saved outcome once per refund/outcome to the current recorded contact, with amount, remaining balance and provider acceptance distinguished from mailbox delivery. Changed or erased contacts refuse before sending. Every attempt atomically creates exactly one sender-owned callback due immediately while mailbox delivery is unconfirmed, including accepted or bounced mail, with a named human next action; duplicate requests cannot resend, recreate or reopen it. Captured charges, cumulative manager limits, signed-event reconciliation, processor references, failed-refund ownership, CSV/archive/erasure and fixed-close fee refund figures remain proven. Named Gaps: SMS delivery through MSG-002, manager-run and automatic notices, and provider delivery-status/bounce webhook ingestion. Human callback completion records the person’s outcome rather than asserting provider delivery. Retained refund records inherit DATA-004.
 
 #### PAY-006 — Money ledger and processor reconciliation
 
@@ -1052,7 +1050,7 @@ Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001, BASE-AUDI
 1. Deliver refund before charge callbacks, duplicate both and reconcile a Stripe payout to its bookings, fees and net amount; correct an unmatched item with a new adjustment record.
 
 **Evidence.** `tests/api/money-ledger-journeys.mjs`
-**Gap.** Current documented slice: append-only successful charge/refund facts, out-of-order association, deduplication, explicit complete payout reconciliation and appended unmatched attribution. Ct approved personal-owner-only interim authority WITH RIDERS on 25 October 2026; PAY-006 stays PARTIAL. Still unproved: an actual held-key Stripe payout receipt; native scoped finance settlement delegation and its review screen; complete deposit, fee, transfer and dispute relationships and lifecycle reversals; and discrepancy-preserving attribution evidence where a provider item conflicts with an existing financial fact. An attribution adjustment changes no historical amount or provider reference and is not provider proof of a missing association. AUDIT-001, DATA-001–DATA-003 and DATA-004 retention duties remain binding. The complete acceptance remains binding.
+**Gap.** Current documented slice: append-only successful charge/refund facts, out-of-order association, deduplication, explicit complete payout reconciliation and appended unmatched attribution. Still unproved: an actual held-key Stripe payout receipt; native scoped finance settlement delegation and its review screen; complete deposit, fee, transfer and dispute relationships and lifecycle reversals; and discrepancy-preserving attribution evidence where a provider item conflicts with an existing financial fact. An attribution adjustment changes no historical amount or provider reference and is not provider proof of a missing association. AUDIT-001, DATA-001–DATA-003 and DATA-004 retention duties remain binding. The complete acceptance remains binding.
 
 #### PAY-007 — Tax gratuity and service-charge disclosure
 
@@ -1175,7 +1173,7 @@ Core · target · **missing** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-OPS-0
 
 #### GUEST-002 — Searchable profiles and structured preferences
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-003, BASE-DATA-006 · Rules D-6
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-003, BASE-DATA-006 · Rules D-6
 
 **Requirement.** Hosts search normalized phone, email and name, maintain guest tags, VIP level, seating preferences and dated service notes, and see reservation/visit history in one profile. Imported versus guest-supplied versus staff-observed facts keep provenance and restricted notes obey role rights. owner/admin operations staff perform the host workflow until ROLE-003 adds the host role; current member/preparation-key readers retain ACCESS-001 guest-note visibility. Explicit facts keep guest-supplied, imported or staff-observed provenance; missing legacy source or original import date is labeled not recorded. Search normalization does not change exact-email identity matching. Every future restricted fact, role and access scope introduced by GUEST-003, ROLE-003, ROLE-004 and DATA-004 must conform in profile, search, arrival and backup doors before shipping.
 
@@ -1183,7 +1181,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-003, BASE-DATA-006 
 1. Find a returning guest by US phone, add a VIP tag and seating preference, then book again and view the preferences and their sources at arrival.
 
 **Evidence.** `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: US phone search finds the intended imported guest; Tags and seating preference persist on the returning guest. Unproved: Preferences and their sources remain visible after the guest actually arrives. The old cited guest test reads the profile after a future reservation, before an arrival transition. It does not perform and read the condition named by the point.
 
 #### GUEST-003 — Allergy and accessibility handoff
 
@@ -1199,7 +1197,7 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-003, BASE-DATA-0
 
 #### GUEST-004 — Duplicate review and household separation
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-003, BASE-DATA-006 · Rules D-6
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-003, BASE-DATA-006 · Rules D-6
 
 **Requirement.** Potential duplicate profiles are suggested from normalized identities and visit context, with a preview of conflicts, linked bookings, consent and spend before an authorized merge. Shared household numbers do not auto-merge people; merges are traceable and mistaken merges can be reversed safely.
 
@@ -1214,7 +1212,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-003, BASE-DATA-006 
 8. Marketing permission and spend remain not recorded. Unmerge restores only unchanged records and lists later edits/new records for manual assignment without overwriting them or restoring more permissive consent. Journal CSV and structured archives include snapshots, aliases, contact provenance and pending assignments with relationship validation. Erasing a merged identity erases its reviewed aliases and unresolved profiles still carrying that identity pending assignment, purges related journal snapshots and linked audit/operational personal values, and permanently blocks reversal and pre-erasure restore. MSG-008 inherits contact/channel/purpose-specific consent and suppression; GUEST-005 inherits POS visit/payment relationship reassignment before those capabilities ship.
 
 **Evidence.** `tests/api/guests.test.mjs`; `tests/guest-review-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Only the true duplicate is offered as a candidate; A shared family phone remains a separate household. Unproved: Merge and reversal leave every person’s marketing permission unchanged; Import source-id collisions warn without merging profiles; Approved reminder recipients remain their originals through merge/unmerge. The old evidence asserts marketing “Not recorded” before merge and queue-specific opt-ins after it. It does not read populated marketing-permission states before and after merge/unmerge. This source-id collision-warning outcome is not asserted in the cited guests or guest-review UI files; the merge fixture starts from already imported records. No reminder batch is populated and read across merge or reversal in the old Evidence set; notes, visits, alternate contact and journal custody are asserted.
 
 #### GUEST-005 — POS-linked visit and item history
 
@@ -1451,7 +1449,7 @@ Core · target · **missing** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-0
 
 #### REPORT-005 — Scheduled exports and group reporting
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-001, BASE-AUDIT-001
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-001, BASE-AUDIT-001
 
 **Requirement.** Managers download reservation, guest and finance CSV reports across past, and future periods. Groups compare locations using consistent local dates and timezones, under ROLE-001 per-venue read ceilings.
 
@@ -1461,17 +1459,17 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-001,
 3. Operational CSVs retain current manager service scopes; guest-personal and finance fields retain their restricted export doors, consent and erasure.
 
 **Evidence.** `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `tests/api/business-export.test.mjs`; `tests/api/finance-role.test.mjs`; `scripts/report-schedule-sandbox.mjs`; `scripts/recurring-reports-sandbox.mjs`
-**Gap.** None.
+**Gap.** Asserted: A permitted manager exports only future reservation rows; Historical visit CSV contains the actual visit without the future booking. Unproved: An unreachable venue explicitly refuses the complete comparison. The cited test toggles availability and invokes expected HTTP refusal through the harness but makes no direct assertion on the resulting unavailable comparison body/status in a cited file. Successful local-date and revocation projections are asserted.
 
 #### REPORT-009 — Weekly group report delivery
 
-Core · target · **done** · From REPORT-005 · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-001, BASE-AUDIT-001
+Core · target · **partial** · From REPORT-005 · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-001, BASE-AUDIT-001
 
 **Requirement.** An authorized schedule sends its selected native recipient an authenticated live group-cover report link. Restoring the restaurant cannot resume a send.
 
 **Acceptance.**
 1. Schedule a weekly group cover report for a permitted manager, then revoke access before the next scheduled delivery and prove it is blocked.
-2. a personal venue-wide owner or admin explicitly approves each native group recipient.
+2. A personal venue-wide owner or admin explicitly approves each native group recipient.
 3. External recipients require owner approval of that exact address through an owner-created schedule; an admin may only reuse that recorded identity and address approval.
 4. Changed addresses require renewed owner approval.
 5. Current schedule-owner authority, recipient identity and every selected venue grant are checked on each delivery attempt and authenticated download; removal, changed recipient email, disconnection or an unreachable venue refuses.
@@ -1480,7 +1478,7 @@ Core · target · **done** · From REPORT-005 · Cites BASE-ROLE-001, BASE-DATA-
 8. Private schedule and attempt metadata is owner-exportable but excluded from restorable archives, so restore cannot resume sends. Uncertain submission remains “delivery unconfirmed” for explicit manual resend. Recipient approval, attempts and every recheck or foreign-identity refusal are audited. Group comparisons use ROLE-001 read-only tokens with member-to-home checks on every call and identical inclusive local service-date labels in each venue timezone. Operational CSVs inherit current manager service scopes; guest personal and finance fields retain their existing restricted export doors, consent and erasure. DATA-001, DATA-002 and DATA-003 continue to govern these records; MSG-003 and MSG-007 inherit authenticated report custody and uncertain-send handling before richer delivery receipts or retries ship.
 
 **Evidence.** `tests/api/reports.test.mjs`; `tests/group-ui.mjs`; `tests/api/business-export.test.mjs`; `tests/api/finance-role.test.mjs`; `scripts/report-schedule-sandbox.mjs`; `scripts/recurring-reports-sandbox.mjs`
-**Gap.** None.
+**Gap.** Asserted: A weekly schedule sends one group report link; Recipient revocation leaves the next attempt blocked. Unproved: Only the owner approves the exact external address and admins reuse only that exact prior approval; A changed recipient address requires renewed owner approval; Changed email, disconnected venue and unreachable venue are each refused on delivery and authenticated open; No report snapshot is retained in persistent storage; Every recheck uses exact current scope and group local-date rules; The approval identifies the personal venue-wide owner/admin and exact native recipient. The cited tests use native identities and owner/admin scheduling, without a populated outside address plus exact-address owner approval/reuse sequence. The cited group scheduling evidence does not change an address and assert that the new address cannot reuse the earlier approval. The old cited weekly report tests assert recipient/owner revocation, not all six changed-email/disconnected/unreachable delivery/open outcomes. Email omission, no-store headers and archive exclusions do not prove the absence of a stored snapshot; the old Evidence set does not inspect all retained storage for one. Group comparison and scheduled delivery are separately asserted; no cited assertion reconciles every delivery/open across changed role scope and all remote venue states on the same scheduled report. The cited audit test asserts the approval event type, not the complete approver-role and recipient facts for each native group approval.
 
 #### REPORT-008 — Scheduled recurring report delivery
 
@@ -1508,16 +1506,15 @@ Core · target · **missing** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-0
 
 #### REPORT-007 — End-of-service report
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-001, BASE-AUDIT-001
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-DATA-001, BASE-MAIL-001, BASE-AUDIT-001
 
-**Requirement.** Closing a service produces a report fixed at close and never rewritten by later edits: covers booked, walk-in and waitlist-seated, attended, canceled and no-show covers with visible denominators, fees charged, waived and refunded (PAY-004, PAY-005), average actual turn against expected, quoted versus actual waits (WAIT-003), covers recovered from cancellations and no-shows (counted only once the replacement party is seated, whether by the agent or by staff), and pacing-override counts (SERVICE-007). Each figure drills to its reservations and the report prints and downloads as PDF and CSV. A correction after close is a new traceable adjustment beside the original. operational snapshots commit atomically with service.close in the existing performance archive. The original CSV keeps its exact close-time population and statuses; later service observations are identified by event IDs, retaining actor, time and before/after facts without rewriting the snapshot. Missing financial and recovery facts are never inferred from attendance. Recovered covers follow one exact rule. A freed reservation is a cancelled or no-show reservation of the service, released at the latest staff observation that recorded that status; without such an observation its release is not recorded and nothing is attributed to it. A replacement is another reservation of the same service created at or after that release, sharing at least one of its tables, whose reserved interval overlaps the freed one (half-open), and which is seated or completed; offered, booked and waiting parties never count. Each replacement counts once, for the earliest-starting freed reservation it matches (then booking id), and a freed reservation recovers at most its own party size. The report shows recovered against freed covers, split into cancellations and no-shows, and drills to both reservations; the CSV gives each row its recovered covers and the reservation it recovers, and managers see the same figure live on the performance report before close. Every current seating is staff-recorded; AGENT-002 inherits agent-seated recovery attribution before an agent seats anyone. PAY-004/PAY-005 now record charged, waived, succeeded-refund and pending fee amounts with reservation drilldowns and CSV/PDF columns inside the close transaction. Older snapshots keep their original absent or not-recorded financial state; no historical fee is inferred. The fixed report also downloads as a PDF and prints from the browser with every drilldown open.
+**Requirement.** Closing a service produces a report fixed at close and never rewritten by later edits: covers booked, walk-in and waitlist-seated, attended, canceled and no-show covers with visible denominators, fees charged, waived and refunded (PAY-004, PAY-005), average actual turn against expected, quoted versus actual waits (WAIT-003), covers recovered from cancellations and no-shows (counted only once the replacement party is seated, whether by the agent or by staff), and pacing-override counts (SERVICE-007). Each figure drills to its reservations and the report prints and downloads as PDF and CSV. A correction after close is a new traceable adjustment beside the original. operational snapshots commit atomically with service.close in the existing performance archive. The original CSV keeps its exact close-time population and statuses; later service observations are identified by event IDs, retaining actor, time and before/after facts without rewriting the snapshot. Missing financial and recovery facts are never inferred from attendance. Recovered covers follow one exact rule. A freed reservation is a cancelled or no-show reservation of the service, released at the latest staff observation that recorded that status; without such an observation its release is not recorded and nothing is attributed to it. A replacement is another reservation of the same service created at or after that release, sharing at least one of its tables, whose reserved interval overlaps the freed one (half-open), and which is seated or completed; offered, booked and waiting parties never count. Each replacement counts once, for the earliest-starting freed reservation it matches (then booking id), and a freed reservation recovers at most its own party size. The report shows recovered against freed covers, split into cancellations and no-shows, and drills to both reservations; the CSV gives each row its recovered covers and the reservation it recovers, and managers see the same figure live on the performance report before close. Every current seating is staff-recorded; AGENT-002 inherits agent-seated recovery attribution before an agent seats anyone. PAY-004/PAY-005 record charged, waived, succeeded-refund and pending fee amounts with reservation drilldowns and CSV/PDF columns inside the close transaction. Older snapshots keep their original absent or not-recorded financial state; no historical fee is inferred. The fixed report also downloads as a PDF and prints from the browser with every drilldown open. Until payments ship no fee can be taken: the report states fees were not recorded, and PAY-004 and PAY-005 carry this journey’s fee step into their own acceptance.
 
 **Acceptance.**
 1. Run a service with two no-shows, two refills from the waitlist, a walk-in and a no-show fee; close it; reconcile every figure to its bookings and the CSV; verify a refilled table counts as recovered only after its party is seated; correct one status after close and see the original report unchanged with a dated adjustment beside it.
-2. Until payments ship no fee can be taken: the report states fees were not recorded, and PAY-004 and PAY-005 carry this journey’s fee step into their own acceptance.
 
 **Evidence.** `src/placemat/service-close-report.ts`; `src/placemat/recovery.ts`; `src/placemat/pdf.ts`; `public/placemat-close-report.js`; `tests/api/service-close-report.test.mjs`; `tests/service-close-report-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Closed booked, attended and no-show figures reconcile; Online, walk-in and waitlist source covers reconcile. Unproved: An actual no-show fee and every charged/waived/refunded figure reconcile with CSV/PDF. The old cited close-report fixture asserts zero fee values and an operational service. Nonzero fee/refund figures are asserted in fee/payment files outside REPORT-007’s old Evidence set.
 
 #### COST-001 — Predictable operating costs
 
@@ -1620,7 +1617,7 @@ Core · target · **partial** · Cites BASE-DATA-001, BASE-INPUT-001 · Register
 
 #### DATA-003 — Complete portable business records
 
-Core · target · **done** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-006, BASE-BACKUP-001, BASE-SECRET-001
+Core · target · **partial** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-006, BASE-BACKUP-001, BASE-SECRET-001
 
 **Requirement.** Owners export documented CSV and versioned structured archives of guests, consent, notes, reservations, waitlists, experiences, payments/references, messages/outcomes, policies and audit, with field definitions and attachments where retained. The BOOK-008 GA4 API secret and Meta access token are such named exclusions (`analytics credential storage`, listed in each archive manifest’s excluded-table list), so a restore needs them entered again; the venue CSV carries only the non-secret analytics settings. Before new record kinds ship, PAY-001–PAY-010, EXP-001–EXP-005, MSG-002–MSG-011, CRM-001–CRM-006, DIST-001–DIST-006, POS-001–POS-007, ROLE-001, FLOOR-013, GUEST-004 and VOICE-001 inherit complete documented CSV and structured-archive coverage, relationship validation, declared exclusions and erasure-safe restore. Their missing paid-service/provider acceptance remains in those introducing clauses; exports never fabricate it.
 
@@ -1630,37 +1627,36 @@ Core · target · **done** · Cites BASE-DATA-001, BASE-DATA-003, BASE-DATA-006,
 3. The CSV and archive doors cover all existing venues, floor inventory, service/channel policies, reservations and requests, queue contact permission/history, guest profiles/notes/history, inquiries, no-show review tasks, proposals, reminder preparation, audit/service observations and published performance reports.
 
 **Evidence.** `src/placemat/business-export.ts`; `src/placemat/business-export-store.ts`; `src/placemat/backup.ts`; `src/placemat/archive-policy.mjs`; `docs/data-portability.md`; `tests/api/business-export.test.mjs`; `tests/business-export-ui.mjs`; `tests/api/embed.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: Every exported kind has its exact expected count; Each exported kind has exactly the source record ids. Unproved: A complete multi-channel paid service reconciles all money and message relationships; Complete venue, room/join/schedule, service-policy and audit/service-observation CSV fields reconcile on populated records. The cited business-export fixture covers native supported record kinds; it does not export and restore the full multi-channel paid-service target. That exact outcome stays in the point. The business fixture has no populated rooms, joins or schedules, and only counts/ids for several kinds; those empty or subset checks do not prove every named record kind and field. The populated guest, booking, queue, inquiry, task and publication cases are asserted.
 
 ### Rights, APIs and daily operation
 
 #### ROLE-001 — Owner and group-administrator rights
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AGENT-005
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AGENT-005
 
-**Requirement.** Owners control restaurant configuration, billing/provider connections, people and capability grants, exports, erasure and backup/restore. Group central management is deferred to ROLE-010. Group admins get explicit per-venue rights without becoming owner; sensitive access and financial changes require recorded personal authority. Before additional venues ship, approved sister-venue alternatives inherit BOOK-003 search, exact fit and stale-result reselect.
+**Requirement.** Owners control restaurant configuration, billing/provider connections, people and capability grants, exports, erasure and backup/restore. Group central management is deferred to ROLE-010. Group admins get explicit per-venue rights without becoming owner; sensitive access and financial changes require recorded personal authority. Before additional venues ship, approved sister-venue alternatives inherit BOOK-003 search, exact fit and stale-result reselect. Central management, group-wide configuration and billing (ROLE-010), sister-venue alternatives (BOOK-003), shared guest profiles (GUEST-006) and group reports (REPORT-005) are deferred, not excluded, and inherit this model.
 
 **Acceptance.**
 1. As owner connect two venues, grant a scoped group admin, revoke it and prove direct API access stops; deny a venue manager an owner export, erasure and provider credential change.
-2. each venue stays its own installation.
+2. Each venue stays its own installation.
 3. An owner issues a one-use invitation and the other venue's owner joins with it, choosing the most any group admin may read there; the home owner grants a native member explicit per-venue rights, read-only and never above that ceiling (reservation report, host pre-shift projection).
 4. A short-lived token is checked by the member venue against its home on every call, so revocation or disconnection stops access at once and an unreachable home refuses.
 5. Group rights cannot write in this slice, and every grant, export, erasure, refund, person and provider-credential change stays the venue's own owner or manager's personal authority, recorded in the audit history with before/after visible to the owner only.
 6. Connections, grants and tokens are never restored from a backup; DATA-003 exports links and grants without secrets.
-7. Central management, group-wide configuration and billing (ROLE-010), sister-venue alternatives (BOOK-003), shared guest profiles (GUEST-006) and group reports (REPORT-005) are deferred, not excluded, and inherit this model.
 
 **Evidence.** `src/placemat/access.ts`; `src/placemat/http.ts`; `src/placemat/group.ts`; `src/placemat/group-access.ts`; `src/placemat/group-store.ts`; `tests/api/group.test.mjs`; `tests/group-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Both independently installed venues join the group; Group reports identify each of the two venues. Unproved: Revocation directly denies API reads, and manager erasure/provider-credential changes are refused; Every above-ceiling grant and per-venue host-sheet restriction is explicitly refused; The token lifetime is short and every revoked/reduced grant is rechecked on the next call; Every grant/export/erasure/refund/person/provider change preserves personal authority and owner-only before/after visibility. These cases are invoked with expected-status helpers in the old group test; the explicit assertions cover group state, owner exports and disconnection, not all named refusal results and their unchanged records. Above-ceiling and ungranted sheet requests are invoked through the harness; the old cited test does not directly assert those specific refusal responses. The old Evidence set asserts token shape and some denial sequences, not the token’s actual expiry duration and each request’s explicit post-change result in a cited file. The group audit fixture does not execute and assert all six mutation families; it proves group grants and scope redaction, without proving the complete multi-family statement.
 
 #### ROLE-002 — Manager and shift-lead rights
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AGENT-005
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AGENT-005
 
 **Requirement.** Managers configure approved shifts, publish services, assign sections, resolve guest recovery, approve policy exceptions and refunds within limits, and see allowed reports. Shift leads may resolve operational exceptions without changing payment credentials, owners or guest export rights.
 
 **Acceptance.**
 1. Give a manager a $100 refund limit and a lead seating-only override; test each direct operation, refuse the excess refund and provider change, and record a permitted decision.
-2. owner-issued separate seating-lead grant, reviewed seating/rule/pacing exceptions with hard conflicts never bypassed, no owner/provider/guest-export/financial mutation rights for leads, and explicit service scopes for lead report reads.
+2. Owner-issued separate seating-lead grant, reviewed seating/rule/pacing exceptions with hard conflicts never bypassed, no owner/provider/guest-export/financial mutation rights for leads, and explicit service scopes for lead report reads.
 3. Leads receive reservation/performance JSON only, no exports or publication.
 4. Existing managers keep venue-wide reports until explicitly scoped; explicit scopes cover every report door and immutable snapshots.
 5. Owner-recorded refund authority uses USD cents ($100 = 10000).
@@ -1669,24 +1665,24 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AGENT-005
 8. It caps the sum of pending and succeeded refunds that person submits against one booking's charges, so splitting cannot exceed it. PAY-005 refuses an excess before any processor call. Only an owner sets limits, with AUDIT-001 before/after history.
 
 **Evidence.** `tests/api/flows.test.mjs`; `tests/pacing-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The owner records a 10000-cent manager limit; Lead seating records the lead as actor. Unproved: Manager provider-credential changes are refused without any effect; Every hard-conflict, owner/provider/export/financial mutation refusal for a lead is directly asserted; The lead receives reservation/performance JSON but cannot publish snapshots; Unscoped managers retain venue-wide reports and every immutable-snapshot door obeys explicit scopes; A non-integer limit is refused as a non-integer USD amount. The old Evidence set invokes analytics.settings refusal using the HTTP harness; its assertions do not directly compare provider settings or provider-call effects for that manager attempt. Old evidence directly asserts export refusal and current scopes, but invokes several owner/provider/financial and hard-conflict cases only through the shared harness. Allowed JSON and refused publication are invoked without a direct assertion of the returned content or publication count in a cited file; export refusals are asserted. The old Evidence set invokes several scope and snapshot cases through the harness; it does not directly assert the complete unscoped-to-scoped matrix across all report/snapshot doors. The cited files do not directly assert the fractional-cent validation outcome; stored 10000-cent authority is asserted.
 
 #### ROLE-003 — Host server and read-only rights
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AGENT-005
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AGENT-005
 
 **Requirement.** Hosts manage reservations, arrivals and queues within their venue, directly move, swap and lock table assignments (FLOOR-009) and, when granted, override pacing (SERVICE-007); servers see their section and service-relevant dietary/access notes; read-only staff can view permitted operations but never mutate. Guest exports, bulk marketing and sensitive notes are separately permissioned. Before server sign-in ships, enforce own-section FLOOR-012 and FLOOR-013 visibility on the server; assert the pre-shift server step with restricted notes/contact absent from HTML, print and PDF. Before server sign-in ships, assert FLOOR-019’s full server acceptance: open the kitchen as a server and find only that server’s own-section allergy/access requests, with no other section, guest identity/contact or shift-note values in the response or page.
 
 **Acceptance.**
 1. Sign in as host, server and read-only member, seat, move and swap tables as host without approval, inspect only the server’s section and refuse member mutations and all three actors’ bulk guest exports.
-2. owner-granted hosts receive only FLOOR-012’s enumerated host projection; ordinary read-only members are refused the sheet.
-3. only the owner grants a native member the separate server capability (never together with host or shift-lead; revoking removes every shift link), and a manager links that person to one shift server.
+2. Owner-granted hosts receive only FLOOR-012’s enumerated host projection; ordinary read-only members are refused the sheet.
+3. Only the owner grants a native member the separate server capability (never together with host or shift-lead; revoking removes every shift link), and a manager links that person to one shift server.
 4. A signed-in server reaches only their own pre-shift sheet (HTML, print, PDF) and kitchen view for shifts they are linked to, limited to their own sections' tables and parties; no contact, guest notes, tags, payments, shift notes, other sections, pacing or dish totals.
 5. Every other door answers 403.
 6. Hosts keep reservation, arrival, queue and assignment rights. Host guest conversations are carried by ROLE-009. Restored grants and links remain inactive until the owner confirms the native identity and shift link. MSG-006, GUEST-003 and POS-007 inherit the server view; DATA-003 covers the grant and link.
 
 **Evidence.** `src/placemat/access.ts`; `src/placemat/http.ts`; `src/placemat/preshift.ts`; `src/placemat/service-notes.ts`; `tests/api/server-role.test.mjs`; `tests/api/preshift.test.mjs`; `tests/server-ui.mjs`; `tests/api/pacing.test.mjs`; `tests/pacing-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: host bulk exports are refused with no private guest body; server bulk exports are refused with no private guest body. Unproved: Host seating, moving and swapping each has a directly asserted result; Every allowed host field equals FLOOR-012’s exact host projection; Only owner grants a server, conflicting host/lead combinations refuse, and manager links exactly one shift server. The cited server-role test invokes host moves and swaps through helpers but does not directly assert each seat/move/swap result. Those exact direct-assignment assertions are in assignments.test.mjs outside ROLE-003’s old Evidence set. The cited preshift evidence reads host audience and protection/absence fields, without an exact assertion of every positive host field. The cited server tests invoke these expected-status helpers and verify resulting projections; they do not directly assert the full grant/refusal/link cardinality matrix in a cited file.
 
 #### ROLE-009 — Host guest conversations
 
@@ -1741,14 +1737,14 @@ Core · target · **partial** · Cites BASE-ACCESS-002, BASE-SIGNIN-001, BASE-SI
 
 #### SEC-002 — Shared host-stand device and quick staff switch
 
-Core · target · **done** · Cites BASE-ACCESS-002, BASE-SIGNIN-001, BASE-SIGNIN-002, BASE-SECRET-001
+Core · target · **partial** · Cites BASE-ACCESS-002, BASE-SIGNIN-001, BASE-SIGNIN-002, BASE-SECRET-001
 
 **Requirement.** An owner registers a host-stand tablet as a venue device that stays available with limited rights. Each staff member switches in with a personal PIN or badge in seconds; every action is attributed to that person, the device locks after inactivity or on switch, and restricted notes, refunds, waivers, payment settings, exports and administration require the individual’s full session or step-up (SEC-001). PINs are per person, throttled after failed attempts and revoked with the person or the device.
 
 **Acceptance.**
 1. Register a host iPad as a venue device, switch between two hosts by PIN, seat and move parties and read audit rows attributed to each host.
 2. Let it idle and see it lock; enter wrong PINs until throttled; suspend one host and refuse their PIN; refuse a guest export from a PIN session without step-up; revoke the device and refuse its next request.
-3. owner-only one-use registration (10 minutes), 30-day installation-local device lease, personal 6–12 digit PIN and two-minute inactivity lock.
+3. Owner-only one-use registration (10 minutes), 30-day installation-local device lease, personal 6–12 digit PIN and two-minute inactivity lock.
 4. A PIN session carries the person's live host authority: FLOOR-009, WAIT-002, SERVICE-007 when granted, FLOOR-007, phone and walk-in booking create/change, and sending PAY-010 links.
 5. It never carries restricted notes, refunds, waivers, payment settings, exports or administration.
 6. Staff tap their name on a roster of active enrolled hosts, then enter the PIN.
@@ -1756,11 +1752,11 @@ Core · target · **done** · Cites BASE-ACCESS-002, BASE-SIGNIN-001, BASE-SIGNI
 8. Pepper version and iterations are stored per PIN and upgraded on successful unlock. Common, repeated and sequential PINs are refused. Ten consecutive failures disable a PIN until a full-session reset, with an owner/manager security event. The owner renews a lease for at most 30 more days, warned from day 23. Claim, switch and lock sign out personal sessions left in the browser; PIN mode also refuses native account-administration and sign-in/setup routes and has no full-session fallback. Device credentials and personal PIN credentials remain excluded from archives. PIN replacement, native suspension/version changes, host-grant removal and device revocation invalidate authority, including in-write invalidation fences.
 
 **Evidence.** `tests/api/flows.test.mjs`; `tests/api/timeline.test.mjs`; `tests/floor-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The first PIN switch identifies the first host; The second switch identifies the second host. Unproved: Revoking the stand explicitly refuses the next request; Registration is one-use for ten minutes and lease is exactly bounded by thirty days; Every enumerated host/queue/pacing/search/phone/walk-in command rechecks live PIN authority; Refunds, waivers and payment-setting changes all refuse without fallback; Every PIN uses the platform-maximum PBKDF2 work factor and a distinct per-PIN salt; Every PIN replacement/suspension/grant-removal/revocation invalidates in-progress writes. The browser waits for a revoked/expired alert and API helpers invoke refusal; the cited files do not directly assert the next post-revocation response in a cited assertion line. The old Evidence set invokes the replay/expiry cases through helpers; its explicit assertions read successful claim and renewed/expired behavior, without directly asserting both initial ten-minute and thirty-day deadline values. The old cited fixtures prove several host actions, but some queue and walk-in commands are invoked without direct result assertions and the full enumerated command/grant-change matrix is absent. The cited tests invoke these through the stand action helper; explicit output-privacy and administration/export refusals do not prove every financial mutation’s absent effect. The old test proves an unpeppered mismatch and a successful upgrade to more than 10000 iterations; it does not assert the platform’s exact maximum or distinct salts across all PIN records. The cited tests invoke multiple invalidation sequences, but do not directly assert the full before/during-write matrix with unchanged business state for every named trigger.
 
 #### AUDIT-001 — Reservation and financial change history
 
-Core · target · **done** · Cites BASE-AUDIT-001, BASE-DATA-003
+Core · target · **partial** · Cites BASE-AUDIT-001, BASE-DATA-003
 
 **Requirement.** Authorized people can inspect before/after changes to bookings, guest merges, seating, consent, policies, sends and payments with actor, reason, source and timestamp. Switching BOOK-008 analytics on or off and changing its IDs or test modes is audited with actor, time and before/after settings; the audit records whether a key was saved, entered or removed (BOOK-008 Remove saved key: actor, time, a saved-key state of false), never the key. Historical events without snapshots remain explicitly not recorded. Before GUEST-004 adds merges, MSG-002–MSG-011 add sends or provider observations, and PAY-001–PAY-010 add money workflows, each inherits the same before/after, source, actor, reason when recorded, timestamp, filtered-export and erasure obligations, including the deposit-refund acceptance in PAY-005. Analytics page-visit consent and its random visit ID remain memory-only under BOOK-008 and are never added to persistent audit.
 
@@ -1769,11 +1765,11 @@ Core · target · **done** · Cites BASE-AUDIT-001, BASE-DATA-003
 2. Switch analytics on and off and remove a saved key; inspect each change’s actor, time and settings (a saved-key state of false after the removal) with no key in the history.
 
 **Evidence.** `src/placemat/audit.ts`; `src/placemat/store.ts`; `src/placemat/commands.ts`; `src/placemat/guest-state-erasure.ts`; `public/placemat-audit.js`; `tests/api/audit.test.mjs`; `tests/api/embed.test.mjs`; `tests/audit-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The moved booking history reads its old tables; The moved booking history reads its new tables. Unproved: A deposit refund has the same asserted filtered before/after history. Refund-audit assertions are in tests/api/flows.test.mjs, outside AUDIT-001’s old Evidence set. Its cited audit fixture executes moves, cancellations, notes, pacing and consent, not a deposit refund.
 
 #### API-001 — Documented booking and guest HTTP doors
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-OPS-003
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-OPS-003
 
 **Requirement.** Custom websites and authorized clients can use documented availability, booking, guest-state and restaurant-command doors over the same capacity actions. Preparation-only keys retain their narrower scope.
 
@@ -1781,7 +1777,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-INPUT-001, BASE-OPS-003
 1. Use documented HTTP requests to publish, read availability, book, inspect guest state and prepare a plan; call the same doors signed out, with a member and with a revoked preparation key.
 
 **Evidence.** `docs/HTTP-CONTRACT.md`; `src/placemat/http.ts`; `tests/api/flows.test.mjs`; `tests/api/privacy.test.mjs`
-**Gap.** None.
+**Gap.** Asserted: Exact publication exposes only the approved service; Public availability returns a real fitting arrival. Unproved: Signed-out/member/revoked calls to every named private command and read door give the asserted authority result. The old files invoke several expected statuses via the uncited HTTP harness; explicit download/revoked-key matrix and authorized guest/plan results do not assert the entire named read/command matrix.
 
 #### API-002 — Versioned integrations and event subscriptions
 
@@ -1899,7 +1895,7 @@ Core · push-further · **missing** · Cites BASE-AGENT-002, BASE-AGENT-003, BAS
 
 #### AGENT-004 — Feasible seating and booking improvements
 
-Core · push-further · **done** · Cites BASE-AGENT-002, BASE-AGENT-003, BASE-AGENT-005, BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-011 · Rules D-2, D-3, D-6
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-003, BASE-AGENT-005, BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-011 · Rules D-2, D-3, D-6
 
 **Requirement.** Using demand, approved table joins, access needs, turns, staffing and pacing, the agent proposes explainable table allocations, protected direct inventory and shift adjustments. It previews affected bookings and expected covers and waits. Moving a committed guest carries commitment; changing a published service adds live. The company's policy decides those calls. direct inventory protects exact half-open table intervals (setup through cleanup) for the website booking channel; walk-in, waitlist and their reassignment doors must use other inventory until an authorized release or the interval ends; an agent release carries commitment under the company's policy. DIST-004 and every future distribution door inherit that protection before shipping. Protection previews preserve all current bookings and do not reduce recorded queue feasibility. shift suggestions extend the end by 30, 60 or 90 minutes, keep total service duration within 24 hours, refuse overlap with another open published service, and retain existing bookings, staffing, turns and pacing. The decision binds evidence that the recorded team and kitchen remain available through the displayed end; an agent decision carries live and commitment under the company's policy. Projections use recorded queue order and current constraints and are conditional feasibility, not guest promises or unrecorded demand.
 
@@ -1907,11 +1903,11 @@ Core · push-further · **done** · Cites BASE-AGENT-002, BASE-AGENT-003, BASE-A
 1. Under the held company policy for commitment and live calls, provide a service with an avoidable stranded four-top, prepare two alternatives, approve one and reject a stale plan after another host seats a walk-in; compare actual utilization without breaking access constraints.
 
 **Evidence.** `src/placemat/allocation-advisor.ts`; `src/placemat/inventory-advisor.ts`; `src/placemat/shift-advisor.ts`; `src/placemat/direct-inventory.ts`; `public/placemat-allocation.js`; `public/placemat-allocation-policy.js`; `tests/api/assignments.test.mjs`; `tests/allocation-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: Two accessible alternatives recover the stranded demand; The selected proposal reads approved. Unproved: The held company policy decides commitment/live execution. Old tests use fixed person approval rather than a company policy and computed classes. Feasible alternatives, exact accepted assignments and stale no-effect are asserted.
 
 #### AGENT-005 — No-show risk and reconfirmation assistance
 
-Core · push-further · **done** · Cites BASE-AGENT-002, BASE-AGENT-003, BASE-AGENT-005, BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-011 · Rules D-2, D-3, D-6
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-003, BASE-AGENT-005, BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-011 · Rules D-2, D-3, D-6
 
 **Requirement.** The agent uses this venue’s observed booking/attendance history, lead time and reconfirmation outcomes to explain uncertain no-show risk and suggest contact or policy review. It infers no protected traits and imposes no unconsented fee. Cancellation and changes to booking terms carry commitment, a fee adds money, and running-service policy changes add live; the company's policy decides those agent calls. Managers monitor false positives. The assistant uses deterministic, fact-cited review prompts, never a probability: a prior recorded no-show or a booked reservation without a recorded reconfirmation raises a flag. Lead time is the raw elapsed minutes from booking creation to arrival (displayed to two decimals) and remains context rather than evidence of nonattendance. Attendance and reconfirmation references distinguish native observations from imported dated history; missing facts remain unknown. Only existing booking, attendance and reconfirmation facts are assessed, with no protected traits or free-text profile inference. Under the held company policy for external and live calls, owner/admin managers accept or decline contact or policy-review work with an attributed reason; accepted work has a manager owner and an explicit-offset due time. Completion records a staff-reported outcome and claims no provider delivery. Accepting a policy-review task does not approve or apply a policy change: the existing company's policy workflow remains required, and this assistant never changes a guest’s table, terms, consent or fees. Managers monitor distinct bookings with flagged reviews against later attended, no-show and pending outcomes; attendance is a potential false positive, with no causal claim. Guest erasure clears linked task reasons and outcomes and excludes the guest from new assistance reads. MSG-005 and PAY-004 inherit these fact, uncertainty, approval and unchanged-commitment obligations before adding provider reconfirmation or fee-policy assistance.
 
@@ -1919,7 +1915,7 @@ Core · push-further · **done** · Cites BASE-AGENT-002, BASE-AGENT-003, BASE-A
 1. Under the held company policy for external, commitment and live calls, flag controlled risky/unconfirmed bookings, inspect cited facts and missing-data caveats, accept a reconfirmation task and decline a policy change; prove the guest retains their table and original terms.
 
 **Evidence.** `src/placemat/no-show.ts`; `public/placemat-risk.js`; `tests/api/risk.test.mjs`; `tests/risk-ui.mjs`
-**Gap.** None.
+**Gap.** Asserted: The flagged review cites the exact prior no-show; Missing history has explicit unknown/failed-reply caveats. Unproved: The held company policy governs standard/external/commitment/live review and decision. The cited tests implement a deterministic staff review task without a company-policy or server risk-class decision. Fact citations, explicit staff outcomes and unchanged bookings are asserted.
 
 #### AGENT-006 — Evidence-based guest recovery
 

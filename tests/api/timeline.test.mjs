@@ -100,7 +100,7 @@ test('FLOOR-007: phone suffix/name/email/booking/table search, combined service/
 })
 
 
-test('Owned guest requests and callbacks pass between active hosts, preserve audit and requests, refuse unassigned writers and erase linked text',async()=>{
+test('FLOOR-014: owned guest requests and callbacks pass between active hosts, preserve audit and requests, refuse unassigned writers and erase linked text',async()=>{
  const {paymentEdge}=await import('./payment-fixture.mjs'),payments=paymentEdge(),h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:payments.edge});let restored;try{
   const {searchFixture}=await import('./timeline-fixture.mjs'),f=await searchFixture(h);
   const first=await h.signIn('synthetic-placemat-first@example.test','member','Avery Host'),next=await h.signIn('synthetic-placemat-next@example.test','member','Blair Host'),reader=await h.signIn('synthetic-placemat-reader@example.test');

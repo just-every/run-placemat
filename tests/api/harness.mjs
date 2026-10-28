@@ -1,4 +1,4 @@
-// Real workerd + D1. The only fakes are network edges: the paid outbound mail service and the BOOK-002 analytics providers (GA4, Meta).
+// Real workerd + D1. The only fakes are network edges: the paid outbound mail service and the BOOK-008 analytics providers (GA4, Meta).
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare'
 import {unstable_splitSqlQuery} from 'wrangler'
 import {build} from 'esbuild'

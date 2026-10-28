@@ -1,4 +1,4 @@
-// FLOOR-013: use actual staff forms, a second host device, guest booking and kitchen navigation.
+// FLOOR-013 / FLOOR-019 / FLOOR-020: use actual staff forms, a second host device, guest booking and kitchen navigation.
 import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {resolve} from 'node:path'
@@ -45,6 +45,6 @@ for(const width of [1440,390]){
   await page.goto(transport.origin+'/preshift?date='+f.date);const sheet=page.getByRole('article',{name:'Pre-shift sheet'});await sheet.waitFor();assert.ok((await sheet.innerText()).includes('Halibut: 8 portions'));assert.ok((await sheet.innerText()).includes('Regular booked Thursday'));await shot(page,'preshift-notes');await page.emulateMedia({media:'print'});assert.equal(await sheet.evaluate(e=>getComputedStyle(e).visibility),'visible','FLOOR-013 notes remain visible when printing');assert.ok((await sheet.innerText()).includes('Current: Halibut: 8 portions'));await shot(page,'preshift-print');await page.emulateMedia({media:'screen'})
   const person=(await h.api('/api/guests?search=kitchen0@example.test')).guests[0];await h.command('guest.erase',{guestId:person.id,confirm:'ERASE'})
   await page.goto(transport.origin+'/kitchen?serviceId='+f.service.id);const erased=await page.getByRole('article',{name:'Kitchen view'}).innerText();assert.ok(erased.includes('5 guest-supplied; 12 manager-entered'));for(const value of ['Shellfish','Wheelchair','Regular booked Thursday','Halibut: 8 portions'])assert.ok(!erased.includes(value),value);await shot(page,'kitchen-erased');assert.deepEqual(errors,[])
-  console.log(`FLOOR-013 staff note/history, second-device live notes, manager publication/count, three guest bookings, kitchen, pre-shift and erasure passed at ${width}`)
+  console.log(`FLOOR-013 / FLOOR-019 / FLOOR-020 staff note/history, second-device live notes, manager publication/count, three guest bookings, kitchen, pre-shift and erasure passed at ${width}`)
  }finally{await owner.close();await hostContext.close();await publicContext.close();await browser.close();await transport.close();await h.close()}
 }

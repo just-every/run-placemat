@@ -56,7 +56,7 @@ for(const width of [1440,390]){
     await p.locator('#service-editor > details > summary').click();await fill('2027-11-07T01:30','2027-11-07T04:00',second);await f.getByRole('button',{name:'Save service',exact:true}).click();await p.getByRole('status').filter({hasText:'Saved successfully.'}).waitFor();const late=(await dst.api('/api/state')).state.services[2];assert.equal(Date.parse(late.startAt)-Date.parse(early.startAt),3600000);assert.match(await p.locator('#services-content > .columns > div:first-child > article.card').last().innerText(),new RegExp('GMT'+second.replace(':00','').replace(/^(-)0/,'$1')));await capture('second-offset-created')
    }finally{await c.close();await b.close();await server.close();await dst.close()}
   }
-  assert.deepEqual(errors,[]);console.log(`SETUP-001 owner onboarding, policy acknowledgment, no-write preview, public booking, LA/NY gaps and both repeated offsets passed at ${width}`)
+  assert.deepEqual(errors,[]);console.log(`SETUP-001 / SETUP-002 owner onboarding, policy acknowledgment, no-write preview, public booking, LA/NY gaps and both repeated offsets passed at ${width}`)
  }finally{
   // The initial session closes before the two independent timezone journeys.
   if(browser.isConnected()){await context.close();await browser.close();await transport.close();await h.close()}

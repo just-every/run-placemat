@@ -152,7 +152,7 @@ try{
     assert.match(page.frames().find(f=>f!==page.mainFrame()).url(),/^chrome-error:/,'an unlisted website cannot frame the widget')
    }
    assert.deepEqual(errors,[])
-   console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)
+   console.log(`BOOK-002 / BOOK-008 / BOOK-009 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)
   }finally{await context.close();await h.close()}
  }
 }finally{await browser.close()}

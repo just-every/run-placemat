@@ -118,6 +118,24 @@
           "file": "migration-sources.md",
           "title": "Migration source formats",
           "summary": "Source formats and provider documentation for a move-in."
+        },
+        {
+          "slug": "done-audit",
+          "file": "contract/DONE-AUDIT.md",
+          "title": "Carried-done audit",
+          "summary": "Each carried acceptance outcome and its asserting evidence or named gap."
+        },
+        {
+          "slug": "booking-interfaces",
+          "file": "booking-interfaces.md",
+          "title": "Embed and analytics interfaces",
+          "summary": "Framing, source attribution and provider-event interface details."
+        },
+        {
+          "slug": "homepage-claims",
+          "file": "CLAIMS.md",
+          "title": "Homepage claims",
+          "summary": "The published homepage claims mapped to the contract and current status."
         }
       ]
     }

@@ -74,7 +74,7 @@ const settings=(ga4={},meta={})=>({ga4:{enabled:true,measurementId:'G-PLACEMAT1'
 const until=async(check,label)=>{for(let i=0;i<200;i++){if(await check())return;await new Promise(r=>setTimeout(r,25))}assert.fail(label)}
 const quiet=()=>new Promise(r=>setTimeout(r,400))
 const guestHeaders={'cf-connecting-ip':'203.0.113.77','user-agent':'Mozilla/5.0 (Placemat analytics guest)'}
-// What GA4 and Meta receive for one consented event, field for field (BOOK-002, ct ruling 20 Oct 22:48Z).
+// What GA4 and Meta receive for one consented event, field for field (BOOK-008, ct ruling 20 Oct 22:48Z).
 function expected(event,visitId,source,{debug=true,test='TEST4242',bookingPage}={}){
  const params={party_size:2,booking_source:source.door,...(source.door==='widget'?{widget_origin:source.origin}:{})}
  const ga4={url:`https://www.google-analytics.com/mp/collect?measurement_id=G-PLACEMAT1&api_secret=${ga4Secret}`,body:{client_id:visitId,events:[{name:{search:'search','checkout-start':'begin_checkout',booking:'placemat_booking'}[event],params:{...params,...(debug?{debug_mode:true,engagement_time_msec:1}:{})}}]}}
@@ -84,7 +84,7 @@ function expected(event,visitId,source,{debug=true,test='TEST4242',bookingPage}=
 const received=rows=>rows.map(({url,method,body})=>{assert.equal(method,'POST');const copy=structuredClone(body);for(const e of copy.data??[]){assert.ok(Math.abs(e.event_time-Date.now()/1000)<120,'event_time is the send time in Unix seconds');e.event_time='now'}return {url,body:copy}})
 const byWire=(a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))
 
-test('BOOK-002 / PRIVACY-001 / AUDIT-001: owner-only write-only analytics keys; consented search, checkout start and booking reach GA4 and Meta test mode with exactly the listed fields; no answer sends nothing; a failing provider never blocks or delays a booking',async()=>{
+test('BOOK-008 / BOOK-009 / PRIVACY-001 / AUDIT-001: owner-only write-only analytics keys; consented search, checkout start and booking reach GA4 and Meta test mode with exactly the listed fields; no answer sends nothing; a failing provider never blocks or delays a booking',async()=>{
  const h=await installation();try{
   const {service:dinner}=await service(h);await h.command('embed.origins',{origins:[host]})
   const manager=await h.signIn('manager@example.test','admin'),member=await h.signIn('reader@example.test')
@@ -151,7 +151,7 @@ test('BOOK-002 / PRIVACY-001 / AUDIT-001: owner-only write-only analytics keys; 
  }finally{await h.close()}
 })
 
-test('BOOK-002 / AUDIT-001: only the owner removes a saved GA4 or Meta key; the removal is audited with actor and time and never the key; a provider left on without a key sends nothing until a new key is entered (ct 21 Oct 00:03Z)',async()=>{
+test('BOOK-009 / AUDIT-001: only the owner removes a saved GA4 or Meta key; the removal is audited with actor and time and never the key; a provider left on without a key sends nothing until a new key is entered (ct 21 Oct 00:03Z)',async()=>{
  const h=await installation();try{
   const {service:dinner}=await service(h);await h.command('analytics.settings',settings())
   const manager=await h.signIn('manager@example.test','admin'),member=await h.signIn('reader@example.test')
@@ -198,7 +198,7 @@ test('BOOK-002 / AUDIT-001: only the owner removes a saved GA4 or Meta key; the 
  }finally{await h.close()}
 })
 
-test('BOOK-002 / DATA-001 / DATA-003: backups and CSVs leave the analytics keys out by name; a restored installation sends nothing until the owner enters them again',async()=>{
+test('BOOK-009 / DATA-001 / DATA-003: backups and CSVs leave the analytics keys out by name; a restored installation sends nothing until the owner enters them again',async()=>{
  const h=await installation(),restored=await installation();try{
   await service(h);await h.command('analytics.settings',settings())
   const archive=await h.api('/api/backup'),wire=JSON.stringify(archive)

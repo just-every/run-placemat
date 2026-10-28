@@ -34,7 +34,7 @@ for(const width of [1440,390]){
    if(!ids.length)await expect(timeline.getByText('No reservations match this day and these filters.',{exact:true})).toBeVisible()
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'FLOOR-007 page fits viewport; table/time-bar scrolling stays contained')
   }
-  const shot=async name=>{if(shots)await timeline.screenshot({path:resolve(shots,`FLOOR-007-${name}-${width}.png`)})}
+  const shot=async name=>{if(shots)await timeline.screenshot({path:resolve(shots,`FLOOR-014-${name}-${width}.png`)})}
   await apply({search:'0191',source:'online',status:'booked'},[f.elena])
   const guestRow=rows.filter({hasText:'Eléna García'})
   for(const text of ['VIP','Guest allergy notes: Shellfish <guest supplied>','wheelchair requested, not guaranteed','Required table access: step-free','Food safety is not certified by these notes.'])await expect(guestRow).toContainText(text)
@@ -62,7 +62,7 @@ for(const width of [1440,390]){
   const nextCookie=await h.signIn('synthetic-placemat-next-ui@example.test','member','Blair Host'),managerCookie=await h.signIn('synthetic-placemat-manager-ui@example.test','admin','Morgan Manager'),nextId=(await h.api('/auth/operators')).find(p=>p.email==='synthetic-placemat-next-ui@example.test').id;
   await h.command('team.host',{operatorId:nextId,enabled:true});
   const signIn=async token=>{await context.clearCookies();await context.addCookies(token.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}));await page.reload();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.locator('.app-main[aria-busy=false]').waitFor();};
-  const follow=page.getByRole('region',{name:'Owned guest follow-up'}),followShot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await follow.screenshot({path:resolve(shots,`FLOOR-007-${name}-${width}.png`)})};
+  const follow=page.getByRole('region',{name:'Owned guest follow-up'}),followShot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await follow.screenshot({path:resolve(shots,`FLOOR-014-${name}-${width}.png`)})};
   await signIn(cookie);
   const create=async(kind,text,ownerId)=>{
    await follow.getByText('Assign guest follow-up',{exact:true}).click();const form=follow.locator('[data-command="booking.handover"]');await form.locator('[name=bookingId]').selectOption(f.elena.id);await form.locator('[name=kind]').selectOption(kind);if(kind==='callback')await form.locator('[name=paymentRequestId]').selectOption(deposit.requestId);await form.locator('[name=ownerId]').selectOption(ownerId);await form.getByLabel('Guest follow-up',{exact:true}).fill(text);assert.ok(await form.evaluate(el=>el.reportValidity()),'Handover form is valid');const saved=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/commands'&&r.request().method()==='POST');await form.getByRole('button',{name:'Assign follow-up',exact:true}).click();const answer=await saved;assert.ok(answer.ok(),await answer.text());await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();
@@ -81,6 +81,6 @@ for(const width of [1440,390]){
   for(const value of ['Eléna García','VIP','Shellfish','step-free','wheelchair requested'])assert.ok(!(await rows.innerText()).includes(value),'FLOOR-007 erasure removes '+value)
   await shot('erased');for(const value of ['synthetic-placemat-access','synthetic-placemat-callback','synthetic-placemat-next-host'])assert.ok(!(await follow.innerText()).includes(value));await followShot('followup-erased')
   assert.deepEqual(errors,[])
-  console.log(`FLOOR-007 normalized guest/phone/ID/table search, combined filters, flags, host action, keyboard and erasure passed at ${width}`)
+  console.log(`FLOOR-007 / FLOOR-014 normalized guest/phone/ID/table search, combined filters, flags, host action, keyboard and erasure passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }

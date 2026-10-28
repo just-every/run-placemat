@@ -90,7 +90,7 @@ try{
    assert.equal(await second.locator('#bookings-list [data-new-booking]').count(),0)
    assert.match(await page.locator('#services-content').innerText(),/Retired/)
    await page.locator(`#bookings-list [data-action=reassign][data-id="${booked.id}"]`).click();await page.locator('#reassignment summary').filter({hasText:'Assignment and turn history'}).click();assert.match(await page.locator('#reassignment').innerText(),/Before[\s\S]*12[\s\S]*After[\s\S]*14/);await capture('retained-history',page,page.locator('#reassignment'))
-   // FLOOR-008 outage slice: the disconnected owner's anonymous draft never holds inventory.
+   // FLOOR-015 / FLOOR-016 / FLOOR-017 outage slice: the disconnected owner's anonymous draft never holds inventory.
    const outageTables=[]
    for(const label of ['Outage A','Outage B'])outageTables.push(await h.command('table.save',{label,seats:4,area:'Dining room',accessTags:['step-free'],x:20+outageTables.length*50,y:60}))
    await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('status').filter({hasText:'Venue refreshed'}).waitFor()
@@ -167,7 +167,7 @@ try{
    page.once('dialog',dialog=>dialog.accept());await outage.getByRole('button',{name:'Delete saved outage sheet',exact:true}).click()
    assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null)
    await contexts[1].clearCookies();await second.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await second.locator('#floor-sync').innerText(),/Sign in again/)
-   assert.deepEqual(errors,[]);console.log(`FLOOR-002 / FLOOR-008 rooms, live guest booking markers, stale edits, encrypted outage capture and reviewed reconnect passed at ${width}`)
+   assert.deepEqual(errors,[]);console.log(`FLOOR-002 / FLOOR-008 / FLOOR-015 / FLOOR-016 / FLOOR-017 rooms, live guest booking markers, stale edits, encrypted outage capture and reviewed reconnect passed at ${width}`)
   }finally{for(const c of contexts){await c.unrouteAll({behavior:'wait'});await c.close()}await h.close()}
  }
 }finally{await browser.close()}

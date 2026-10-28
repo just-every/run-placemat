@@ -1,6 +1,6 @@
 import {fail,id,type Actor,type State} from './model'
 
-/** BOOK-002 analytics: the owner's provider settings live in state; the GA4 API secret and Meta access token live only in pm_analytics_keys. */
+/** BOOK-009 analytics: the owner's provider settings live in state; the GA4 API secret and Meta access token live only in pm_analytics_keys. */
 export type AnalyticsProvider='ga4'|'meta'
 export type AnalyticsSettings={ga4:{enabled:boolean;measurementId:string;debugMode:boolean};meta:{enabled:boolean;datasetId:string;testEventCode:string}}
 type KeyState={keySaved:boolean;keyEntered?:true;keyRemoved?:true}
