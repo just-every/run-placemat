@@ -4,6 +4,7 @@
 // Every Run page string and command is in run.json; nothing here reads
 // installation data.
 import { contractPageHtml } from '../base/contract-page'
+import { runPricing } from '../base/run-pricing'
 import { runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
 import { identity } from '../identity'
 import { docsArticleBody, docsIndexBody, docsMeta } from './docs/docs'
@@ -27,7 +28,15 @@ import './landing/evening.css'
 import './docs/docs.css'
 
 export function sitePages({ styles, contract }: SiteContext): SiteBuild {
-  const data: RunData = run
+  const data: RunData = {
+    name: run.name,
+    repository: run.repository,
+    clone: run.clone,
+    licence: run.licence,
+    docs: run.docs,
+    paths: run.paths,
+    pricing: runPricing,
+  }
   return {
     pages: [
       { path: '/', html: documentHtml(styles, { ...landingMeta, body: landingBody(data.docs), bodyClass: 'home' }) },
