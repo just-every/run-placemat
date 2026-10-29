@@ -2,11 +2,14 @@
 
 All private GETs require a native active owner/admin/member session (or read-only/preparation agent key). All private POSTs require exact Origin and owner/admin or an explicit product host capability, with owner-only keys, erase, backup/restore and move-in. Agents may only read state and prepare proposals; approval always needs a native person session. JSON errors are `{error:message}`; POST success `{result:...}`.
 
-Company-agent execution is not enabled. `/mcp`, `/agents` and
-`/api/rer/agent-policy` are not product endpoints. The copied Base agent-door
-runtime is not an access grant. Preparation keys retain their existing read and
-proposal-preparation authority; they cannot approve, send, change grants or move
-money. Scheduled reports remain native, person-approved schedules.
+Company agents use one CORE door at `/mcp`, `/agents`,
+`/api/rer/agent-policy` and `/docs/agents`, before application redirects.
+The native tool registry supports operations reads and proposal preparation;
+`docs/agents.md` records its limits. Signed Business policy, durable native
+sponsor mapping and the person's current native grants govern each call.
+Preparation keys keep their existing read/preparation scope. A person must
+still approve and execute a restaurant proposal. No company agent can send,
+change grants or move money through this registry.
 
 Agent-created deferred work requires a consent-bound continuation through the
 shared door. It must retain the original sponsor, agent, scope and consent and
