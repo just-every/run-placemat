@@ -19,7 +19,7 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  eraseAudit(state,guestId)
  for(const reminder of state.reminders)if(reminder.guestId===guestId){delete reminder.contactName;delete reminder.contactEmail;delete reminder.contactPhone}
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan)),...[...(state.serviceChanges??[]),...state.proposals.flatMap(p=>p.plan?.snapshot?.serviceChanges??[])].flatMap(c=>c.tasks.flatMap((t:any)=>t.relocation?[t.relocation.before,t.relocation.after]:[]))]
- for(const b of bookings)if(b.guestId===guestId){delete b.closureEmailConsent;if(b.experienceCart)b.experienceCart.dietaryChoices=[];if(b.lateOperations)for(const e of b.lateOperations.history){e.reason='';if(e.outcome)e.outcome=''}if(b.needHistory)b.needHistory=[];if(b.handover)b.handover=[];b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
+ for(const b of bookings)if(b.guestId===guestId){delete b.closureEmailConsent;delete b.feedbackEmailConsent;if(b.experienceCart)b.experienceCart.dietaryChoices=[];if(b.lateOperations)for(const e of b.lateOperations.history){e.reason='';if(e.outcome)e.outcome=''}if(b.needHistory)b.needHistory=[];if(b.handover)b.handover=[];b.preorders=[];if(b.requests)b.requests=normalizeBookingRequests({});if(b.ruleOverride)b.ruleOverride.reason='';if(b.pacingOverride)b.pacingOverride.reason='';if(b.requiredAccessTags)b.requiredAccessTags=[];delete b.requiredArea;for(const event of b.servingHistory??[])event.reason=''}
  for(const inquiry of state.inquiries??[])if(inquiry.guestId===guestId){
   delete inquiry.tokenHash;delete inquiry.requiredArea;inquiry.requiredAccessTags=[];inquiry.requests=normalizeBookingRequests({});inquiry.messages=[]
   if(inquiry.offer){delete inquiry.offer.requiredArea;inquiry.offer.requiredAccessTags=[];inquiry.offer.guarantees=[]}
@@ -68,6 +68,9 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  const dinerGuests=JSON.stringify(typeof guestIds==='string'?[guestIds]:guestIds)
  const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  {sql:'DELETE FROM pm_feedback_credentials WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_feedback_messages WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_diner_challenges WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_diner_sessions WHERE account_id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_diner_accounts WHERE id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},

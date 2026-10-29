@@ -264,8 +264,14 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   const changed=executeServiceStatus(s,actor,{...p,stage:p.stage??p.status},now);result=command==='booking.status'?changed.booking:changed;break
  }
  case 'guest.merge':case 'guest.unmerge':{
+  const identities=new Map(s.bookings.map(b=>[b.id,b.guestId]))
   const change=await (command==='guest.merge'?mergeGuests:unmergeGuests)(db,s,version,actor,p,now)
-  before.push(...change.statements);result=change.result;mergeChanges=change.changes;break
+  before.push(...change.statements)
+  // Follow the reviewed booking identity atomically, without transferring private link authority.
+  for(const b of s.bookings)if(identities.get(b.id)!==b.guestId)before.push(
+   db.prepare('DELETE FROM pm_feedback_credentials WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE booking_id=?)').bind(b.id),
+   db.prepare('UPDATE pm_feedback_visits SET guest_id=? WHERE booking_id=?').bind(b.guestId,b.id))
+  result=change.result;mergeChanges=change.changes;break
  }
  case 'guest.update':case 'guest.profile':{
   const update=await updateGuestProfile(db,p.guestId,p,actor,version,now)
@@ -304,7 +310,7 @@ export async function onlineBook(db:D1Database,input:any):Promise<{partySize:num
  const experienceCart=normalizeExperienceCart(s,service.id,experience.experience,partySize,p)
  const entry=await guestFor(db,p)
  if(s.bookings.some(b=>b.guestId===entry.guest.id&&b.startAt===slot.startAt&&!['cancelled','no-show'].includes(b.status)))fail(409,'A booking already exists for this guest at that time.')
- const b:Booking={...(experienceCart?{experienceCart}:{}),...(experience.experience?{experience:experience.experience}:{}),...(p.closureEmailConsent===true?{closureEmailConsent:{at:new Date().toISOString(),emailHash:await hash(entry.guest.email.toLowerCase()),source:'guest-supplied' as const}}:{}),preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
+ const b:Booking={...(p.feedbackEmailConsent===true?{feedbackEmailConsent:{at:new Date().toISOString(),emailHash:await hash(entry.guest.email.toLowerCase()),source:'guest-supplied' as const}}:{}),...(experienceCart?{experienceCart}:{}),...(experience.experience?{experience:experience.experience}:{}),...(p.closureEmailConsent===true?{closureEmailConsent:{at:new Date().toISOString(),emailHash:await hash(entry.guest.email.toLowerCase()),source:'guest-supplied' as const}}:{}),preorders,...requests?{requests,requestsAcknowledgedAt:new Date().toISOString()}:{},id:id(),serviceId:service.id,guestId:entry.guest.id,partySize,requiredAccessTags,...(requiredArea&&!tables[0].inventoryId?{requiredArea}:{}),...slot,tableIds:tables.map(t=>t.id),status:'booked',source:'online',attribution,createdAt:new Date().toISOString()}
  recordServing(b,servingFor(s,service.id,b.tableIds),'guest',b.createdAt,'booking.online')
  s.bookings.push(b);s.audit.push({id:id(),at:b.createdAt,actor:'guest',action:'booking.online',subject:b.id})
  const result={...(experienceCart?{experienceCart:{...experienceCart,dietaryChoices:[]}}:{}),...(experience.experience?{experienceId:experience.experience.id,ticketClassId:experience.experience.classId,experienceName:experience.experience.name,className:experience.experience.className}:{}),assignment:tables.map(t=>t.label).join(', '),id:b.id,startAt:b.startAt,endAt:b.endAt,cleanupEndAt:b.cleanupEndAt,partySize,preorders,area:requiredArea??null,requiredAccessTags,...requests?{requests,requestTerms:requestTerms(requests)}:{},confirmation:tables[0].inventoryKind==='pool'?`Your unassigned pool covers at ${s.venue.name} are reserved. Physical seats are assigned by the host on arrival.`:tables[0].inventoryKind==='counter'?`Your counter seats at ${s.venue.name} are booked.`:`Your table at ${s.venue.name} is booked.`,timezone:s.venue.timezone}
