@@ -1877,8 +1877,12 @@
       "sha256": "0930fd38aced3f835b3edf196242d521ee6b215211e29b05f76adb293f93da9c",
       "executable": false
     },
+    "src/agent-door/http.ts": {
+      "sha256": "ed198b11af550d44b252caab271e2a6a8c577140c7a38a95a970b50791e5f865",
+      "executable": false
+    },
     "src/agent-door/index.ts": {
-      "sha256": "c2d2ae5abb5d04854ed3866c314a57351b23aee2a41766de5e9caa086b61dd6c",
+      "sha256": "cabb70a93ddfecfbe025133c85fab673d34f6440822421a5c7d34a4bcf102d6f",
       "executable": false
     },
     "src/agent-door/native.ts": {
@@ -4966,7 +4970,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "488a87dc08e3e3ea9648edd2db6338f0c1d31db7a7f31ee426deedd255f17668",
+      "sha256": "4cb45c298b029fb49870e18d43f8e0283b00c58673b32012f4f4a16d895bbf4b",
       "executable": false
     },
     "src/site/docs/content.ts": {
