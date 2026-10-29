@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 57 done, 29 partial, 49 missing; 135 total.
+Inventory: 57 done, 42 partial, 49 missing; 148 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -141,3 +141,16 @@ Inventory: 57 done, 29 partial, 49 missing; 135 total.
 | AGENT-006 | missing |  |
 | AGENT-007 | missing |  |
 | AGENT-008 | missing |  |
+| BASE-AGENT-001 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-002 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-003 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-004 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-005 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-006 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-007 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-008 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-009 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-010 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-011 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-013 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
