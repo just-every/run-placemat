@@ -1,4 +1,5 @@
 import {runFeedbackSurveys} from './placemat/feedback-mail'
+import {companyDoor, businessSettings} from './agent-door'
 import {runReportSchedules} from './placemat/scheduled-reports'
 import { withDemo } from './modules/demo/index.mjs'
 import { rejectedResponse } from './base/rejected-response'
@@ -40,6 +41,11 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
 async function respond(request: Request, env: Bindings, execution: ExecutionContext): Promise<Response> {
   const asset = await staticAssetResponse(request, env)
   if (asset) return asset
+  const bindings = runtimeBindings(env)
+  const door = await companyDoor(bindings).handle(request)
+  if (door) return door
+  const business = await businessSettings(bindings).handle(request)
+  if (business) return business
   const auth = await authResponse(request, env)
   if (auth) return auth
   const product = await placematResponse(request, runtimeBindings(env), work => execution.waitUntil(work))

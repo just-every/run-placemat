@@ -1,0 +1,363 @@
+{
+  "schema": "rer-agent-surface/1",
+  "seed": "placemat",
+  "specialist": "restaurant service coordinator",
+  "capabilities": [
+    "tools",
+    "policy",
+    "pause",
+    "audit",
+    "idempotency"
+  ],
+  "tools": [
+    {
+      "name": "placemat.workspace.snapshot",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "PLAN-001",
+        "GUEST-001"
+      ]
+    },
+    {
+      "name": "placemat.workspace.revision",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "FLOOR-001"
+      ]
+    },
+    {
+      "name": "placemat.guests.history",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "GUEST-001"
+      ]
+    },
+    {
+      "name": "placemat.availability.search",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "BOOK-003"
+      ]
+    },
+    {
+      "name": "placemat.timeline.inspect",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "FLOOR-005"
+      ]
+    },
+    {
+      "name": "placemat.staffing.inspect",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "FLOOR-004"
+      ]
+    },
+    {
+      "name": "placemat.capacity.check",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "FLOOR-001",
+        "SERVICE-005"
+      ]
+    },
+    {
+      "name": "placemat.allocations.advise",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "AGENT-004"
+      ]
+    },
+    {
+      "name": "placemat.audit.inspect",
+      "scope": "operations:read",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "PLAN-001"
+      ]
+    },
+    {
+      "name": "placemat.plans.prepare",
+      "scope": "plans:prepare",
+      "readOnly": false,
+      "classes": [
+        "standard",
+        "sensitive"
+      ],
+      "clauses": [
+        "PLAN-001",
+        "AGENT-004"
+      ]
+    }
+  ],
+  "resources": [],
+  "notTools": [
+    {
+      "clauses": [
+        "ACCESS-001"
+      ],
+      "reason": "screen"
+    },
+    {
+      "clauses": [
+        "FLOOR-008"
+      ],
+      "reason": "device"
+    },
+    {
+      "clauses": [
+        "DATA-001",
+        "DATA-002"
+      ],
+      "reason": "import-door"
+    },
+    {
+      "clauses": [
+        "SETUP-001"
+      ],
+      "reason": "installation"
+    },
+    {
+      "clauses": [
+        "PAY-001"
+      ],
+      "reason": "connector"
+    }
+  ],
+  "witness": {
+    "tool": "placemat.workspace.revision",
+    "args": {}
+  },
+  "escalations": [],
+  "spend": {
+    "none": true
+  },
+  "verification": {
+    "fixtures": {
+      "module": "tests/agent-fixtures.mjs"
+    },
+    "journey": "tests/agent-native-journey.mjs",
+    "replayAdmission": {
+      "prepare": [
+        "workspace-revision",
+        "prepare-publication"
+      ]
+    }
+  },
+  "journey": [
+    {
+      "id": "workspace-snapshot",
+      "tool": "placemat.workspace.snapshot",
+      "args": {},
+      "expect": [
+        {
+          "class": "sensitive"
+        }
+      ]
+    },
+    {
+      "id": "workspace-revision",
+      "tool": "placemat.workspace.revision",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "guests-history",
+      "tool": "placemat.guests.history",
+      "args": {},
+      "expect": [
+        {
+          "class": "sensitive"
+        }
+      ]
+    },
+    {
+      "id": "availability-search",
+      "tool": "placemat.availability.search",
+      "args": {
+        "date": {
+          "$fixture": "date",
+          "pointer": ""
+        },
+        "partySize": 2
+      },
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "timeline-inspect",
+      "tool": "placemat.timeline.inspect",
+      "args": {
+        "serviceId": {
+          "$fixture": "service",
+          "pointer": ""
+        },
+        "date": {
+          "$fixture": "date",
+          "pointer": ""
+        }
+      },
+      "expect": [
+        {
+          "class": "sensitive"
+        }
+      ]
+    },
+    {
+      "id": "staffing-inspect",
+      "tool": "placemat.staffing.inspect",
+      "args": {
+        "serviceId": {
+          "$fixture": "service",
+          "pointer": ""
+        }
+      },
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "capacity-check",
+      "tool": "placemat.capacity.check",
+      "args": {
+        "serviceId": {
+          "$fixture": "service",
+          "pointer": ""
+        }
+      },
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "allocations-advise",
+      "tool": "placemat.allocations.advise",
+      "args": {
+        "serviceId": {
+          "$fixture": "service",
+          "pointer": ""
+        }
+      },
+      "expect": [
+        {
+          "class": "sensitive"
+        }
+      ]
+    },
+    {
+      "id": "audit-inspect",
+      "tool": "placemat.audit.inspect",
+      "args": {},
+      "expect": [
+        {
+          "class": "sensitive"
+        }
+      ]
+    },
+    {
+      "id": "prepare-publication",
+      "tool": "placemat.plans.prepare",
+      "args": {
+        "kind": "service.publish",
+        "plan": {
+          "serviceId": {
+            "$fixture": "draft",
+            "pointer": ""
+          }
+        },
+        "reason": "Cedar & Salt manager reviews publication separately",
+        "expected_revision": {
+          "$from": "workspace-revision",
+          "pointer": "/data/version"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "revision-for-reminders",
+      "tool": "placemat.workspace.revision",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard"
+        }
+      ]
+    },
+    {
+      "id": "prepare-reminders",
+      "tool": "placemat.plans.prepare",
+      "args": {
+        "kind": "reminders",
+        "plan": {
+          "serviceId": {
+            "$fixture": "service",
+            "pointer": ""
+          }
+        },
+        "reason": "Prepare private reminder drafts without sending",
+        "expected_revision": {
+          "$from": "revision-for-reminders",
+          "pointer": "/data/version"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard"
+        },
+        {
+          "class": "sensitive"
+        }
+      ]
+    }
+  ]
+}
