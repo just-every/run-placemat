@@ -5,7 +5,7 @@ import {feedbackTick,feedbackReviewUrl} from '../tests/api/feedback-fixture.mjs'
 import {normalizeInbound} from '../src/modules/mail/src/inbound/index.mjs'
 for(const name of ['MAIL_API_KEY','MAIL_FROM','TEST_MAIL_TO','QA_INBOX_RECEIPT_TOKEN'])assert.ok(process.env[name],`Missing ${name}`)
 const recipient=process.env.TEST_MAIL_TO,since=new Date().toISOString(),submissions=[]
-const h=await installation({bindings:{OWNER_EMAIL:recipient,MAIL_PROVIDER:'sendgrid',MAIL_FROM:process.env.MAIL_FROM,MAIL_API_KEY:process.env.MAIL_API_KEY},mailEdge:async request=>{
+const h=await installation({bindings:{OWNER_EMAIL:['synthetic-placemat-owner','example.test'].join(String.fromCharCode(64)),MAIL_PROVIDER:'sendgrid',MAIL_FROM:process.env.MAIL_FROM,MAIL_API_KEY:process.env.MAIL_API_KEY},mailEdge:async request=>{
  const body=await request.json()
  assert.deepEqual(body.personalizations[0].to,[{email:recipient}]);assert.equal(body.personalizations.length,1)
  assert.ok(!body.attachments&&!body.cc&&!body.bcc&&!body.personalizations[0].cc&&!body.personalizations[0].bcc)

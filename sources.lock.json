@@ -1282,7 +1282,7 @@
       "executable": false
     },
     "scripts/reviews-sandbox.mjs": {
-      "sha256": "8eadead31ecc6c7ca26076c4b55faba5760d6fd784cfa0147664975733d8882d",
+      "sha256": "ac70fbf5203332ac6733baad5b9a792ce23875855c8069f7549f92ff2803cf70",
       "executable": false
     },
     "scripts/service-change-sandbox.mjs": {
