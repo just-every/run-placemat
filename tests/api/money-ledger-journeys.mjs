@@ -87,6 +87,7 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   const linked=attributed.items.find(i=>i.id===adjustment.transaction_id);assert.equal(linked.bookingId,booking.id);assert.equal(linked.adjustmentId,adjustment.id)
   assert.equal(linked.differenceCents,conflicting?-300:null);assert.deepEqual(linked.signedFact,conflict.signedFact)
   assert.deepEqual(attributed.discrepancies,discrepancies,'Attribution cannot resolve the financial difference')
+  assert.deepEqual(attributed.unverified,conflicting?[]:[conflict.id],'Human attribution cannot confirm an absent signed provider fact')
   if(conflicting)assert.notEqual(linked.bookingId,linked.signedFact.bookingId,'Human attribution never rewrites the signed booking reference')
   assert.deepEqual(await financialCsv(h,'money-items'),originalFacts)
   assert.deepEqual(await financialCsv(h,'money-receipts'),originalReceipts,'Attribution changes no signed-event history')
@@ -105,6 +106,7 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   assert.deepEqual(JSON.parse(auditCsv.changes_json),audit[0].changes)
   const afterCsv=await payoutCsv(h)
   assert.deepEqual(JSON.parse(afterCsv.items_json),attributed.items);assert.deepEqual(JSON.parse(afterCsv.discrepancies_json),discrepancies)
+  assert.deepEqual(JSON.parse(afterCsv.unverified_json),conflicting?[]:[conflict.id])
   assert.equal(afterCsv.grossCents,'9700');assert.equal(afterCsv.feeCents,'300');assert.equal(afterCsv.netCents,'9400')
   const intact=await installation({bindings:{STRIPE_WEBHOOK_SECRET:secret}})
   try{
