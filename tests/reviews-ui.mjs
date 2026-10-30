@@ -11,8 +11,9 @@ const h=await installation(),transport=await browserServer(h),shots=process.env.
 if(shots)await mkdir(shots,{recursive:true})
 const browser=await chromium.launch({headless:true,...process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{},args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]})
 const context=await browser.newContext({viewport:{width:1440,height:1000},ignoreHTTPSErrors:true}),staff=await browser.newContext({viewport:{width:1440,height:1000},ignoreHTTPSErrors:true})
-const page=await context.newPage(),manager=await staff.newPage(),errors=[]
+const page=await context.newPage(),manager=await staff.newPage(),errors=[],requests=[]
 page.on('pageerror',e=>errors.push(e.message));manager.on('pageerror',e=>errors.push(e.message))
+page.on('request',request=>requests.push(request.url()))
 const screenshot=async(p,name)=>{if(shots)await p.screenshot({path:resolve(shots,name+'.png'),fullPage:true})}
 async function layout(p){
  const issues=await p.evaluate(()=>{
@@ -32,7 +33,11 @@ async function layout(p){
 try{
  const f=await feedbackFixture(h),b=f.bookings[0],second=f.bookings[1]
  await h.api('/api/public/feedback/submit',{token:f.tokens[0],rating:1,comment:'Private feedback must stay private'},{as:''})
- await page.goto(transport.origin+'/reviews#'+f.tokens[0]);await page.getByLabel('Current booking email').waitFor()
+ await page.goto(transport.origin+'/feedback#'+f.tokens[0])
+ const invitation=page.getByRole('link',{name:'Publish a separate verified Placemat review',exact:true})
+ await invitation.waitFor();assert.equal(await invitation.getAttribute('href'),'/reviews')
+ await invitation.focus();await page.keyboard.press('Enter');await page.getByLabel('Current booking email').waitFor()
+ assert.ok(!page.url().includes(f.tokens[0]),'The review page clears the private invitation fragment')
  assert.equal(await page.getByLabel('Booking reference').inputValue(),b.id)
  assert.ok(!(await page.locator('#review-list').innerText()).includes('Private feedback must stay private'))
  await page.getByLabel('Current booking email').fill(publicGuest(f.service,0).email)
@@ -82,5 +87,7 @@ try{
  // Phone proof records these same changed screens once; assertions remain at the desktop width.
  for(const [p,name] of [[page,'venue'],[manager,'manager'],[widget,'widget']]){await p.setViewportSize({width:390,height:1000});await p.waitForTimeout(350);await screenshot(p,'reviews-'+name+'-390')}
  assert.deepEqual(errors,[])
+ assert.ok(requests.every(url=>!f.tokens.some(token=>url.includes(token))),'Feedback invitations stay out of HTTP URLs during the review journey')
+ console.log('PROBE DIST-006 feedback link: private feedback, keyboard review navigation, fresh booking code and explicit publication -> token-free hyperlink and HTTP requests; no automatic publication')
  console.log('PROBE DIST-006 screens: booking email code, explicit four-star submission, manager reply edit and report outcome -> dated venue and widget publication at 1440; changed screens captured at 390')
 }finally{await browser.close();await transport.close();await h.close()}
