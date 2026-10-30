@@ -3526,7 +3526,7 @@
       "executable": false
     },
     "src/placemat/group-guestbook.ts": {
-      "sha256": "d307af8d87237226d3549f37877b282f05598284f4e2b8404dcaab4b0ecc098a",
+      "sha256": "854d8acd7d663457f029ab69430cd11c03200498ee6f05bb64c737742a5181dc",
       "executable": false
     },
     "src/placemat/group-store.ts": {
@@ -3574,7 +3574,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "86d487ce425c1a29a13cf1df876238eef82b1b52a13e9e269f3b9c8f7ace96c7",
+      "sha256": "d7709e81689841832c7b9bc00964248e2a70a73745bf8d42d61356ac442e235b",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -4222,11 +4222,11 @@
       "executable": false
     },
     "tests/api/group-guest-fixture.mjs": {
-      "sha256": "293e4a81e5e8257fd4e53448bbfa94619622a9c23c9ef4de069b8d72bbca992d",
+      "sha256": "edb7cc246e9fe3de0916c2fa7e8be9847c38360a53494ed13b48fa2ace382b61",
       "executable": false
     },
     "tests/api/group-guest-journey.mjs": {
-      "sha256": "c0feb64149f4be284bff738c3748fbc4eef9e1bb9dbf182e4c44256042b8ef98",
+      "sha256": "676eb47ba3cdee16fa823adb65bc565c4da3e5a0785cd9643474381e74ec7078",
       "executable": false
     },
     "tests/api/group.test.mjs": {

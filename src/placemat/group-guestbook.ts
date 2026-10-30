@@ -47,10 +47,25 @@ export async function groupGuestRedeem(db:D1Database,header:string|null,p:any){
 export async function groupGuestCheck(db:D1Database,header:string|null,p:any){
  const link=await peer(db,header),grant=await groupIntrospect(db,header,p.token)
  if(!link||!grant.active||!grant.rights.includes('guestbook.read'))return {active:false}
- const homeRights=await venueRights(db,p.token,fetch).catch(()=>null),c=await current(db,String(p.profileId??''))
- const active=!!(homeRights?.rights.includes('guestbook.read')&&c)
+ const homeRights=await venueRights(db,p.token,fetch).catch(()=>null)
+ if(!homeRights?.rights.includes('guestbook.read'))return {active:false}
+ if(Array.isArray(p.profileIds)){
+  const profiles=[]
+  for(const profileId of readIds(p.profileIds)){
+   const c=await current(db,profileId)
+   if(!c)return {active:false}
+   profiles.push({profileId,purposes:Object.fromEntries(purposes.map(p=>[p,!!c.row[p]]))})
+  }
+  return {active:true,profiles}
+ }
+ const c=await current(db,String(p.profileId??'')),active=!!c
  return {active,purposes:active&&c?Object.fromEntries(purposes.map(p=>[p,!!c.row[p]])):null}
 }
+function readIds(value:unknown):string[]{
+ if(!Array.isArray(value)||value.length>100||value.some(v=>typeof v!=='string'||!v||v.length>100))fail(400,'Choose up to 100 group profiles.')
+ return [...new Set(value as string[])]
+}
+
 export async function dinerGroup(db:D1Database,origin:string,action:string,p:any,s:Diner,fetcher:typeof fetch=fetch){
  const group=await membership(db,origin)
  if(!group)return {connected:false}
@@ -88,23 +103,43 @@ export async function dinerGroup(db:D1Database,origin:string,action:string,p:any
  await erasureCheckpoint(db)
  return {saved:true,profileId,purposes:Object.fromEntries(purposes.map(k=>[k,p[k]]))}
 }
-export async function groupGuestRead(db:D1Database,request:Request,url:URL,fetcher:typeof fetch=fetch){
- if(request.method!=='GET')fail(405,'Group guest access is read-only.')
- const bearer=request.headers.get('authorization');if(!bearer?.startsWith('Bearer gt_'))fail(401,'Send a group token.')
- const token=bearer!.slice(7),rights=await venueRights(db,token,fetcher)
+async function readProfiles(db:D1Database,token:string,profileIds:string[],fetcher:typeof fetch,omitUnlinked=false){
+ const rights=await venueRights(db,token,fetcher)
  if(!rights.rights.includes('guestbook.read'))return denied()
- const profileId=url.searchParams.get('profileId')??'',c=await current(db,profileId)
- if(!c)return denied()
- let allowed=Object.fromEntries(purposes.map(p=>[p,!!c.row[p]]))
+ const selected=[]
+ for(const profileId of profileIds){
+  const c=await current(db,profileId)
+  if(!c){
+   // Only a never-linked profile is absent. Revoked consent or stale proof still refuses the refresh.
+   if(omitUnlinked&&!await db.prepare('SELECT 1 FROM pm_group_guests WHERE profile_id=?').bind(profileId).first())continue
+   return denied()
+  }
+  selected.push({profileId,c,allowed:Object.fromEntries(purposes.map(p=>[p,!!c.row[p]]))})
+ }
  const member=await db.prepare('SELECT home_origin,link_id,secret FROM pm_group_home').first<{home_origin:string;link_id:string;secret:string}>()
- if(member){
+ if(member&&selected.length){
   let answer:any
-  try{const r=await fetcher(member.home_origin+'/api/group/guest-check',{method:'POST',redirect:'manual',headers:{'content-type':'application/json','x-group-link':member.link_id+'.'+member.secret},body:JSON.stringify({token,profileId}),signal:AbortSignal.timeout(5000)});answer=r.ok?await r.json():null}catch{return denied()}
-  if(answer?.active!==true)return denied()
-  allowed=Object.fromEntries(purposes.map(p=>[p,allowed[p]&&answer.purposes?.[p]===true]))
+  try{const r=await fetcher(member.home_origin+'/api/group/guest-check',{method:'POST',redirect:'manual',headers:{'content-type':'application/json','x-group-link':member.link_id+'.'+member.secret},body:JSON.stringify({token,profileIds:selected.map(p=>p.profileId)}),signal:AbortSignal.timeout(5000)});answer=r.ok?await r.json():null}catch{return denied()}
+  if(answer?.active!==true||!Array.isArray(answer.profiles))return denied()
+  for(const row of selected){
+   const home=answer.profiles.find((p:any)=>p.profileId===row.profileId)
+   if(!home)return denied()
+   row.allowed=Object.fromEntries(purposes.map(p=>[p,row.allowed[p]&&home.purposes?.[p]===true]))
+  }
  }
  const {state}=await load(db)
- return {venue:state.venue.name,profileId,preferences:allowed.preferences?c.row.saved_preferences:null,visits:allowed.visits?c.bookings.filter(b=>['seated','completed'].includes(b.status)).map(b=>({startAt:b.startAt,partySize:b.partySize,status:b.status})):[],rebookUrl:allowed.rebooking?'/book':null,purposes:allowed}
+ return selected.map(({profileId,c,allowed})=>({venue:state.venue.name,profileId,preferences:allowed.preferences?c.row.saved_preferences:null,visits:allowed.visits?c.bookings.filter(b=>['seated','completed'].includes(b.status)).map(b=>({startAt:b.startAt,partySize:b.partySize,status:b.status})):[],rebookUrl:allowed.rebooking?'/book':null,purposes:allowed}))
+}
+function readToken(request:Request){
+ if(request.method!=='GET')fail(405,'Group guest access is read-only.')
+ const bearer=request.headers.get('authorization');if(!bearer?.startsWith('Bearer gt_'))fail(401,'Send a group token.')
+ return bearer!.slice(7)
+}
+export async function groupGuestRead(db:D1Database,request:Request,url:URL,fetcher:typeof fetch=fetch){
+ return (await readProfiles(db,readToken(request),[url.searchParams.get('profileId')??''],fetcher))[0]
+}
+export async function groupGuestBatch(db:D1Database,request:Request,url:URL,fetcher:typeof fetch=fetch){
+ return {profiles:await readProfiles(db,readToken(request),readIds(url.searchParams.getAll('profileId')),fetcher,true)}
 }
 /** Home native reader directory. Remote reads go through each live venue door, with no cached personal projection. */
 export async function groupGuestDirectory(db:D1Database,actor:Actor,fetcher:typeof fetch=fetch){
@@ -112,18 +147,24 @@ export async function groupGuestDirectory(db:D1Database,actor:Actor,fetcher:type
  if(!rights.rights.includes('guestbook.read'))return denied()
  const links=(await db.prepare('SELECT l.id,l.name,l.origin,a.rights FROM pm_group_links l JOIN pm_group_admins a ON a.venue_id=l.id WHERE a.operator_id=? AND l.revoked_at IS NULL').bind(actor.id).all<{id:string;name:string;origin:string;rights:string}>()).results.filter(l=>parseRights(l.rights).includes('guestbook.read'))
  const profiles=(await db.prepare("SELECT profile_id FROM pm_group_guests WHERE binding='home' AND (preferences=1 OR visits=1 OR rebooking=1)").all<{profile_id:string}>()).results
+ const ids=[]
+ for(const {profile_id} of profiles)if(await current(db,profile_id))ids.push(profile_id)
  const rows=[]
- for(const {profile_id} of profiles){
-  if(!await current(db,profile_id))continue
-  const local=await groupGuestRead(db,new Request('https://local.invalid/api/group/guestbook',{headers:{authorization:'Bearer '+token}}),new URL('https://local.invalid/?profileId='+encodeURIComponent(profile_id)),fetcher)
-  const venues=[{...local,rebookUrl:local.rebookUrl?'/book':null}]
+ for(let offset=0;offset<ids.length;offset+=100){
+  const batch=ids.slice(offset,offset+100),local=await readProfiles(db,token,batch,fetcher)
+  const chunk=local.map(data=>({profileId:data.profileId,venues:[data]}))
   for(const link of links){
-   const response=await fetcher(link.origin+'/api/group/guestbook?profileId='+encodeURIComponent(profile_id),{redirect:'manual',headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(5000)}).catch(()=>null)
+   const query=new URLSearchParams(batch.map(id=>['profileId',id]))
+   const response=await fetcher(link.origin+'/api/group/guestbook-batch?'+query,{redirect:'manual',headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(5000)}).catch(()=>null)
    if(!response||!response.ok)return denied()
    const data:any=await response.json()
-   venues.push({...data,rebookUrl:data.rebookUrl?link.origin+'/book':null})
+   if(!Array.isArray(data.profiles))return denied()
+   for(const row of chunk){
+    const remote=data.profiles.find((p:any)=>p.profileId===row.profileId)
+    if(remote)row.venues.push({...remote,rebookUrl:remote.rebookUrl?link.origin+'/book':null})
+   }
   }
-  rows.push({profileId:profile_id,venues})
+  rows.push(...chunk)
  }
  return {profiles:rows}
 }

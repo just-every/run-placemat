@@ -52,7 +52,7 @@ import {queueQr} from './queue-qr'
 import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait-join'
 import {sectionsDashboard} from './staffing'
 import {groupInvite,groupAccept,groupJoin,groupLeave,groupGrant,groupDisconnect,groupToken,groupStatus,isGroupAdmin} from './group'
-import {groupGuestRead,groupGuestRedeem,groupGuestCheck,groupGuestDirectory} from './group-guestbook'
+import {groupGuestBatch,groupGuestRead,groupGuestRedeem,groupGuestCheck,groupGuestDirectory} from './group-guestbook'
 import {groupIntrospect,groupRead} from './group-access'
 import {financeSummary,financeExport,isFinance} from './finance'
 import {financePage} from './finance-view'
@@ -226,6 +226,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(path==='/api/group/guest-check')return json(await groupGuestCheck(env.DB,request.headers.get('x-group-link'),p))
    return json(path==='/api/group/join-accept'?await groupAccept(env.DB,p):await groupIntrospect(env.DB,request.headers.get('x-group-link'),p.token))
   }
+  if(path==='/api/group/guestbook-batch')return json(await groupGuestBatch(env.DB,request,url))
   if(path==='/api/group/guestbook')return json(await groupGuestRead(env.DB,request,url))
   if(path==='/api/group/reports/reservations'||path==='/api/group/preshift')return json(await groupRead(env.DB,request,url))
   const actor=await actorFor(request,env);responseActor=actor

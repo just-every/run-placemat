@@ -1,7 +1,7 @@
 import {installation,service,publicGuest} from './harness.mjs'
 import {verify,call} from './diner-client.mjs'
 export const address=n=>`synthetic-placemat-${n}`+String.fromCharCode(64)+'example.test'
-export async function groupGuests({attended=true}={}){
+export async function groupGuests({attended=true,serviceOptions}={}){
  const f={available:true},homeOrigin='https://home.example.test',tapOrigin='https://tap.example.test'
  f.home=await installation({origin:homeOrigin,peers:{'tap.example.test':()=>f.tap}})
  f.tap=await installation({origin:tapOrigin,peers:{'home.example.test':()=>{if(!f.available)throw Error('Introspection unavailable');return f.home}}})
@@ -9,7 +9,7 @@ export async function groupGuests({attended=true}={}){
  try{
   f.records=[]
   for(const [h,name,n] of [[f.home,'Home Bistro',1],[f.tap,'Tap Room',2]]){
-   const {service:s}=await service(h)
+   const {service:s}=await service(h,serviceOptions)
    await h.command('venue.update',{name,timezone:'Australia/Brisbane'})
    const input=publicGuest(s,0,{email:address(n),name:'Synthetic guest '+n})
    const b=(await h.api('/api/public/book',input,{as:'',status:201})).result

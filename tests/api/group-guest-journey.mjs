@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import {groupGuests} from './group-guest-fixture.mjs'
-import {call} from './diner-client.mjs'
-import {installation} from './harness.mjs'
+import {call,verify} from './diner-client.mjs'
+import {installation,publicGuest} from './harness.mjs'
+import {address} from './group-guest-fixture.mjs'
 export async function groupGuestJourney(){
  const f=await groupGuests()
  try{
@@ -51,6 +52,7 @@ export async function groupGuestJourney(){
   console.log('PROBE GUEST-006 native privacy: independently proved visits, separate purpose masks, scoped rebooking, host refusal, replay refusal, live grant revocation and account forgetting, opt-out and unavailable introspection passed')
  }finally{await f.close()}
  await groupGuestContactJourney()
+ await groupGuestDirectoryJourney()
 }
 export async function groupGuestCustodyJourney(){
  const f=await groupGuests(),restored=await installation(),stale=await installation()
@@ -94,5 +96,52 @@ async function groupGuestContactJourney(){
   await f.read(f.tap,403)
   assert.equal((await f.tap.db.prepare('SELECT count(*) AS n FROM pm_group_guests').first()).n,1,'Stale booking proof denies reads without rewriting recorded consent')
   console.log('PROBE GUEST-006 contact and concurrency: one concurrent link succeeds; upcoming visits excluded; real guest contact change immediately denies old group proof')
+ }finally{await f.close()}
+}
+
+async function groupGuestDirectoryJourney(){
+ const f=await groupGuests({serviceOptions:{covers:100}})
+ try{
+  f.profileId=(await f.consent(0)).profileId;await f.link()
+  for(const h of [f.home,f.tap])for(let n=4;n<32;n++)await h.command('table.save',{label:'Directory '+n,seats:2,x:10+(n%8)*10,y:10+Math.floor(n/8)*15})
+  const profileIds=[f.profileId],sessionsByProfile=new Map()
+  const add=async(n,linked)=>{
+   const sessions=[]
+   for(const [i,h] of [f.home,f.tap].entries()){
+    if(i&&!linked)break
+    // Distinct diners use distinct edge addresses; the group reader keeps one address.
+    const client={...h,api:(path,body,options={})=>h.api(path,body,{...options,headers:{...options.headers,'CF-Connecting-IP':'192.0.2.'+n}})}
+    const s=f.records[i].s,input=publicGuest(s,0,{email:address(100+n),name:'Synthetic directory guest '+n})
+    const b=await h.command('booking.walkin',{...input,tableIds:[(await h.api('/api/state')).state.tables[n-3].id]})
+    await h.command('booking.status',{bookingId:b.id,status:'completed'});await h.command('booking.stage',{bookingId:b.id,stage:'ready'})
+    sessions.push({client,token:(await verify(client,b,input.email)).token})
+   }
+   const consent=await call(sessions[0].client,'group-consent',{token:sessions[0].token,acknowledged:true,preferences:true,visits:true,rebooking:false})
+   if(linked){
+    const {code}=await call(sessions[0].client,'group-code',{token:sessions[0].token,acknowledged:true,venueId:f.linkId})
+    await call(sessions[1].client,'group-link',{token:sessions[1].token,acknowledged:true,code,preferences:true,visits:true,rebooking:false})
+   }
+   sessionsByProfile.set(consent.profileId,sessions)
+   return consent.profileId
+  }
+  const homeOnly=await add(4,false)
+  const mixed=await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})
+  assert.equal(mixed.profiles.length,2)
+  assert.equal(mixed.profiles.find(p=>p.profileId===f.profileId).venues.length,2,'An unrelated unlinked diner cannot hide permitted sister-venue history')
+  assert.equal(mixed.profiles.find(p=>p.profileId===homeOnly).venues.length,1,'Home-only consent does not expose a sister-venue projection')
+  console.log('PROBE GUEST-006 finding-1: GET /api/group/guest-directory with one linked and one home-only diner -> 200; linked history retained at both venues; home-only profile contains home alone')
+  // Remove only this guest's consent through its diner door, leaving a fully linked directory.
+  const homeOnlySession=sessionsByProfile.get(homeOnly)[0]
+  await call(homeOnlySession.client,'group-consent',{token:homeOnlySession.token,acknowledged:true,preferences:false,visits:false,rebooking:false})
+  for(let n=5;n<35;n++)profileIds.push(await add(n,true))
+  const directory=await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})
+  assert.deepEqual(new Set(directory.profiles.map(p=>p.profileId)),new Set(profileIds))
+  assert.ok(directory.profiles.every(p=>p.venues.length===2&&p.venues.every(v=>v.visits.length===1)))
+  console.log('PROBE GUEST-006 finding-2: GET /api/group/guest-directory with 31 independently verified linked diners -> 200; all 31 profiles show both attended venues')
+  f.available=false
+  await f.home.api('/api/group/guest-directory',undefined,{as:f.reader,status:403})
+  f.available=true
+  await f.home.api('/api/group/admin/revoke',{operatorId:f.readerId})
+  await f.home.api('/api/group/guest-directory',undefined,{as:f.reader,status:403})
  }finally{await f.close()}
 }
