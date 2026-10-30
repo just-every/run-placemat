@@ -13,14 +13,18 @@ const ga4Secret=randomBytes(16).toString('hex'),metaToken=randomBytes(32).toStri
 const quiet=()=>new Promise(r=>setTimeout(r,600))
 const site=placemat=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bistro on Main</title></head><body style="margin:0;font-family:sans-serif"><header style="padding:16px"><h1>Bistro on Main</h1><a href="#menu">Menu</a></header><div data-placemat-book data-title="${title}"></div><script src="${placemat}/placemat-embed.js" async></script></body></html>`
 const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','/queue','/inquiry'].map(path=>`<iframe name="${path.slice(1)}" src="${placemat}${path}"></iframe>`).join('')}</body></html>`
+// Keep native date spinboxes and booking-policy time on the same fixture day,
+// away from month boundaries that can clamp a previously entered day segment.
+const now=Date.parse('2026-10-20T12:00:00Z')
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try{
  for(const width of [1440,390]){
-  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US',extraHTTPHeaders:{'x-placemat-test-clock':String(now)}})
   try{
+   await context.clock.setFixedTime(new Date(now))
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
-   const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
+   const date=new Date(now);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
    const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online:{minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}}})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish Friday dinner'});await h.command('proposal.approve',{proposalId:p.id})
    // A second dinner three weeks out lets a declined visit book on the standalone page after the widget takes the first.
