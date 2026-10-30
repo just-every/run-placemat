@@ -53,19 +53,19 @@ for(const width of [1440,390]){
    await root.locator('article > details > summary').click();const entry=await root.innerText();assert.match(entry,/guest-supplied/);assert.match(entry,/contact Consent[\s\S]*false[\s\S]*true/)
    await capture('guest-consent')
    await filter.locator('[name=action]').selectOption('booking.move');await apply();assert.equal(await root.locator('[data-audit-entry]').count(),0);await capture('empty-filter')
+   await filter.locator('[name=actor]').selectOption(owner);await filter.locator('[name=action]').selectOption('payment.ledger-attribution');await apply()
+   const money=root.locator('[data-audit-entry]');await money.locator('details').first().locator('summary').first().click()
+   for(const details of await money.locator('td details').all())await details.locator('summary').click()
    if(width===1440){
-    await filter.locator('[name=actor]').selectOption(owner);await filter.locator('[name=action]').selectOption('payment.ledger-attribution');await apply()
-    const money=root.locator('[data-audit-entry]');await money.locator('details').first().locator('summary').first().click()
     const values=money.locator('.audit-values')
     for(const [field,amount] of [['amount','200'],['difference Cents','-300'],['source','synthetic-placemat-charge-1'],['payout Id','synthetic-placemat-payout-1']]){
      const row=values.getByRole('row').filter({has:page.getByRole('rowheader',{name:field,exact:true})})
      assert.equal(await row.locator('td').count(),2)
      for(const cell of await row.locator('td').all())assert.ok((await cell.innerText()).includes(amount))
     }
-    for(const details of await money.locator('td details').all())await details.locator('summary').click()
     assert.match(await money.innerText(),/amountCents[\s\S]*500/);assert.match(await money.innerText(),/provider amount remains disputed/)
-    await capture('money-discrepancy')
    }
+   await capture('money-discrepancy')
    await h.command('guest.erase',{guestId,confirm:'ERASE'})
    await page.reload();await page.getByRole('link',{name:'Settings',exact:true}).click()
    if(!(await root.locator('details').first().evaluate(el=>el.open)))await root.getByText('Change history',{exact:true}).click()

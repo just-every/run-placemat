@@ -4390,7 +4390,7 @@
       "executable": false
     },
     "tests/audit-ui.mjs": {
-      "sha256": "3623859721afcb1d085796e599ba480eb1606e91947169a4c6a8261da4e9cb34",
+      "sha256": "8f87aaa012fd437f6873dadb1a5483491b0ce9960d5387dc7889928c84eb9c67",
       "executable": false
     },
     "tests/boundary-ui.mjs": {
@@ -4422,7 +4422,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "380f4ddf4bf93a7efce38afb9fea193ca4a49cd78e12d74649e95a51443ca75e",
+      "sha256": "f9945d90ff2891e4bb3579b58827b8830dd1f2a638f529a31894d621a890e3ba",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
