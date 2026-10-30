@@ -1,15 +1,18 @@
 // AUDIT-001: real native owner, HTTP booking/consent changes and shipped history controls.
 import assert from 'node:assert/strict'
+import {createHmac} from 'node:crypto'
 import {mkdir,readFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {chromium} from '@playwright/test'
 import {installation,service,publicGuest} from './api/harness.mjs'
 import {browserServer} from './browser-server.mjs'
 import {csvRecords} from './api/business-fixture.mjs'
+const ledgerSecret='synthetic-placemat-2'
+const ledgerEdge=async request=>new URL(request.url).pathname.includes('/payouts/')?Response.json({object:'payout',id:'synthetic-placemat-payout-1',currency:'usd',status:'paid',amount:200}):Response.json({object:'list',has_more:false,data:[{object:'balance_transaction',id:'synthetic-placemat-bt-1',source:'synthetic-placemat-charge-1',currency:'usd',amount:200,fee:0,net:200}]})
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 for(const width of [1440,390]){
-  const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true})
+  const h=await installation({stripeEdge:ledgerEdge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1',STRIPE_WEBHOOK_SECRET:ledgerSecret}}),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true})
   try {
    const {service:s,floor}=await service(h,{tables:3,covers:30})
    const b=(await h.api('/api/public/book',publicGuest(s,0,{name:'Priya Rowan',requests:{occasion:'Anniversary',allergyNotes:'Guest-declared shellfish allergy'},requestsAcknowledged:true}),{as:''})).result
@@ -18,6 +21,11 @@ for(const width of [1440,390]){
    await h.command('guest.update',{guestId,notes:'Priya requested a quiet table'})
    const q=await h.api('/api/public/queue/join',publicGuest(s,0,{contactConsent:false}),{as:''})
    await h.api('/api/public/queue/update',{token:q.token,contactConsent:true},{as:''})
+   const raw=JSON.stringify({id:'synthetic-placemat-event-1',type:'charge.succeeded',data:{object:{object:'charge',id:'synthetic-placemat-charge-1',currency:'usd',amount_captured:500,paid:true,captured:true,metadata:{}}}})
+   const timestamp=Math.floor(Date.now()/1000),signature=createHmac('sha256',ledgerSecret).update(timestamp+'.'+raw).digest('hex')
+   assert.equal((await h.mf.dispatchFetch(h.origin+'/api/payments/ledger-events',{method:'POST',headers:{'stripe-signature':`t=${timestamp},v1=${signature}`},body:raw})).status,200)
+   await h.api('/api/payments/ledger/payout',{payoutId:'synthetic-placemat-payout-1'})
+   await h.api('/api/payments/ledger/adjustment',{payoutId:'synthetic-placemat-payout-1',transactionId:'synthetic-placemat-bt-1',bookingId:b.id,reason:'Priya reviewed attribution; the provider amount remains disputed.'})
    await context.addCookies(h.cookie.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
    await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
@@ -45,6 +53,19 @@ for(const width of [1440,390]){
    await root.locator('article > details > summary').click();const entry=await root.innerText();assert.match(entry,/guest-supplied/);assert.match(entry,/contact Consent[\s\S]*false[\s\S]*true/)
    await capture('guest-consent')
    await filter.locator('[name=action]').selectOption('booking.move');await apply();assert.equal(await root.locator('[data-audit-entry]').count(),0);await capture('empty-filter')
+   if(width===1440){
+    await filter.locator('[name=actor]').selectOption(owner);await filter.locator('[name=action]').selectOption('payment.ledger-attribution');await apply()
+    const money=root.locator('[data-audit-entry]');await money.locator('details').first().locator('summary').first().click()
+    const values=money.locator('.audit-values')
+    for(const [field,amount] of [['amount','200'],['difference Cents','-300'],['source','synthetic-placemat-charge-1'],['payout Id','synthetic-placemat-payout-1']]){
+     const row=values.getByRole('row').filter({has:page.getByRole('rowheader',{name:field,exact:true})})
+     assert.equal(await row.locator('td').count(),2)
+     for(const cell of await row.locator('td').all())assert.ok((await cell.innerText()).includes(amount))
+    }
+    for(const details of await money.locator('td details').all())await details.locator('summary').click()
+    assert.match(await money.innerText(),/amountCents[\s\S]*500/);assert.match(await money.innerText(),/provider amount remains disputed/)
+    await capture('money-discrepancy')
+   }
    await h.command('guest.erase',{guestId,confirm:'ERASE'})
    await page.reload();await page.getByRole('link',{name:'Settings',exact:true}).click()
    if(!(await root.locator('details').first().evaluate(el=>el.open)))await root.getByText('Change history',{exact:true}).click()

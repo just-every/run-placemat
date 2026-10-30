@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2012c3bb982fa511fccc39a5f244f9aeb5d3faf4a6579359a99bc01f490fb739",
+      "sha256": "86593c694bd62d35e953b9670690bbb122885cf43c826e004e58261fd00cc3cf",
       "executable": false
     },
     "deploy-demo.json": {
@@ -306,7 +306,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "b02c765bc0e7e25382baf027395474bebd6e57847b7a961778aca5594f28f6ac",
+      "sha256": "c18b1f0194f82b8887e4882013f81ca252c8fde37a5f3643cc1d4be806e948af",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -678,7 +678,7 @@
       "executable": false
     },
     "public/placemat-audit.js": {
-      "sha256": "678bf6451fdbed684600b2ce58a1920ef1f2a5549dd0a486d35370a58057100a",
+      "sha256": "4b2dd98573af09580826d1f2a51a66ca59a9c7051ae1d31c225502a05d883978",
       "executable": false
     },
     "public/placemat-booking-manage.js": {
@@ -934,7 +934,7 @@
       "executable": false
     },
     "public/placemat.css": {
-      "sha256": "c7e298ee74fda7a2a93aab9f74da539255ac6c456a1cfbbb82c776d36df627eb",
+      "sha256": "5ebff0d6b13f62702717b1cf84032758656dcc1675edd32589f15a822e2f9282",
       "executable": false
     },
     "public/placemat.js": {
@@ -3314,7 +3314,7 @@
       "executable": false
     },
     "src/placemat/audit.ts": {
-      "sha256": "adf5c11850f48d212179c8c0b592cf78e909f96e82613bafd8c7b12bb773d106",
+      "sha256": "df3c47f60eddb28e6d12630947eacd1198509ddae8b50a7113125eb40a79bca2",
       "executable": false
     },
     "src/placemat/availability.ts": {
@@ -3633,12 +3633,16 @@
       "sha256": "815ff49f3ccd987c7502dabf47c707e1cf03b80b54c4df5663b47cf60d83cd26",
       "executable": false
     },
+    "src/placemat/money-ledger-archive.d.mts": {
+      "sha256": "7580e2ccdb6571e12b6c6846ffef834feb05314223d043c132fc3fe0f647b93c",
+      "executable": false
+    },
     "src/placemat/money-ledger-archive.mjs": {
       "sha256": "a7630b450eb1cde455dbe924f2fcde2c590ed8b86af49549eadfe1ebd9bcea22",
       "executable": false
     },
     "src/placemat/money-ledger.ts": {
-      "sha256": "fed169791a8556b2bae7662e25080c0f902d58926b6bcdd30b61207c79a505a2",
+      "sha256": "41f4016e14d7b13f52be92280e572a4b98918b9a8d1e31d3d7ca23cb40728923",
       "executable": false
     },
     "src/placemat/needs.ts": {
@@ -4246,7 +4250,7 @@
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {
-      "sha256": "f26fcdbf2ac603c1b265ec05b988674b90fccf244532b69cf7ff982a5d3f4fa2",
+      "sha256": "c2e4e63485da9b8d527278ca0926cfb97bc72bee1b3f067ab26bce112ef9355f",
       "executable": false
     },
     "tests/api/onboarding-fixture.mjs": {
@@ -4386,7 +4390,7 @@
       "executable": false
     },
     "tests/audit-ui.mjs": {
-      "sha256": "ca544809d2592889c7a18522b7d9ffc4cd4917ca1b861fa5922642c32ec19e76",
+      "sha256": "3623859721afcb1d085796e599ba480eb1606e91947169a4c6a8261da4e9cb34",
       "executable": false
     },
     "tests/boundary-ui.mjs": {
