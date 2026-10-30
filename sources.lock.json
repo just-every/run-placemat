@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6ce0f19a5be02922fcda352ce34bd34933f32aa83afa9c1f9febb1fde7f168a1",
+      "sha256": "b565ccf7beb787e479362cc8c6c6898d4df143c53f6dd7c1e325272136267cca",
       "executable": false
     },
     "deploy-demo.json": {
@@ -306,7 +306,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "8dd54bf2d3c58d38cb6864e7e4eb49e84065e12e98383699b2023a5c2bde7bb2",
+      "sha256": "8c3695d4fc99977846d8806b6473b8dcd8f8446f33de82a1a173d647915440ba",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -4250,7 +4250,7 @@
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {
-      "sha256": "9e7403c990de7757fa0f3bc2270e83bac48d093c639662afd96f1222ef23b562",
+      "sha256": "e7354f04774514df8a011fa7a5aea2631ac8bc8a7b29f0a52aa0abb10f289ba8",
       "executable": false
     },
     "tests/api/onboarding-fixture.mjs": {
@@ -4390,7 +4390,7 @@
       "executable": false
     },
     "tests/audit-ui.mjs": {
-      "sha256": "3623859721afcb1d085796e599ba480eb1606e91947169a4c6a8261da4e9cb34",
+      "sha256": "29bba80d7ad66b4ba8a338203ed2a985adeee1d066a3c4d870f5084285fb43b8",
       "executable": false
     },
     "tests/boundary-ui.mjs": {
