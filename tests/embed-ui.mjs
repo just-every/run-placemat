@@ -10,17 +10,22 @@ const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const host='https://bistro.example',other='https://other.example',title='Book a table at Cedar & Salt'
 const ga4Secret=randomBytes(16).toString('hex'),metaToken=randomBytes(32).toString('hex')
+const now=Date.parse('2026-10-30T12:00:00Z')
 const quiet=()=>new Promise(r=>setTimeout(r,600))
 const site=placemat=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bistro on Main</title></head><body style="margin:0;font-family:sans-serif"><header style="padding:16px"><h1>Bistro on Main</h1><a href="#menu">Menu</a></header><div data-placemat-book data-title="${title}"></div><script src="${placemat}/placemat-embed.js" async></script></body></html>`
 const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','/queue','/inquiry'].map(path=>`<iframe name="${path.slice(1)}" src="${placemat}${path}"></iframe>`).join('')}</body></html>`
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try{
  for(const width of [1440,390]){
-  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
   try{
+   await context.addInitScript(now=>{
+    const RealDate=globalThis.Date
+    globalThis.Date=class extends RealDate{constructor(...args){super(...(args.length?args:[now]))}static now(){return now}}
+   },now)
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
-   const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
+   const date=new Date(now);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
    const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online:{minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}}})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish Friday dinner'});await h.command('proposal.approve',{proposalId:p.id})
    // A second dinner three weeks out lets a declined visit book on the standalone page after the widget takes the first.
@@ -38,10 +43,16 @@ try{
     if(file.startsWith(resolve('public')+'/')&&extname(file)){
      try{const body=await readFile(file),contentType={'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream';await route.fulfill({status:200,contentType,body});return}catch{}
     }
-    const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
+    const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host,'x-placemat-test-clock':String(now)},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
     await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
    })
-   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
+   const page=await context.newPage(),errors=[],frameRefusals=[];page.on('pageerror',e=>errors.push(e.message))
+   page.on('console',message=>{if(message.type()==='error'&&/Framing .*violates.*frame-ancestors.*blocked/s.test(message.text()))frameRefusals.push(message.text())})
+   const refusedFrame=async(locator,label)=>{
+    const frame=await (await locator.elementHandle()).contentFrame();assert.ok(frame,label)
+    // Chromium may expose a blocked frame as an opaque empty URL instead of an error document.
+    assert.match(frame.url(),/^(?:chrome-error:|$)/,label)
+   }
    const screenshot=async name=>{if(shots)await page.screenshot({path:resolve(shots,`BOOK-002-${name}-${width}.png`),fullPage:true})}
    // The owner allows the restaurant's website from Settings; the change is audited with the owner and time.
    await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
@@ -81,6 +92,9 @@ try{
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
    for(let segment=0;segment<3;segment++){
     const before=(await dateInput.inputValue()).split('-').map(Number);await page.keyboard.press('ArrowUp')
+    // A day beyond the month's end leaves the native control temporarily invalid.
+    // Restore it and probe down so an empty value cannot masquerade as a year change.
+    if(!await dateInput.inputValue()){await page.keyboard.press('ArrowDown');await page.keyboard.press('ArrowDown')}
     const after=(await dateInput.inputValue()).split('-').map(Number),index=after.findIndex((n,i)=>n!==before[i]);assert.ok(index>=0,'keyboard changes the focused date segment')
     for(let step=0;step<366;step++){const current=(await dateInput.inputValue()).split('-').map(Number)[index];if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
     assert.equal(Number((await dateInput.inputValue()).split('-')[index]),wanted[index]);await page.keyboard.press('ArrowRight')
@@ -145,11 +159,14 @@ try{
    await next.close()
    if(width===1440){
     // Staff and guest pages other than the widget refuse every frame, and an unlisted website gets no widget.
-    await page.goto(host+'/frames');await page.waitForLoadState('load')
-    for(const name of ['app','book','queue','inquiry'])assert.match(page.frame({name}).url(),/^chrome-error:/,`${name} is unframeable`)
+    frameRefusals.length=0;await page.goto(host+'/frames');await page.waitForLoadState('load')
+    for(const name of ['app','book','queue','inquiry'])await refusedFrame(page.locator(`iframe[name="${name}"]`),`${name} is unframeable`)
+    assert.equal(frameRefusals.length,4,'CSP actively refuses every private or standalone frame')
+    frameRefusals.length=0
     await page.goto(other+'/');await page.locator(`iframe[title="${title}"]`).waitFor();await page.waitForLoadState('load')
     await assert.rejects(()=>page.frameLocator(`iframe[title="${title}"]`).locator('[name=date]').waitFor({timeout:3000}))
-    assert.match(page.frames().find(f=>f!==page.mainFrame()).url(),/^chrome-error:/,'an unlisted website cannot frame the widget')
+    await refusedFrame(page.locator(`iframe[title="${title}"]`),'an unlisted website cannot frame the widget')
+    assert.equal(frameRefusals.length,1,'CSP actively refuses the unlisted website')
    }
    assert.deepEqual(errors,[])
    console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)
