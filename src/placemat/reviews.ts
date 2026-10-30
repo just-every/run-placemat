@@ -46,7 +46,7 @@ async function submit(db:D1Database,p:any){
 }
 async function manage(db:D1Database,actor:Actor){
  await managerAuthority(db,actor)
- return {...await publicReviews(db),canModerate:actor.role==='owner',records:(await db.prepare('SELECT * FROM pm_reviews ORDER BY published_at DESC,id').all()).results,reports:(await db.prepare('SELECT * FROM pm_review_reports ORDER BY at,id').all()).results,events:(await db.prepare('SELECT * FROM pm_review_events ORDER BY at,id').all()).results}
+ return {...await publicReviews(db),canModerate:actor.role==='owner',records:(await db.prepare('SELECT * FROM pm_reviews ORDER BY published_at DESC,id').all()).results,reports:(await db.prepare('SELECT * FROM pm_review_reports ORDER BY at,id').all()).results,events:(await db.prepare("SELECT e.*,CASE WHEN e.actor='guest' THEN 'Guest' ELSE COALESCE(o.display_name,'Former staff member') END AS actor_name FROM pm_review_events e LEFT JOIN oa_operators o ON o.id=e.actor ORDER BY e.at,e.id").all()).results}
 }
 async function reply(db:D1Database,actor:Actor,p:any){
  await managerAuthority(db,actor)

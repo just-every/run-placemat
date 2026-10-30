@@ -330,7 +330,7 @@
       "executable": false
     },
     "docs/reviews.md": {
-      "sha256": "e4c6108ef7bf9a306becf49971b7a1a96b4c4011e96df4ec8a6a9a4e817e7368",
+      "sha256": "90e20ac04ca854c69e9d62c0fb96a609160ee2b828e92f0b369bb5b7afc173db",
       "executable": false
     },
     "docs/site.json": {
@@ -898,7 +898,7 @@
       "executable": false
     },
     "public/placemat-reviews.js": {
-      "sha256": "a2efb9987487e3292e2c1a5d5d7e692838736bd1730f2f8d142ef4f41f0f8ecd",
+      "sha256": "c614b7c3f30cd5ec6b390572babf6aa29ccf3080ea86d428a46b6feece2c0129",
       "executable": false
     },
     "public/placemat-risk.js": {
@@ -3854,7 +3854,7 @@
       "executable": false
     },
     "src/placemat/reviews.ts": {
-      "sha256": "3b90225b077b199084d828060d7eb5e51755c176816d88213c37859d4ffde7bb",
+      "sha256": "1e314c7a719d5f48fe193aaecf525c144af3874cff5047a021275e2d687f2a36",
       "executable": false
     },
     "src/placemat/scheduled-reports.ts": {
@@ -4346,7 +4346,7 @@
       "executable": false
     },
     "tests/api/reviews.test.mjs": {
-      "sha256": "117ef637da0ed2e2aaea5cf3166c917c638ffcb2bb64e7d498f9dc93ca729a9a",
+      "sha256": "0f0c17372b70a737396ebce7b9220c2e738ee940e8424bef1423f424a8c8ee11",
       "executable": false
     },
     "tests/api/risk-fixture.mjs": {
@@ -4542,7 +4542,7 @@
       "executable": false
     },
     "tests/reviews-ui.mjs": {
-      "sha256": "b4ff951abdbe824e8819d81a650f963a76a4dcd4ca1830dd17a5e390aff95e75",
+      "sha256": "4520ac22ede04d2182b14c7b0f7d1e33e4c8dbb5e8aa0da9d51a5fe932f09aae",
       "executable": false
     },
     "tests/risk-ui.mjs": {

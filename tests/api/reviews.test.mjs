@@ -53,6 +53,8 @@ test('Verified attended visits publish once, retain private feedback separation 
   assert.equal(after.reviews.find(r=>r.id===low.id).rating,1);assert.equal(after.reviews.find(r=>r.id===low.id).reports[0].outcome,'retained')
   const audit=(await h.api('/api/reviews')).events.filter(e=>e.review_id===low.id)
   assert.equal(audit.filter(e=>e.action==='review.reply').length,2)
+  assert.ok(audit.filter(e=>e.action==='review.reply').every(e=>e.actor_name==='Floor manager'))
+  assert.equal(JSON.parse(audit.filter(e=>e.action==='review.reply')[1].before_data).reply,'We have reviewed the service delay.')
   assert.ok(audit.some(e=>e.action==='review.moderated'&&e.actor&&JSON.parse(e.after_data).reason.includes('low rating')))
   const operator=(await h.api('/auth/operators')).find(o=>o.email===address('synthetic-placemat-manager'))
   await h.api('/auth/operator/status',{operatorId:operator.id,status:'inactive'})

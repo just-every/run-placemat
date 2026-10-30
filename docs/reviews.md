@@ -6,7 +6,7 @@ Consented completed visits receive the existing rating-independent feedback invi
 
 Reviews expose the visit date and publication date. The aggregate appears only once five public reviews exist; smaller cohorts show a count without an average. Public projection includes no guest contact, booking reference, private feedback or report detail. Staff review records and subject access exports preserve the links needed for accountability.
 
-Managers open **Guests → Public reviews and replies**. Each review has one public restaurant reply, editable with a current revision. Reply history records the actor, time and previous and new values. A revoked or unauthorized staff identity cannot reply or read manager review records.
+Managers open **Guests → Public reviews and replies**. Each review has one public restaurant reply, editable with a current revision. The manager’s **Review history** panel records the actor name, time and previous and new reply values, and shows the report and moderation reasons. A revoked or unauthorized staff identity cannot reply or read manager review records.
 
 ## Published guidelines and moderation
 
