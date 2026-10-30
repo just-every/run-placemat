@@ -68,6 +68,9 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  const dinerGuests=JSON.stringify(typeof guestIds==='string'?[guestIds]:guestIds)
  const erasedIds=JSON.stringify(state.bookings.filter(b=>(typeof guestIds==='string'?[guestIds]:guestIds).includes(b.guestId)).map(b=>b.id))
  return [
+  {sql:'DELETE FROM pm_review_events WHERE review_id IN (SELECT id FROM pm_reviews WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_review_reports WHERE review_id IN (SELECT id FROM pm_reviews WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_reviews WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_feedback_credentials WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_feedback_messages WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},
