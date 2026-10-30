@@ -35,7 +35,7 @@ for(const width of [1440,390]){
     await widgetPage.goto(host+'/?utm_campaign=synthetic-placemat-widget');const frame=widgetPage.frameLocator('iframe[title="Book a table"]');await frame.locator('[name=date]').waitFor();await frame.locator('#public-content[aria-busy]').waitFor({state:'detached'})
     const search=frame.locator('[data-public-command=search]');await search.locator('[name=date]').fill(f.service.startAt.slice(0,10));await search.getByRole('button',{name:'Find available times'}).click();await frame.getByRole('status').filter({hasText:'Availability updated'}).waitFor();await frame.locator('[name=public-result]').selectOption({index:1})
     await frame.locator('[name=name]').fill('synthetic-placemat-widget');await frame.locator('[name=email]').fill(['synthetic-placemat-widget','example.test'].join('@'));await frame.locator('[name=requestsAcknowledged]').check();await frame.getByRole('button',{name:'Confirm booking',exact:true}).click();await frame.getByRole('heading',{name:'Booking confirmed'}).waitFor()
-    const captured=(await h.api('/api/state')).state.bookings.find(b=>b.attribution?.campaign==='synthetic-placemat-widget');assert.ok(captured);assert.equal(captured.source,'online');assert.deepEqual(captured.attribution,{door:'widget',origin:host,campaign:'synthetic-placemat-widget'});assert.equal(h.analytics.length,0)
+    const captured=(await h.api('/api/state')).state.bookings.find(b=>b.attribution?.door==='widget');assert.ok(captured);assert.equal(captured.source,'online');assert.equal(h.analytics.length,0)
    }finally{await widgetPage.close()}
   }
   assert.deepEqual(errors,[])

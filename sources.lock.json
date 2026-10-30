@@ -730,7 +730,7 @@
       "executable": false
     },
     "public/placemat-embed.js": {
-      "sha256": "2c4e3e262ec18f29fcd76cffccb64befc71604ed279693ccc8b607445f58b6a8",
+      "sha256": "550e92a77979e9236b8033ac522448a77f0b6c3be99fa98cdd295f5b44255e65",
       "executable": false
     },
     "public/placemat-experience-options.js": {
@@ -898,7 +898,7 @@
       "executable": false
     },
     "public/placemat-search.js": {
-      "sha256": "89bada55ece879eeedb0ba8434f0ea06fcbe1edd65c8db5c1663ce32a79a390a",
+      "sha256": "83d70112a4476a78c681ced5a8daea6f4e53dacfb2f546d0895294cc9607e902",
       "executable": false
     },
     "public/placemat-service-changes.js": {
@@ -4486,7 +4486,7 @@
       "executable": false
     },
     "tests/phone-bookings-ui.mjs": {
-      "sha256": "be0cba36ccd90b70af94da8a8ff2af03ca026ae9c8adde72a1ca1778a124fcfd",
+      "sha256": "343ffb42fb4233587f6507b9acfa2566d791934c066b61ceaa1d4417debe943f",
       "executable": false
     },
     "tests/preshift-ui.mjs": {

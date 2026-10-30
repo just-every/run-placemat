@@ -9,8 +9,6 @@
     if (host.querySelector('iframe')) continue;
     const frame = document.createElement('iframe');
     const url=new URL('/book',placemat);url.searchParams.set('embed','1');url.searchParams.set('origin',location.origin);
-    const campaign=host.dataset.campaign||new URL(location.href).searchParams.get('utm_campaign');
-    if(campaign)url.searchParams.set('utm_campaign',campaign);
     frame.src = url.href;
     frame.title = host.dataset.title || 'Book a table';
     frame.style.cssText = 'display:block;width:100%;min-height:480px;border:0';
