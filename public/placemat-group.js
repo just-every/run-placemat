@@ -2,15 +2,15 @@
 export async function mountGroup(root,{api,esc,field,people,notice,reload}) {
   let status;
   try { status = await api('/api/group'); } catch { root.innerHTML = ''; return; }
-  const rightLabels = {'reports.read':'Reservation report','preshift.read':'Pre-shift sheet'};
+  const rightLabels = {'reports.read':'Reservation report','preshift.read':'Pre-shift sheet','guestbook.read':'Consented guestbook'};
   const rights = (list, name = 'rights', checked = []) => list.map(right => `<label class="inline"><input type="checkbox" name="${name}" value="${esc(right)}"${checked.includes(right) ? ' checked' : ''}> ${esc(rightLabels[right] || right)}</label>`).join(' ');
   const form = (kind, body, button) => `<form data-group-form="${kind}"><fieldset><div class="form-grid">${body}<div class="wide"><button type="submit">${esc(button)}</button></div></div></fieldset></form>`;
   const names = id => people.find(person => person.id === id)?.displayName || id;
   if (status.role === 'admin') {
-    root.innerHTML = `<details><summary>Group access</summary><p class="help">The owner granted you read-only access to reservation reports and pre-shift sheets: ${Object.entries(status.rights).map(([venue, list]) => `${esc(venue === 'home' ? 'this venue' : 'a connected venue')} (${esc(list.join(', '))})`).join('; ')}. A token lasts 12 hours and is shown once.</p>${form('token', '', 'Create group token')}<div id="group-token"></div>${form('comparison',field('Local service date from','dateFrom','date','','required')+field('Local service date through','dateTo','date','','required')+Object.entries(status.rights).filter(([,r])=>r.includes('reports.read')).map(([id])=>`<label class="inline"><input type="checkbox" name="venueId" value="${esc(id)}" checked> ${esc(status.venues?.find(v=>v.id===id)?.name||'This venue')}</label>`).join(''),'Compare local cover totals')}<div id="group-comparison" aria-live="polite"></div></details>`;
+    root.innerHTML = `<details><summary>Group access</summary><p class="help">The owner granted you read-only access for these purposes: ${Object.entries(status.rights).map(([venue, list]) => `${esc(venue === 'home' ? 'this venue' : 'a connected venue')} (${esc(list.join(', '))})`).join('; ')}. A token lasts 12 hours and is shown once.</p>${form('token', '', 'Create group token')}<div id="group-token"></div>${form('comparison',field('Local service date from','dateFrom','date','','required')+field('Local service date through','dateTo','date','','required')+Object.entries(status.rights).filter(([,r])=>r.includes('reports.read')).map(([id])=>`<label class="inline"><input type="checkbox" name="venueId" value="${esc(id)}" checked> ${esc(status.venues?.find(v=>v.id===id)?.name||'This venue')}</label>`).join(''),'Compare local cover totals')}<div id="group-comparison" aria-live="polite"></div>${status.rights.home?.includes('guestbook.read') ? form('guestbook','','Read consented guestbook')+'<div id="group-guestbook" aria-live="polite"></div>' : ''}</details>`;
   } else {
     const member = status.standing === 'member', home = status.standing === 'home', linked = status.links.filter(link => !link.revokedAt);
-    const ceiling = status.available.map(right => `<label class="inline"><input type="checkbox" name="ceiling" value="${esc(right)}" checked> ${esc(rightLabels[right] || right)}</label>`).join(' ');
+    const ceiling = status.available.map(right => `<label class="inline"><input type="checkbox" name="ceiling" value="${esc(right)}"${right === 'guestbook.read' ? '' : ' checked'}> ${esc(rightLabels[right] || right)}</label>`).join(' ');
     root.innerHTML = `<details><summary>Venue group</summary><p class="help">Each venue stays its own installation. Group admins get read-only rights you choose per venue; in this slice they cannot change records, money, people, exports or providers.</p>`
       + (member ? `<article class="card"><p><strong>Member of the group at ${esc(status.home.origin)}</strong><br>Group admins may read here: ${esc(status.home.ceiling.map(r => rightLabels[r] || r).join(', ') || 'nothing')}.</p>${form('leave', '', 'Leave group')}</article>` : `${form('invite', field('Venue to invite','label','text','','required maxlength="80"'), 'Create one-use invitation')}<div id="group-code"></div>`)
       + (!home && !member ? `<h4>Join a group</h4>${form('join', field('Home venue address','homeOrigin','url','','required placeholder="https://venue.example"') + field('Invitation code','code','text','','required autocomplete="off"') + `<div class="wide"><span>Group admins may read here:</span> ${ceiling}</div>`, 'Join group')}` : '')
@@ -24,6 +24,11 @@ export async function mountGroup(root,{api,esc,field,people,notice,reload}) {
     event.preventDefault();
     const data = new FormData(el), kind = el.dataset.groupForm;
     try {
+      if (kind === 'guestbook') {
+        const output=root.querySelector('#group-guestbook');output.replaceChildren();
+        const result=await api('/api/group/guest-directory');
+        output.innerHTML=result.profiles.length?result.profiles.map((profile,index)=>`<article class="card"><h4>Shared guest ${index+1}</h4>${profile.venues.map(v=>`<section><h4>${esc(v.venue)}</h4><p>Preferences: ${esc(v.preferences??'Not shared')}</p><p>Attended visits: ${v.visits.length}</p>${v.visits.map(b=>`<p>${esc(b.startAt)} · ${b.partySize} guests · ${esc(b.status)}</p>`).join('')}${v.rebookUrl?`<a href="${esc(v.rebookUrl)}" referrerpolicy="no-referrer">Rebook at ${esc(v.venue)}</a>`:'<p>Rebooking is not shared.</p>'}</section>`).join('')}</article>`).join(''):'<p>No currently consented shared profiles.</p>';return;
+      }
       if (kind === 'comparison') {
         const search=new URLSearchParams({dateFrom:data.get('dateFrom'),dateTo:data.get('dateTo')});for(const id of data.getAll('venueId'))search.append('venueId',id);
         const report=await api('/api/group-comparison?'+search);

@@ -17,7 +17,7 @@ const bearer=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v)?v:unavai
 type Account={id:string;email:string;created_at:string;updated_at:string;favorite:number;preferences:string}
 type Challenge={digest:string;booking_id:string;guest_id:string;email:string;contact_digest:string;expires_at:number}
 
-async function bookingContact(db:D1Database,bookingId:string){
+export async function bookingContact(db:D1Database,bookingId:string){
  const {state,version}=await load(db),booking=state.bookings.find(b=>b.id===bookingId)
  if(!booking)return null
  const row=await db.prepare('SELECT data,version FROM pm_guests WHERE id=?').bind(booking.guestId).first<{data:string;version:number}>()
@@ -29,7 +29,7 @@ async function bookingContact(db:D1Database,bookingId:string){
  const contact=override?JSON.parse(override.data):{name:guest.name,email:guest.email,phone:guest.phone}
  return {state,version,booking,guest,row,contact,override,digest:await hash(JSON.stringify([guest.id,row.data,override?.data??null]))}
 }
-function contactFence(db:D1Database,c:NonNullable<Awaited<ReturnType<typeof bookingContact>>>){
+export function contactFence(db:D1Database,c:NonNullable<Awaited<ReturnType<typeof bookingContact>>>){
  return [
   db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END').bind(c.guest.id,c.row.version,c.row.data),
   c.override?db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_booking_contacts WHERE booking_id=? AND guest_id=? AND data=?) THEN 1 ELSE 0 END').bind(c.booking.id,c.guest.id,c.override.data):
@@ -112,8 +112,12 @@ export async function dinerResponse(request:Request,env:Bindings):Promise<Respon
   const p=await jsonBody(request)
   if(path==='/api/public/diner/request')return json(await requestCode(env,p),202)
   if(path==='/api/public/diner/verify')return json(await verify(env.DB,p))
-  if(!['/api/public/diner/account','/api/public/diner/preferences','/api/public/diner/logout','/api/public/diner/forget','/api/public/diner/management/status','/api/public/diner/management/preview','/api/public/diner/management/commit'].includes(path))return json({error:'Not found'},404)
+  if(!['/api/public/diner/group','/api/public/diner/group-consent','/api/public/diner/group-code','/api/public/diner/group-link','/api/public/diner/account','/api/public/diner/preferences','/api/public/diner/logout','/api/public/diner/forget','/api/public/diner/management/status','/api/public/diner/management/preview','/api/public/diner/management/commit'].includes(path))return json({error:'Not found'},404)
   const s=await session(env.DB,p),{state,version}=await load(env.DB)
+  if(path.startsWith('/api/public/diner/group')){
+   const {dinerGroup}=await import('./group-guestbook')
+   return json(await dinerGroup(env.DB,env.AUTH_ORIGIN,path.split('/').at(-1)!,p,s))
+  }
   if(path.startsWith('/api/public/diner/management/')){
    if(typeof p.bookingId!=='string'||!s.bookings.some(b=>b.id===p.bookingId))unavailable()
    const authority={digest:s.digest,accountId:s.account.id,bookingId:p.bookingId,email:s.account.email,expiresAt:s.expiresAt}
@@ -129,6 +133,8 @@ export async function dinerResponse(request:Request,env:Bindings):Promise<Respon
    for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='dinerAccounts'&&change.id===s.account.id){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
    state.audit.push({id:id(),at:new Date().toISOString(),actor:'guest',action:'diner.account.forgotten',subject:'venue',source:'guest-supplied',changes:[{kind:'dinerAccounts',id:s.account.id,before:{present:true},after:null}]})
    await save(env.DB,state,version,[fence,
+    env.DB.prepare('DELETE FROM pm_group_guest_codes WHERE account_id=?').bind(s.account.id),
+    env.DB.prepare('DELETE FROM pm_group_guests WHERE account_id=?').bind(s.account.id),
     env.DB.prepare('DELETE FROM pm_diner_challenges WHERE email=?').bind(s.account.email),
     env.DB.prepare('DELETE FROM pm_diner_sessions WHERE account_id=?').bind(s.account.id),
     env.DB.prepare('DELETE FROM pm_diner_bookings WHERE account_id=?').bind(s.account.id),

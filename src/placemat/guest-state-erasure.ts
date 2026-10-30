@@ -71,6 +71,8 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
   {sql:'DELETE FROM pm_feedback_credentials WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_feedback_messages WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_feedback_visits WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_group_guest_codes WHERE account_id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
+  {sql:'DELETE FROM pm_group_guests WHERE account_id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_diner_challenges WHERE guest_id IN (SELECT value FROM json_each(?))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_diner_sessions WHERE account_id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},
   {sql:'DELETE FROM pm_diner_accounts WHERE id IN (SELECT account_id FROM pm_diner_bookings WHERE guest_id IN (SELECT value FROM json_each(?)))',params:[dinerGuests]},

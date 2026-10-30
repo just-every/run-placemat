@@ -52,6 +52,7 @@ import {queueQr} from './queue-qr'
 import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait-join'
 import {sectionsDashboard} from './staffing'
 import {groupInvite,groupAccept,groupJoin,groupLeave,groupGrant,groupDisconnect,groupToken,groupStatus,isGroupAdmin} from './group'
+import {groupGuestRead,groupGuestRedeem,groupGuestCheck,groupGuestDirectory} from './group-guestbook'
 import {groupIntrospect,groupRead} from './group-access'
 import {financeSummary,financeExport,isFinance} from './finance'
 import {financePage} from './finance-view'
@@ -215,14 +216,17 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(visit&&!result.checkoutReplay)defer(sendAnalytics(env.DB,'booking',visit,env.AUTH_ORIGIN+'/book'))
    return json({result},201)
   }
-  if(['/api/group/join-accept','/api/group/introspect'].includes(path)){
+  if(['/api/group/guest-redeem','/api/group/guest-check','/api/group/join-accept','/api/group/introspect'].includes(path)){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':group:'+Math.floor(Date.now()/60000))
    const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
    if((count?.count??0)>60)fail(429,'Too many group requests. Please wait a minute.')
    const p=await jsonBody(request)
+   if(path==='/api/group/guest-redeem')return json(await groupGuestRedeem(env.DB,request.headers.get('x-group-link'),p))
+   if(path==='/api/group/guest-check')return json(await groupGuestCheck(env.DB,request.headers.get('x-group-link'),p))
    return json(path==='/api/group/join-accept'?await groupAccept(env.DB,p):await groupIntrospect(env.DB,request.headers.get('x-group-link'),p.token))
   }
+  if(path==='/api/group/guestbook')return json(await groupGuestRead(env.DB,request,url))
   if(path==='/api/group/reports/reservations'||path==='/api/group/preshift')return json(await groupRead(env.DB,request,url))
   const actor=await actorFor(request,env);responseActor=actor
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
@@ -302,6 +306,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(path==='/api/payments/fees')return json({result:await assessFee(env,actor!,p)})
   }
   if(path==='/api/group'||path.startsWith('/api/group/')){
+   if(path==='/api/group/guest-directory'&&request.method==='GET')return json(await groupGuestDirectory(env.DB,actor!))
    if(path==='/api/group'&&request.method==='GET')return json(await groupStatus(env.DB,actor!))
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    if(path==='/api/group/token')return json({result:await groupToken(env.DB,actor!)},201)

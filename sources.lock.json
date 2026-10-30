@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "12aedfb8c05faa83b4dbd1271e047d5b75443ea46db6a95fcaef18fc268538d3",
+      "sha256": "fe3baa8437f1dde4a950c2fe33ee55b82a21db1c8721884e4c6a839d81f5fb2b",
       "executable": false
     },
     "deploy-demo.json": {
@@ -274,7 +274,7 @@
       "executable": false
     },
     "docs/data-portability.md": {
-      "sha256": "a2783fa8b4f78565ef756defc5f32ae45589e6d7ffdab10c4da7eebf8e758eb2",
+      "sha256": "6cc65b508be51abc9eff56edb0e64f0c0f227c142f7e984e22f570fed23ad1af",
       "executable": false
     },
     "docs/deploy.md": {
@@ -358,7 +358,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "25fa1f911f26ce9df91365fd5d684e3e5d2159329358d9786e9c8019ad0cdbba",
+      "sha256": "a8c023ddeb7bc7c8a7f8697018efaf8cfa2d04e45e04b825f409b3e96d3fe1ae",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -545,6 +545,10 @@
       "sha256": "f62d150b74f4209ff1d59e36429c58b28624c5d5279225fccb42f247005a4269",
       "executable": false
     },
+    "migrations/core/0052_group_guestbook.sql": {
+      "sha256": "347a3c26ec41b20f4bf15505ac8c94ad345d09f6c1db5744238798a9467928f4",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -726,7 +730,7 @@
       "executable": false
     },
     "public/placemat-diner.js": {
-      "sha256": "ec1344ab236953522afb196d44094594639bd93c3152457644b4dbdd2be9a348",
+      "sha256": "c1836b0fc82190352ef7d997b5cd8ae2fd814bbc09d3550ad35230ad12e292bc",
       "executable": false
     },
     "public/placemat-embed.js": {
@@ -754,7 +758,7 @@
       "executable": false
     },
     "public/placemat-group.js": {
-      "sha256": "c715cb2f9625b4b5c1efe513eceba0e38ced24f66ecf91a8dc19a8982b51b6c7",
+      "sha256": "6c159a8b9008709a02a73846c0701a7a0615f3dec44eff912ae486ba42601927",
       "executable": false
     },
     "public/placemat-handover.js": {
@@ -3306,7 +3310,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "9201b4addd04b57df9ebe3dec7d3b16f5a49e67755fc1d340bb7a353d60006b5",
+      "sha256": "24e3f7084c3160da57e8a3ded31c8427556e98af5aebf454937e980611ea060c",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -3350,11 +3354,11 @@
       "executable": false
     },
     "src/placemat/business-export-store.ts": {
-      "sha256": "a88eb1922211c29471eeb159e80fc10292c9befcff37fa5f1c975330ff9151c8",
+      "sha256": "cb039eb7e35800d4a5dc6beeaaf74232494100eeac0ecc4ac60ab7322d113c6e",
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "72f5be37744d4fec2ec3519a05760871175577fdaf0c7ff3665daf2ff73ac2b5",
+      "sha256": "10a500e63b7f8f1a76858fff3dcd563ba7339c7b805d9d2563483ce4dd6d6e37",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3418,11 +3422,11 @@
       "executable": false
     },
     "src/placemat/diner-accounts.ts": {
-      "sha256": "ca1b26b435d357a0fb6b7858024d62c00ef71b00d52962f7417f92a054653aed",
+      "sha256": "e2f7dea325557f2d2d50720645f738f5cc1b30b7db65867f23eaf612a0f432dd",
       "executable": false
     },
     "src/placemat/diner-archive.mjs": {
-      "sha256": "84fb7432ff1c536f8c2e2ba48e035eac2c7118d9fb63a9a34fc10e479c3f4c7e",
+      "sha256": "1c3fda48fc7c0ea3d4d8adf7052426ff5da6bad6a701b4921d04e1059e5f8c1b",
       "executable": false
     },
     "src/placemat/diner-view.ts": {
@@ -3518,11 +3522,15 @@
       "executable": false
     },
     "src/placemat/group-access.ts": {
-      "sha256": "54722723505b8b5e17e1d90f25c9ffc7b120c36770661ca81535cd0a2e63a197",
+      "sha256": "d018564125bfc771dd1a4965e61552170a71013cdf7da232b50d66da30702cd8",
+      "executable": false
+    },
+    "src/placemat/group-guestbook.ts": {
+      "sha256": "c5486ce39ddde9a1c836e85ae2b3f710f8451251ba780fc4836f6b5bca81ea97",
       "executable": false
     },
     "src/placemat/group-store.ts": {
-      "sha256": "402c9b574678a71ecdcd58d6fcc4d4b53e77ffb7eaf7da38d2794e8122f8a7af",
+      "sha256": "6aaae8eb1192e54e8ef158e2440054d32bbf4ef2eb46ed50f7a8d155aac7ef26",
       "executable": false
     },
     "src/placemat/group.ts": {
@@ -3546,7 +3554,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "c2804c253a5c164017a4bb87f32c19628a8c45736b67ba182b0689574eee16be",
+      "sha256": "505b0b0161a2a54ac2cc1968ac3bc4e7fb752b3091407494e30d806df451753f",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -3566,7 +3574,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "f5251e349c9d999ce707780f4d465cf594be9b5fc3682bfcecf404f5e6f4a475",
+      "sha256": "86d487ce425c1a29a13cf1df876238eef82b1b52a13e9e269f3b9c8f7ace96c7",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -4213,8 +4221,16 @@
       "sha256": "f5bccb76dbb4b7127a05f17579ee4cbca41364fc0136bc6aa8e6b277eaf0387f",
       "executable": false
     },
+    "tests/api/group-guest-fixture.mjs": {
+      "sha256": "8c12a3c23e4e9c58d36449c5f2b0dd8409af7427de1c47edfd4aef23e8eb08ea",
+      "executable": false
+    },
+    "tests/api/group-guest-journey.mjs": {
+      "sha256": "92c641a9c8bede89bc1091c54260e210e7a71821b54809bedf0db5c50e786124",
+      "executable": false
+    },
     "tests/api/group.test.mjs": {
-      "sha256": "e26226e786c65b8ac9e7993fba74aa3cbb2f6ff79fb537c3cf7f37f827b3d6a3",
+      "sha256": "bb098a80a38812849cb2ab8887c633e0f4c4544ba6589239fe87cbe5989ee193",
       "executable": false
     },
     "tests/api/guest-review-fixture.mjs": {
@@ -4222,7 +4238,7 @@
       "executable": false
     },
     "tests/api/guests.test.mjs": {
-      "sha256": "7560ecdfa043a0562062d6ea182559a5e2e1f97769cfbb614603616047045a02",
+      "sha256": "ec60490567167c2a1778046afa43aa9beb3b8da7debe3b7fadbda6dead698073",
       "executable": false
     },
     "tests/api/harness.mjs": {
@@ -4446,7 +4462,7 @@
       "executable": false
     },
     "tests/group-ui.mjs": {
-      "sha256": "0fc2f57f48a3cd1a53fe96fa95655996c1c8ac0f65cedae92bc2de68a0525a5f",
+      "sha256": "6477a880342dcead6e242f96f9e6b4fa4bc4b1abeed994bebfd0ba8768cb8194",
       "executable": false
     },
     "tests/guarantees-ui.mjs": {

@@ -24,7 +24,7 @@ async function tokenHolder(db:D1Database,token:string){
 }
 
 /** What this token may read at this venue: the home venue checks locally, a member venue asks its home with its own link secret. */
-async function venueRights(db:D1Database,token:string,fetcher:typeof fetch):Promise<{rights:GroupRight[];holder:Actor}>{
+export async function venueRights(db:D1Database,token:string,fetcher:typeof fetch):Promise<{rights:GroupRight[];holder:Actor}>{
  const home=await db.prepare('SELECT home_origin,link_id,secret,ceiling FROM pm_group_home').first<{home_origin:string;link_id:string;secret:string;ceiling:string}>()
  if(!home){
   const holder=await tokenHolder(db,token),grant=holder?await db.prepare("SELECT rights FROM pm_group_admins WHERE operator_id=? AND venue_id='home'").bind(holder.id).first<{rights:string}>():null
