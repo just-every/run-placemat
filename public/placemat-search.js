@@ -140,7 +140,8 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if(selected.experienceId&&!find('[name="acknowledgedExperienceTerms"]')?.checked)throw new Error('Read and agree to the experience terms before confirming.');
     const form=find('[data-public-command=book]');
     const embedOrigin = document.body.dataset.embedOrigin;
-    const payload = {...contact,...requests, closureEmailConsent:find('[name="closureEmailConsent"]')?.checked===true, feedbackEmailConsent:find('[name="feedbackEmailConsent"]')?.checked===true, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
+    const campaign=new URL(location.href).searchParams.get('utm_campaign');
+    const payload = {...contact,...requests,...campaign?{campaign}:{}, closureEmailConsent:find('[name="closureEmailConsent"]')?.checked===true, feedbackEmailConsent:find('[name="feedbackEmailConsent"]')?.checked===true, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
       ...(find('[name="counterSeats"]')?.value?{tableIds:find('[name="counterSeats"]').value.split(',')} : {}),
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt,
       ...(selected.experienceId?{experienceId:selected.experienceId,ticketClassId:selected.ticketClassId,experienceVersion:selected.experienceVersion,acknowledgedExperienceTerms:true,experienceCart:readCart(form)}:{})};

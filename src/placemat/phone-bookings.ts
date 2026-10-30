@@ -2,6 +2,7 @@ import {fail,id,text,type Actor,type State,type Booking,type Guest} from './mode
 import {guestFor,guestGuard,guestInsert} from './guests'
 import {recordServing,servingFor,checkStaffing} from './staffing-capacity'
 import {phonePreview,mayPace,approvePacing} from './pacing-review'
+import {campaignCode} from './embed'
 import {normalizeBookingRequests} from './booking-requests'
 
 async function returningGuest(db:D1Database,value:unknown){
@@ -14,10 +15,12 @@ async function returningGuest(db:D1Database,value:unknown){
 function intake(p:any,previous?:Booking){
  if(p.staffIntake===undefined)return previous?.staffIntake??{source:'phone' as const,contactPreference:'none' as const,confirmationConsent:false}
  const value=p.staffIntake
- if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['source','contactPreference','confirmationConsent'].includes(k))||!['phone','concierge','offline'].includes(value.source)||!['email','sms','none'].includes(value.contactPreference)||typeof value.confirmationConsent!=='boolean')fail(400,'Choose a reservation source, contact preference and explicit confirmation permission.')
+ if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['source','contactPreference','confirmationConsent','campaign'].includes(k))||!['phone','concierge','offline'].includes(value.source)||!['email','sms','none'].includes(value.contactPreference)||typeof value.confirmationConsent!=='boolean')fail(400,'Choose a reservation source, contact preference and explicit confirmation permission.')
  if(previous?.staffIntake&&value.source!==previous.staffIntake.source)fail(409,'The original reservation source must be preserved.')
+ const campaign=value.campaign===undefined?previous?.staffIntake?.campaign:campaignCode(value.campaign)
+ if(previous&&campaign!==previous.staffIntake?.campaign)fail(409,'The original campaign must be preserved.')
  if(value.confirmationConsent&&value.contactPreference==='none')fail(400,'Choose a channel before recording confirmation permission.')
- return {source:value.source,contactPreference:value.contactPreference,confirmationConsent:value.confirmationConsent} as NonNullable<Booking['staffIntake']>
+ return {source:value.source,contactPreference:value.contactPreference,confirmationConsent:value.confirmationConsent,...campaign?{campaign}:{}} as NonNullable<Booking['staffIntake']>
 }
 
 /** Future staff reservations share live inventory; delivery and money are separate saved actions. */

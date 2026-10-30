@@ -295,7 +295,7 @@ export async function onlineBook(db:D1Database,input:any):Promise<{partySize:num
  if(held)s.holds=s.holds?.filter(h=>h.id!==held.hold.id)
  if(service.status!=='published')fail(404,'This service is not open for bookings.')
  if(service.closedAt)fail(409,'This service is closed. Choose an open service; no booking has been made.')
- const partySize=number(p.partySize,'Party size',1,500),attribution=bookingAttribution(s,p.embedOrigin)
+ const partySize=number(p.partySize,'Party size',1,500),attribution=bookingAttribution(s,p.embedOrigin,p.campaign)
  checkBookingRules(s,service,partySize,instant(p.startAt,'Start'),'online')
  const experience=experienceContext(s,service,p,partySize)
  if(experience.experience&&p.acknowledgedExperienceTerms!==true)fail(400,'Acknowledge this experience menu, dining time and cancellation terms before booking.')

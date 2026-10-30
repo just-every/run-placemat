@@ -113,7 +113,7 @@ function planFor(c:Context,change:Change,tableIds?:string[]):Plan {
   const ledger={...s,bookings:s.bookings.filter(row=>row.id!==b.id)}
   const experience=experienceContext(ledger,service,{},partySize,b.experience)
   const {state:eligible}=searchTables(experience.state,b.requiredArea,b.requiredAccessTags)
-  const {tables,...slot}=bookingFit(eligible,experience.service,partySize,startAt,'online',tableIds)
+  const {tables,...slot}=bookingFit(eligible,experience.service,partySize,startAt,'online',tableIds,false,b.source==='phone'?'phone':'online')
   Object.assign(next,slot,{partySize,tableIds:tables.map(t=>t.id)})
   if(!slot.combination)delete next.combination
   delete next.expectedEndAt;delete next.ruleOverride;delete next.pacingOverride

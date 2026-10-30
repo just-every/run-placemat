@@ -8,7 +8,7 @@ import {installation} from './api/harness.mjs'
 import {allocationService} from './api/allocation-fixture.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
 try{
  for(const width of [1440,390]){
   const h=await installation(),context=await browser.newContext({viewport:{width,height:1000}})
@@ -87,8 +87,8 @@ async function servicePolicyJourney(browser,width){
   const root=page.locator('#allocation-content'),card=id=>root.locator(`[data-allocation-proposal="${id}"]`)
   const shot=async(name,locator=root)=>{await page.locator('#allocation-content[aria-busy="false"]').waitFor();if(shots)await locator.screenshot({path:resolve(shots,`AGENT-004-policy-${name}-${width}.png`)});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Service policy screen fits the viewport')}
   const releaseAt=new Date(Date.parse(service.startAt)-3600000).toISOString()
-  const prepare=async(kind,release=false)=>{
-   const forms=root.locator(`[data-allocation-prepare][data-kind="${kind}"]`),form=release?forms.locator('[data-release-id]').first():forms.first()
+  const prepare=async(kind,release=false,phone=false)=>{
+   const forms=phone?root.locator('article.card').filter({hasText:'Protect phone inventory'}).locator('form[data-allocation-prepare]'):root.locator(`[data-allocation-prepare][data-kind="${kind}"]`),form=release?forms.locator('[data-release-id]').first():forms.first()
    if(await form.locator('[name=releaseAt]').count()){await form.locator('[name=releaseAt]').fill(localTime(releaseAt,'America/New_York'));await shot('inventory-editor',form.locator('..'))}
    await form.locator('[name=reason]').fill('Confirmed Ana and kitchen availability; preserve step-free guest commitments')
    const response=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command==='proposal.prepare')
@@ -110,6 +110,7 @@ async function servicePolicyJourney(browser,width){
   assert.deepEqual((await h.api('/api/state')).state.services.find(s=>s.id===service.id).directInventory,[])
   await shot('inventory-released',card(release.id))
   await root.locator('[data-kind="service.adjust"]').first().waitFor()
+  const phone=await prepare('inventory.protect',false,true);await shot('phone-inventory-review',card(phone.id));await approve(phone);const phoneProtection=(await h.api('/api/state')).state.services.find(s=>s.id===service.id).directInventory[0];if(width===1440){assert.equal(phoneProtection.channel,'phone');assert.equal(phoneProtection.releaseAt,releaseAt);assert.match(await card(phone.id).innerText(),/Protect phone inventory/);}await shot('phone-inventory-applied',card(phone.id));
   const shift=await prepare('service.adjust');assert.match(await card(shift.id).innerText(),/Service end:/);assert.match(await card(shift.id).innerText(),/Preserved bookings: 1/);await shot('shift-review',card(shift.id));await approve(shift)
   const state=(await h.api('/api/state')).state
   assert.equal(state.services.find(s=>s.id===service.id).endAt,shift.plan.endAt);assert.deepEqual(state.bookings.find(b=>b.id===reservation.id),before)

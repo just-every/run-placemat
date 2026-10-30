@@ -19,7 +19,7 @@ export function phonePreview(s:State,actor:Actor,command:string,p:any,now:string
  if(previous?.assignmentLocked&&p.tableIds!==undefined&&JSON.stringify(p.tableIds)!==JSON.stringify(previous.tableIds))fail(409,'Unlock this assignment before changing its tables.')
  const rules=ruleFor(service,'online'),staffService={...service,bookingRules:{...service.bookingRules,online:rules,'walk-in':rules,waitlist:ruleFor(service,'waitlist')}}
  const ruleOverride=checkBookingRules(s,staffService,partySize,startAt,'walk-in',actor,p.overrideReason,true)
- const fit=bookingFit(filtered,staffService,partySize,startAt,'walk-in',previous?.assignmentLocked?previous.tableIds:p.tableIds,true)
+ const fit=bookingFit(filtered,staffService,partySize,startAt,'walk-in',previous?.assignmentLocked?previous.tableIds:p.tableIds,true,'phone')
  const candidate={...fit,partySize,tableIds:fit.tables.map(t=>t.id),status:'booked' as const}
  const violations=pacingViolations(without,service,candidate,now)
  if(rules.blockedStarts.includes(startAt))violations.push({kind:'blocked-start',label:'Blocked arrival timeslot',limit:0,current:0,projected:1,excess:1})

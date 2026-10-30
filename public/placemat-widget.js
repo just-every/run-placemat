@@ -1,5 +1,12 @@
 /* BOOK-002: website booking widget. The framed page only reports its height to the allowlisted website; it accepts no messages. */
-export const sourceLabel = b => b.staffIntake ? `${b.staffIntake.source} · ${b.staffIntake.contactPreference} contact preference` : b.attribution?.door === 'widget' ? `${b.source} · website widget on ${b.attribution.origin}` : b.attribution?.door === 'booking-page' ? `${b.source} · booking page` : b.source;
+const originalSourceLabel = b => b.staffIntake ? `${b.staffIntake.source} · ${b.staffIntake.contactPreference} contact preference` : b.attribution?.door === 'widget' ? `${b.source} · website widget on ${b.attribution.origin}` : b.attribution?.door === 'booking-page' ? `${b.source} · booking page` : b.source;
+export const sourceLabel = b => originalSourceLabel(b)+((b.staffIntake?.campaign||b.attribution?.campaign)?` · Campaign: ${b.staffIntake?.campaign||b.attribution?.campaign}`:'');
+export const nativeChannel=b=>b.staffIntake?.source||(b.source==='online'?'website':b.source);
+export function channelSummary(rows,esc){
+ const totals=new Map();
+ for(const row of rows){const key=nativeChannel(row),total=totals.get(key)||{parties:0,covers:0};total.parties++;total.covers+=row.partySize;totals.set(key,total);}
+ return `<section aria-label="Listed channel totals"><h3>Listed channel totals</h3><p>All listed reservations, including cancelled and no-show parties.</p>${[...totals].map(([channel,total])=>`<p data-channel-total="${esc(channel)}">${esc(channel)}: ${total.parties} parties · ${total.covers} covers</p>`).join('')}<p>Total: ${rows.length} parties · ${rows.reduce((n,b)=>n+b.partySize,0)} covers</p></section>`;
+}
 export function reportHeight(origin) {
   if (window.parent === window) return;
   const main = document.querySelector('main');

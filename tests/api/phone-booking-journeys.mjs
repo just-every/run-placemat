@@ -50,3 +50,75 @@ export async function phoneBookingJourney(h){
  await h.command('booking.phone',{...exception,email:'synthetic-placemat-6@example.test',tableIds:managerException.tableIds},{status:409})
  return {service,phone,overridden,tables,host,operator}
 }
+
+// Native allocation, deadline and modification proof uses the actual Worker with a pinned clock.
+export async function nativeChannelJourney(){
+ const {installation}=await import('./harness.mjs'),{csvRecords}=await import('./business-fixture.mjs')
+ let now=Date.parse('2026-11-02T12:00:00Z')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now});let restored
+ try{
+  await h.command('venue.update',{name:'synthetic-placemat-1',timezone:'UTC'})
+  const tables=[];for(let n=0;n<3;n++)tables.push(await h.command('table.save',{label:`synthetic-placemat-${n}`,seats:4,x:20+n*25,y:30}))
+  const service=await h.command('service.save',{name:'synthetic-placemat-1',startAt:'2026-11-09T18:00:00Z',endAt:'2026-11-10T00:00:00Z',turnMinutes:60,coverLimit:60})
+  const publication=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'synthetic-placemat-1'});await h.command('proposal.approve',{proposalId:publication.id})
+  const directDeadline='2026-11-02T13:00:00.000Z',phoneDeadline='2026-11-02T14:00:00.000Z'
+  const protect=async(index,channel,releaseAt)=>{
+   const advice=await h.api('/api/allocation-advice?serviceId='+service.id),alternative=advice.inventory.alternatives.find(a=>a.protection.tableIds[0]===tables[index].id&&(a.protection.channel??'online')===channel)
+   assert.ok(alternative,`${channel} protection is feasible`)
+   const proposal=await h.command('proposal.prepare',{kind:'inventory.protect',plan:{serviceId:service.id,alternativeId:alternative.id,releaseAt},reason:'synthetic-placemat-1'})
+   return h.command('proposal.approve',{proposalId:proposal.id})
+  }
+  await protect(0,'online',directDeadline);await protect(1,'online',directDeadline);await protect(2,'phone',phoneDeadline)
+  let serial=0
+  const payload=(index,extra={})=>({serviceId:service.id,startAt:service.startAt,tableIds:[tables[index].id],partySize:4,name:`synthetic-placemat-${++serial}`,email:[`synthetic-placemat-${serial}`,'example.test'].join('@'),...extra})
+  const phone=p=>h.command('booking.phone',p),website=(p,status=201)=>h.api('/api/public/book',p,{as:'',status})
+  await h.command('booking.phone',payload(1),{status:409})
+  const blocked=await website(payload(2,{pacingConfirm:'yes',overrideReason:'synthetic-placemat-1'}),409);assert.match(blocked.error,/protected for phone/)
+  const first=await phone(payload(2,{staffIntake:{source:'phone',contactPreference:'none',confirmationConsent:false,campaign:'synthetic-placemat-phone'}}))
+  await h.command('booking.phone',payload(2),{status:409})
+  await h.command('embed.origins',{origins:['https://restaurant.example.test']})
+  const direct=(await website(payload(0,{embedOrigin:'https://restaurant.example.test',campaign:'synthetic-placemat-widget'}))).result
+  const cancelled=(await website(payload(1))).result;await h.command('booking.status',{bookingId:cancelled.id,status:'cancelled'})
+  // Expiring direct protection releases that channel restriction only; phone keeps its own deadline.
+  now=Date.parse(directDeadline)
+  const stillProtected=await website(payload(2),409);assert.match(stillProtected.error,/protected for phone/)
+  const before=(await h.api('/api/state')).state.bookings.length
+  const raced=await Promise.all([h.request('/api/public/book',{method:'POST',as:'',body:payload(1)}),h.request('/api/commands',{method:'POST',body:{command:'booking.phone',payload:payload(1)}})])
+  assert.equal(raced.filter(r=>r.ok).length,1);assert.equal(raced.filter(r=>r.status===409).length,1)
+  assert.equal((await h.api('/api/state')).state.bookings.length,before+1)
+  now=Date.parse(phoneDeadline)
+  const occupied=await website(payload(2),409);assert.doesNotMatch(occupied.error,/protected for phone/)
+  assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===first.id).status,'booked')
+  console.log('PROBE DIST-004 allocation: reviewed two direct four-tops and one phone four-top -> channel exhaustion, independent deadlines and one concurrent last-table winner; occupied phone table retained')
+  // Guests genuinely change time and size; source, campaign and widget origin stay immutable.
+  const change=async booking=>{
+   await h.command('booking.management.send',{bookingId:booking.id,acknowledged:true})
+   const token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+   const preview=await h.api('/api/public/booking-management/preview',{token,action:'change',startAt:new Date(Date.parse(booking.startAt)+15*60000).toISOString(),partySize:3},{as:''})
+   await h.api('/api/public/booking-management/commit',{token,previewId:preview.previewId,acknowledged:true},{as:''})
+   const actual=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id)
+   assert.equal(actual.partySize,3);assert.equal(Date.parse(actual.startAt),Date.parse(booking.startAt)+15*60000)
+   assert.equal(actual.source,booking.source);assert.deepEqual(actual.staffIntake,booking.staffIntake);assert.deepEqual(actual.attribution,booking.attribution)
+   return actual
+  }
+  await change((await h.api('/api/state')).state.bookings.find(b=>b.id===direct.id))
+  const native=[]
+  for(const [index,source] of ['phone','concierge','offline'].entries()){
+   const booking=await phone(payload(2,{startAt:new Date(Date.parse(service.startAt)+(index+1)*90*60000).toISOString(),partySize:2,staffIntake:{source,contactPreference:'email',confirmationConsent:true,campaign:`synthetic-placemat-${source}`}}))
+   const actual=await change(booking);native.push(actual)
+   for(const staffIntake of [{...actual.staffIntake,source:source==='phone'?'offline':'phone'},{...actual.staffIntake,campaign:'synthetic-placemat-replaced'}]){
+    const view=await h.api('/api/state');await h.command('booking.phone.change',{bookingId:actual.id,startAt:actual.startAt,partySize:actual.partySize,version:view.version,staffIntake},{status:409});assert.deepEqual((await h.api('/api/state')).state.bookings.find(b=>b.id===actual.id),actual)
+   }
+  }
+  console.log('PROBE DIST-004 attribution: guest management preview and commit -> actual time and size edits preserve phone, concierge, offline, campaign and original widget origin; staff replacement refused unchanged')
+  const bookings=(await h.api('/api/state')).state.bookings,services=(await h.api('/api/state')).state.services
+  const csv=csvRecords(await(await h.request('/api/business-export/bookings.csv')).text())
+  for(const booking of bookings){const row=csv.find(r=>r.id===booking.id);assert.equal(row.source,booking.source);assert.deepEqual(JSON.parse(row.attribution_json||'null'),booking.attribution??null);assert.deepEqual(JSON.parse(row.staffIntake_json||'null'),booking.staffIntake??null)}
+  const serviceCsv=csvRecords(await(await h.request('/api/business-export/services.csv')).text());assert.deepEqual(JSON.parse(serviceCsv.find(r=>r.id===service.id).directInventory_json),services.find(s=>s.id===service.id).directInventory)
+  restored=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now});await restored.api('/api/restore',{archive:await h.api('/api/backup'),confirm:'RESTORE'})
+  const after=(await restored.api('/api/state')).state;assert.deepEqual(after.bookings,bookings);assert.deepEqual(after.services,services)
+  const {channelSummary}=await import('../../public/placemat-widget.js'),summary=channelSummary(bookings,v=>String(v))
+  assert.match(summary,/concierge: 1 parties · 3 covers/);assert.match(summary,/offline: 1 parties · 3 covers/);assert.match(summary,new RegExp(`Total: ${bookings.length} parties · ${bookings.reduce((n,b)=>n+b.partySize,0)} covers`))
+  console.log('PROBE DIST-004 reconciliation: booking and service CSV downloads plus archive restore -> exact native source, campaign, release records and cover totals retained')
+ }finally{if(restored)await restored.close();await h.close()}
+}
