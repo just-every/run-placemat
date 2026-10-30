@@ -74,7 +74,8 @@
         "node tests/privacy-ui.mjs",
         "node tests/costs-ui.mjs",
         "node tests/experiences-ui.mjs",
-        "node tests/feedback-ui.mjs"
+        "node tests/feedback-ui.mjs",
+        "node tests/reviews-ui.mjs"
       ]
     },
     {

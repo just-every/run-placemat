@@ -23,7 +23,7 @@ async function compose(){
 }
 document.addEventListener('submit',async event=>{
  const form=event.target;if(!form.matches('#review-request,#review-verify,#publish-review,[data-review-action]'))return
- event.preventDefault();if(busy)return;busy=true;const button=event.submitter;button.disabled=true
+ event.preventDefault();if(busy)return;busy=true;const button=event.submitter;button.disabled=true;notice('Saving…')
  try{
   const p=Object.fromEntries(new FormData(form))
   if(form.id==='review-request'){bookingId=p.bookingId;$('#review-form').innerHTML='';await api('/api/public/diner/request',{...p,acknowledged:true});$('#review-code').open=true;notice('Code requested. Provider acceptance does not establish mailbox delivery.')}

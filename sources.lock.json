@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "12aedfb8c05faa83b4dbd1271e047d5b75443ea46db6a95fcaef18fc268538d3",
+      "sha256": "868d34d2d5259ab5fef6ccca8ff7fb7541f9d97ac3f10f61e73f7219a9145d1c",
       "executable": false
     },
     "deploy-demo.json": {
@@ -327,6 +327,10 @@
     },
     "docs/reminders.md": {
       "sha256": "2a34d744dfa16540a5a3c62d96d38cf2df3516bfb6829270fac29d7967d8e7ff",
+      "executable": false
+    },
+    "docs/reviews.md": {
+      "sha256": "e4c6108ef7bf9a306becf49971b7a1a96b4c4011e96df4ec8a6a9a4e817e7368",
       "executable": false
     },
     "docs/site.json": {
@@ -894,7 +898,7 @@
       "executable": false
     },
     "public/placemat-reviews.js": {
-      "sha256": "57dd877deca478ddabc0391f7c4252d92f8af05bdbfe2bd06407c5bacc4a5c3b",
+      "sha256": "a2efb9987487e3292e2c1a5d5d7e692838736bd1730f2f8d142ef4f41f0f8ecd",
       "executable": false
     },
     "public/placemat-risk.js": {
@@ -1275,6 +1279,10 @@
     },
     "scripts/report-schedule-sandbox.mjs": {
       "sha256": "75634028cad5af8b2c2abd55aa13481fa075ad8049e815fc84fd6b722ee08829",
+      "executable": false
+    },
+    "scripts/reviews-sandbox.mjs": {
+      "sha256": "8eadead31ecc6c7ca26076c4b55faba5760d6fd784cfa0147664975733d8882d",
       "executable": false
     },
     "scripts/service-change-sandbox.mjs": {
@@ -3318,7 +3326,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "9201b4addd04b57df9ebe3dec7d3b16f5a49e67755fc1d340bb7a353d60006b5",
+      "sha256": "a9a6780a6b9093032e7512776a91f3a50d5def22d9116b304f85b57f3a2451f7",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -3362,11 +3370,11 @@
       "executable": false
     },
     "src/placemat/business-export-store.ts": {
-      "sha256": "a88eb1922211c29471eeb159e80fc10292c9befcff37fa5f1c975330ff9151c8",
+      "sha256": "1440e801194c2301e28b934e5c7f7e9fa8573554694778e22389414c6dd8d2cf",
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "72f5be37744d4fec2ec3519a05760871175577fdaf0c7ff3665daf2ff73ac2b5",
+      "sha256": "9f611d12c684b3dc1177a0ae822b1cfe79596cc2d6a9e86a63363dfda933c1ff",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3558,7 +3566,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "c2804c253a5c164017a4bb87f32c19628a8c45736b67ba182b0689574eee16be",
+      "sha256": "488f832dae5c741a910fcaec3186fe3befdf3ee1a534e25aa09942eb08ef68ee",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -3762,7 +3770,7 @@
       "executable": false
     },
     "src/placemat/privacy/access.ts": {
-      "sha256": "be2a40fbb7be1f061107aa9176a5acfc102f3eb7a9db6cf2a8e587ea958d2ea2",
+      "sha256": "9605e6ef99f4d41b3926c0e604c7d7f8656e5896553c494d78c6df11323f7d67",
       "executable": false
     },
     "src/placemat/privacy/archive.mjs": {
@@ -3778,7 +3786,7 @@
       "executable": false
     },
     "src/placemat/privacy/store.ts": {
-      "sha256": "6dba2b184f23b6c19d579f78b25fd1fe72350a79ae33a788b05970eb8abfd3ca",
+      "sha256": "465911cffa8013efb1ae8f890db73d498cccdddbc3e8109c454d3448393afd44",
       "executable": false
     },
     "src/placemat/privacy/view.ts": {
@@ -3835,6 +3843,10 @@
     },
     "src/placemat/reservation-search.ts": {
       "sha256": "33a56f45ab894d4ff67a511eba65c92723c30fad69432b9391119960e08e82a3",
+      "executable": false
+    },
+    "src/placemat/reviews-archive.mjs": {
+      "sha256": "42971516675e09a11e99ba96f4539b27ec16ede8b5bc9703088fd05837aaf990",
       "executable": false
     },
     "src/placemat/reviews-view.ts": {
@@ -4333,6 +4345,10 @@
       "sha256": "e1d51299ba160d4f713324458f2ea5e017de10d2800ebe9749ee6b8f57791886",
       "executable": false
     },
+    "tests/api/reviews.test.mjs": {
+      "sha256": "117ef637da0ed2e2aaea5cf3166c917c638ffcb2bb64e7d498f9dc93ca729a9a",
+      "executable": false
+    },
     "tests/api/risk-fixture.mjs": {
       "sha256": "aca214a20ef099d3f6d0caeeeaa05d9e0065263228c72658d5f60eed46bf3506",
       "executable": false
@@ -4525,6 +4541,10 @@
       "sha256": "8bdc4c414a02dc123052e0b9c554d30fb0a500e8764b96ba97dad3c72911d723",
       "executable": false
     },
+    "tests/reviews-ui.mjs": {
+      "sha256": "b4ff951abdbe824e8819d81a650f963a76a4dcd4ca1830dd17a5e390aff95e75",
+      "executable": false
+    },
     "tests/risk-ui.mjs": {
       "sha256": "9b37afe8588ab68ead886fcc2cf0411c5f7c0836890dc4b0a494563d9ae31712",
       "executable": false
@@ -4574,7 +4594,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "f57005c31847465532f4f91490a69d52a65b6649eec4c8726d44aa587613a4bd",
+      "sha256": "7995844aa232ac0a8e5f65494589598947e1d906420584cebf15f979264749b4",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
