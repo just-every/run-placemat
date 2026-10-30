@@ -1,3 +1,4 @@
+import {reviewsResponse} from './reviews'
 import {feedbackResponse} from './feedback-http'
 import {feedbackPage} from './feedback-view'
 import {dinerResponse} from './diner-accounts'
@@ -84,6 +85,7 @@ const paths=new Set(['/api/payments/ledger','/api/payments/ledger/payout','/api/
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
+ const reviews=await reviewsResponse(request,env);if(reviews)return reviews
  const feedback=await feedbackResponse(request,env);if(feedback)return feedback
  if(new URL(request.url).pathname==='/feedback'&&['GET','HEAD'].includes(request.method))return feedbackPage(request,env,'public')
  if(['/feedback/manage','/feedback/settings'].includes(new URL(request.url).pathname)){
