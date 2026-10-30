@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "86593c694bd62d35e953b9670690bbb122885cf43c826e004e58261fd00cc3cf",
+      "sha256": "6ce0f19a5be02922fcda352ce34bd34933f32aa83afa9c1f9febb1fde7f168a1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -306,7 +306,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "c18b1f0194f82b8887e4882013f81ca252c8fde37a5f3643cc1d4be806e948af",
+      "sha256": "8dd54bf2d3c58d38cb6864e7e4eb49e84065e12e98383699b2023a5c2bde7bb2",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3314,7 +3314,7 @@
       "executable": false
     },
     "src/placemat/audit.ts": {
-      "sha256": "df3c47f60eddb28e6d12630947eacd1198509ddae8b50a7113125eb40a79bca2",
+      "sha256": "cafce9cdce0b19ab49c12cbe25bdfd1a13d2207f8904ca2aadefa7d553b039be",
       "executable": false
     },
     "src/placemat/availability.ts": {
@@ -3566,7 +3566,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "f5251e349c9d999ce707780f4d465cf594be9b5fc3682bfcecf404f5e6f4a475",
+      "sha256": "4bd12af209a13844fe638c19b50274f0708d7b0e3dccbe5ef346d9e3180045f5",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -4250,7 +4250,7 @@
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {
-      "sha256": "c2e4e63485da9b8d527278ca0926cfb97bc72bee1b3f067ab26bce112ef9355f",
+      "sha256": "9e7403c990de7757fa0f3bc2270e83bac48d093c639662afd96f1222ef23b562",
       "executable": false
     },
     "tests/api/onboarding-fixture.mjs": {

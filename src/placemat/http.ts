@@ -34,7 +34,7 @@ import {kitchen,filterNotes} from './service-notes'
 import {kitchenPage} from './kitchen-view'
 import {preshift,serviceDate,preshiftPdf} from './preshift'
 import {preshiftPage} from './preshift-view'
-import {auditRows} from './audit'
+import {auditRows,filterLedgerAudit} from './audit'
 import {businessCsv} from './business-export'
 import {readCloseReport,closeReportCsv,closeReportPdf} from './service-close-report'
 import {businessExportKinds} from './business-export'
@@ -354,7 +354,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
   }
   if((path==='/api/audit'||path==='/api/audit.csv')&&request.method==='GET'){
-   const {state}=await load(env.DB);if(!actor!.agent&&['owner','admin'].includes(actor!.role))state.audit.push(...await refundAudit(env.DB),...await refundNoticeAudit(env.DB));if(actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId)state.audit.push(...await feeAudit(env.DB,actor!));const rows=auditRows(filterMergeAudit(filterNotes(state,actor!),actor!),url.searchParams)
+   const {state}=await load(env.DB);if(!actor!.agent&&['owner','admin'].includes(actor!.role))state.audit.push(...await refundAudit(env.DB),...await refundNoticeAudit(env.DB));if(actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId)state.audit.push(...await feeAudit(env.DB,actor!));const rows=auditRows(filterMergeAudit(filterNotes(filterLedgerAudit(state,actor!),actor!),actor!),url.searchParams)
    if(path.endsWith('.csv')){
     person(actor!,true)
     return new Response(businessCsv({...state,audit:rows},[],'audit'),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-audit.csv"'}})
@@ -405,7 +405,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
    const handoverPeople=await handoverAssignees(env.DB,state),paymentRequests=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[],refundCharges=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT charge_id AS chargeId,booking_id AS bookingId,amount_cents AS amountCents,imported_refunded_cents AS importedRefundedCents FROM pm_refund_charges').all()).results:[],refunds=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT id,request_id AS requestId,actor_id AS actorId,booking_id AS bookingId,charge_id AS chargeId,amount_cents AS amountCents,reason,status,processor_id AS processorId,created_at AS createdAt FROM pm_refunds').all()).results:[]
    const bookingContacts=!actor!.agent?Object.fromEntries((await env.DB.prepare('SELECT booking_id,data FROM pm_booking_contacts').all<{booking_id:string;data:string}>()).results.map(row=>[row.booking_id,JSON.parse(row.data)])):{}
-   return json({merchantWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readMerchant(env.DB,actor!):undefined,queueOrder:queueOrder(state),feeWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readFees(env.DB,actor!):undefined,refundFollowups:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await refundFollowups(env.DB):[],refundNotices:actor!.role==='owner'?await refundNotices(env.DB):[],bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({merchantWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readMerchant(env.DB,actor!):undefined,queueOrder:queueOrder(state),feeWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readFees(env.DB,actor!):undefined,refundFollowups:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await refundFollowups(env.DB):[],refundNotices:actor!.role==='owner'?await refundNotices(env.DB):[],bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(filterLedgerAudit(state,actor!),actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){
