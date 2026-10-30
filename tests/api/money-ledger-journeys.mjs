@@ -41,7 +41,9 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   await callback(h,event('synthetic-placemat-event-2','refund.created',{...refund,id:'synthetic-placemat-refund-2'}),409)
   let ledger=await h.api('/api/payments/ledger');assert.equal(ledger.items.length,2);assert.ok(ledger.items.every(i=>i.resolvedBookingId===booking.id))
   // Controlled Stripe-edge fixtures prove native behavior, not a live provider receipt.
-  if(conflicting)await callback(h,event('synthetic-placemat-event-5','charge.succeeded',{...charge,id:'synthetic-placemat-unmatched-1',amount_captured:500,metadata:{}}))
+  const sourceBooking=conflicting?(await h.api('/api/public/book',publicGuest(s,1),{as:'',status:201})).result:null
+  const conflictingCharge={...charge,id:'synthetic-placemat-unmatched-1',amount_captured:500,metadata:sourceBooking?{placemat_booking_id:sourceBooking.id}:{}}
+  if(conflicting)await callback(h,event('synthetic-placemat-event-5','charge.succeeded',conflictingCharge))
   ledger=await h.api('/api/payments/ledger')
   const originalItems=ledger.items
   const manager=await h.signIn('synthetic-placemat-manager@example.test','admin'),member=await h.signIn('synthetic-placemat-member@example.test')
@@ -60,12 +62,15 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   assert.equal(conflict.amount,200);assert.equal(conflict.source,'synthetic-placemat-unmatched-1')
   if(conflicting){
    assert.equal(conflict.signedFact.sourceId,conflict.source);assert.equal(conflict.signedFact.chargeId,conflict.source)
+   assert.equal(conflict.signedFact.bookingId,sourceBooking.id,'The original signed booking remains distinct from a later human attribution')
    assert.equal(conflict.signedFact.amountCents,500);assert.equal(conflict.differenceCents,-300)
   }else{assert.equal(conflict.signedFact,null);assert.equal(conflict.differenceCents,null)}
   const discrepancies=conflicting?[conflict.id]:[]
   assert.deepEqual(payout.discrepancies,discrepancies);assert.deepEqual(payout.unverified,conflicting?[]:[conflict.id])
   const payoutCsv=async target=>csvRecords(await (await target.request('/api/business-export/money-payouts.csv')).text())[0]
   const beforeCsv=await payoutCsv(h)
+  const financialCsv=async(target,kind)=>csvRecords(await (await target.request('/api/business-export/'+kind+'.csv')).text())
+  const originalFacts=await financialCsv(h,'money-items'),originalReceipts=await financialCsv(h,'money-receipts')
   assert.equal(JSON.parse(beforeCsv.items_json)[2].differenceCents,conflicting?-300:null)
   assert.deepEqual(JSON.parse(beforeCsv.discrepancies_json),discrepancies)
   await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:conflict.id,bookingId:'synthetic-placemat-nonexistent'},{status:409})
@@ -82,6 +87,9 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   const linked=attributed.items.find(i=>i.id===adjustment.transaction_id);assert.equal(linked.bookingId,booking.id);assert.equal(linked.adjustmentId,adjustment.id)
   assert.equal(linked.differenceCents,conflicting?-300:null);assert.deepEqual(linked.signedFact,conflict.signedFact)
   assert.deepEqual(attributed.discrepancies,discrepancies,'Attribution cannot resolve the financial difference')
+  if(conflicting)assert.notEqual(linked.bookingId,linked.signedFact.bookingId,'Human attribution never rewrites the signed booking reference')
+  assert.deepEqual(await financialCsv(h,'money-items'),originalFacts)
+  assert.deepEqual(await financialCsv(h,'money-receipts'),originalReceipts,'Attribution changes no signed-event history')
   const audit=(await h.api('/api/audit?action=payment.ledger-attribution')).rows
   assert.equal(audit.length,1);assert.equal(audit[0].actor,adjustment.actor_id);assert.equal(audit[0].at,adjustment.recorded_at)
   assert.equal(audit[0].source,'person');assert.equal(audit[0].reason,attribution.reason);assert.equal(audit[0].subject,booking.id)
@@ -98,6 +106,19 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   const afterCsv=await payoutCsv(h)
   assert.deepEqual(JSON.parse(afterCsv.items_json),attributed.items);assert.deepEqual(JSON.parse(afterCsv.discrepancies_json),discrepancies)
   assert.equal(afterCsv.grossCents,'9700');assert.equal(afterCsv.feeCents,'300');assert.equal(afterCsv.netCents,'9400')
+  const intact=await installation({bindings:{STRIPE_WEBHOOK_SECRET:secret}})
+  try{
+   await intact.api('/api/restore',{archive:await h.api('/api/backup'),confirm:'RESTORE'})
+   assert.deepEqual(await intact.api('/api/payments/ledger'),ledger,'An intact restore keeps both financial sources and the separate attribution')
+   assert.deepEqual((await intact.api('/api/audit?action=payment.ledger-attribution')).rows,audit,'An intact restore retains exact attribution actor, time, source, reason and before and after')
+   for(const kind of ['money-items','money-receipts','money-payouts','money-adjustments'])assert.deepEqual(await financialCsv(intact,kind),await financialCsv(h,kind))
+   await intact.api('/api/payments/ledger/adjustment',attribution,{status:409})
+   await callback(intact,event('synthetic-placemat-event-1','refund.created',refund))
+   if(conflicting)await callback(intact,event('synthetic-placemat-event-5','charge.succeeded',conflictingCharge))
+   assert.deepEqual(await intact.api('/api/payments/ledger'),ledger,'Restored callback and attribution replay cannot replace either source')
+   assert.deepEqual(await financialCsv(intact,'money-receipts'),originalReceipts)
+   assert.deepEqual((await intact.api('/api/audit?action=payment.ledger-attribution')).rows,audit)
+  }finally{await intact.close()}
   await h.api('/api/payments/ledger/adjustment',attribution,{status:409})
   assert.deepEqual((await h.api('/api/audit?action=payment.ledger-attribution')).rows,audit,'Replay appends neither adjustment nor audit')
   assert.equal((await h.api('/api/payments/ledger/payout',{payoutId:payout.id})).payouts.length,1)
@@ -111,6 +132,8 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   const erasedAudit=(await h.api('/api/audit?action=payment.ledger-attribution')).rows
   assert.equal(erasedAudit[0].reason,'');assert.deepEqual(erasedAudit[0].changes[0].before,{redacted:true});assert.deepEqual(erasedAudit[0].changes[0].after,{redacted:true})
   assert.deepEqual(JSON.parse((await payoutCsv(h)).items_json),attributed.items)
+  assert.deepEqual(await financialCsv(h,'money-items'),originalFacts)
+  assert.deepEqual(await financialCsv(h,'money-receipts'),originalReceipts)
   await h.api('/api/payments/ledger/adjustment',attribution,{status:409})
   const archive=await h.api('/api/backup'),restored=await installation({bindings:{STRIPE_WEBHOOK_SECRET:secret}})
   assert.ok(!JSON.stringify(archive).includes(attribution.reason),'Erasure removes copied attribution reasons from archives')
@@ -127,7 +150,7 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
    assert.deepEqual(JSON.parse((await payoutCsv(restored)).items_json),attributed.items)
    assert.deepEqual((await restored.api('/api/audit?action=payment.ledger-attribution')).rows,erasedAudit)
    await restored.api('/api/payments/ledger/adjustment',attribution,{status:409})
-   if(conflicting)await callback(restored,event('synthetic-placemat-event-5','charge.succeeded',{...charge,id:'synthetic-placemat-unmatched-1',amount_captured:501,metadata:{}}),409)
+   if(conflicting)await callback(restored,event('synthetic-placemat-event-5','charge.succeeded',{...conflictingCharge,amount_captured:501}),409)
    assert.deepEqual(await restored.api('/api/payments/ledger'),ledger)
   }finally{await restored.close()}
   const signedOut=await h.request('/auth/signout',{method:'POST',body:{}})
