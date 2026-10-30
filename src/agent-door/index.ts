@@ -5,7 +5,6 @@ import { hasDeviceCookie } from '../placemat/shared-device-cookie'
 import { hash } from '../placemat/store'
 import { readTools } from './reads'
 import { proposalTool } from './proposals'
-import { agentDocs } from './docs'
 
 const capabilities = ['tools', 'policy', 'pause', 'audit', 'idempotency'] as const
 export const notTools = [
@@ -38,7 +37,7 @@ export function companyDoor(env: Bindings) {
       return row ? ['operations:read', 'plans:prepare'] : []
     },
   })
-  return { ...door, async handle(request: Request) { return agentDocs(request, tools) ?? await door.handle(request) } }
+  return door
 }
 
 export function businessSettings(env: Bindings) {

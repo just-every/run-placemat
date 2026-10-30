@@ -1,5 +1,5 @@
 import {runFeedbackSurveys} from './placemat/feedback-mail'
-import {companyDoor, businessSettings} from './agent-door'
+import {agentResponse, businessSettingsResponse} from './agent-door/http'
 import {runReportSchedules} from './placemat/scheduled-reports'
 import { withDemo } from './modules/demo/index.mjs'
 import { rejectedResponse } from './base/rejected-response'
@@ -42,9 +42,9 @@ async function respond(request: Request, env: Bindings, execution: ExecutionCont
   const asset = await staticAssetResponse(request, env)
   if (asset) return asset
   const bindings = runtimeBindings(env)
-  const door = await companyDoor(bindings).handle(request)
+  const door = await agentResponse(request, bindings)
   if (door) return door
-  const business = await businessSettings(bindings).handle(request)
+  const business = await businessSettingsResponse(request, bindings)
   if (business) return business
   const auth = await authResponse(request, env)
   if (auth) return auth
