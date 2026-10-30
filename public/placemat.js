@@ -29,7 +29,7 @@ import { renderReports } from './placemat-reports.js';
 import {assignmentEditor,hostGrant} from './placemat-assignments.js';
 import {createTimeline} from './placemat-timeline.js';
 import {createPublicSearch} from './placemat-search.js';
-import {reportHeight,widgetSettings,parseOrigins,sourceLabel} from './placemat-widget.js';
+import {mountPublicReviews,reportHeight,widgetSettings,parseOrigins,sourceLabel} from './placemat-widget.js';
 import {createAnalyticsConsent} from './placemat-analytics.js';
 import {analyticsSettings,analyticsPayload} from './placemat-analytics-settings.js';
 import {renderCombinations,combinationEditor,validateCombination} from './placemat-combinations.js';
@@ -185,7 +185,7 @@ function renderWaitlist() {
 function expandedGuests() {return [...document.querySelectorAll('#guest-results > details[open]')].map(card=>card.querySelector('[data-action=guest-review]')?.dataset.id);}
 function renderGuests() {
   const expanded=expandedGuests();
-  $('#guests-content').innerHTML = `${canEdit()?'<p><a href="/feedback/manage">Visit feedback and recovery</a></p>':''}<label class="search-field"><span class="search-label">${searchIcon}Find a guest</span><input type="search" id="guest-search" value="${esc(guestQuery)}" placeholder="Name, email or phone"></label><div id="guest-results"></div>`;
+  $('#guests-content').innerHTML = `${canEdit()?'<p><a href="/feedback/manage">Visit feedback and recovery</a> · <a href="/reviews/manage">Public reviews and replies</a></p>':''}<label class="search-field"><span class="search-label">${searchIcon}Find a guest</span><input type="search" id="guest-search" value="${esc(guestQuery)}" placeholder="Name, email or phone"></label><div id="guest-results"></div>`;
   return renderGuestResults(expanded);
 }
 async function renderGuestResults(expanded=expandedGuests()) {
@@ -477,7 +477,7 @@ if (!isPublic) {
   const spy = new IntersectionObserver(entries => { for (const entry of entries) if (entry.isIntersecting) markNav(entry.target.id === 'bookings' ? 'floor' : entry.target.id); }, {rootMargin:'-20% 0px -70% 0px'});
   document.querySelectorAll('.app-main > section').forEach(section => spy.observe(section));
 }
-if (isPublic) publicSearch.load();
+if (isPublic) {publicSearch.load();mountPublicReviews();}
 if (document.body.dataset.embedOrigin) reportHeight(document.body.dataset.embedOrigin);
 else if(!isPublic) busy(async () => { await loadStaff(); floorSync.start(); notice(''); },'Loading…');
 

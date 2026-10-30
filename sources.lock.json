@@ -545,6 +545,10 @@
       "sha256": "f62d150b74f4209ff1d59e36429c58b28624c5d5279225fccb42f247005a4269",
       "executable": false
     },
+    "migrations/core/0052_reviews.sql": {
+      "sha256": "1e0bb7238df96a2dd3d45d11b61d678a1ada81a24983d5418ff58e3582edf965",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -726,7 +730,7 @@
       "executable": false
     },
     "public/placemat-diner.js": {
-      "sha256": "ec1344ab236953522afb196d44094594639bd93c3152457644b4dbdd2be9a348",
+      "sha256": "d9884db51979908f6daf33d3823e22f12e37ec2cc9d414d21a0c869047b0b518",
       "executable": false
     },
     "public/placemat-embed.js": {
@@ -742,7 +746,7 @@
       "executable": false
     },
     "public/placemat-feedback.js": {
-      "sha256": "433c6d7e98c975176a495fedbedf972d7152d28facc361a6c92077cf3b845b66",
+      "sha256": "1b577615a41015eda516f7b0d00a5d771f7ce1ecc66d7b09ba0a04c5a81da827",
       "executable": false
     },
     "public/placemat-fees.js": {
@@ -885,6 +889,14 @@
       "sha256": "6522c83246d32c86c870f588d775f569ab0be3260a3f86ca8082b0019af5e630",
       "executable": false
     },
+    "public/placemat-reviews.css": {
+      "sha256": "e6bdfb87ebc620783aad92f1c9c1194c6404b43206e7f30869608c0f5de3fe72",
+      "executable": false
+    },
+    "public/placemat-reviews.js": {
+      "sha256": "57dd877deca478ddabc0391f7c4252d92f8af05bdbfe2bd06407c5bacc4a5c3b",
+      "executable": false
+    },
     "public/placemat-risk.js": {
       "sha256": "ec552c31c8fc5e6c153f185a4de10a7006259f1fb6cfe82ace0118e436575234",
       "executable": false
@@ -930,7 +942,7 @@
       "executable": false
     },
     "public/placemat-widget.js": {
-      "sha256": "4677f48c6ae623b7075a18dbd38286f8b3b48ffa729b759b2518f51045b158d3",
+      "sha256": "49f9663868eaf70cb67353c75a7ea7e0c7578728c99ee84246b55804ebf6464f",
       "executable": false
     },
     "public/placemat.css": {
@@ -938,7 +950,7 @@
       "executable": false
     },
     "public/placemat.js": {
-      "sha256": "d212984bc9cab9532d5c3ab0cc83744af95cdb66bf9b6e640b60102f3526b6c8",
+      "sha256": "8f58efd944554ba35cae6d2efb900729fa7b695650f91805398879b3c70388e7",
       "executable": false
     },
     "public/plan.css": {
@@ -3418,7 +3430,7 @@
       "executable": false
     },
     "src/placemat/diner-accounts.ts": {
-      "sha256": "ca1b26b435d357a0fb6b7858024d62c00ef71b00d52962f7417f92a054653aed",
+      "sha256": "38261c30b7ff417c988e5681442613021e3cf2b120ab48c8e18899837e90e079",
       "executable": false
     },
     "src/placemat/diner-archive.mjs": {
@@ -3486,7 +3498,7 @@
       "executable": false
     },
     "src/placemat/feedback-mail.ts": {
-      "sha256": "8c9489a56ff76ccbbf6c65a7fafea41a938c90241542053da21c81bd66af3061",
+      "sha256": "66b1feecb06b42b3cfbd12f9bbbde1d8d0e951578d87b9030b2f405f62d007cf",
       "executable": false
     },
     "src/placemat/feedback-store.ts": {
@@ -3566,7 +3578,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "f5251e349c9d999ce707780f4d465cf594be9b5fc3682bfcecf404f5e6f4a475",
+      "sha256": "8a5827fc81d594631025a7a4428074eae772e308e5d59d53ddf4b79951138d37",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -3825,6 +3837,14 @@
       "sha256": "33a56f45ab894d4ff67a511eba65c92723c30fad69432b9391119960e08e82a3",
       "executable": false
     },
+    "src/placemat/reviews-view.ts": {
+      "sha256": "7085080fa3ade4294195f20dc2016750c284d6b4639d6d7a1ca950e791ea9f73",
+      "executable": false
+    },
+    "src/placemat/reviews.ts": {
+      "sha256": "3b90225b077b199084d828060d7eb5e51755c176816d88213c37859d4ffde7bb",
+      "executable": false
+    },
     "src/placemat/scheduled-reports.ts": {
       "sha256": "332c525c9e9d2c64dd0bc6619ef58e7a031a9155d6ccd2148284f3ba6df0850a",
       "executable": false
@@ -3938,7 +3958,7 @@
       "executable": false
     },
     "src/placemat/views.ts": {
-      "sha256": "2351381a136ee8e7846e2cba44cc393106865ef87f06bd577c8ad1132e9a5cf3",
+      "sha256": "3ac9fb1853d654089f4693aa27bfbe19588a0014350ee74944a90304c82f8bed",
       "executable": false
     },
     "src/placemat/wait-join.ts": {
