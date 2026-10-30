@@ -1,8 +1,8 @@
 import {localTime} from '../public/placemat-local-time.js'
 // BOOK-005 first slice: a granted host identifies a returning concierge guest and books a future visit.
 import assert from 'node:assert/strict'
-import {mkdir} from 'node:fs/promises'
-import {resolve} from 'node:path'
+import {mkdir,readFile} from 'node:fs/promises'
+import {resolve,extname} from 'node:path'
 import {chromium} from '@playwright/test'
 import {installation,service,publicGuest} from './api/harness.mjs'
 import {browserServer} from './browser-server.mjs'
@@ -19,7 +19,26 @@ for(const width of [1440,390]){
   const shot=async(name,locator)=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await locator.screenshot({path:resolve(shots,`BOOK-005-${name}-${width}.png`)})};await shot('returning-concierge-review',form)
   const before=h.messages.length;await form.getByRole('button',{name:'Create phone booking',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
   const view=await h.api('/api/state'),booking=view.state.bookings.find(b=>b.staffIntake?.source==='concierge');assert.ok(booking);assert.equal(booking.guestId,guest.id);assert.equal(booking.staffIntake.contactPreference,'sms');assert.equal(h.messages.length,before,'Intake records the preference without pretending a confirmation was sent')
-  assert.match(await page.locator('#bookings-list').innerText(),/concierge.*sms contact preference/);if(width===1440){assert.equal(booking.staffIntake.campaign,'synthetic-placemat-concierge');assert.match(await page.locator('#bookings-list').innerText(),/Campaign: synthetic-placemat-concierge/);assert.equal(await page.locator('[data-channel-total=concierge]').innerText(),'concierge: 1 parties · 2 covers');assert.equal(await page.locator('[data-channel-total=website]').innerText(),'website: 1 parties · 2 covers');assert.match(await page.getByRole('region',{name:'Listed channel totals'}).innerText(),/Total: 2 parties · 4 covers/);}await shot('same-live-floor-schedule',page.locator('#bookings-list'));assert.deepEqual(errors,[])
+  assert.match(await page.locator('#bookings-list').innerText(),/concierge.*sms contact preference/);if(width===1440){assert.equal(booking.staffIntake.campaign,'synthetic-placemat-concierge');assert.match(await page.locator('#bookings-list').innerText(),/Campaign: synthetic-placemat-concierge/);assert.equal(await page.locator('[data-channel-total=phone]').innerText(),'phone: 1 parties · 2 covers');assert.equal(await page.locator('[data-channel-total=website]').innerText(),'website: 1 parties · 2 covers');assert.match(await page.getByRole('region',{name:'Listed channel totals'}).innerText(),/Total: 2 parties · 4 covers/);}await shot('same-live-floor-schedule',page.locator('#bookings-list'));
+  if(width===1440){
+   await h.command('booking.management.send',{bookingId:booking.id,acknowledged:true});const token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+   const preview=await h.api('/api/public/booking-management/preview',{token,action:'change',partySize:3,startAt:new Date(Date.parse(booking.startAt)+15*60000).toISOString()},{as:''});await h.api('/api/public/booking-management/commit',{token,previewId:preview.previewId,acknowledged:true},{as:''})
+   await page.reload();await page.locator('.app-main[aria-busy=false]').waitFor();assert.equal(await page.locator('[data-channel-total=phone]').innerText(),'phone: 1 parties · 3 covers');assert.match(await page.getByRole('region',{name:'Listed channel totals'}).innerText(),/Total: 2 parties · 5 covers/);assert.match(await page.locator('#bookings-list').innerText(),/Campaign: synthetic-placemat-concierge/)
+   const host='https://restaurant.example.test';await h.command('embed.origins',{origins:[host]})
+   await context.route(h.origin+'/**',async route=>{
+    const request=route.request(),url=new URL(request.url()),file=resolve('public','.'+url.pathname)
+    if(file.startsWith(resolve('public')+'/')&&extname(file)){try{await route.fulfill({status:200,contentType:{'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream',body:await readFile(file)});return}catch{}}
+    const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})});await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
+   })
+   await context.route(host+'/**',route=>route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div data-placemat-book></div><script src="${h.origin}/placemat-embed.js" async></script></body></html>`}))
+   const widgetPage=await context.newPage();try{
+    await widgetPage.goto(host+'/?utm_campaign=synthetic-placemat-widget');const frame=widgetPage.frameLocator('iframe[title="Book a table"]');await frame.locator('[name=date]').waitFor();await frame.locator('#public-content[aria-busy]').waitFor({state:'detached'})
+    const search=frame.locator('[data-public-command=search]');await search.locator('[name=date]').fill(f.service.startAt.slice(0,10));await search.getByRole('button',{name:'Find available times'}).click();await frame.getByRole('status').filter({hasText:'Availability updated'}).waitFor();await frame.locator('[name=public-result]').selectOption({index:1})
+    await frame.locator('[name=name]').fill('synthetic-placemat-widget');await frame.locator('[name=email]').fill(['synthetic-placemat-widget','example.test'].join('@'));await frame.locator('[name=requestsAcknowledged]').check();await frame.getByRole('button',{name:'Confirm booking',exact:true}).click();await frame.getByRole('heading',{name:'Booking confirmed'}).waitFor()
+    const captured=(await h.api('/api/state')).state.bookings.find(b=>b.attribution?.campaign==='synthetic-placemat-widget');assert.ok(captured);assert.equal(captured.source,'online');assert.deepEqual(captured.attribution,{door:'widget',origin:host,campaign:'synthetic-placemat-widget'});assert.equal(h.analytics.length,0)
+   }finally{await widgetPage.close()}
+  }
+  assert.deepEqual(errors,[])
   console.log(`BOOK-005 host returning-guest concierge intake and floor schedule passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }

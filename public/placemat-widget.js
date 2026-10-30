@@ -1,7 +1,7 @@
 /* BOOK-002: website booking widget. The framed page only reports its height to the allowlisted website; it accepts no messages. */
 const originalSourceLabel = b => b.staffIntake ? `${b.staffIntake.source} · ${b.staffIntake.contactPreference} contact preference` : b.attribution?.door === 'widget' ? `${b.source} · website widget on ${b.attribution.origin}` : b.attribution?.door === 'booking-page' ? `${b.source} · booking page` : b.source;
 export const sourceLabel = b => originalSourceLabel(b)+((b.staffIntake?.campaign||b.attribution?.campaign)?` · Campaign: ${b.staffIntake?.campaign||b.attribution?.campaign}`:'');
-export const nativeChannel=b=>b.staffIntake?.source||(b.source==='online'?'website':b.source);
+export const nativeChannel=b=>b.source==='online'?'website':b.source;
 export function channelSummary(rows,esc){
  const totals=new Map();
  for(const row of rows){const key=nativeChannel(row),total=totals.get(key)||{parties:0,covers:0};total.parties++;total.covers+=row.partySize;totals.set(key,total);}

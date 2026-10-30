@@ -658,7 +658,7 @@
       "executable": false
     },
     "public/placemat-allocation-policy.js": {
-      "sha256": "e67878d89855fb2dd765d803f15e5e07cab871dfced050eabca7d2853dd74074",
+      "sha256": "2fb4c91918a000a3e066b045ecea505b48cdbfe69eaaa20df4affa1612e64a5a",
       "executable": false
     },
     "public/placemat-allocation.js": {
@@ -930,7 +930,7 @@
       "executable": false
     },
     "public/placemat-widget.js": {
-      "sha256": "6976935d863afdec85bd6d867ebe46eec97a2db9da327193d2e7eaaebcb1abb9",
+      "sha256": "1365b86176f4251ed36fead332dbd36d52318527a6002f70ecccf24346b3f184",
       "executable": false
     },
     "public/placemat.css": {
@@ -3546,7 +3546,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "c2804c253a5c164017a4bb87f32c19628a8c45736b67ba182b0689574eee16be",
+      "sha256": "3ab2a0582a656bc3e95fb860aadc95aa92562823c65f9eb0b37aaf4eb4b42982",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -4274,7 +4274,7 @@
       "executable": false
     },
     "tests/api/phone-booking-journeys.mjs": {
-      "sha256": "5704eb551e3f68e108db8a56726b636f3411979ab12eede6d45313c66cc0de21",
+      "sha256": "bc09871031ebab0d7f7c41762d96171f29a8f2753cf6282a2d8f57300baa58f3",
       "executable": false
     },
     "tests/api/preshift-fixture.mjs": {
@@ -4486,7 +4486,7 @@
       "executable": false
     },
     "tests/phone-bookings-ui.mjs": {
-      "sha256": "d215e3219434411d2d21f1fde2e2e5d195b8c9672fe4e3a10a354101db756ee3",
+      "sha256": "be0cba36ccd90b70af94da8a8ff2af03ca026ae9c8adde72a1ca1778a124fcfd",
       "executable": false
     },
     "tests/preshift-ui.mjs": {

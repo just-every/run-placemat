@@ -74,10 +74,22 @@ export async function nativeChannelJourney(){
   const phone=p=>h.command('booking.phone',p),website=(p,status=201)=>h.api('/api/public/book',p,{as:'',status})
   await h.command('booking.phone',payload(1),{status:409})
   const blocked=await website(payload(2,{pacingConfirm:'yes',overrideReason:'synthetic-placemat-1'}),409);assert.match(blocked.error,/protected for phone/)
+  const change=async booking=>{
+   await h.command('booking.management.send',{bookingId:booking.id,acknowledged:true})
+   const token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+   const preview=await h.api('/api/public/booking-management/preview',{token,action:'change',startAt:new Date(Date.parse(booking.startAt)+15*60000).toISOString(),partySize:3},{as:''})
+   await h.api('/api/public/booking-management/commit',{token,previewId:preview.previewId,acknowledged:true},{as:''})
+   const actual=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id)
+   assert.equal(actual.partySize,3);assert.equal(Date.parse(actual.startAt),Date.parse(booking.startAt)+15*60000)
+   assert.equal(actual.source,booking.source);assert.deepEqual(actual.staffIntake,booking.staffIntake);assert.deepEqual(actual.attribution,booking.attribution)
+   return actual
+  }
   const first=await phone(payload(2,{staffIntake:{source:'phone',contactPreference:'none',confirmationConsent:false,campaign:'synthetic-placemat-phone'}}))
   await h.command('booking.phone',payload(2),{status:409})
+  await change(first)
   await h.command('embed.origins',{origins:['https://restaurant.example.test']})
   const direct=(await website(payload(0,{embedOrigin:'https://restaurant.example.test',campaign:'synthetic-placemat-widget'}))).result
+  await change((await h.api('/api/state')).state.bookings.find(b=>b.id===direct.id))
   const cancelled=(await website(payload(1))).result;await h.command('booking.status',{bookingId:cancelled.id,status:'cancelled'})
   // Expiring direct protection releases that channel restriction only; phone keeps its own deadline.
   now=Date.parse(directDeadline)
@@ -91,17 +103,7 @@ export async function nativeChannelJourney(){
   assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===first.id).status,'booked')
   console.log('PROBE DIST-004 allocation: reviewed two direct four-tops and one phone four-top -> channel exhaustion, independent deadlines and one concurrent last-table winner; occupied phone table retained')
   // Guests genuinely change time and size; source, campaign and widget origin stay immutable.
-  const change=async booking=>{
-   await h.command('booking.management.send',{bookingId:booking.id,acknowledged:true})
-   const token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
-   const preview=await h.api('/api/public/booking-management/preview',{token,action:'change',startAt:new Date(Date.parse(booking.startAt)+15*60000).toISOString(),partySize:3},{as:''})
-   await h.api('/api/public/booking-management/commit',{token,previewId:preview.previewId,acknowledged:true},{as:''})
-   const actual=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id)
-   assert.equal(actual.partySize,3);assert.equal(Date.parse(actual.startAt),Date.parse(booking.startAt)+15*60000)
-   assert.equal(actual.source,booking.source);assert.deepEqual(actual.staffIntake,booking.staffIntake);assert.deepEqual(actual.attribution,booking.attribution)
-   return actual
-  }
-  await change((await h.api('/api/state')).state.bookings.find(b=>b.id===direct.id))
+
   const native=[]
   for(const [index,source] of ['phone','concierge','offline'].entries()){
    const booking=await phone(payload(2,{startAt:new Date(Date.parse(service.startAt)+(index+1)*90*60000).toISOString(),partySize:2,staffIntake:{source,contactPreference:'email',confirmationConsent:true,campaign:`synthetic-placemat-${source}`}}))
@@ -118,7 +120,17 @@ export async function nativeChannelJourney(){
   restored=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now});await restored.api('/api/restore',{archive:await h.api('/api/backup'),confirm:'RESTORE'})
   const after=(await restored.api('/api/state')).state;assert.deepEqual(after.bookings,bookings);assert.deepEqual(after.services,services)
   const {channelSummary}=await import('../../public/placemat-widget.js'),summary=channelSummary(bookings,v=>String(v))
-  assert.match(summary,/concierge: 1 parties · 3 covers/);assert.match(summary,/offline: 1 parties · 3 covers/);assert.match(summary,new RegExp(`Total: ${bookings.length} parties · ${bookings.reduce((n,b)=>n+b.partySize,0)} covers`))
+  assert.match(summary,new RegExp(`phone: ${raced[1].ok?5:4} parties · ${raced[1].ok?16:12} covers`));assert.match(summary,new RegExp(`website: ${raced[0].ok?3:2} parties · ${raced[0].ok?11:7} covers`));assert.match(summary,/Total: 7 parties · 23 covers/)
   console.log('PROBE DIST-004 reconciliation: booking and service CSV downloads plus archive restore -> exact native source, campaign, release records and cover totals retained')
+  const oldArchive=await h.api('/api/backup')
+  await h.command('guest.erase',{guestId:native[1].guestId,confirm:'ERASE'})
+  await h.command('guest.erase',{guestId:bookings.find(b=>b.id===direct.id).guestId,confirm:'ERASE'})
+  const erased=(await h.api('/api/state')).state
+  assert.ok(!JSON.stringify(erased).includes('synthetic-placemat-concierge'))
+  assert.ok(!JSON.stringify(erased).includes('synthetic-placemat-widget'))
+  const refused=await h.api('/api/restore',{archive:oldArchive,confirm:'RESTORE'},{status:400});assert.match(refused.error,/before a guest was erased/)
+  assert.deepEqual((await h.api('/api/state')).state,erased)
+  console.log('PROBE DIST-004 erasure: erase native campaign-bearing guests then replay older archive -> campaign copies removed and stale restore refused unchanged')
+
  }finally{if(restored)await restored.close();await h.close()}
 }

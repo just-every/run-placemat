@@ -7,7 +7,7 @@ export function allocationPolicy({esc,field,tableNames,time,timezone}) {
  function preview(kind,plan) {
   if(kind==='inventory.protect'){
    const p=plan.protection;
-   return `<h5>${plan.action==='release'?'Release':'Protect'} ${channel(p)} inventory</h5><p>${esc(tableNames(p.tableIds))} · ${stamp(p.startAt)} to ${stamp(p.endAt)}<br>Fitting party size: ${esc(p.partySize)}<br>Release deadline: ${stamp(p.releaseAt||p.endAt)}</p>${explanations(plan.preview.explanations||[])}<p>No existing booking moves. Website bookings still require a current capacity check.</p>`;
+   return `<h5>${plan.action==='release'?'Release':'Protect'} ${channel(p)} inventory</h5><p>${esc(tableNames(p.tableIds))} · ${stamp(p.startAt)} to ${stamp(p.endAt)}<br>Fitting party size: ${esc(p.partySize)}<br>Release deadline: ${stamp(p.releaseAt||p.endAt)}</p>${explanations(plan.preview.explanations||[])}<p>No existing booking moves. Every booking still requires current physical capacity and pacing checks.</p>`;
   }
   const p=plan.preview;
   return `<h5>Reviewed shift extension</h5><p>Service end: ${stamp(p.beforeEndAt)} → ${stamp(p.afterEndAt)}</p>${explanations(p.explanations)}<p>Preserved bookings: ${esc((p.unchangedBookingIds||[]).length)}. Every existing arrival, departure, table and access requirement stays unchanged.</p>${(p.waits||[]).map(row=>`<p>Queue ${esc(row.waitlistId)} · ${esc(row.partySize)} covers<br>Before: ${row.before.earliestAt?stamp(row.before.earliestAt):'No feasible slot'}<br>After: ${row.after.earliestAt?stamp(row.after.earliestAt):'No feasible slot'}</p>`).join('')}`;
