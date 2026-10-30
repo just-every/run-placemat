@@ -53,7 +53,7 @@ export function unframeable(request:Request,response:Response):Response{
 /** Attribution for public bookings: a widget claim must name a currently allowed website. */
 export function campaignCode(value:unknown):string|undefined{
  if(value===undefined||value==='')return undefined
- if(typeof value!=='string'||! /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(value))fail(400,'Campaign must be a code of up to 80 letters, digits, dots, underscores or hyphens.')
+ if(typeof value!=='string'||value.length>80||/[\u0000-\u001f\u007f-\u009f]/.test(value))fail(400,'Campaign must be text of up to 80 characters without control characters.')
  return value as string
 }
 export function bookingAttribution(s:State,claimed:unknown,campaign?:unknown):NonNullable<import('./model').Booking['attribution']>{

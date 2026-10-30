@@ -88,7 +88,7 @@ export async function nativeChannelJourney(){
   await h.command('booking.phone',payload(2),{status:409})
   await change(first)
   await h.command('embed.origins',{origins:['https://restaurant.example.test']})
-  const direct=(await website(payload(0,{embedOrigin:'https://restaurant.example.test',campaign:'synthetic-placemat-widget'}))).result
+  const direct=(await website(payload(0,{embedOrigin:'https://restaurant.example.test',campaign:'Fall Dinner'}))).result
   await change((await h.api('/api/state')).state.bookings.find(b=>b.id===direct.id))
   const cancelled=(await website(payload(1))).result;await h.command('booking.status',{bookingId:cancelled.id,status:'cancelled'})
   // Expiring direct protection releases that channel restriction only; phone keeps its own deadline.
@@ -127,7 +127,7 @@ export async function nativeChannelJourney(){
   await h.command('guest.erase',{guestId:bookings.find(b=>b.id===direct.id).guestId,confirm:'ERASE'})
   const erased=(await h.api('/api/state')).state
   assert.ok(!JSON.stringify(erased).includes('synthetic-placemat-concierge'))
-  assert.ok(!JSON.stringify(erased).includes('synthetic-placemat-widget'))
+  assert.ok(!JSON.stringify(erased).includes('Fall Dinner'))
   const refused=await h.api('/api/restore',{archive:oldArchive,confirm:'RESTORE'},{status:400});assert.match(refused.error,/before a guest was erased/)
   assert.deepEqual((await h.api('/api/state')).state,erased)
   console.log('PROBE DIST-004 erasure: erase native campaign-bearing guests then replay older archive -> campaign copies removed and stale restore refused unchanged')

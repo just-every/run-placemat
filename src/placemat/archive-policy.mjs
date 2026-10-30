@@ -89,7 +89,7 @@ export default {
   }
   if(s.tables.some(t=>(t.inventoryId!==undefined||t.inventoryKind!==undefined)&&!inventoryIds.has(t.inventoryId)))throw Error('Unknown seat inventory')
   if(s.bookings.some(b=>b.staffIntake!==undefined&&(!b.staffIntake||!['phone','concierge','offline'].includes(b.staffIntake.source)||!['email','sms','none'].includes(b.staffIntake.contactPreference)||typeof b.staffIntake.confirmationConsent!=='boolean'||b.source!=='phone')))throw Error('Invalid staff reservation intake')
-  const validCampaign=value=>value===undefined||typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(value)
+  const validCampaign=value=>value===undefined||typeof value==='string'&&value.length>0&&value.length<=80&&!/[\u0000-\u001f\u007f-\u009f]/.test(value)
   if(s.bookings.some(b=>!validCampaign(b.staffIntake?.campaign)||!validCampaign(b.attribution?.campaign)))throw Error('Invalid campaign code')
   for(const b of s.bookings){
    const units=b.tableIds.map(id=>s.tables.find(t=>t.id===id))

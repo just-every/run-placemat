@@ -3306,7 +3306,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "af23766cd1160ce06ee1d3214b23a00b502604f694f9c62fb5145e1f696ab9b3",
+      "sha256": "33a3d649fb4df967cd44bbef8006b3a7024d1cc15b789df49c49909da10785d9",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -3438,7 +3438,7 @@
       "executable": false
     },
     "src/placemat/embed.ts": {
-      "sha256": "dc9af1a1b92123bb1131801ce81be0d3e4b1f2065470b47f2c9966441676ac87",
+      "sha256": "dfc09df9efe462f64545d1642af989e523edeb6c29d6032a5af6e9f61ad69b0f",
       "executable": false
     },
     "src/placemat/experience-cart.ts": {
@@ -4274,7 +4274,7 @@
       "executable": false
     },
     "tests/api/phone-booking-journeys.mjs": {
-      "sha256": "bc09871031ebab0d7f7c41762d96171f29a8f2753cf6282a2d8f57300baa58f3",
+      "sha256": "5c10de3863bd98420f38f726a80f5254681ac66ba7b8817411eba320b91b0587",
       "executable": false
     },
     "tests/api/preshift-fixture.mjs": {
@@ -4486,7 +4486,7 @@
       "executable": false
     },
     "tests/phone-bookings-ui.mjs": {
-      "sha256": "be0cba36ccd90b70af94da8a8ff2af03ca026ae9c8adde72a1ca1778a124fcfd",
+      "sha256": "92d8e29c74f43a0f3c2e344f8e5fc423982bbd877d724f731504d8eb5b459a46",
       "executable": false
     },
     "tests/preshift-ui.mjs": {
