@@ -1,3 +1,4 @@
+import {moneySettlements} from './money-ledger-archive.mjs'
 import {portableServiceChanges} from './service-change-archive.mjs'
 import {fail,type Guest,type State} from './model'
 import {analyticsSettings} from './analytics'
@@ -55,7 +56,7 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'accounting-exports':return {fields:['id','case_id','review_id','actor_id','created_at','state','provider_id','code','trace_id','updated_at','ledger_json','journal_json'],rows:(finance.accountingExports??[]).map(r=>({...r,ledger:JSON.parse(String(r.ledger)),journal:JSON.parse(String(r.journal))}))}
   case 'money-items':return {fields:['source_id','kind','charge_id','booking_id','amount_cents','currency','recorded_at'],rows:finance.moneyItems??[]}
   case 'money-receipts':return {fields:['event_id','source_id','received_at'],rows:finance.moneyReceipts??[]}
-  case 'money-payouts':return {fields:['id','amount_cents','currency','items_json','actor_id','recorded_at'],rows:(finance.moneyPayouts??[]).map(r=>({...r,items:JSON.parse(String(r.items))}))}
+  case 'money-payouts':return {fields:['id','amount_cents','currency','items_json','actor_id','recorded_at','grossCents','feeCents','netCents','unmatched_json','discrepancies_json','unverified_json'],rows:moneySettlements(finance.moneyItems??[],finance.moneyPayouts??[],finance.moneyAdjustments??[],state.bookings.map(b=>b.id)).map((view,index)=>({...finance.moneyPayouts![index],...view}))}
   case 'money-adjustments':return {fields:['id','payout_id','transaction_id','booking_id','actor_id','recorded_at'],rows:finance.moneyAdjustments??[]}
   case 'guest-merges':return {fields:['id','guestId','duplicateId','status','createdAt','createdBy','unmergedAt','unmergedBy','purgedAt','snapshots_json','pendingAssignment_json'],rows:merges}
   case 'venue':return {fields:['name','timezone','setup_json','hostIds_json','pacingHostIds_json','leadIds_json','serverIds_json','financeIds_json','reportScopes_json','managerRefundLimits_json','embedOrigins_json','analytics_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,leadIds:state.leadIds,serverIds:state.serverIds,financeIds:state.financeIds,reportScopes:state.reportScopes,managerRefundLimits:state.managerRefundLimits,embedOrigins:state.embed?.origins??[],analytics:analyticsSettings(state)}]}

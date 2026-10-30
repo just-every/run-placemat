@@ -2,6 +2,7 @@ import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portab
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {createHmac} from 'node:crypto'
+import {csvRecords} from './business-fixture.mjs'
 import {installation,service,publicGuest} from './harness.mjs'
 
 const secret='synthetic-placemat-2'
@@ -13,6 +14,7 @@ async function callback(h,event,status=200,valid=true){
 const event=(id,type,object)=>({id,type,data:{object}})
 
 test('Signed money facts reconcile refund-before-charge and duplicate callbacks, payout fees and appended unmatched attribution without editing history',async()=>{
+ for(const conflicting of [false,true]){
  let payoutAmount=9400,netMismatch=false
  const calls=[],edge=async request=>{
   const url=new URL(request.url);calls.push({method:request.method,url})
@@ -38,6 +40,9 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   await callback(h,event('synthetic-placemat-event-4','charge.succeeded',{...charge,amount_captured:11000}),409)
   await callback(h,event('synthetic-placemat-event-2','refund.created',{...refund,id:'synthetic-placemat-refund-2'}),409)
   let ledger=await h.api('/api/payments/ledger');assert.equal(ledger.items.length,2);assert.ok(ledger.items.every(i=>i.resolvedBookingId===booking.id))
+  // Controlled Stripe-edge fixtures prove native behavior, not a live provider receipt.
+  if(conflicting)await callback(h,event('synthetic-placemat-event-5','charge.succeeded',{...charge,id:'synthetic-placemat-unmatched-1',amount_captured:500,metadata:{}}))
+  ledger=await h.api('/api/payments/ledger')
   const originalItems=ledger.items
   const manager=await h.signIn('synthetic-placemat-manager@example.test','admin'),member=await h.signIn('synthetic-placemat-member@example.test')
   for(const as of ['',manager,member]){
@@ -51,8 +56,23 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   netMismatch=false
   ledger=await h.api('/api/payments/ledger/payout',{payoutId:'synthetic-placemat-payout-1'})
   const payout=ledger.payouts[0];assert.equal(payout.grossCents,9700);assert.equal(payout.feeCents,300);assert.equal(payout.netCents,9400);assert.deepEqual(payout.unmatched,['synthetic-placemat-bt-3']);assert.ok(payout.items.slice(0,2).every(i=>i.bookingId===booking.id))
-  await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:'synthetic-placemat-bt-3',bookingId:'synthetic-placemat-nonexistent'},{status:409})
-  ledger=await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:'synthetic-placemat-bt-3',bookingId:booking.id})
+  const conflict=payout.items.find(i=>i.id==='synthetic-placemat-bt-3')
+  assert.equal(conflict.amount,200);assert.equal(conflict.source,'synthetic-placemat-unmatched-1')
+  if(conflicting){
+   assert.equal(conflict.signedFact.sourceId,conflict.source);assert.equal(conflict.signedFact.chargeId,conflict.source)
+   assert.equal(conflict.signedFact.amountCents,500);assert.equal(conflict.differenceCents,-300)
+  }else{assert.equal(conflict.signedFact,null);assert.equal(conflict.differenceCents,null)}
+  const discrepancies=conflicting?[conflict.id]:[]
+  assert.deepEqual(payout.discrepancies,discrepancies);assert.deepEqual(payout.unverified,conflicting?[]:[conflict.id])
+  const payoutCsv=async target=>csvRecords(await (await target.request('/api/business-export/money-payouts.csv')).text())[0]
+  const beforeCsv=await payoutCsv(h)
+  assert.equal(JSON.parse(beforeCsv.items_json)[2].differenceCents,conflicting?-300:null)
+  assert.deepEqual(JSON.parse(beforeCsv.discrepancies_json),discrepancies)
+  await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:conflict.id,bookingId:'synthetic-placemat-nonexistent'},{status:409})
+  const attribution={payoutId:payout.id,transactionId:conflict.id,bookingId:booking.id,reason:'Alex Rowan reviewed attribution only; the amount remains disputed.'}
+  const raced=await Promise.all([h.request('/api/payments/ledger/adjustment',{method:'POST',body:attribution}),h.request('/api/payments/ledger/adjustment',{method:'POST',body:attribution})])
+  assert.deepEqual(raced.map(r=>r.status).sort(),[200,409],'Concurrent attribution has exactly one winner')
+  ledger=await h.api('/api/payments/ledger')
   assert.equal(ledger.adjustments.length,1);assert.equal(ledger.payouts[0].unmatched.length,0);assert.deepEqual(ledger.items,originalItems)
   const attributed=ledger.payouts[0],adjustment=ledger.adjustments[0]
   assert.deepEqual([attributed.grossCents,attributed.feeCents,attributed.netCents],[payout.grossCents,payout.feeCents,payout.netCents],'Human attribution changes no provider total')
@@ -60,7 +80,19 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   assert.equal(adjustment.booking_id,booking.id);assert.equal(adjustment.transaction_id,'synthetic-placemat-bt-3');assert.equal(adjustment.payout_id,payout.id)
   assert.equal(adjustment.actor_id,(await h.api('/api/state')).actor.id);assert.ok(Number.isFinite(Date.parse(adjustment.recorded_at)))
   const linked=attributed.items.find(i=>i.id===adjustment.transaction_id);assert.equal(linked.bookingId,booking.id);assert.equal(linked.adjustmentId,adjustment.id)
-  await h.api('/api/payments/ledger/adjustment',{payoutId:payout.id,transactionId:'synthetic-placemat-bt-3',bookingId:booking.id},{status:409})
+  assert.equal(linked.differenceCents,conflicting?-300:null);assert.deepEqual(linked.signedFact,conflict.signedFact)
+  assert.deepEqual(attributed.discrepancies,discrepancies,'Attribution cannot resolve the financial difference')
+  const audit=(await h.api('/api/audit?action=payment.ledger-attribution')).rows
+  assert.equal(audit.length,1);assert.equal(audit[0].actor,adjustment.actor_id);assert.equal(audit[0].at,adjustment.recorded_at)
+  assert.equal(audit[0].source,'person');assert.equal(audit[0].reason,attribution.reason);assert.equal(audit[0].subject,booking.id)
+  assert.deepEqual(audit[0].changes,[{kind:'money-attribution',id:adjustment.id,before:conflict,after:linked}])
+  const auditCsv=csvRecords(await (await h.request('/api/business-export/audit.csv')).text()).find(r=>r.action==='payment.ledger-attribution')
+  assert.deepEqual(JSON.parse(auditCsv.changes_json),audit[0].changes)
+  const afterCsv=await payoutCsv(h)
+  assert.deepEqual(JSON.parse(afterCsv.items_json),attributed.items);assert.deepEqual(JSON.parse(afterCsv.discrepancies_json),discrepancies)
+  assert.equal(afterCsv.grossCents,'9700');assert.equal(afterCsv.feeCents,'300');assert.equal(afterCsv.netCents,'9400')
+  await h.api('/api/payments/ledger/adjustment',attribution,{status:409})
+  assert.deepEqual((await h.api('/api/audit?action=payment.ledger-attribution')).rows,audit,'Replay appends neither adjustment nor audit')
   assert.equal((await h.api('/api/payments/ledger/payout',{payoutId:payout.id})).payouts.length,1)
   payoutAmount=9500
   await h.api('/api/payments/ledger/payout',{payoutId:payout.id},{status:409})
@@ -69,7 +101,12 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   const guest=(await h.api('/api/state')).state.bookings.find(b=>b.id===booking.id).guestId
   await h.command('guest.erase',{guestId:guest,confirm:'ERASE'})
   assert.deepEqual(await h.api('/api/payments/ledger'),ledger,'Erasure retains only reference and amount facts; no guest content was copied into the ledger')
-  const archive=await h.api('/api/backup'),restored=await installation()
+  const erasedAudit=(await h.api('/api/audit?action=payment.ledger-attribution')).rows
+  assert.equal(erasedAudit[0].reason,'');assert.deepEqual(erasedAudit[0].changes[0].before,{redacted:true});assert.deepEqual(erasedAudit[0].changes[0].after,{redacted:true})
+  assert.deepEqual(JSON.parse((await payoutCsv(h)).items_json),attributed.items)
+  await h.api('/api/payments/ledger/adjustment',attribution,{status:409})
+  const archive=await h.api('/api/backup'),restored=await installation({bindings:{STRIPE_WEBHOOK_SECRET:secret}})
+  assert.ok(!JSON.stringify(archive).includes(attribution.reason),'Erasure removes copied attribution reasons from archives')
   try{
    const invalid=structuredClone(archive)
    const adjustment=invalid.filter(p=>p.kind==='part').flatMap(p=>p.items).find(i=>i.table==='pm_money_adjustments')
@@ -80,8 +117,18 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
    await restored.api('/api/restore',{archive:invalid,confirm:'RESTORE'},{status:400})
    assert.equal((await restored.api('/api/payments/ledger')).items.length,0,'Invalid restore writes no money fact')
    await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual(await restored.api('/api/payments/ledger'),ledger)
+   assert.deepEqual(JSON.parse((await payoutCsv(restored)).items_json),attributed.items)
+   assert.deepEqual((await restored.api('/api/audit?action=payment.ledger-attribution')).rows,erasedAudit)
+   await restored.api('/api/payments/ledger/adjustment',attribution,{status:409})
+   if(conflicting)await callback(restored,event('synthetic-placemat-event-5','charge.succeeded',{...charge,id:'synthetic-placemat-unmatched-1',amount_captured:501,metadata:{}}),409)
+   assert.deepEqual(await restored.api('/api/payments/ledger'),ledger)
   }finally{await restored.close()}
+  const signedOut=await h.request('/auth/signout',{method:'POST',body:{}})
+  assert.equal(signedOut.status,204)
+  assert.equal((await h.request('/api/payments/ledger')).status,401)
+  assert.equal((await h.request('/api/payments/ledger/adjustment',{method:'POST',body:attribution})).status,401)
  }finally{await h.close()}
+ }
 })
 
 import {operationClock,operationApi,operationEdge,operationBooking,operationBindings,operationAccounts} from './payment-operations-fixture.mjs'

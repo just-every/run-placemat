@@ -1,3 +1,21 @@
+/** Attribution and financial agreement are independent views of immutable source facts. */
+export function moneySettlements(facts,payouts,adjustments,bookingIds){
+ const bookings=new Set(bookingIds)
+ const bookingFor=fact=>{
+  const booking=fact?.booking_id??facts.find(c=>c.kind==='charge'&&c.source_id===fact?.charge_id)?.booking_id
+  return booking&&bookings.has(booking)?booking:null
+ }
+ return payouts.map(p=>{
+  const rows=JSON.parse(p.items).map(item=>{
+   const fact=facts.find(f=>f.source_id===item.source),correction=adjustments.find(c=>c.payout_id===p.id&&c.transaction_id===item.id)
+   const signedAmount=fact?(fact.kind==='refund'?-fact.amount_cents:fact.amount_cents):null
+   const differenceCents=signedAmount===null?null:item.amount-signedAmount
+   return {...item,signedFact:fact?{sourceId:fact.source_id,kind:fact.kind,chargeId:fact.charge_id,bookingId:fact.booking_id,amountCents:signedAmount,currency:fact.currency,recordedAt:fact.recorded_at}:null,differenceCents,bookingId:correction?.booking_id??(differenceCents===0?bookingFor(fact):null),adjustmentId:correction?.id??null}
+  })
+  return {id:p.id,amountCents:p.amount_cents,currency:p.currency,actorId:p.actor_id,recordedAt:p.recorded_at,items:rows,grossCents:rows.reduce((n,r)=>n+r.amount,0),feeCents:rows.reduce((n,r)=>n+r.fee,0),netCents:rows.reduce((n,r)=>n+r.net,0),unmatched:rows.filter(r=>!r.bookingId).map(r=>r.id),discrepancies:rows.filter(r=>r.differenceCents!==null&&r.differenceCents!==0).map(r=>r.id),unverified:rows.filter(r=>!r.signedFact).map(r=>r.id)}
+ })
+}
+
 /** Restored ledger facts confer no provider authority and contain no guest contact or free text. */
 export async function validateMoneyLedger(read,floor){
  const [items,receipts,payouts,adjustments]=await Promise.all(['pm_money_items','pm_money_receipts','pm_money_payouts','pm_money_adjustments'].map(read))

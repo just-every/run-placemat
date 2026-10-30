@@ -1,4 +1,6 @@
-import {fail,id,text,type Actor} from './model'
+import {fail,id,text,Problem,type Actor} from './model'
+import {load,save} from './store'
+import {moneySettlements} from './money-ledger-archive.mjs'
 import {verifyStripeEventBytes,type RefundWebhookBindings} from './refund-events'
 
 type Item={source_id:string;kind:'charge'|'refund';charge_id:string;booking_id:string|null;amount_cents:number;currency:'usd';recorded_at:string}
@@ -78,14 +80,7 @@ export async function readMoneyLedger(db:D1Database,actor:Actor){
  const facts=items.results as Item[],corrections=adjustments.results as Adjustment[]
  const bookings=new Set((await db.prepare("SELECT json_extract(b.value,'$.id') AS id FROM pm_state s,json_each(s.data,'$.bookings') b WHERE s.id=1").all<{id:string}>()).results.map(b=>b.id))
  const bookingFor=(fact:Item|undefined)=>{const booking=fact?.booking_id??facts.find(c=>c.kind==='charge'&&c.source_id===fact?.charge_id)?.booking_id;return booking&&bookings.has(booking)?booking:null}
- const settlements=(payouts.results as Payout[]).map(p=>{
-  const rows=(JSON.parse(p.items) as Settlement[]).map(item=>{
-   const fact=facts.find(f=>f.source_id===item.source),correction=corrections.find(c=>c.payout_id===p.id&&c.transaction_id===item.id)
-   const matching=Boolean(fact&&item.amount===(fact.kind==='refund'?-fact.amount_cents:fact.amount_cents))
-   return {...item,bookingId:correction?.booking_id??(matching?bookingFor(fact):null),adjustmentId:correction?.id??null}
-  })
-  return {id:p.id,amountCents:p.amount_cents,currency:p.currency,actorId:p.actor_id,recordedAt:p.recorded_at,items:rows,grossCents:rows.reduce((n,r)=>n+r.amount,0),feeCents:rows.reduce((n,r)=>n+r.fee,0),netCents:rows.reduce((n,r)=>n+r.net,0),unmatched:rows.filter(r=>!r.bookingId).map(r=>r.id)}
- })
+ const settlements=moneySettlements(facts,payouts.results as Payout[],corrections,[...bookings])
  return {items:facts.map(f=>({...f,resolvedBookingId:bookingFor(f)})),payouts:settlements,adjustments:corrections}
 }
 /** A correction adds attribution only. No historical amount, provider reference or prior fact can be edited. */
@@ -94,7 +89,18 @@ export async function adjustMoneyLedger(db:D1Database,actor:Actor,p:any){
  const payoutId=text(p.payoutId,'Payout',255),transactionId=text(p.transactionId,'Settlement transaction',255),bookingId=text(p.bookingId,'Booking',100)
  if(!await db.prepare("SELECT 1 FROM pm_state s,json_each(s.data,'$.bookings') b WHERE s.id=1 AND json_extract(b.value,'$.id')=?").bind(bookingId).first())fail(409,'Choose an existing booking for this adjustment.')
  const ledger=await readMoneyLedger(db,actor),payout=ledger.payouts.find(row=>row.id===payoutId)
- if(!payout?.unmatched.includes(transactionId))fail(409,'Only an unmatched settlement item may receive a new attribution adjustment.')
- await commit(db,[ownerFence(db,actor),bookingFence(db,bookingId),db.prepare('INSERT INTO pm_money_adjustments(id,payout_id,transaction_id,booking_id,actor_id,recorded_at) VALUES(?,?,?,?,?,?)').bind(id(),payoutId,transactionId,bookingId,actor.id,new Date().toISOString()),db.prepare('DELETE FROM pm_assertions')])
+ if(!payout||!payout.unmatched.includes(transactionId))fail(409,'Only an unmatched settlement item may receive a new attribution adjustment.')
+ const item=payout!.items.find(row=>row.id===transactionId)!,adjustmentId=id(),now=new Date().toISOString()
+ const reason=p.reason==null?undefined:text(p.reason,'Attribution reason',1000)
+ const {state,version}=await load(db)
+ const booking=state.bookings.find(b=>b.id===bookingId)??fail(409,'Choose an existing booking for this adjustment.')
+ if(reason&&await db.prepare("SELECT 1 FROM pm_guests WHERE id=? AND json_extract(data,'$.erased')=1").bind(booking.guestId).first())fail(409,'An erased guest can retain financial references only.')
+ state.audit.push({id:id(),at:now,actor:actor.id,source:'person',action:'payment.ledger-attribution',subject:bookingId,...(reason?{reason}:{}),changes:[{kind:'money-attribution',id:adjustmentId,before:item,after:{...item,bookingId,adjustmentId}}]})
+ try{
+  await save(db,state,version,[ownerFence(db,actor),bookingFence(db,bookingId),db.prepare('INSERT INTO pm_money_adjustments(id,payout_id,transaction_id,booking_id,actor_id,recorded_at) VALUES(?,?,?,?,?,?)').bind(adjustmentId,payoutId,transactionId,bookingId,actor.id,now)])
+ }catch(error){
+  if(error instanceof Problem)throw error
+  fail(409,'Ledger authority or facts changed. Reload before recording another adjustment.')
+ }
  return readMoneyLedger(db,actor)
 }

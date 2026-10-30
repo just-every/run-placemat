@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "12aedfb8c05faa83b4dbd1271e047d5b75443ea46db6a95fcaef18fc268538d3",
+      "sha256": "2012c3bb982fa511fccc39a5f244f9aeb5d3faf4a6579359a99bc01f490fb739",
       "executable": false
     },
     "deploy-demo.json": {
@@ -306,7 +306,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "926778f25d89c4988328daae42393d76559b62d80f5a41b8b6c83f415e08fbe8",
+      "sha256": "b02c765bc0e7e25382baf027395474bebd6e57847b7a961778aca5594f28f6ac",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3354,7 +3354,7 @@
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "72f5be37744d4fec2ec3519a05760871175577fdaf0c7ff3665daf2ff73ac2b5",
+      "sha256": "76a7a0037a7c9df3b3430f765a91566add410d31a2664d9770fe7e3e8e6694af",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3634,11 +3634,11 @@
       "executable": false
     },
     "src/placemat/money-ledger-archive.mjs": {
-      "sha256": "78d7b4838d802a632828fce1f3e03c86fa54c9abb180ed1aeb56b1f1a4e0c52e",
+      "sha256": "a7630b450eb1cde455dbe924f2fcde2c590ed8b86af49549eadfe1ebd9bcea22",
       "executable": false
     },
     "src/placemat/money-ledger.ts": {
-      "sha256": "18a98c1ba1624b6de83a83a01ff61e97e2b4458a322335712b8c251a19a6855d",
+      "sha256": "fed169791a8556b2bae7662e25080c0f902d58926b6bcdd30b61207c79a505a2",
       "executable": false
     },
     "src/placemat/needs.ts": {
@@ -4246,7 +4246,7 @@
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {
-      "sha256": "1b37cdc1d2b5c07e29280505b1bb68a213665d38e375270b0a42a4551fd8dc4e",
+      "sha256": "f26fcdbf2ac603c1b265ec05b988674b90fccf244532b69cf7ff982a5d3f4fa2",
       "executable": false
     },
     "tests/api/onboarding-fixture.mjs": {
