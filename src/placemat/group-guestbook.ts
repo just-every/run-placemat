@@ -48,7 +48,8 @@ export async function groupGuestCheck(db:D1Database,header:string|null,p:any){
  const link=await peer(db,header),grant=await groupIntrospect(db,header,p.token)
  if(!link||!grant.active||!grant.rights.includes('guestbook.read'))return {active:false}
  const homeRights=await venueRights(db,p.token,fetch).catch(()=>null),c=await current(db,String(p.profileId??''))
- return {active:!!(homeRights?.rights.includes('guestbook.read')&&c),purposes:c?Object.fromEntries(purposes.map(p=>[p,!!c.row[p]])):null}
+ const active=!!(homeRights?.rights.includes('guestbook.read')&&c)
+ return {active,purposes:active&&c?Object.fromEntries(purposes.map(p=>[p,!!c.row[p]])):null}
 }
 export async function dinerGroup(db:D1Database,origin:string,action:string,p:any,s:Diner,fetcher:typeof fetch=fetch){
  const group=await membership(db,origin)

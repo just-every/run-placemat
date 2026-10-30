@@ -36,6 +36,11 @@ export async function groupGuestJourney(){
   const masked=await f.read(f.tap);assert.equal(masked.preferences,null);assert.equal(masked.rebookUrl,null);assert.equal(masked.visits.length,1)
   await f.consent(0,{preferences:false,visits:false,rebooking:false});await f.read(f.tap,403)
   await f.consent(0);await f.consent(1)
+  assert.equal((await f.read(f.tap)).rebookUrl,'/book','The separately chosen rebooking purpose enables only the public booking door')
+  const rebook=(await f.tap.api('/api/public/book',{...b.input,startAt:new Date(Date.parse(b.s.startAt)+60*60000).toISOString()},{as:'',status:201})).result
+  const saved=(await f.tap.api('/api/state')).state.bookings.find(row=>row.id===rebook.id)
+  assert.equal(saved.requests?.seatingPreference??'','');assert.equal(saved.requests?.allergyNotes??'','');assert.ok(!JSON.stringify(saved).includes('synthetic-placemat-private'))
+  assert.ok(!(await f.read(f.tap)).visits.some(row=>row.startAt===saved.startAt),'Rebooking neither proves a new visit nor copies restricted notes')
   f.available=false;await f.read(f.tap,403);f.available=true
   await f.home.api('/api/group/admin',{operatorId:f.readerId,venues:{home:['guestbook.read']}});await f.read(f.tap,403)
   await f.home.api('/api/group/admin',{operatorId:f.readerId,venues:f.grants});assert.equal((await f.read(f.tap)).visits.length,1)
@@ -45,6 +50,7 @@ export async function groupGuestJourney(){
   await f.read(f.tap,403)
   console.log('PROBE GUEST-006 native privacy: independently proved visits, separate purpose masks, scoped rebooking, host refusal, replay refusal, live grant revocation and account forgetting, opt-out and unavailable introspection passed')
  }finally{await f.close()}
+ await groupGuestContactJourney()
 }
 export async function groupGuestCustodyJourney(){
  const f=await groupGuests(),restored=await installation(),stale=await installation()
@@ -70,4 +76,23 @@ export async function groupGuestCustodyJourney(){
   assert.equal((await stale.db.prepare('SELECT count(*) AS n FROM pm_group_guests').first()).n,0,'Old portable consent cannot resurrect an erased account')
   console.log('PROBE GUEST-006 custody: owner CSV, inert archive restore, excluded codes, immediate erasure refusal and stale restore fence passed')
  }finally{await f.close();await restored.close();await stale.close()}
+}
+
+async function groupGuestContactJourney(){
+ const f=await groupGuests({attended:false})
+ try{
+  f.profileId=(await f.consent(0)).profileId
+  const code=(await call(f.home,'group-code',{token:f.records[0].session.token,acknowledged:true,venueId:f.linkId})).code
+  const payload={token:f.records[1].session.token,code,acknowledged:true,preferences:true,visits:true,rebooking:true}
+  const outcomes=await Promise.all([0,1].map(()=>f.tap.request('/api/public/diner/group-link',{method:'POST',as:'',body:payload})))
+  assert.equal(outcomes.filter(r=>r.status===200).length,1,'Concurrent link redemption grants one native relationship')
+  assert.ok(outcomes.every(r=>[200,403,409].includes(r.status)))
+  assert.equal((await f.read(f.tap)).visits.length,0,'An upcoming reservation is never an attended visit')
+  const b=f.records[1],changed='synthetic-placemat-changed'+String.fromCharCode(64)+'example.test'
+  const preview=await call(f.tap,'management/preview',{token:b.session.token,bookingId:b.b.id,action:'change',contact:{email:changed}})
+  await call(f.tap,'management/commit',{token:b.session.token,bookingId:b.b.id,previewId:preview.previewId,acknowledged:true})
+  await f.read(f.tap,403)
+  assert.equal((await f.tap.db.prepare('SELECT count(*) AS n FROM pm_group_guests').first()).n,1,'Stale booking proof denies reads without rewriting recorded consent')
+  console.log('PROBE GUEST-006 contact and concurrency: one concurrent link succeeds; upcoming visits excluded; real guest contact change immediately denies old group proof')
+ }finally{await f.close()}
 }

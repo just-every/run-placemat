@@ -1,7 +1,7 @@
 import {installation,service,publicGuest} from './harness.mjs'
 import {verify,call} from './diner-client.mjs'
 export const address=n=>`synthetic-placemat-${n}`+String.fromCharCode(64)+'example.test'
-export async function groupGuests(){
+export async function groupGuests({attended=true}={}){
  const f={available:true},homeOrigin='https://home.example.test',tapOrigin='https://tap.example.test'
  f.home=await installation({origin:homeOrigin,peers:{'tap.example.test':()=>f.tap}})
  f.tap=await installation({origin:tapOrigin,peers:{'home.example.test':()=>{if(!f.available)throw Error('Introspection unavailable');return f.home}}})
@@ -13,8 +13,8 @@ export async function groupGuests(){
    await h.command('venue.update',{name,timezone:'Australia/Brisbane'})
    const input=publicGuest(s,0,{email:address(n),name:'Synthetic guest '+n})
    const b=(await h.api('/api/public/book',input,{as:'',status:201})).result
-   await h.command('booking.status',{bookingId:b.id,status:'seated'});await h.command('booking.status',{bookingId:b.id,status:'completed'})
-   await h.command('booking.stage',{bookingId:b.id,stage:'ready'})
+   if(attended){await h.command('booking.status',{bookingId:b.id,status:'seated'});await h.command('booking.status',{bookingId:b.id,status:'completed'})}
+   if(attended)await h.command('booking.stage',{bookingId:b.id,stage:'ready'})
    const unverified=(await h.api('/api/public/book',{...input,startAt:new Date(Date.parse(s.startAt)+2*3600000).toISOString()},{as:'',status:201})).result
    await h.command('booking.status',{bookingId:unverified.id,status:'seated'});await h.command('booking.status',{bookingId:unverified.id,status:'completed'})
    f.records.push({h,s,b:(await h.api('/api/state')).state.bookings.find(row=>row.id===b.id),input,unverified,session:await verify(h,b,input.email)})
