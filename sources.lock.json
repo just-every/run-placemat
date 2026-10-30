@@ -750,7 +750,7 @@
       "executable": false
     },
     "public/placemat-feedback.js": {
-      "sha256": "1b577615a41015eda516f7b0d00a5d771f7ce1ecc66d7b09ba0a04c5a81da827",
+      "sha256": "47cfb3934002419239ad7a25acc6fb42a0f86165c03f3c6dca8c7b6c2a85863c",
       "executable": false
     },
     "public/placemat-fees.js": {
@@ -4542,7 +4542,7 @@
       "executable": false
     },
     "tests/reviews-ui.mjs": {
-      "sha256": "4520ac22ede04d2182b14c7b0f7d1e33e4c8dbb5e8aa0da9d51a5fe932f09aae",
+      "sha256": "04ee9320d50200827884afa246243226e26fc71314ec2754861314f5f7d71457",
       "executable": false
     },
     "tests/risk-ui.mjs": {
