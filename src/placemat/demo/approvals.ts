@@ -1,9 +1,10 @@
 // What the team and the planning assistant decided around the book: the
 // week's services published from exact drafts, reminder batches approved for
 // the venue's own sender, and three plans still waiting for a person.
-import type { Proposal, State } from '../model'
+import type { Guest, Proposal, State } from '../model'
 import { allocation } from '../availability'
 import { reminderMessage } from '../commands'
+import {reminderTemplates,renderReminder} from '../message-templates'
 import { fixedId, type Clock } from './clock'
 import { manager } from './venue'
 import type { Book } from './book'
@@ -11,7 +12,7 @@ import type { Book } from './book'
 export const assistant = { id: fixedId(10, 1), name: 'Dinner planning assistant' }
 export const retiredKey = { id: fixedId(10, 2), name: 'Spring menu import' }
 
-export function decide({ state: s, tonight, tomorrow, draft, published }: Book, clock: Clock, ownerId: string) {
+export function decide({ state: s, tonight, tomorrow, draft, published }: Book, clock: Clock, ownerId: string, people: Guest[]) {
   let n = 0
   const minutes = (iso: string, delta: number) => new Date(Date.parse(iso) + delta * 60000).toISOString()
   const proposal = (kind: Proposal['kind'], plan: unknown, preparedBy: string, preparedAt: string, reason: string, decided?: { by: string; at: string; status: 'approved' | 'declined' }): Proposal => {
@@ -45,8 +46,11 @@ export function decide({ state: s, tonight, tomorrow, draft, published }: Book, 
   proposal('service.publish', { serviceId: draft.id, service: structuredClone(draft), tables: structuredClone(s.tables), venue: structuredClone(s.venue) }, assistant.id, minutes(new Date(clock.now).toISOString(), -95),
     'Harvest supper club: one long sitting, set menu, 40 covers. Ready to open for bookings.')
   const rows = s.bookings.filter(b => b.serviceId === tomorrow.id && b.status === 'booked' && !s.reminders.some(r => r.bookingId === b.id))
-  if (rows.length) proposal('reminders', { serviceId: tomorrow.id, bookings: structuredClone(rows), venue: structuredClone(s.venue) }, assistant.id, minutes(new Date(clock.now).toISOString(), -40),
-    `Reminder batch for ${tomorrow.name}: ${rows.length} parties.`)
+  if (rows.length) {
+    const template=reminderTemplates(s).find(t=>t.language==='en')!
+    const plan={serviceId:tomorrow.id,language:'en',template:structuredClone(template),bookings:structuredClone(rows),venue:structuredClone(s.venue),messages:rows.map(b=>renderReminder(s,b,people.find(g=>g.id===b.guestId)!,template,[]))}
+    proposal('reminders',plan,assistant.id,minutes(new Date(clock.now).toISOString(),-40),`Reminder batch for ${tomorrow.name}: ${rows.length} parties.`)
+  }
   const move = [tonight, tomorrow].flatMap(service => s.bookings.filter(b => b.serviceId === service.id && b.status === 'booked' && b.partySize === 4)
     .map(b => ({ b, service, to: s.tables.find(t => t.seats >= 4 && t.seats <= 6 && !b.tableIds.includes(t.id) && fits(s, service, b, t.id)) }))).find(m => m.to)
   if (move) proposal('table.assign', { bookingId: move.b.id, booking: structuredClone(move.b), tableIds: [move.to!.id] }, assistant.id, minutes(new Date(clock.now).toISOString(), -25),

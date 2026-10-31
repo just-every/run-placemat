@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9ea162fb721b96fadd79f12af7b6b43b51b5aa34dc3db4003be502ee2028d73e",
+      "sha256": "0fd3baebcfb4542d55aa0f1eb3af6ec11a3d189b9107af1a2a768e3b4abed224",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1402,7 +1402,7 @@
       "executable": false
     },
     "src/demo.ts": {
-      "sha256": "61cabc14db9d524a243def4aa03aebdaa26da2e0be02390b70d637cdd91a4330",
+      "sha256": "f8b38b91338fcd357c6fad9429c1d1d7054431360545b60f6c66b24b17336168",
       "executable": false
     },
     "src/dev-personas.ts": {
@@ -3406,7 +3406,7 @@
       "executable": false
     },
     "src/placemat/demo/approvals.ts": {
-      "sha256": "e8ad0c98758ec274b873d1666a6230b08b2fabed0c57aeaeccdaa13b2a8f28ff",
+      "sha256": "646385319fc71dbd019490aabaada60600bdb9775da08dd70d09bf05242e0b12",
       "executable": false
     },
     "src/placemat/demo/book.ts": {
@@ -3634,7 +3634,7 @@
       "executable": false
     },
     "src/placemat/message-templates.ts": {
-      "sha256": "47786c983db5a2bf6b6ffcaad116c77fe7cef6f95c9861a17a39691d5d608397",
+      "sha256": "f6447b71ba579f0574988be7012dfb50b01fdf1b62cfd9efc38283db7a4b632d",
       "executable": false
     },
     "src/placemat/model.ts": {

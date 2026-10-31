@@ -13,7 +13,7 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
   const ownerRow = await db.prepare("SELECT id FROM oa_operators WHERE email=? AND role='owner' AND status='active'").bind(ownerEmail).first<{ id: string }>()
   if (!ownerRow) throw new Error('The demo owner does not exist yet.')
   const clock = venueClock(now, venue.timezone, '22:30'), people = guests(clock), sample = book(clock, people, venue)
-  decide(sample, clock, ownerRow.id)
+  decide(sample, clock, ownerRow.id, people.all)
   const created = now.getTime() - 120 * 86400000
   // Preparation keys are shown once; nobody holds these, so they only name past work.
   const keys = await Promise.all([assistant, retiredKey].map(async (k, i) => ({ ...k, digest: await hash(crypto.randomUUID() + crypto.randomUUID()), created_at: new Date(created + i * 86400000).toISOString(), revoked_at: i ? new Date(created + 40 * 86400000).toISOString() : null })))

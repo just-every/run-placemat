@@ -50,6 +50,13 @@ async function applicablePolicies(db:D1Database,b:Booking):Promise<MessagePolicy
  if(money?.present&&!policies.length)fail(409,'This reservation needs recorded cancellation terms before a reminder can be reviewed. No terms or consent were inferred.')
  return policies
 }
+/** One plain-text renderer serves live preparations and the seeded demo review. */
+export function renderReminder(s:State,b:Booking,contact:Pick<Guest,'name'|'email'|'phone'>,template:MessageTemplate,policies:MessagePolicy[]):ReminderPreview{
+ const language=template.language
+ const values:Record<string,string>={guest_name:contact.name,venue_name:s.venue.name,date_time:new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))+` (${s.venue.timezone})`,party_size:String(b.partySize),guest_phone:usPhone(contact.phone),venue_phone:usPhone(s.venue.setup?.phone??''),cancellation_terms:policies.map(p=>p.terms).join('\n')}
+ const message=template.body.replace(/\{\{([^{}]+)\}\}/g,(_,key:string)=>values[key]).trim()
+ return {bookingId:b.id,guestId:b.guestId,contactName:contact.name,contactEmail:contact.email,contactPhone:contact.phone,language,templateId:template.id,templateVersion:template.version,policies,message}
+}
 /** Plain text is substituted once; HTML and CSV escaping happen at their output doors. */
 export async function prepareReminders(db:D1Database,s:State,plan:any,fences:D1PreparedStatement[]){
  const policyVersion=await db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM pm_fee_policies').first<{version:number}>()
@@ -68,9 +75,7 @@ export async function prepareReminders(db:D1Database,s:State,plan:any,fences:D1P
   fences.push(db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) THEN 1 ELSE 0 END').bind(guest.id,row!.version,row!.data))
   fences.push(db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN COALESCE((SELECT data FROM pm_booking_contacts WHERE booking_id=?),\'\')=? THEN 1 ELSE 0 END').bind(b.id,saved?.data??''))
   const policies=await applicablePolicies(db,b)
-  const values:Record<string,string>={guest_name:contact.name,venue_name:s.venue.name,date_time:new Intl.DateTimeFormat('en-US',{timeZone:s.venue.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(b.startAt))+` (${s.venue.timezone})`,party_size:String(b.partySize),guest_phone:usPhone(contact.phone),venue_phone:usPhone(s.venue.setup?.phone??''),cancellation_terms:policies.map(p=>p.terms).join('\n')}
-  const message=template.body.replace(/\{\{([^{}]+)\}\}/g,(_,key:string)=>values[key]).trim()
-  messages.push({bookingId:b.id,guestId:b.guestId,contactName:contact.name,contactEmail:contact.email,contactPhone:contact.phone,language,templateId:template.id,templateVersion:template.version,policies,message})
+  messages.push(renderReminder(s,b,contact,template,policies))
  }
  return {serviceId:plan.serviceId,language,template:structuredClone(template),bookings:structuredClone(rows),venue:structuredClone(s.venue),messages}
 }
