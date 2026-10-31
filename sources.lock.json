@@ -5434,7 +5434,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "eae2e972021580e1a76c97da0787c041e5b271cd278c9ad4d292adaee23ae381",
+      "sha256": "f610230448f2049204fb99df7f00a1691902e2d7b45995ad8e2138a9103048cd",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
