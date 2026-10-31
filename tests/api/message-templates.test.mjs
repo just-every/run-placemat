@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 import {reminderFixture} from './message-template-fixture.mjs'
 import {csvRecords} from './business-fixture.mjs'
+import {merchantEdge} from './merchant-fixture.mjs'
+import {feePolicyInput} from './fee-fixture.mjs'
 
 const body=(language,extra='')=>(language==='en'?'Hello':'Hola')+' {{guest_name}} · {{venue_name}} · {{date_time}} · {{party_size}} · {{guest_phone}} · {{cancellation_terms}}'+extra
 const policyInput=terms=>({cutoffLocalTime:'18:00',cutoffDaysBefore:1,graceMinutes:15,cancellation:{mode:'per_person',amountCents:1500},noShow:{mode:'fixed',amountCents:2500},exemptions:[],terms})
@@ -91,13 +93,32 @@ test('Reviewed bilingual reminder templates freeze exact text and terms, refuse 
  }finally{await h.close();await copy.close()}
 })
 
-test('Required existing cancellation terms cannot be replaced by invented reminder text',async()=>{
- const h=await installation()
+test('Reminders carry only the applicable existing cancellation terms: none are invented, and a renewed guarantee replaces superseded terms',async()=>{
+ const edge=merchantEdge(),h=await installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:['synthetic','placemat','1'].join('-')}})
  try{
-  const f=await reminderFixture(h),owner=(await h.api('/api/state')).actor.id
-  await h.command('payment.request',{bookingId:f.bookings[0].id,amountCents:2000,dueAt:'2032-01-15T20:00:00Z',followupOwnerId:owner,reason:'Deposit without recorded terms'})
-  const result=await h.command('proposal.prepare',{kind:'reminders',plan:{serviceId:f.service.id,language:'en'},reason:'Review reminder'},{status:409})
-  assert.equal(result,undefined)
+  const f=await reminderFixture(h),owner=(await h.api('/api/state')).actor.id,b=f.bookings[0],prepare=opts=>h.command('proposal.prepare',{kind:'reminders',plan:{serviceId:f.service.id,language:'en'},reason:'Review reminder'},opts)
+  await h.command('payment.request',{bookingId:b.id,amountCents:2000,dueAt:'2032-01-15T20:00:00Z',followupOwnerId:owner,reason:'Deposit without recorded terms'})
+  assert.equal(await prepare({status:409}),undefined)
   assert.deepEqual((await h.api('/api/state')).state.reminders,[])
+  // Renewal: the owner ends a guarantee under the first policy and the guest accepts a renewed one under different terms.
+  await h.api('/api/payments/merchant/connect',{acceptCosts:true,reviewedCosts:(await h.api('/api/payments/merchant')).costDisclosure})
+  const policies=[]
+  for(const amountCents of [1500,2500]){
+   const policy=await h.command('payment.fee-policy',feePolicyInput({cancellation:{mode:'per_person',amountCents},terms:`Cancellation costs ${amountCents} cents per guest.`}))
+   const guarantee=await h.command('payment.guarantee-issue',{bookingId:b.id,policyId:policy.id}),token=new URL(guarantee.guestUrl).hash.slice(6)
+   edge.complete(await h.api('/api/public/card-guarantee/accept',{token,accept:true,reviewedText:policy.reviewText},{as:''}))
+   await h.api('/api/public/card-guarantee/sync',{token},{as:''})
+   if(!policies.length)await h.command('payment.guarantee-end',{id:guarantee.id})
+   policies.push(policy)
+  }
+  const [superseded,current]=policies
+  assert.equal((await h.api('/api/payments/fee-preview',{bookingId:b.id,kind:'late_cancel'})).result.policyVersion,current.version)
+  const review=await prepare(),message=review.plan.messages.find(m=>m.bookingId===b.id)
+  assert.deepEqual(message.policies,[{source:'fee',id:current.id,version:current.version,terms:current.reviewText}])
+  assert.ok(message.message.includes(current.reviewText)&&!message.message.includes(superseded.reviewText),'Superseded terms never join the reviewed reminder')
+  await h.command('proposal.approve',{proposalId:review.id})
+  const row=csvRecords(await (await h.request('/api/reminders.csv')).text()).find(r=>r.booking_id===b.id)
+  assert.deepEqual(JSON.parse(row.policy_versions),[{source:'fee',id:current.id,version:current.version}])
+  assert.equal(row.cancellation_terms,current.reviewText)
  }finally{await h.close()}
 })

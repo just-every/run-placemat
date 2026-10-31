@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0fd3baebcfb4542d55aa0f1eb3af6ec11a3d189b9107af1a2a768e3b4abed224",
+      "sha256": "dc917ecb753da260243ff1914c5370e103ec6cc7f7d98720c13199ebdae4106a",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3506,7 +3506,7 @@
       "executable": false
     },
     "src/placemat/fees.ts": {
-      "sha256": "f6989e421f34a7b0816185ca08c03e4300d3c44487976cd27efc1dba51f7fb9a",
+      "sha256": "e0cc2f0347953aa2b6cb919b75ff807afd52a1124a210d7587da67f6998e0b28",
       "executable": false
     },
     "src/placemat/finance-view.ts": {
@@ -3634,7 +3634,7 @@
       "executable": false
     },
     "src/placemat/message-templates.ts": {
-      "sha256": "f6447b71ba579f0574988be7012dfb50b01fdf1b62cfd9efc38283db7a4b632d",
+      "sha256": "1a827da0a445e1bbcf8234cf5c6151a9dcabcdd9d77107042f8716cd93b93ea9",
       "executable": false
     },
     "src/placemat/model.ts": {
@@ -4258,7 +4258,7 @@
       "executable": false
     },
     "tests/api/message-templates.test.mjs": {
-      "sha256": "f6ab562d63a2fe2c8a7d0ab071c23a96814ed60fc03929cde8a525ede591badb",
+      "sha256": "90891b3b6e76c0d0af073f72d60e3951e9afd04cecc78633b76d969b84a50100",
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {

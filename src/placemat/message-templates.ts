@@ -1,5 +1,5 @@
 import {fail,id,text,type Actor,type Booking,type Guest,type State} from './model'
-import {feePolicy} from './fee-policy'
+import {applicableFeePolicy} from './fees'
 
 export type MessageLanguage='en'|'es'
 export type MessageTemplate={id:string;language:MessageLanguage;version:number;body:string;createdBy:string;createdAt:string}
@@ -33,12 +33,11 @@ export function usPhone(value:string){
  const digits=value.replace(/\D/g,'').replace(/^1(?=\d{10}$)/,'')
  return /^[2-9]\d{2}[2-9]\d{6}$/.test(digits)?`(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`:value
 }
+/** The fee door's own selection, so a renewed guarantee or later consent replaces earlier terms instead of joining them. */
 async function applicablePolicies(db:D1Database,b:Booking):Promise<MessagePolicy[]>{
- const bindings=(await db.prepare('SELECT policy_id FROM pm_fee_consents WHERE booking_id=? UNION SELECT policy_id FROM pm_card_guarantees WHERE booking_id=? ORDER BY policy_id').bind(b.id,b.id).all<{policy_id:string}>()).results
- const policies:MessagePolicy[]=[]
- const selected=bindings.length?await Promise.all(bindings.map(row=>feePolicy(db,row.policy_id))):[await feePolicy(db)]
- for(const policy of selected){
-  if(!policy){if(bindings.length)fail(409,'Required cancellation terms are unavailable. Restore the existing policy before preparing reminders.');continue}
+ const {policyId,policy}=await applicableFeePolicy(db,b.id),policies:MessagePolicy[]=[]
+ if(policyId&&!policy)fail(409,'Required cancellation terms are unavailable. Restore the existing policy before preparing reminders.')
+ if(policy){
   if(!policy.terms?.trim())fail(409,'Required cancellation terms are missing. Review the existing policy first.')
   policies.push({source:'fee',id:policy.id,version:policy.version,terms:policy.reviewText})
  }
