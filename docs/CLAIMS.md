@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 57 done, 30 partial, 48 missing; 135 total.
+Inventory: 57 done, 31 partial, 47 missing; 135 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -139,5 +139,5 @@ Inventory: 57 done, 30 partial, 48 missing; 135 total.
 | AGENT-004 | done | `src/placemat/allocation-advisor.ts`; `src/placemat/inventory-advisor.ts`; `src/placemat/shift-advisor.ts`; `src/placemat/direct-inventory.ts`; `public/placemat-allocation.js`; `public/placemat-allocation-policy.js`; `tests/api/assignments.test.mjs`; `tests/allocation-ui.mjs` |
 | AGENT-005 | done | `src/placemat/no-show.ts`; `public/placemat-risk.js`; `tests/api/risk.test.mjs`; `tests/risk-ui.mjs` |
 | AGENT-006 | missing |  |
-| AGENT-007 | missing |  |
+| AGENT-007 | partial | `tests/api/guest-enrichment.test.mjs`; `tests/guest-enrichment-ui.mjs`; `tests/api/guests.test.mjs` |
 | AGENT-008 | missing |  |

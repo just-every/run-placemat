@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a3ea4da242aaddf67143b56e9d4e4545d196663957387325e9151fce3e08ba42",
+      "sha256": "beebd41b57332a8679b05ad983901e4f58f5ae34c94cdc4bf1889b6a0d0b7fd9",
       "executable": false
     },
     "AGENTS.md": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "e7db8508370e621cf8f6a2ed0c1a9d8a45f9044854acde6bc99d9bd5b68b902b",
+      "sha256": "6f5e76606162e7af80d5f12564ff63a667b9106fd8b7796e3f119898f43afb82",
       "executable": false
     },
     "docs/data-portability.md": {
