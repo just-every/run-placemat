@@ -41,3 +41,45 @@ Each device verifies a booking independently and stays signed in for up to 24 ho
 **Revoke saved preferences** clears this restaurant’s saved text on every signed-in device when refreshed. It leaves the favorite and restaurant reservations in place. **Sign out this device** ends only that device session. Under **Account settings**, **Forget diner account** removes this restaurant’s account records and signs out every device while preserving the restaurant’s reservations. Accounts and preferences are never shared between installations.
 
 Diner verification and account changes retain guest attribution, timestamps, source and explicit before-and-after audit values. Account forget redacts saved preference values copied into that history. An older archive is refused when the destination knows the later forget checkpoint or receives its trusted later journal; an isolated destination cannot infer an unseen forget.
+
+
+## Reviewed native enrichment
+
+A personal venue owner or administrator can expand **Review guest enrichment**
+inside a guest profile. Preparation keys can prepare the same deterministic
+proposal but cannot approve, reject, undo or edit profiles. Preparation alone
+changes no profile. Every decision rechecks current authority and commits with
+its audit and guest version guards.
+
+The command door is `POST /api/commands`. Prepare with
+`guest.enrichment.prepare` and a `guestId`. Read the manager-only journal with
+`GET /api/guests/enrichment?guestId=<id>`. The proposal contains its own ID,
+review digest, supported tag candidates, fact references, source attribution,
+confidence explanation and explicit unknowns. Approve with
+`guest.enrichment.approve`, the exact `proposalId` and `review`, and
+`confirm: "APPROVE"`; reject with `guest.enrichment.reject` and the same exact
+proposal reference. Request bodies cannot supply replacement candidates.
+Changed profile facts, attendance or identity history require a new proposal.
+An already decided proposal cannot run again, including concurrent requests.
+
+Only exact recognized structured occasions and seating preferences qualify.
+Repeat-visit tags use native staff-recorded attended bookings whose visit has
+started; cancelled, no-show, future and imported visits do not establish that
+attendance. Free notes never establish a dietary, health, religious or access
+condition. Unsupported text and missing provenance remain unknown. Connected
+POS spend and refunded spend remain unproved; no spend segment is proposed.
+
+`guest.enrichment.undo` requires the exact proposal reference and
+`confirm: "UNDO"`. It removes only tags still attributed to that enrichment.
+Later independent tags, re-added staff facts, notes and other profile fields
+remain intact. The journal names the person and time, removed tags and later
+edits it preserved. Merged identities and subsequent reversals cannot replay an
+old decision. Erasure removes linked proposal facts and audit snapshots.
+
+The owner business export includes `guest-enrichments.csv` alongside the audit
+CSV. Structured backups preserve historical facts and person attribution, but
+export enrichment proposals as inert historical records. Restore never restores
+approval or undo authority, and the existing erasure journal fences older
+backups. No enrichment grants consent, group sharing, campaign admission,
+outbound sending or unattended execution. Those duties remain in AGENT-007's
+Gap and its named prerequisite clauses.
