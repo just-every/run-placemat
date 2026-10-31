@@ -1,4 +1,5 @@
-import {fail,type State,type AuditEntry} from './model'
+import type {SettlementView} from './money-ledger-archive.mjs'
+import {fail,id,type Actor,type State,type AuditEntry} from './model'
 
 export type AuditChange={kind:string;id:string;before:unknown;after:unknown}
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b)
@@ -55,4 +56,9 @@ export function eraseAudit(state:State,guestId:string):void {
   for(const change of event.changes??[]){change.before=scrub(change.before);change.after=scrub(change.after)}
   if(event.reason&&sharedInstructions.has(event.reason))event.reason=''
  }
+}
+
+/** Human attribution retains its payout context and cannot certify provider agreement. */
+export function recordMoneyAttribution(state:State,actor:Actor,at:string,payoutId:string,adjustmentId:string,before:SettlementView,bookingId:string,reason?:string):void {
+ state.audit.push({id:id(),at,actor:actor.id,source:'person',action:'payment.ledger-attribution',subject:bookingId,...(reason?{reason}:{}),changes:[{kind:'money-attribution',id:adjustmentId,before:{payoutId,...before},after:{payoutId,...before,bookingId,adjustmentId}}]})
 }
