@@ -1,9 +1,9 @@
-/* Structured, explicitly supplied profile facts; no automatic enrichment. */
+/* Structured profile facts and explicitly reviewed native enrichment. */
 export function profileSummary(g,{esc,who,time}) {
  if(!g||g.erased)return '';
  const p=g.profile;
- const source=value=>!value?'Source not recorded':`${{'guest-supplied':'Guest supplied','staff-observed':'Staff observed',imported:'Imported'}[value.source]}${value.actor?' · '+who(value.actor):''} · ${value.at?time(value.at):'Date not recorded'}`;
- return `<div class="help">${p?.vipLevel&&p.vipLevel!=='none'?`<p>${esc(p.vipLevel.toUpperCase())} · ${esc(source(p.provenance?.vipLevel))}</p>`:''}${p?.tags?.length?`<p>Tags: ${esc(p.tags.join(', '))}<br>${esc(source(p.provenance?.tags))}</p>`:''}${p?.seatingPreference?`<p>Seating preference: ${esc(p.seatingPreference)}<br>${esc(source(p.provenance?.seatingPreference))}</p>`:''}</div>`;
+ const source=value=>!value?'Source not recorded':`${value.reference?.startsWith('guest-enrichment:')?'Approved enrichment':{'guest-supplied':'Guest supplied','staff-observed':'Staff observed',imported:'Imported'}[value.source]}${value.actor?' · '+who(value.actor):''} · ${value.at?time(value.at):'Date not recorded'}`;
+ return `<div class="help">${p?.vipLevel&&p.vipLevel!=='none'?`<p>${esc(p.vipLevel.toUpperCase())} · ${esc(source(p.provenance?.vipLevel))}</p>`:''}${p?.tags?.length?`<div class="guest-tag-facts"><p>Tags</p>${p.tags.map(tag=>`<p><strong>${esc(tag)}</strong><br>${esc(source(p.tagProvenance?.[tag]??p.provenance?.tags))}</p>`).join('')}</div>`:''}${p?.seatingPreference?`<p>Seating preference: ${esc(p.seatingPreference)}<br>${esc(source(p.provenance?.seatingPreference))}</p>`:''}</div>`;
 }
 export function guestProfile(g,{esc,who,time,canEdit,form,field,select}) {
  const p=g.profile;

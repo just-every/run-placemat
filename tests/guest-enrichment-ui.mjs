@@ -26,7 +26,7 @@ for(const width of [1440,390]){
   await card.locator('[data-action=guest-enrichment]').click()
   await card.getByRole('button',{name:'Prepare enrichment',exact:true}).click()
   const pending=card.locator('[data-enrichment-id]').last()
-  await expect(pending).toContainText('Repeat visitor')
+  await pending.getByRole('heading',{name:'Repeat visitor',exact:true}).waitFor()
   const capture=async state=>{
    if(width===1440){
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Guest enrichment fits desktop')
@@ -44,18 +44,19 @@ for(const width of [1440,390]){
   }
   await capture('review')
   await pending.getByRole('button',{name:'Reject proposal',exact:true}).click()
-  await expect(card.locator('[data-enrichment-list]')).toContainText('rejected proposal')
+  await card.getByRole('heading',{name:'rejected proposal',exact:true}).waitFor()
   await card.getByRole('button',{name:'Prepare enrichment',exact:true}).click()
   const next=card.locator('[data-enrichment-id]').first()
   await next.getByLabel('Type APPROVE for these exact tags').fill('APPROVE')
   await next.getByRole('button',{name:'Approve exact enrichment',exact:true}).click()
-  await expect(card.locator('[data-enrichment-list]')).toContainText('approved proposal')
+  await card.getByRole('heading',{name:'approved proposal',exact:true}).waitFor()
+  if(width===1440)await expect(card.locator('.guest-tag-facts')).toContainText('Approved enrichment')
   await capture('approved')
   await h.command('guest.profile',{guestId:f.guestId,seatingPreference:'patio',notes:'synthetic-placemat-later-note'})
   const approved=card.locator('[data-enrichment-id]').first()
   await approved.getByLabel('Type UNDO to remove unchanged enrichment tags').fill('UNDO')
   await approved.getByRole('button',{name:'Undo enrichment',exact:true}).click()
-  await expect(card.locator('[data-enrichment-list]')).toContainText('undone proposal')
+  await card.getByRole('heading',{name:'undone proposal',exact:true}).waitFor()
   if(width===1440){
    const guest=(await h.api('/api/guests?search=Synthetic')).guests[0];assert.deepEqual(guest.profile.tags,['Existing fact']);assert.equal(guest.profile.seatingPreference,'patio')
    await expect(card.locator('[data-enrichment-list]')).toContainText('Undone by')

@@ -298,7 +298,7 @@
       "executable": false
     },
     "docs/guests.md": {
-      "sha256": "14590b7d72d8ce55aa97237153ad8bdb3ad84009823914b319479b70d6398b29",
+      "sha256": "ab76e12a44eaf84974d8e6834543ed10413f11678832de62bb96c57f6a72e1a7",
       "executable": false
     },
     "docs/host-stand-security.md": {
@@ -850,7 +850,7 @@
       "executable": false
     },
     "public/placemat-profiles.js": {
-      "sha256": "7a1a8bf1fa8e68f1736849da4b977bd10d4b8a8abf9df46fa282388400c79f0b",
+      "sha256": "1ad225f632454953906073d13f6fdf5cf02ed8ae0788dcb2d031959159e47fa9",
       "executable": false
     },
     "public/placemat-queue-guest-views.js": {
@@ -4466,7 +4466,7 @@
       "executable": false
     },
     "tests/guest-enrichment-ui.mjs": {
-      "sha256": "9abd4f066f2d68c878d72f1e318ad43ecf2f87a2d1ba3d7298d7f2ee1438a58a",
+      "sha256": "542452450b0d0f727a1197cdaa431f155083aabc3cb3ae254e6f84ed4146ab27",
       "executable": false
     },
     "tests/guest-review-ui.mjs": {
