@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d1e9908f82156e6afd5480e683ebdfe82de91a91a77f7deaf43cc531b2f33123",
+      "sha256": "aaab905c72a6b07eedfe1e623b2e46b3b2174de6cfef4105f0dc9e8db5666d24",
       "executable": false
     },
     "deploy-demo.json": {
@@ -306,7 +306,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "926778f25d89c4988328daae42393d76559b62d80f5a41b8b6c83f415e08fbe8",
+      "sha256": "8dd54bf2d3c58d38cb6864e7e4eb49e84065e12e98383699b2023a5c2bde7bb2",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -686,7 +686,7 @@
       "executable": false
     },
     "public/placemat-audit.js": {
-      "sha256": "678bf6451fdbed684600b2ce58a1920ef1f2a5549dd0a486d35370a58057100a",
+      "sha256": "4b2dd98573af09580826d1f2a51a66ca59a9c7051ae1d31c225502a05d883978",
       "executable": false
     },
     "public/placemat-booking-manage.js": {
@@ -954,7 +954,7 @@
       "executable": false
     },
     "public/placemat.css": {
-      "sha256": "c7e298ee74fda7a2a93aab9f74da539255ac6c456a1cfbbb82c776d36df627eb",
+      "sha256": "5ebff0d6b13f62702717b1cf84032758656dcc1675edd32589f15a822e2f9282",
       "executable": false
     },
     "public/placemat.js": {
@@ -3338,7 +3338,7 @@
       "executable": false
     },
     "src/placemat/audit.ts": {
-      "sha256": "adf5c11850f48d212179c8c0b592cf78e909f96e82613bafd8c7b12bb773d106",
+      "sha256": "cafce9cdce0b19ab49c12cbe25bdfd1a13d2207f8904ca2aadefa7d553b039be",
       "executable": false
     },
     "src/placemat/availability.ts": {
@@ -3378,7 +3378,7 @@
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "1d6599e8c87239406be07459396d0827d550914a1664b5c8f6ebfa4913c77094",
+      "sha256": "4a6c29792e83c8e86e640725f7776b81d8cfa59d6acf53998ed474d41281a5d5",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3590,7 +3590,7 @@
       "executable": false
     },
     "src/placemat/http.ts": {
-      "sha256": "8b080220084d449659abd9041103460e6b1e699861d66f586d5fde761f3bc08c",
+      "sha256": "7712bb21233d1c52c0a23bd1e6f8c0a54235918235024799b5e01a94d110795a",
       "executable": false
     },
     "src/placemat/import/adapter.ts": {
@@ -3661,12 +3661,16 @@
       "sha256": "4fa6241a0d6501dd1ad5ca71aabbef4083ca520fb5fbcc8ea92370fab8e247ac",
       "executable": false
     },
+    "src/placemat/money-ledger-archive.d.mts": {
+      "sha256": "7580e2ccdb6571e12b6c6846ffef834feb05314223d043c132fc3fe0f647b93c",
+      "executable": false
+    },
     "src/placemat/money-ledger-archive.mjs": {
-      "sha256": "78d7b4838d802a632828fce1f3e03c86fa54c9abb180ed1aeb56b1f1a4e0c52e",
+      "sha256": "a7630b450eb1cde455dbe924f2fcde2c590ed8b86af49549eadfe1ebd9bcea22",
       "executable": false
     },
     "src/placemat/money-ledger.ts": {
-      "sha256": "18a98c1ba1624b6de83a83a01ff61e97e2b4458a322335712b8c251a19a6855d",
+      "sha256": "41f4016e14d7b13f52be92280e572a4b98918b9a8d1e31d3d7ca23cb40728923",
       "executable": false
     },
     "src/placemat/needs.ts": {
@@ -4294,7 +4298,7 @@
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {
-      "sha256": "1b37cdc1d2b5c07e29280505b1bb68a213665d38e375270b0a42a4551fd8dc4e",
+      "sha256": "9e7403c990de7757fa0f3bc2270e83bac48d093c639662afd96f1222ef23b562",
       "executable": false
     },
     "tests/api/onboarding-fixture.mjs": {
@@ -4438,7 +4442,7 @@
       "executable": false
     },
     "tests/audit-ui.mjs": {
-      "sha256": "ca544809d2592889c7a18522b7d9ffc4cd4917ca1b861fa5922642c32ec19e76",
+      "sha256": "8f87aaa012fd437f6873dadb1a5483491b0ce9960d5387dc7889928c84eb9c67",
       "executable": false
     },
     "tests/boundary-ui.mjs": {
@@ -4470,7 +4474,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "e643e6fe06b7f5daa8d2dd1dab9d475c2508699d8c3f0ee7c6a77b16549bd935",
+      "sha256": "c552843adf08c0d24b26a10546faa53a9868fe2806d94d47ff6c4e935b2f36b5",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
