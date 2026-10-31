@@ -5470,7 +5470,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "e643e6fe06b7f5daa8d2dd1dab9d475c2508699d8c3f0ee7c6a77b16549bd935",
+      "sha256": "81e59f4a05492405fad49915ac4cbacfa2e1c918cfbebe6e75fd3bfa4e32f1c4",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
@@ -5550,7 +5550,7 @@
       "executable": false
     },
     "tests/queue-ui.mjs": {
-      "sha256": "20cfb2d9f2c72d945185874cfc2fddc4ab3736d009e36f3a2cfda2d426f35394",
+      "sha256": "6c3942eea542acd0e163b26a22894ccafc04b01ebab95193ac93796070ced88c",
       "executable": false
     },
     "tests/refund-notices-ui.mjs": {
