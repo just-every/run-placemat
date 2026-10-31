@@ -88,9 +88,20 @@ try{
    // Probing with an arrow key can make October 31 into an invalid November 31.
    // All edits still use the keyboard, including temporarily incomplete dates.
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
-   const accessibility=await context.newCDPSession(page.frame({url:/\/book\?embed=1/})),visited=new Set()
+   const widget=page.frame({url:/\/book\?embed=1/}),visited=new Set()
+   let accessibility
+   try{accessibility=await context.newCDPSession(widget)}catch(error){
+    // Chromium may keep this iframe in the parent process. In that case its
+    // accessibility tree is addressed by frame ID on the page's CDP session.
+    if(!error.message.includes('does not have a separate CDP session'))throw error
+    accessibility=await context.newCDPSession(page)
+   }
+   const {frameTree}=await accessibility.send('Page.getFrameTree')
+   const findFrame=tree=>tree.frame.url===widget.url()?tree.frame.id:tree.childFrames?.map(findFrame).find(Boolean)
+   const frameId=findFrame(frameTree)
+   assert.ok(frameId,'the widget frame is present in its CDP session')
    const focusedDateSegment=async()=>{
-    const {nodes}=await accessibility.send('Accessibility.getFullAXTree')
+    const {nodes}=await accessibility.send('Accessibility.getFullAXTree',{frameId})
     return nodes.find(node=>node.role?.value==='spinbutton'&&node.properties?.some(property=>property.name==='focused'&&property.value.value===true))
    }
    try{for(let segment=0;segment<3;segment++){
