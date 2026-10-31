@@ -1,6 +1,8 @@
 import {reviewCards} from './placemat-widget.js'
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
-const manage=document.body.dataset.reviewsPage==='manage',key='placemat-diner-session',invitationToken=location.hash.slice(1)
+const manage=document.body.dataset.reviewsPage==='manage',key='placemat-diner-session',invitationKey='placemat-review-invitation'
+const invitationToken=location.hash.slice(1)||sessionStorage.getItem(invitationKey)||''
+sessionStorage.removeItem(invitationKey)
 let token=sessionStorage.getItem(key)||'',bookingId=new URLSearchParams(location.search).get('booking')||'',view,busy=false
 history.replaceState(null,'',location.pathname)
 const notice=(message,error=false)=>{const el=$('#notice');el.textContent=message;el.setAttribute('role',error?'alert':'status')}

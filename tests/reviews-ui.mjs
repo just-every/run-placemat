@@ -32,7 +32,12 @@ async function layout(p){
 try{
  const f=await feedbackFixture(h),b=f.bookings[0],second=f.bookings[1]
  await h.api('/api/public/feedback/submit',{token:f.tokens[0],rating:1,comment:'Private feedback must stay private'},{as:''})
- await page.goto(transport.origin+'/reviews#'+f.tokens[0]);await page.getByLabel('Current booking email').waitFor()
+ await page.goto(transport.origin+'/feedback#'+f.tokens[0])
+ const invitation=page.getByRole('link',{name:'Publish a separate verified Placemat review',exact:true})
+ await invitation.waitFor()
+ assert.equal(await invitation.getAttribute('href'),'/reviews','The public review link contains no private feedback token')
+ await invitation.click();await page.getByLabel('Current booking email').waitFor()
+ assert.ok(!page.url().includes(f.tokens[0]),'Review navigation keeps the feedback token out of the URL')
  assert.equal(await page.getByLabel('Booking reference').inputValue(),b.id)
  assert.ok(!(await page.locator('#review-list').innerText()).includes('Private feedback must stay private'))
  await page.getByLabel('Current booking email').fill(publicGuest(f.service,0).email)

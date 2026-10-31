@@ -750,7 +750,7 @@
       "executable": false
     },
     "public/placemat-feedback.js": {
-      "sha256": "1b577615a41015eda516f7b0d00a5d771f7ce1ecc66d7b09ba0a04c5a81da827",
+      "sha256": "067e4ee3e543adbcd92ad8e0d03a6a1badfd8f6659b931390fa1b9aa0f8afc5a",
       "executable": false
     },
     "public/placemat-fees.js": {
@@ -898,7 +898,7 @@
       "executable": false
     },
     "public/placemat-reviews.js": {
-      "sha256": "c614b7c3f30cd5ec6b390572babf6aa29ccf3080ea86d428a46b6feece2c0129",
+      "sha256": "558e62599f1914e0fdb0314749d07adb5405a57e8ab1c3f2c43bd82daf9d953a",
       "executable": false
     },
     "public/placemat-risk.js": {
@@ -4542,7 +4542,7 @@
       "executable": false
     },
     "tests/reviews-ui.mjs": {
-      "sha256": "4520ac22ede04d2182b14c7b0f7d1e33e4c8dbb5e8aa0da9d51a5fe932f09aae",
+      "sha256": "c1398b0de9ebbe4a92cc0072e9dd986631463860ff49e8b19f64d22c10f6329f",
       "executable": false
     },
     "tests/risk-ui.mjs": {
