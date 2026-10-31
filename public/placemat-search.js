@@ -156,7 +156,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
         catch { throw new Error('No booking has been made. Availability could not be refreshed. Search again, then choose a new time. Your contact details are kept for your next selection.'); }
         throw new Error(`No booking has been made. ${error.message} Review the refreshed availability and choose a time again. Your contact details are kept for your next selection.`);
       }
-      if(!error.status||error.status>=500)throw new Error('Booking confirmation was interrupted. Keep this tab and reload to recover the same reservation before starting another booking.');
+      if(!error.status||error.status>=500)throw new Error(checkout.interrupted());
       throw error;
     }
     confirmed(result);

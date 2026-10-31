@@ -3,12 +3,13 @@ import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 import {reminderFixture} from './message-template-fixture.mjs'
 import {csvRecords} from './business-fixture.mjs'
+import {feeEdge,consentBooking} from './fee-fixture.mjs'
 
 const body=(language,extra='')=>(language==='en'?'Hello':'Hola')+' {{guest_name}} · {{venue_name}} · {{date_time}} · {{party_size}} · {{guest_phone}} · {{cancellation_terms}}'+extra
 const policyInput=terms=>({cutoffLocalTime:'18:00',cutoffDaysBefore:1,graceMinutes:15,cancellation:{mode:'per_person',amountCents:1500},noShow:{mode:'fixed',amountCents:2500},exemptions:[],terms})
 
 test('Reviewed bilingual reminder templates freeze exact text and terms, refuse stale or unauthorized decisions, and survive portable custody and erasure without sending',async()=>{
- const h=await installation(),copy=await installation()
+ const edge=feeEdge(),h=await installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}}),copy=await installation()
  try{
   const f=await reminderFixture(h),prepare=(language='en',opts)=>h.command('proposal.prepare',{kind:'reminders',plan:{serviceId:f.service.id,language},reason:'Review exact reminder text'},opts)
   const manager=await h.signIn(['synthetic-placemat-manager','example.test'].join(String.fromCharCode(64)),'admin')
@@ -61,7 +62,11 @@ test('Reviewed bilingual reminder templates freeze exact text and terms, refuse 
   await h.command('message-template.save',{language:'es',version:2,body:body('es',' — New revision')})
   await h.command('payment.fee-policy',policyInput('New venue terms do not rewrite saved messages.'))
   const englishBooking=(await h.api('/api/public/book',publicGuest(f.service,2),{as:'',status:201})).result
+  const stalePolicy=await prepare('en')
+  await consentBooking(h,edge,englishBooking,policy)
+  await h.command('proposal.approve',{proposalId:stalePolicy.id},{status:409})
   const englishReview=await prepare('en')
+  assert.deepEqual(englishReview.plan.messages[0].policies,[{source:'fee',id:policy.id,version:policy.version,terms:policy.reviewText}],'The booking keeps its agreed policy even when the venue has a newer one')
   await h.command('proposal.approve',{proposalId:englishReview.id})
   assert.equal(englishReview.plan.messages[0].language,'en')
   const csv=csvRecords(await (await h.request('/api/reminders.csv')).text())
@@ -69,8 +74,14 @@ test('Reviewed bilingual reminder templates freeze exact text and terms, refuse 
   assert.equal(csv[0].message,approved[0].message);assert.equal(csv[0].language,'es');assert.equal(csv[0].template_version,'2')
   assert.deepEqual(JSON.parse(csv[0].policy_versions),[{source:'fee',id:policy.id,version:policy.version}])
   assert.equal(csv[0].cancellation_terms,policy.reviewText)
-  const exportCsv=await (await h.request('/api/business-export/reminders.csv')).text()
-  assert.ok(exportCsv.includes('policies_json'))
+  const exported=csvRecords(await (await h.request('/api/business-export/reminders.csv')).text())
+  const spanishExport=exported.find(r=>r.id===approved[0].id)
+  assert.equal(spanishExport.message,approved[0].message)
+  assert.equal(spanishExport.language,'es');assert.equal(spanishExport.templateId,approved[0].templateId);assert.equal(spanishExport.templateVersion,'2')
+  assert.deepEqual(JSON.parse(spanishExport.policies_json),approved[0].policies)
+  assert.equal(spanishExport.contactName,approved[0].contactName);assert.equal(spanishExport.contactPhone,approved[0].contactPhone)
+  const versions=csvRecords(await (await h.request('/api/business-export/message-templates.csv')).text())
+  assert.deepEqual(versions.filter(t=>t.language==='es').map(t=>[t.version,t.body]),[['1',body('es')],['2',body('es',' — Gracias')],['3',body('es',' — New revision')]])
   const archive=await h.api('/api/backup')
   await copy.api('/api/restore',{archive,confirm:'RESTORE'})
   const restored=(await copy.api('/api/state')).state

@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0fd3baebcfb4542d55aa0f1eb3af6ec11a3d189b9107af1a2a768e3b4abed224",
+      "sha256": "9774d408faf1a920242fc4335f5e567997a74a1e0c50a4d1eca76e05738a7536",
       "executable": false
     },
     "deploy-demo.json": {
@@ -698,7 +698,7 @@
       "executable": false
     },
     "public/placemat-checkout.js": {
-      "sha256": "949bfa49bce1025dd54002a9a18e6f0485a4915e3681ef473b64d7b811603918",
+      "sha256": "a2533011b49c89b5cbff463b7aa8592e81e7e700057d3c100ab04364692d813a",
       "executable": false
     },
     "public/placemat-close-report.js": {
@@ -902,7 +902,7 @@
       "executable": false
     },
     "public/placemat-search.js": {
-      "sha256": "83d70112a4476a78c681ced5a8daea6f4e53dacfb2f546d0895294cc9607e902",
+      "sha256": "18be8426d90d80dafb22a4f8ca51636f4677cbc395c6018b021c308d0e671539",
       "executable": false
     },
     "public/placemat-service-changes.js": {
@@ -4258,7 +4258,7 @@
       "executable": false
     },
     "tests/api/message-templates.test.mjs": {
-      "sha256": "f6ab562d63a2fe2c8a7d0ab071c23a96814ed60fc03929cde8a525ede591badb",
+      "sha256": "dbcb45a0c6befd6c4cf4cc9018e3b03446d2b96475f2eb0a516723d5c20d783c",
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {
@@ -4434,7 +4434,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "380f4ddf4bf93a7efce38afb9fea193ca4a49cd78e12d74649e95a51443ca75e",
+      "sha256": "2fd05450b48ef836d5d3286420d4e9e52a9d37e643a786e0c7df22f63bd4fac6",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
@@ -4518,7 +4518,7 @@
       "executable": false
     },
     "tests/queue-ui.mjs": {
-      "sha256": "72c889583c4bc9e8ef855b3025262c568d68a50b288b1c9e9b42fb64a5ef9d27",
+      "sha256": "0f9eed96a525468df0442de9e0cfd1aad369aa72c61feebc9d8f0553ee952d78",
       "executable": false
     },
     "tests/refund-notices-ui.mjs": {
