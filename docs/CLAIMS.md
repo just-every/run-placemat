@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 57 done, 29 partial, 49 missing; 135 total.
+Inventory: 57 done, 30 partial, 48 missing; 135 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ Inventory: 57 done, 29 partial, 49 missing; 135 total.
 | DIST-003 | missing |  |
 | DIST-004 | partial | `tests/api/assignments.test.mjs`; `tests/allocation-ui.mjs`; `tests/api/embed.test.mjs`; `tests/api/flows.test.mjs` |
 | DIST-005 | done | `tests/diner-ui.mjs`; `tests/api/guests.test.mjs`; `tests/api/diner-journeys.mjs`; `tests/api/diner-management-journey.mjs`; `tests/api/diner-custody-journey.mjs`; `tests/api/diner-journeys.mjs`; `tests/api/diner-portability.mjs`; `docs/data-portability.md` |
-| DIST-006 | missing |  |
+| DIST-006 | partial | `tests/api/reviews.test.mjs`; `tests/reviews-ui.mjs`; `tests/api/feedback.test.mjs`; `scripts/reviews-sandbox.mjs`; `docs/reviews.md` |
 | FLOOR-002 | done | `src/placemat/floor-plan.ts`; `src/placemat/combinations.ts`; `public/placemat-floor-plan.js`; `tests/api/combinations.test.mjs`; `tests/floor-plan-ui.mjs` |
 | FLOOR-003 | done | `src/placemat/combinations.ts`; `src/placemat/capacity.ts`; `src/placemat/assignments.ts`; `public/placemat-combinations.js`; `tests/api/combinations.test.mjs`; `tests/combinations-ui.mjs` |
 | FLOOR-004 | done | `src/placemat/staffing.ts`; `src/placemat/staffing-capacity.ts`; `public/placemat-staffing.js`; `tests/api/staffing.test.mjs`; `tests/staffing-ui.mjs` |
