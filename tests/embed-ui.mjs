@@ -85,6 +85,9 @@ try{
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
    for(let segment=0;segment<3;segment++){
     const before=(await dateInput.inputValue()).split('-').map(Number);await page.keyboard.press('ArrowUp')
+    // A day beyond the month's end temporarily has no complete input value.
+    // Continue the same spinbox until it wraps, before identifying its segment.
+    for(let probe=0;!(await dateInput.inputValue())&&probe<31;probe++)await page.keyboard.press('ArrowUp')
     const after=(await dateInput.inputValue()).split('-').map(Number),index=after.findIndex((n,i)=>n!==before[i]);assert.ok(index>=0,'keyboard changes the focused date segment')
     for(let step=0;step<366;step++){const current=(await dateInput.inputValue()).split('-').map(Number)[index];if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
     assert.equal(Number((await dateInput.inputValue()).split('-')[index]),wanted[index]);await page.keyboard.press('ArrowRight')
