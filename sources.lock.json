@@ -5470,7 +5470,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "81e59f4a05492405fad49915ac4cbacfa2e1c918cfbebe6e75fd3bfa4e32f1c4",
+      "sha256": "065828ffefbb34dadd8832ece7b3ff034baa53e7dda81dc9d760ba986c728001",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
