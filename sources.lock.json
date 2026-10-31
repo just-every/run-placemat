@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "868d34d2d5259ab5fef6ccca8ff7fb7541f9d97ac3f10f61e73f7219a9145d1c",
+      "sha256": "756364f12bdd7e5f7cad9380fef87e6543fd8ce53f044fac35814abc77cc214e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -306,7 +306,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "926778f25d89c4988328daae42393d76559b62d80f5a41b8b6c83f415e08fbe8",
+      "sha256": "b02c765bc0e7e25382baf027395474bebd6e57847b7a961778aca5594f28f6ac",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3374,7 +3374,7 @@
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "9f611d12c684b3dc1177a0ae822b1cfe79596cc2d6a9e86a63363dfda933c1ff",
+      "sha256": "5d238c30ffd83df8a143815cb7b7232df084606af59b0b936933c27a5b746f10",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3653,12 +3653,16 @@
       "sha256": "815ff49f3ccd987c7502dabf47c707e1cf03b80b54c4df5663b47cf60d83cd26",
       "executable": false
     },
+    "src/placemat/money-ledger-archive.d.mts": {
+      "sha256": "7580e2ccdb6571e12b6c6846ffef834feb05314223d043c132fc3fe0f647b93c",
+      "executable": false
+    },
     "src/placemat/money-ledger-archive.mjs": {
-      "sha256": "78d7b4838d802a632828fce1f3e03c86fa54c9abb180ed1aeb56b1f1a4e0c52e",
+      "sha256": "a7630b450eb1cde455dbe924f2fcde2c590ed8b86af49549eadfe1ebd9bcea22",
       "executable": false
     },
     "src/placemat/money-ledger.ts": {
-      "sha256": "18a98c1ba1624b6de83a83a01ff61e97e2b4458a322335712b8c251a19a6855d",
+      "sha256": "fed169791a8556b2bae7662e25080c0f902d58926b6bcdd30b61207c79a505a2",
       "executable": false
     },
     "src/placemat/needs.ts": {
@@ -4278,7 +4282,7 @@
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {
-      "sha256": "1b37cdc1d2b5c07e29280505b1bb68a213665d38e375270b0a42a4551fd8dc4e",
+      "sha256": "f26fcdbf2ac603c1b265ec05b988674b90fccf244532b69cf7ff982a5d3f4fa2",
       "executable": false
     },
     "tests/api/onboarding-fixture.mjs": {
