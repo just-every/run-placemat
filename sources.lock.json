@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "868d34d2d5259ab5fef6ccca8ff7fb7541f9d97ac3f10f61e73f7219a9145d1c",
+      "sha256": "829c68c100d5dab2b17e985d8eebf06a62682a881c2cfc9a5b6791c919c259ac",
       "executable": false
     },
     "deploy-demo.json": {
@@ -706,7 +706,7 @@
       "executable": false
     },
     "public/placemat-checkout.js": {
-      "sha256": "949bfa49bce1025dd54002a9a18e6f0485a4915e3681ef473b64d7b811603918",
+      "sha256": "e0fd8d300695e9caca037862c104eedeb96610fdd11f0e8219bda035d1fcf03a",
       "executable": false
     },
     "public/placemat-close-report.js": {
@@ -4346,7 +4346,7 @@
       "executable": false
     },
     "tests/api/reviews.test.mjs": {
-      "sha256": "0f0c17372b70a737396ebce7b9220c2e738ee940e8424bef1423f424a8c8ee11",
+      "sha256": "cef11e6768a9dd71dd6cbdbf0a1ab5cfe94fad407ac2a82b92d3e365d3cdf3bc",
       "executable": false
     },
     "tests/api/risk-fixture.mjs": {
@@ -4454,7 +4454,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "380f4ddf4bf93a7efce38afb9fea193ca4a49cd78e12d74649e95a51443ca75e",
+      "sha256": "83a85e3afcbc4cf648b8a13ce41d97f5bd9dabca2b74064324a70a4ec910d968",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
@@ -4534,7 +4534,7 @@
       "executable": false
     },
     "tests/queue-ui.mjs": {
-      "sha256": "72c889583c4bc9e8ef855b3025262c568d68a50b288b1c9e9b42fb64a5ef9d27",
+      "sha256": "9869677b19e5de87914738f14abb36c97ee682ae8c52b6842e9d2df864184bd0",
       "executable": false
     },
     "tests/refund-notices-ui.mjs": {

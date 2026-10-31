@@ -18,6 +18,8 @@ try{
  for(const width of [1440,390]){
   const h=await installation(),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
   try{
+   // Exercise the ordinary browser policy that blocks storage in an embedded page.
+   await context.addInitScript(()=>{if(window!==window.parent)Object.defineProperty(window,'sessionStorage',{get(){throw new DOMException('Embedded storage is blocked','SecurityError')}})})
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
    const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
@@ -42,6 +44,9 @@ try{
     await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
    })
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
+   // Keep native date spinboxes valid while discovering the platform's segment order.
+   // A real month-end such as October 31 becomes invalid on an ArrowUp into November.
+   await page.clock.setFixedTime(new Date('2026-10-15T12:00:00Z'))
    const screenshot=async name=>{if(shots)await page.screenshot({path:resolve(shots,`BOOK-002-${name}-${width}.png`),fullPage:true})}
    // The owner allows the restaurant's website from Settings; the change is audited with the owner and time.
    await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
@@ -99,6 +104,9 @@ try{
    await page.keyboard.press('Enter');await frame.getByRole('heading',{name:'Booking confirmed'}).waitFor()
    const booking=(await h.api('/api/state')).state.bookings
    assert.deepEqual(booking.map(b=>[b.startAt,b.source,b.attribution]),[[startAt,'online',{door:'widget',origin:host}]])
+   await page.frame({url:/\/book\?embed=1/}).evaluate(()=>location.reload())
+   await frame.getByRole('heading',{name:'Booking confirmed'}).waitFor()
+   assert.deepEqual((await h.api('/api/state')).state.bookings.map(b=>b.id),booking.map(b=>b.id),'Reload recovers the exact booking when embedded storage is blocked')
    const embedded=page.locator(`iframe[title="${title}"]`);assert.ok(parseFloat(await embedded.evaluate(el=>el.style.height))>0,'the widget reports its height to the allowed website')
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'host page fits the viewport')
    assert.ok(await page.frame({url:/\/book\?embed=1/}).evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'widget fits its frame')
