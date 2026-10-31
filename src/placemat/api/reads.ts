@@ -1,5 +1,5 @@
 import {subscriptions} from './events'
-import {eventPayload,type StoredEvent} from './event-schema'
+import {eventPage,type StoredEvent} from './event-schema'
 import type {Bindings} from '../../auth.server'
 import {actorFor,jsonBody,originCheck,person} from '../access'
 import {Problem,fail,id,text,type Actor} from '../model'
@@ -9,7 +9,7 @@ import {reservationSearch} from '../reservation-search'
 
 const scopes=['availability:read','reservations:read','guests:read','events:read'] as const
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','x-placemat-api-version':'1'}
-const reply=(value:unknown,status=200)=>Response.json(value,{status,headers})
+const reply=(value:unknown,status=200,version='1')=>Response.json(value,{status,headers:{...headers,'x-placemat-api-version':version}})
 type Key={id:string;name:string;scopes:string;created_by:string;expires_at:string}
 const live="SELECT k.id,k.name,k.scopes,k.created_by,k.expires_at FROM pm_integration_keys k JOIN oa_operators o ON o.id=k.created_by WHERE k.digest=? AND k.revoked_at IS NULL AND k.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now') AND o.role='owner' AND o.status='active'"
 const ownerFence=(db:D1Database,actor:Actor)=>db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND role='owner' AND status='active') THEN 1 ELSE 0 END").bind(actor.id)
@@ -78,8 +78,9 @@ async function integrationRoute(request:Request,env:Bindings):Promise<Response|n
  if(path==='/api/integration-keys'||path.startsWith('/api/integration-keys/'))return manage(request,env,url)
  if(!/^\/api\/v[^/]*(?:\/|$)/.test(path))return null
  const eventVersion=path==='/api/v2/events'?2:1
+ const version=String(eventVersion)
  if(!path.startsWith('/api/v1/')&&eventVersion!==2)return reply({version:'1',error:'Unsupported API version. Use the documented v1 routes.'},404)
- if(request.method!=='GET')return reply({version:'1',error:'This API slice permits reads only.'},405)
+ if(request.method!=='GET')return reply({version,error:'This API slice permits reads only.'},405,version)
  const kind=eventVersion===2?'events':path.slice('/api/v1/'.length)
  if(!['availability','reservations','guests','events'].includes(kind))return reply({version:'1',error:'Unknown v1 collection.'},404)
  const bearer=request.headers.get('authorization')
@@ -88,7 +89,7 @@ async function integrationRoute(request:Request,env:Bindings):Promise<Response|n
  const minute=Math.floor(Date.now()/60000)
  const count=await env.DB.prepare('INSERT INTO pm_integration_limits(key_id,minute,count) VALUES(?,?,1) ON CONFLICT(key_id,minute) DO UPDATE SET count=count+1 RETURNING count').bind(key.id,minute).first<{count:number}>()
  await env.DB.prepare('DELETE FROM pm_integration_limits WHERE minute<?').bind(minute-1).run()
- if((count?.count??0)>60)return new Response(JSON.stringify({version:'1',error:'Integration rate limit reached. Retry in the next minute.'}),{status:429,headers:{...headers,'content-type':'application/json','retry-after':String(60-Math.floor(Date.now()/1000)%60)}})
+ if((count?.count??0)>60)return new Response(JSON.stringify({version,error:'Integration rate limit reached. Retry in the next minute.'}),{status:429,headers:{...headers,'x-placemat-api-version':version,'content-type':'application/json','retry-after':String(60-Math.floor(Date.now()/1000)%60)}})
  if(!JSON.parse(key.scopes).includes(kind+':read'))fail(403,'This key does not grant the requested read scope.')
  if(kind==='availability'){
   const result=reservationSearch((await load(env.DB)).state,url.searchParams)
@@ -103,9 +104,9 @@ async function integrationRoute(request:Request,env:Bindings):Promise<Response|n
   if(after&&!/^[1-9]\d*$/.test(after))fail(400,'Invalid event cursor.')
   const rows=(await env.DB.prepare('SELECT sequence,id,type,schema_version,payload,created_at FROM pm_integration_events WHERE sequence>? ORDER BY sequence LIMIT ?').bind(after?Number(after):0,limit+1).all<StoredEvent&{sequence:number}>()).results
   const items=rows.slice(0,limit),nextCursor=rows.length>limit?await cursor(env.SESSION_SECRET,key,cursorKind,String(items.at(-1)!.sequence)):null
+  const envelopes=await eventPage(env.DB,items,eventVersion)
   if(!await env.DB.prepare(live).bind(digest).first())fail(401,'Integration key was revoked or expired.')
-  const envelopes=await Promise.all(items.map(async row=>(await eventPayload(env.DB,row,eventVersion)).envelope))
-  return new Response(JSON.stringify({version:String(eventVersion),items:envelopes,nextCursor}),{headers:{...headers,'content-type':'application/json','x-placemat-api-version':String(eventVersion)}})
+  return reply({version,items:envelopes,nextCursor},200,version)
  }
  const fields=kind==='guests'?['id']:['id','serviceId','partySize','startAt','endAt','status','source']
  if(url.searchParams.has('fields')&&url.searchParams.get('fields')!.split(',').some(field=>!fields.includes(field)))fail(403,'Requested fields are outside this read scope. Contact and private profile fields are denied.')
@@ -122,7 +123,8 @@ async function integrationRoute(request:Request,env:Bindings):Promise<Response|n
 
 export async function integrationResponse(request:Request,env:Bindings):Promise<Response|null>{
  try{return await integrationRoute(request,env)}catch(error){
-  if(error instanceof Problem)return reply({version:'1',error:error.message},error.status)
+  const version=new URL(request.url).pathname==='/api/v2/events'?'2':'1'
+  if(error instanceof Problem)return reply({version,error:error.message},error.status,version)
   throw error
  }
 }

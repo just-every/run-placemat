@@ -42,23 +42,37 @@ export function eventSchema(value:unknown=1):1|2{
 }
 
 /** Both versions refer to one immutable logical event; neither may widen its facts. */
-export async function eventPayload(db:D1Database,row:StoredEvent,version:1|2){
+function representation(row:StoredEvent,version:1|2,payload?:string){
  const original=checkedEvent(row)
  if(original.schemaVersion!==1)throw new Problem(409,'The original event must retain its v1 schema and payload.')
  if(version===1)return {envelope:original,payload:row.payload}
- const stored=await db.prepare('SELECT payload FROM pm_integration_event_versions WHERE event_id=? AND schema_version=2').bind(row.id).first<{payload:string}>()
- if(!stored)throw new Problem(409,`Event ${row.id} lacks its installed successor schema. Inspect the owner subscription schema report.`)
- const envelope=checkedEvent({...row,schema_version:2,payload:stored.payload})
- if(stored.payload!==JSON.stringify(successor(original)))throw new Problem(409,`Event ${row.id} has conflicting schema representations. No facts or signed history have been rewritten.`)
- return {envelope,payload:stored.payload}
+ if(payload===undefined)throw new Problem(409,`Event ${row.id} lacks its installed successor schema. Inspect the owner subscription schema report.`)
+ const envelope=checkedEvent({...row,schema_version:2,payload})
+ if(payload!==JSON.stringify(successor(original)))throw new Problem(409,`Event ${row.id} has conflicting schema representations. No facts or signed history have been rewritten.`)
+ return {envelope,payload}
+}
+
+export async function eventPayload(db:D1Database,row:StoredEvent,version:1|2){
+ const stored=version===2?await db.prepare('SELECT payload FROM pm_integration_event_versions WHERE event_id=? AND schema_version=2').bind(row.id).first<{payload:string}>():null
+ return representation(row,version,stored?.payload)
+}
+
+export async function eventPage(db:D1Database,rows:StoredEvent[],version:1|2){
+ // Read a whole page with one query, including the documented 100-event page.
+ const versions=version===2&&rows.length?(await db.prepare('SELECT event_id,payload FROM pm_integration_event_versions WHERE schema_version=2 AND event_id IN ('+rows.map(()=>'?').join(',')+')').bind(...rows.map(row=>row.id)).all<{event_id:string;payload:string}>()).results:[]
+ const payloads=new Map(versions.map(row=>[row.event_id,row.payload]))
+ return rows.map(row=>representation(row,version,payloads.get(row.id)).envelope)
 }
 
 export async function schemaReport(db:D1Database){
  const rows=(await db.prepare('SELECT id,type,schema_version,payload,created_at FROM pm_integration_events ORDER BY sequence').all<StoredEvent>()).results
- return {supportedSchemas:[1,2],events:await Promise.all(rows.map(async row=>{
-  const result=inspectEvent(row)
+ const versions=(await db.prepare('SELECT event_id,payload FROM pm_integration_event_versions WHERE schema_version=2').all<{event_id:string;payload:string}>()).results
+ const payloads=new Map(versions.map(row=>[row.event_id,row.payload]))
+ return {supportedSchemas:[1,2],events:rows.map(row=>{
+  let result=inspectEvent(row)
+  if(result.status==='compatible'&&row.schema_version!==1)result={status:'invalid',reason:'The original event must retain its v1 schema and payload.'}
   let successorStatus:{schemaVersion:number;status:string;reason?:string}={schemaVersion:2,status:'compatible'}
-  try{await eventPayload(db,row,2)}catch{successorStatus={schemaVersion:2,status:'invalid',reason:'Restore the original installation records or finish the supported application upgrade. No raw payload is exposed.'}}
+  try{representation(row,2,payloads.get(row.id))}catch{successorStatus={schemaVersion:2,status:'invalid',reason:'Restore the original installation records or finish the supported application upgrade. No raw payload is exposed.'}}
   return {id:row.id,schemaVersion:row.schema_version,status:result.status,...(result.status==='compatible'?{}:{reason:result.reason}),representations:[{schemaVersion:row.schema_version,status:result.status},successorStatus]}
- }))}
+ })}
 }
