@@ -6,6 +6,8 @@ import {readFile,mkdir} from 'node:fs/promises'
 import {extname,resolve} from 'node:path'
 import {chromium} from '@playwright/test'
 import {installation} from './api/harness.mjs'
+import {browserClock} from './browser-clock.mjs'
+const fixtureNow=Date.parse('2026-10-20T12:00:00Z')
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const host='https://bistro.example',other='https://other.example',title='Book a table at Cedar & Salt'
@@ -16,11 +18,14 @@ const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try{
  for(const width of [1440,390]){
-  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>fixtureNow}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
   try{
+   await browserClock(context,fixtureNow)
+   // Restrictive browsers deny storage in third-party frames; booking must still complete.
+   await context.addInitScript(()=>{if(window.top!==window)Object.defineProperty(window,'sessionStorage',{configurable:true,get(){throw new DOMException('Embedded storage denied','SecurityError')}})})
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
-   const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
+   const date=new Date(fixtureNow);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
    const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online:{minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}}})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish Friday dinner'});await h.command('proposal.approve',{proposalId:p.id})
    // A second dinner three weeks out lets a declined visit book on the standalone page after the widget takes the first.
@@ -145,11 +150,20 @@ try{
    await next.close()
    if(width===1440){
     // Staff and guest pages other than the widget refuse every frame, and an unlisted website gets no widget.
+    const forbidden=['app','book','queue','inquiry']
+    const deniedLoads=forbidden.map(name=>page.waitForEvent('requestfailed',{predicate:request=>request.url()===h.origin+'/'+name}))
     await page.goto(host+'/frames');await page.waitForLoadState('load')
-    for(const name of ['app','book','queue','inquiry'])assert.match(page.frame({name}).url(),/^chrome-error:/,`${name} is unframeable`)
+    const refused=await Promise.all(deniedLoads)
+    for(const [index,name] of forbidden.entries()){
+     const response=await h.request('/'+name)
+     assert.equal(response.headers.get('x-frame-options'),'DENY',`${name} denies frames`)
+     assert.match(response.headers.get('content-security-policy'),/frame-ancestors 'none'/,`${name} denies every ancestor`)
+     assert.match(refused[index].failure().errorText,/ERR_BLOCKED_BY_(RESPONSE|CSP)/,`${name} is unframeable`)
+    }
+    const unlisted=page.waitForEvent('requestfailed',{predicate:request=>request.url()===h.origin+'/book?embed=1&origin='+encodeURIComponent(other)})
     await page.goto(other+'/');await page.locator(`iframe[title="${title}"]`).waitFor();await page.waitForLoadState('load')
     await assert.rejects(()=>page.frameLocator(`iframe[title="${title}"]`).locator('[name=date]').waitFor({timeout:3000}))
-    assert.match(page.frames().find(f=>f!==page.mainFrame()).url(),/^chrome-error:/,'an unlisted website cannot frame the widget')
+    assert.match((await unlisted).failure().errorText,/ERR_BLOCKED_BY_(RESPONSE|CSP)/,'an unlisted website cannot frame the widget')
    }
    assert.deepEqual(errors,[])
    console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)

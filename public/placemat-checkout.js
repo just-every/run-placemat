@@ -2,10 +2,10 @@ import {cartSummary} from './placemat-experience-options.js'
 /* Recovery keeps only this tab's random checkout capability, never contact or request text. */
 export function createCheckout({api,root,esc,notice,formatTime,onConfirmed,onReleased}){
  const key='placemat-checkout',random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('')
- let capability,payload,expiryTimer
- const read=()=>{try{return JSON.parse(sessionStorage.getItem(key)||'null')}catch{return null}}
- const retain=value=>{capability=value;sessionStorage.setItem(key,JSON.stringify(value))}
- const clear=()=>{clearInterval(expiryTimer);capability=undefined;payload=undefined;sessionStorage.removeItem(key)}
+ let capability,payload,expiryTimer,persistent=true
+ const read=()=>{try{return JSON.parse(sessionStorage.getItem(key)||'null')}catch{persistent=false;return null}}
+ const retain=value=>{capability=value;try{sessionStorage.setItem(key,JSON.stringify(value))}catch{persistent=false}}
+ const clear=()=>{clearInterval(expiryTimer);capability=undefined;payload=undefined;try{sessionStorage.removeItem(key)}catch{persistent=false}}
  function held(view){
   clearInterval(expiryTimer)
   root.innerHTML=`<article class="card" aria-label="Checkout hold"><h2>Table held for you</h2><p>Your table is reserved until <time>${esc(formatTime(view.hold.expiresAt))}</time>.</p><p data-hold-countdown role="status"></p><p>${esc(view.hold.partySize)} guests · ${esc(formatTime(view.hold.startAt))}, until ${esc(formatTime(view.hold.endAt))}.</p>${cartSummary(view.hold.experienceCart,esc,true)}<p class="help">A hold is not a confirmed booking. No payment is requested before your reservation is saved.${payload?' Review your visit, then finish the reservation.':' This tab has recovered the hold. Release it to re-enter your contact and visit details.'}</p>${payload?'<button type="button" data-checkout="finish">Finish reservation</button> ':''}<button type="button" class="secondary" data-checkout="release">Release hold</button></article>`
@@ -44,5 +44,5 @@ export function createCheckout({api,root,esc,notice,formatTime,onConfirmed,onRel
   }catch(error){notice(error.message,'error')}
   finally{controls.forEach(b=>{if(b.isConnected)b.disabled=false})}
  })
- return {finish,async review(booking){const view=await reserve(booking);if(view.status==='active'){held(view);notice('Table held. Review your visit and expiry, then finish your reservation.')}},recover,clear,async release(){if(!capability)return;let view;try{view=await api('/api/public/booking-holds/abandon',capability)}catch(error){if(error.status!==404)throw error;clear();return}if(view.status==='completed')return view.result;clear()}}
+ return {finish,recoveryMessage:()=>persistent?'Booking confirmation was interrupted. Keep this tab and reload to recover the same reservation before starting another booking.':'Booking confirmation was interrupted. Keep this tab open and confirm again to recover the same reservation. This browser blocks saved checkout recovery, so reloading cannot recover it.',async review(booking){const view=await reserve(booking);if(view.status==='active'){held(view);notice('Table held. Review your visit and expiry, then finish your reservation.')}},recover,clear,async release(){if(!capability)return;let view;try{view=await api('/api/public/booking-holds/abandon',capability)}catch(error){if(error.status!==404)throw error;clear();return}if(view.status==='completed')return view.result;clear()}}
 }
