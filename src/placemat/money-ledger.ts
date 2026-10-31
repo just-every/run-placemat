@@ -1,4 +1,5 @@
 import {fail,id,text,Problem,type Actor} from './model'
+import {recordMoneyAttribution} from './audit'
 import {load,save} from './store'
 import {moneySettlements} from './money-ledger-archive.mjs'
 import {verifyStripeEventBytes,type RefundWebhookBindings} from './refund-events'
@@ -95,7 +96,7 @@ export async function adjustMoneyLedger(db:D1Database,actor:Actor,p:any){
  const {state,version}=await load(db)
  const booking=state.bookings.find(b=>b.id===bookingId)??fail(409,'Choose an existing booking for this adjustment.')
  if(reason&&await db.prepare("SELECT 1 FROM pm_guests WHERE id=? AND json_extract(data,'$.erased')=1").bind(booking.guestId).first())fail(409,'An erased guest can retain financial references only.')
- state.audit.push({id:id(),at:now,actor:actor.id,source:'person',action:'payment.ledger-attribution',subject:bookingId,...(reason?{reason}:{}),changes:[{kind:'money-attribution',id:adjustmentId,before:item,after:{...item,bookingId,adjustmentId}}]})
+ recordMoneyAttribution(state,actor,now,payoutId,adjustmentId,item,bookingId,reason)
  try{
   await save(db,state,version,[ownerFence(db,actor),bookingFence(db,bookingId),db.prepare('INSERT INTO pm_money_adjustments(id,payout_id,transaction_id,booking_id,actor_id,recorded_at) VALUES(?,?,?,?,?,?)').bind(adjustmentId,payoutId,transactionId,bookingId,actor.id,now)])
  }catch(error){
