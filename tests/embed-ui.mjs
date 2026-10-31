@@ -154,11 +154,14 @@ try{
    await next.close()
    if(width===1440){
     // Staff and guest pages other than the widget refuse every frame, and an unlisted website gets no widget.
+    const protectedPages=['app','book','queue','inquiry']
+    const refusals=Promise.all(protectedPages.map(name=>page.waitForEvent('requestfailed',{predicate:request=>request.url()===h.origin+'/'+name})))
     await page.goto(host+'/frames');await page.waitForLoadState('load')
-    for(const name of ['app','book','queue','inquiry'])assert.match(page.frame({name}).url(),/^chrome-error:/,`${name} is unframeable`)
+    for(const [index,request] of (await refusals).entries())assert.match(request.failure()?.errorText??'',/ERR_BLOCKED_BY_RESPONSE/,`${protectedPages[index]} is unframeable`)
+    const widgetRefusal=page.waitForEvent('requestfailed',{predicate:request=>request.url().includes('/book?embed=1')&&new URL(request.url()).searchParams.get('origin')===other})
     await page.goto(other+'/');await page.locator(`iframe[title="${title}"]`).waitFor();await page.waitForLoadState('load')
     await assert.rejects(()=>page.frameLocator(`iframe[title="${title}"]`).locator('[name=date]').waitFor({timeout:3000}))
-    assert.match(page.frames().find(f=>f!==page.mainFrame()).url(),/^chrome-error:/,'an unlisted website cannot frame the widget')
+    assert.match((await widgetRefusal).failure()?.errorText??'',/ERR_BLOCKED_BY_RESPONSE/,'an unlisted website cannot frame the widget')
    }
    assert.deepEqual(errors,[])
    console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)
