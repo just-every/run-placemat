@@ -168,6 +168,6 @@ try{
    assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null)
    await contexts[1].clearCookies();await second.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await second.locator('#floor-sync').innerText(),/Sign in again/)
    assert.deepEqual(errors,[]);console.log(`FLOOR-002 / FLOOR-008 rooms, live guest booking markers, stale edits, encrypted outage capture and reviewed reconnect passed at ${width}`)
-  }finally{for(const c of contexts){await c.unrouteAll({behavior:'wait'});await c.close()}await h.close()}
+  }finally{for(const c of contexts){for(const page of c.pages())await page.unrouteAll({behavior:'wait'});await c.unrouteAll({behavior:'wait'});await c.close()}await h.close()}
  }
 }finally{await browser.close()}

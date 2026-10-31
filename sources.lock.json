@@ -4454,7 +4454,7 @@
       "executable": false
     },
     "tests/floor-plan-ui.mjs": {
-      "sha256": "b367907e1f345cc34824b47783e34cf3a3fdfffcbc55949d8083930f0715edf9",
+      "sha256": "12b0eff9a4a1abaa11559643519f3dbb831dd18fca6783ca72824654eb122d24",
       "executable": false
     },
     "tests/floor-ui.mjs": {
