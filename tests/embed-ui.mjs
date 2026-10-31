@@ -21,23 +21,14 @@ const now=Date.parse('2026-10-20T12:00:00Z')
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 try{
  for(const width of [1440,390]){
-<<<<<<< HEAD
   const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US',extraHTTPHeaders:{'x-placemat-test-clock':String(now)}})
   try{
    await context.clock.setFixedTime(new Date(now))
-   await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
-   await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
-   const date=new Date(now);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
-=======
-  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>fixtureNow}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
-  try{
-   await browserClock(context,fixtureNow)
    // Restrictive browsers deny storage in third-party frames; booking must still complete.
    await context.addInitScript(()=>{if(window.top!==window)Object.defineProperty(window,'sessionStorage',{configurable:true,get(){throw new DOMException('Embedded storage denied','SecurityError')}})})
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
-   const date=new Date(fixtureNow);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
->>>>>>> c2c1e8f (fix: preserve widget checkout when frame storage is denied [skip ci])
+   const date=new Date(now);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
    const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online:{minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}}})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish Friday dinner'});await h.command('proposal.approve',{proposalId:p.id})
    // A second dinner three weeks out lets a declined visit book on the standalone page after the widget takes the first.
