@@ -92,9 +92,20 @@ try{
    // Probing with an arrow key can make October 31 into an invalid November 31.
    // All edits still use the keyboard, including temporarily incomplete dates.
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
-   const accessibility=await context.newCDPSession(page.frame({url:/\/book\?embed=1/})),visited=new Set()
+   const bookingFrame=page.frame({url:/\/book\?embed=1/}),visited=new Set()
+   let accessibility,accessibilityFrameId
+   try{accessibility=await context.newCDPSession(bookingFrame)}catch(error){
+    if(!error.message.includes('part of the parent frame'))throw error
+    // Headless Chromium may keep this iframe in its parent's renderer.
+    // Select its own AX tree rather than reading the host page's controls.
+    accessibility=await context.newCDPSession(page)
+    const {frameTree}=await accessibility.send('Page.getFrameTree')
+    const findFrame=node=>node.frame.url===bookingFrame.url()?node.frame.id:(node.childFrames||[]).map(findFrame).find(Boolean)
+    accessibilityFrameId=findFrame(frameTree)
+    assert.ok(accessibilityFrameId,'the booking iframe has a CDP frame id')
+   }
    const focusedDateSegment=async()=>{
-    const {nodes}=await accessibility.send('Accessibility.getFullAXTree')
+    const {nodes}=await accessibility.send('Accessibility.getFullAXTree',accessibilityFrameId?{frameId:accessibilityFrameId}:{})
     return nodes.find(node=>node.role?.value==='spinbutton'&&node.properties?.some(property=>property.name==='focused'&&property.value.value===true))
    }
    try{for(let segment=0;segment<3;segment++){
