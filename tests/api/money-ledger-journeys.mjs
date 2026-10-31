@@ -86,6 +86,13 @@ test('Signed money facts reconcile refund-before-charge and duplicate callbacks,
   assert.equal(audit.length,1);assert.equal(audit[0].actor,adjustment.actor_id);assert.equal(audit[0].at,adjustment.recorded_at)
   assert.equal(audit[0].source,'person');assert.equal(audit[0].reason,attribution.reason);assert.equal(audit[0].subject,booking.id)
   assert.deepEqual(audit[0].changes,[{kind:'money-attribution',id:adjustment.id,before:{payoutId:payout.id,...conflict},after:{payoutId:payout.id,...linked}}])
+  for(const as of [manager,member]){
+   const sharedState=await h.api('/api/state',undefined,{as})
+   assert.equal(sharedState.state.audit.filter(e=>e.action==='payment.ledger-attribution').length,0,'Non-owners cannot read settlement facts through shared state')
+   const sharedAudit=await h.api('/api/audit',undefined,{as})
+   assert.equal(sharedAudit.rows.filter(e=>e.action==='payment.ledger-attribution').length,0,'Non-owners cannot read settlement facts through change history')
+   assert.equal((await h.request('/api/business-export/money-payouts.csv',{as})).status,403)
+  }
   const auditCsv=csvRecords(await (await h.request('/api/business-export/audit.csv')).text()).find(r=>r.action==='payment.ledger-attribution')
   assert.deepEqual(JSON.parse(auditCsv.changes_json),audit[0].changes)
   const afterCsv=await payoutCsv(h)

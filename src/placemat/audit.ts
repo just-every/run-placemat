@@ -62,3 +62,9 @@ export function eraseAudit(state:State,guestId:string):void {
 export function recordMoneyAttribution(state:State,actor:Actor,at:string,payoutId:string,adjustmentId:string,before:SettlementView,bookingId:string,reason?:string):void {
  state.audit.push({id:id(),at,actor:actor.id,source:'person',action:'payment.ledger-attribution',subject:bookingId,...(reason?{reason}:{}),changes:[{kind:'money-attribution',id:adjustmentId,before:{payoutId,...before},after:{payoutId,...before,bookingId,adjustmentId}}]})
 }
+
+/** Owner-only settlement facts stay fenced on the shared state and history doors too. */
+export function filterLedgerAudit(state:State,actor:Actor):State {
+ if(actor.role!=='owner'||actor.agent||actor.deviceId)state.audit=state.audit.filter(event=>event.action!=='payment.ledger-attribution')
+ return state
+}
