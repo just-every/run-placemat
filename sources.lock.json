@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0fd3baebcfb4542d55aa0f1eb3af6ec11a3d189b9107af1a2a768e3b4abed224",
+      "sha256": "57589e4af47af5fc506515b83b20735f6ee983cbd3c7ea47fe755f5e05dc44c6",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3634,7 +3634,7 @@
       "executable": false
     },
     "src/placemat/message-templates.ts": {
-      "sha256": "f6447b71ba579f0574988be7012dfb50b01fdf1b62cfd9efc38283db7a4b632d",
+      "sha256": "d46f96f1d91ee58ff0121d0d791575a086128d9230221b4be06471229c675d7b",
       "executable": false
     },
     "src/placemat/model.ts": {
@@ -4258,7 +4258,7 @@
       "executable": false
     },
     "tests/api/message-templates.test.mjs": {
-      "sha256": "f6ab562d63a2fe2c8a7d0ab071c23a96814ed60fc03929cde8a525ede591badb",
+      "sha256": "97916fbc22d3c7353027ea8d58be7a68e8ab31a63ea73df79147b6035baaf491",
       "executable": false
     },
     "tests/api/money-ledger-journeys.mjs": {

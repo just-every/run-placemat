@@ -101,3 +101,25 @@ test('Required existing cancellation terms cannot be replaced by invented remind
   assert.deepEqual((await h.api('/api/state')).state.reminders,[])
  }finally{await h.close()}
 })
+
+test('A renewed guarantee under new fee terms previews and approves only the current terms',async()=>{
+ const h=await installation()
+ try{
+  const f=await reminderFixture(h),booking=f.bookings[0],oldTerms='Superseded cancellation terms.',newTerms='Renewed cancellation terms.'
+  const earlier=await h.command('payment.fee-policy',policyInput(oldTerms)),current=await h.command('payment.fee-policy',policyInput(newTerms))
+  const guarantee=(id,policy,at,ended)=>h.db.batch([
+   h.db.prepare("INSERT INTO pm_stripe_collections(id,booking_id,account_id,created_by,created_at,expires_at,state) VALUES(?,?,'acct',?,?,?,'collected')").bind(id,booking.id,'synthetic-placemat-1',at,'2032-01-01T00:00:00Z'),
+   h.db.prepare('INSERT INTO pm_card_guarantees(id,booking_id,policy_id,actor_id,created_at,accepted_at,review_text,booking_snapshot,expires_at,ended_at,max_fee_cents) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(id,booking.id,policy.id,'synthetic-placemat-1',at,at,policy.reviewText,'{}','2032-01-17T04:30:00Z',ended,3000)])
+  await guarantee('synthetic-placemat-guarantee-1',earlier,'2031-12-01T00:00:00Z','2031-12-02T00:00:00Z')
+  await guarantee('synthetic-placemat-guarantee-2',current,'2031-12-03T00:00:00Z',null)
+  await h.command('message-template.save',{language:'en',version:0,body:body('en')})
+  const draft=await h.command('proposal.prepare',{kind:'reminders',plan:{serviceId:f.service.id,language:'en'},reason:'Review renewed terms'})
+  const first=draft.plan.messages.find(m=>m.bookingId===booking.id)
+  assert.deepEqual(first.policies.map(p=>p.id),[current.id])
+  assert.ok(first.message.includes(newTerms)&&!first.message.includes(oldTerms))
+  await h.command('proposal.approve',{proposalId:draft.id})
+  const csv=csvRecords(await (await h.request('/api/reminders.csv')).text())
+  assert.deepEqual(JSON.parse(csv.find(r=>r.booking_id===booking.id).policy_versions).map(p=>p.id),[current.id])
+  assert.ok(!csv.find(r=>r.booking_id===booking.id).cancellation_terms.includes(oldTerms))
+ }finally{await h.close()}
+})

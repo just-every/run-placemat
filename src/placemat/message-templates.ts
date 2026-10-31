@@ -33,8 +33,15 @@ export function usPhone(value:string){
  const digits=value.replace(/\D/g,'').replace(/^1(?=\d{10}$)/,'')
  return /^[2-9]\d{2}[2-9]\d{6}$/.test(digits)?`(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`:value
 }
+/** Renewed collection supersedes earlier terms: only the newest agreement for the booking applies. */
+async function currentBindings(db:D1Database,bookingId:string){
+ const consent=await db.prepare('SELECT policy_id,recorded_at FROM pm_fee_consents WHERE booking_id=?').bind(bookingId).first<{policy_id:string;recorded_at:string}>()
+ const guarantee=await db.prepare('SELECT policy_id,created_at FROM pm_card_guarantees WHERE booking_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1').bind(bookingId).first<{policy_id:string;created_at:string}>()
+ const current=guarantee&&(!consent||guarantee.created_at>=consent.recorded_at)?guarantee:consent
+ return current?[{policy_id:current.policy_id}]:[]
+}
 async function applicablePolicies(db:D1Database,b:Booking):Promise<MessagePolicy[]>{
- const bindings=(await db.prepare('SELECT policy_id FROM pm_fee_consents WHERE booking_id=? UNION SELECT policy_id FROM pm_card_guarantees WHERE booking_id=? ORDER BY policy_id').bind(b.id,b.id).all<{policy_id:string}>()).results
+ const bindings=await currentBindings(db,b.id)
  const policies:MessagePolicy[]=[]
  const selected=bindings.length?await Promise.all(bindings.map(row=>feePolicy(db,row.policy_id))):[await feePolicy(db)]
  for(const policy of selected){
