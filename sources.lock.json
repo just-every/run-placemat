@@ -4498,7 +4498,7 @@
       "executable": false
     },
     "tests/queue-ui.mjs": {
-      "sha256": "72c889583c4bc9e8ef855b3025262c568d68a50b288b1c9e9b42fb64a5ef9d27",
+      "sha256": "20cfb2d9f2c72d945185874cfc2fddc4ab3736d009e36f3a2cfda2d426f35394",
       "executable": false
     },
     "tests/refund-notices-ui.mjs": {
