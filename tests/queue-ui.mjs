@@ -6,31 +6,38 @@ import {resolve,extname} from 'node:path'
 import {chromium} from '@playwright/test'
 import jsQR from 'jsqr'
 import {installation} from './api/harness.mjs'
+// Pin both workerd and browser Date; override only to exercise calendar boundaries.
+const now=Date.parse(process.env.PLACEMAT_TEST_NOW||'2026-10-31T12:00:00Z')
+assert.ok(Number.isFinite(now),'PLACEMAT_TEST_NOW must be an ISO instant')
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
 async function transport(context,h,cookie=''){
  if(cookie)await context.addCookies(cookie.split('; ').map(v=>{const i=v.indexOf('=');return {name:v.slice(0,i),value:v.slice(i+1),url:h.origin,secure:true,sameSite:'Lax'}}))
  await context.route('**/*',async route=>{
   const request=route.request(),url=new URL(request.url());if(url.origin!==h.origin){await route.abort();return}
   const file=resolve('public','.'+url.pathname)
   if(file.startsWith(resolve('public')+'/')&&extname(file))try{await route.fulfill({status:200,contentType:{'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream',body:await readFile(file)});return}catch{}
-  const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
+  const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host,'x-placemat-test-clock':String(now)},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
   await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
  })
 }
 try{
  for(const width of [1440,390]){
-  const h=await installation(),ownerContext=await browser.newContext({viewport:{width,height:1000}}),guestContext=await browser.newContext({viewport:{width,height:1000}}),hostContext=await browser.newContext({viewport:{width,height:1000}})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),ownerContext=await browser.newContext({viewport:{width,height:1000}}),guestContext=await browser.newContext({viewport:{width,height:1000}}),hostContext=await browser.newContext({viewport:{width,height:1000}})
   try{
-   await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
+   const timezone='America/New_York'
+   await h.command('venue.update',{name:'Cedar & Salt',timezone})
    await h.command('table.save',{label:'Dining 4',seats:4,area:'Dining',accessTags:['step-free'],x:20,y:40})
-   const day=new Date(Date.now()+86400000).toISOString().slice(0,10),service=await h.command('service.save',{name:'Dinner',startAt:day+'T21:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:90,coverLimit:40})
+   const day=new Date(now+86400000).toISOString().slice(0,10)
+   // Dinner is at 17:00 venue time, including the day New York leaves DST.
+   const offset=new Intl.DateTimeFormat('en-US',{timeZone:timezone,timeZoneName:'longOffset'}).formatToParts(new Date(day+'T17:00:00Z')).find(part=>part.type==='timeZoneName').value.replace('GMT','')
+   const service=await h.command('service.save',{name:'Dinner',startAt:new Date(day+'T17:00:00'+offset).toISOString(),endAt:new Date(day+'T19:00:00'+offset).toISOString(),turnMinutes:90,coverLimit:40})
    const plan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Public queue ready'});await h.command('proposal.approve',{proposalId:plan.id})
    const hostCookie=await h.signIn('queue-host@example.test'),host=(await h.api('/auth/operators')).find(p=>p.email==='queue-host@example.test');await h.command('team.host',{operatorId:host.id,enabled:true})
    await transport(ownerContext,h,h.cookie);await transport(guestContext,h);await transport(hostContext,h,hostCookie)
    const owner=await ownerContext.newPage(),guest=await guestContext.newPage(),hostPage=await hostContext.newPage(),errors=[]
-   for(const page of [owner,guest,hostPage])page.on('pageerror',error=>errors.push(error.message))
+   for(const page of [owner,guest,hostPage]){await page.clock.setFixedTime(new Date(now));page.on('pageerror',error=>errors.push(error.message))}
    await owner.goto(h.origin+'/setup');await owner.getByRole('checkbox').check();await owner.getByRole('button',{name:'Finish setup'}).click();await owner.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
    await owner.locator('#waitlist-content summary').filter({hasText:'Public queue joining'}).click()
    const qr=owner.getByRole('img',{name:'QR code for Dinner queue joining'});await qr.waitFor();await qr.evaluate(image=>image.decode())
@@ -48,7 +55,7 @@ try{
    if(shots)await guest.screenshot({path:resolve(shots,`WAIT-002-managed-${width}.png`),fullPage:true})
    await owner.locator('#waitlist-content form[data-command="waitlist.intake-pause"] button').click();await owner.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();await owner.locator('#waitlist-content summary').filter({hasText:'Public queue joining'}).click();assert.match(await owner.locator('#waitlist-content').innerText(),/Online joining is paused/)
    if(shots)await owner.locator('#waitlist-content').screenshot({path:resolve(shots,`WAIT-002-paused-${width}.png`)})
-   const paused=await guestContext.newPage();await paused.goto(decoded.data);await paused.getByRole('button',{name:'Join queue',exact:true}).waitFor();assert.equal(await paused.getByRole('button',{name:'Join queue',exact:true}).isDisabled(),true);if(shots)await paused.screenshot({path:resolve(shots,`WAIT-002-public-paused-${width}.png`),fullPage:true});await paused.close()
+   const paused=await guestContext.newPage();await paused.clock.setFixedTime(new Date(now));await paused.goto(decoded.data);await paused.getByRole('button',{name:'Join queue',exact:true}).waitFor();assert.equal(await paused.getByRole('button',{name:'Join queue',exact:true}).isDisabled(),true);if(shots)await paused.screenshot({path:resolve(shots,`WAIT-002-public-paused-${width}.png`),fullPage:true});await paused.close()
    await hostPage.goto(h.origin+'/app');await hostPage.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await hostPage.locator('#waitlist-content summary').filter({hasText:'Add a waiting party'}).click()
    const intake=hostPage.locator('#waitlist-content form[data-command="waitlist.add"]');await intake.locator('[name=name]').fill('Walk-up friends');await intake.locator('[name=email]').fill('friends@example.test');await intake.locator('[name=partySize]').fill('2');await intake.locator('[name=preferredAt]').fill(`${day}T17:00`);await intake.locator('[name=preferredArea]').fill('Dining');await intake.getByRole('button',{name:'Add to waitlist'}).click();await hostPage.getByRole('status').filter({hasText:'Saved successfully'}).waitFor();assert.ok(await hostPage.locator('#queue-management-link input').inputValue());assert.equal((await h.api('/api/state')).state.waitlist.find(row=>row.source==='staff').preferredAt,service.startAt)
    if(shots)await hostPage.locator('#waitlist-content').screenshot({path:resolve(shots,`WAIT-002-host-intake-${width}.png`)})

@@ -6,6 +6,9 @@ import {readFile,mkdir} from 'node:fs/promises'
 import {extname,resolve} from 'node:path'
 import {chromium} from '@playwright/test'
 import {installation} from './api/harness.mjs'
+// Pin both workerd and browser Date; override only to exercise calendar boundaries.
+const now=Date.parse(process.env.PLACEMAT_TEST_NOW||'2026-10-31T12:00:00Z')
+assert.ok(Number.isFinite(now),'PLACEMAT_TEST_NOW must be an ISO instant')
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const host='https://bistro.example',other='https://other.example',title='Book a table at Cedar & Salt'
@@ -13,14 +16,14 @@ const ga4Secret=randomBytes(16).toString('hex'),metaToken=randomBytes(32).toStri
 const quiet=()=>new Promise(r=>setTimeout(r,600))
 const site=placemat=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bistro on Main</title></head><body style="margin:0;font-family:sans-serif"><header style="padding:16px"><h1>Bistro on Main</h1><a href="#menu">Menu</a></header><div data-placemat-book data-title="${title}"></div><script src="${placemat}/placemat-embed.js" async></script></body></html>`
 const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','/queue','/inquiry'].map(path=>`<iframe name="${path.slice(1)}" src="${placemat}${path}"></iframe>`).join('')}</body></html>`
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
 try{
  for(const width of [1440,390]){
-  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
-   const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
+   const date=new Date(now);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
    const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online:{minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}}})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish Friday dinner'});await h.command('proposal.approve',{proposalId:p.id})
    // A second dinner three weeks out lets a declined visit book on the standalone page after the widget takes the first.
@@ -38,10 +41,10 @@ try{
     if(file.startsWith(resolve('public')+'/')&&extname(file)){
      try{const body=await readFile(file),contentType={'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream';await route.fulfill({status:200,contentType,body});return}catch{}
     }
-    const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
+    const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host,'x-placemat-test-clock':String(now)},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
     await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
    })
-   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
+   const page=await context.newPage(),errors=[];await page.clock.setFixedTime(new Date(now));page.on('pageerror',e=>errors.push(e.message))
    const screenshot=async name=>{if(shots)await page.screenshot({path:resolve(shots,`BOOK-002-${name}-${width}.png`),fullPage:true})}
    // The owner allows the restaurant's website from Settings; the change is audited with the owner and time.
    await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
@@ -79,11 +82,24 @@ try{
    // Native date controls retain the host's segment order on macOS even with a US page locale.
    // Use their actual keyboard spinboxes, preserving the all-keyboard guest journey.
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
+   const focusSegment=async segment=>{
+    for(let i=0;i<3;i++)await page.keyboard.press('ArrowLeft')
+    for(let i=0;i<segment;i++)await page.keyboard.press('ArrowRight')
+   }
+   // First make every segment 1, so probing the native order cannot roll a
+   // 31st into the following month. Then set year/month before the target day.
+   for(let segment=0;segment<3;segment++){await focusSegment(segment);await page.keyboard.press('1')}
+   const order=[]
    for(let segment=0;segment<3;segment++){
+    await focusSegment(segment)
     const before=(await dateInput.inputValue()).split('-').map(Number);await page.keyboard.press('ArrowUp')
     const after=(await dateInput.inputValue()).split('-').map(Number),index=after.findIndex((n,i)=>n!==before[i]);assert.ok(index>=0,'keyboard changes the focused date segment')
-    for(let step=0;step<366;step++){const current=(await dateInput.inputValue()).split('-').map(Number)[index];if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
-    assert.equal(Number((await dateInput.inputValue()).split('-')[index]),wanted[index]);await page.keyboard.press('ArrowRight')
+    order.push(index);await page.keyboard.press('ArrowDown')
+   }
+   assert.equal(new Set(order).size,3,'keyboard reaches every date segment')
+   for(const index of [0,1,2]){
+    await focusSegment(order.indexOf(index));await page.keyboard.type(String(wanted[index]))
+    assert.equal(Number((await dateInput.inputValue()).split('-')[index]),wanted[index])
    }
    assert.equal(await dateInput.inputValue(),day)
    await tabTo('partySize');await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('2')
@@ -112,7 +128,7 @@ try{
    const wire=JSON.stringify(h.analytics);for(const value of ['Priya Shah','priya@example.test',booking[0].id,startAt])assert.ok(!wire.includes(value),`no ${value} reaches a provider`)
    assert.equal(new Set(h.analytics.map(r=>r.body.client_id??r.body.data[0].user_data.external_id[0])).size,2,'one random visit ID per visit (Meta receives its SHA-256)')
    // The standalone page reads the same ledger: the booked slot is gone.
-   const standalone=await context.newPage();await standalone.goto(h.origin+'/book');await standalone.locator('#public-content[aria-busy]').waitFor({state:'detached'})
+   const standalone=await context.newPage();await standalone.clock.setFixedTime(new Date(now));await standalone.goto(h.origin+'/book');await standalone.locator('#public-content[aria-busy]').waitFor({state:'detached'})
    // A new visit asks again; this guest declines, so nothing reaches a provider for the search or the booking.
    await standalone.getByRole('button',{name:'Decline'}).click();await standalone.locator('#analytics-consent').getByText('Declined for this visit. Nothing is sent.').waitFor()
    const form=standalone.locator('[data-public-command=search]');await form.locator('[name=date]').fill(day);await form.locator('[name=partySize]').fill('2');await form.getByRole('button',{name:'Find available times'}).click()
@@ -136,7 +152,7 @@ try{
    assert.ok(await analytics.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'analytics settings still fit the staff screen')
    if(shots)await analytics.screenshot({path:resolve(shots,`BOOK-002-key-removed-${width}.png`)})
    // The next visit is asked about Meta only, and its accepted search reaches Meta alone.
-   h.analytics.length=0;const next=await context.newPage();await next.goto(h.origin+'/book');await next.locator('#public-content[aria-busy]').waitFor({state:'detached'})
+   h.analytics.length=0;const next=await context.newPage();await next.clock.setFixedTime(new Date(now));await next.goto(h.origin+'/book');await next.locator('#public-content[aria-busy]').waitFor({state:'detached'})
    assert.match(await next.locator('#analytics-consent').innerText(),/Cedar & Salt uses Meta\. If you accept/)
    await next.getByRole('button',{name:'Accept analytics'}).click();const nextForm=next.locator('[data-public-command=search]')
    await nextForm.locator('[name=date]').fill(laterDay);await nextForm.locator('[name=partySize]').fill('2');await nextForm.getByRole('button',{name:'Find available times'}).click();await next.getByRole('status').filter({hasText:'Availability updated'}).waitFor()
