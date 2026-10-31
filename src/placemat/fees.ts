@@ -49,9 +49,15 @@ export async function recordFeeConsent(env:FeeBindings,actor:Actor,p:any){
  return view
 }
 
+/** The one policy a reservation's fees apply: the newer of its latest guest guarantee and recorded consent, otherwise the venue's current policy. Superseded terms never apply beside it. */
+export async function applicableFeePolicy(db:D1Database,bookingId:string){
+ const consent=await consentFor(db,bookingId),guarantee=await currentGuarantee(db,bookingId),useGuest=!!guarantee&&(!consent||guarantee.created_at>=consent.recorded_at),policyId=useGuest?guarantee!.policy_id:consent?.policy_id
+ return {consent,guarantee,useGuest,policyId,policy:await feePolicy(db,policyId)}
+}
+
 /** Read-only financial consequences, including missing consent. A preview never captures money. */
 export async function feeConsequences(db:D1Database,bookingId:string,kind:unknown,at=new Date().toISOString(),exemptionCode?:string){
- const {state}=await load(db),booking=state.bookings.find(b=>b.id===bookingId)??fail(404,'Reservation not found.'),consent=await consentFor(db,bookingId),guarantee=await currentGuarantee(db,bookingId),useGuest=!!guarantee&&(!consent||guarantee.created_at>=consent.recorded_at),policy=await feePolicy(db,useGuest?guarantee!.policy_id:consent?.policy_id)
+ const {state}=await load(db),booking=state.bookings.find(b=>b.id===bookingId)??fail(404,'Reservation not found.'),{consent,guarantee,useGuest,policy}=await applicableFeePolicy(db,bookingId)
  if(!policy)return {bookingId,kind:feeKind(kind),policyId:null,amountCents:0,chargeAllowed:false,reviewRequired:true,note:'No fee policy or recorded guest consent exists.'}
  if(useGuest){
   const g=guarantee!,view=await guaranteeView(db,g),calculation=feeCalculation(state,booking,policy,feeKind(kind),iso(at,'Violation time'),exemptionCode),credentials=await guaranteeCredentials(db,g.id),binding=!!g.accepted_at&&g.booking_snapshot===JSON.stringify(bookingTerms(booking)),beforeObservation=!!g.accepted_at&&Date.parse(g.accepted_at)<=Date.parse(calculation.occurredAt),authorizationCurrent=view.authorizationState==='current'&&Date.parse(calculation.occurredAt)<Date.parse(view.expiresAt),chargeAllowed=binding&&beforeObservation&&authorizationCurrent&&!!credentials&&calculation.amountCents>=50&&calculation.amountCents<=g.max_fee_cents&&(!g.authorization_cents||calculation.amountCents<=g.authorization_cents)
