@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "12aedfb8c05faa83b4dbd1271e047d5b75443ea46db6a95fcaef18fc268538d3",
+      "sha256": "9ea162fb721b96fadd79f12af7b6b43b51b5aa34dc3db4003be502ee2028d73e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -326,7 +326,7 @@
       "executable": false
     },
     "docs/reminders.md": {
-      "sha256": "2a34d744dfa16540a5a3c62d96d38cf2df3516bfb6829270fac29d7967d8e7ff",
+      "sha256": "1ef5c3efaf32c444741fdfd4babcdb9e5f0423632e8918c2880b41a90fae21d7",
       "executable": false
     },
     "docs/site.json": {
@@ -797,6 +797,10 @@
       "sha256": "b66ebfa9e961b1fb0a986a8f1b5b94774bccb586191798cbd5e75b093f38772f",
       "executable": false
     },
+    "public/placemat-message-templates.js": {
+      "sha256": "760d03f3024ccd74874a1a6a5255a30b8edc9be6320d6d3fbd769e1a67f4faf0",
+      "executable": false
+    },
     "public/placemat-needs.js": {
       "sha256": "e753b0e0d83ec1f20053cfd32b0424e9651e7d11c330becc616d93df767e07fc",
       "executable": false
@@ -938,7 +942,7 @@
       "executable": false
     },
     "public/placemat.js": {
-      "sha256": "5f2be6d6b0124e158979838d09e0f656e7b570ccf817575447ce4bc3a93c529c",
+      "sha256": "551441509dc833ec0da473630c00a7f5765e19849176ea2def4c2ed55677ed1e",
       "executable": false
     },
     "public/plan.css": {
@@ -3629,6 +3633,10 @@
       "sha256": "841be54104df7698e6a8f50e9cc1ba8e919a2e5d3102b4c9519ad06a328605c8",
       "executable": false
     },
+    "src/placemat/message-templates.ts": {
+      "sha256": "47786c983db5a2bf6b6ffcaad116c77fe7cef6f95c9861a17a39691d5d608397",
+      "executable": false
+    },
     "src/placemat/model.ts": {
       "sha256": "4fa6241a0d6501dd1ad5ca71aabbef4083ca520fb5fbcc8ea92370fab8e247ac",
       "executable": false
@@ -4245,6 +4253,14 @@
       "sha256": "f2d08a9ee7385abe5e24e0f7000074deff2570f86d0b6c07c054d866a6b95ad6",
       "executable": false
     },
+    "tests/api/message-template-fixture.mjs": {
+      "sha256": "3ed4d17ec9388b5840a5bca679d1cfe83db9d661a5a620cec8e208bfce533ea3",
+      "executable": false
+    },
+    "tests/api/message-templates.test.mjs": {
+      "sha256": "f6ab562d63a2fe2c8a7d0ab071c23a96814ed60fc03929cde8a525ede591badb",
+      "executable": false
+    },
     "tests/api/money-ledger-journeys.mjs": {
       "sha256": "1b37cdc1d2b5c07e29280505b1bb68a213665d38e375270b0a42a4551fd8dc4e",
       "executable": false
@@ -4463,6 +4479,10 @@
     },
     "tests/install.mjs": {
       "sha256": "e8c1b966839b2c57d908bbb6b0d2ca5dd73242de8804af951b88d9c1ccb4fc53",
+      "executable": false
+    },
+    "tests/message-templates-ui.mjs": {
+      "sha256": "1b2b9fd24c0062f251056eef59fe2d1356f4dd4255c4f9f016ca87c90aa48ac2",
       "executable": false
     },
     "tests/onboarding-ui.mjs": {
