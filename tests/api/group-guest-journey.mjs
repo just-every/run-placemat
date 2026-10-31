@@ -24,6 +24,12 @@ export async function groupGuestJourney(){
   const directory=await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})
   assert.equal(directory.profiles.length,1);assert.equal(directory.profiles[0].venues.length,2)
   assert.equal(directory.profiles[0].venues[1].rebookUrl,null)
+  const homeOnlyId=await f.addGuest(10,{linked:false})
+  const mixed=await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})
+  assert.equal(mixed.profiles.find(p=>p.profileId===f.profileId).venues.length,2,'A home-only diner must not hide an independently authorized guest')
+  assert.deepEqual(mixed.profiles.find(p=>p.profileId===homeOnlyId).venues.map(v=>v.venue),['Home Bistro'],'An unlinked diner shares no sister-venue history')
+  await f.tap.api('/api/group/guestbook?profileId='+homeOnlyId,undefined,{...f.bearer,status:403})
+  console.log('PROBE GUEST-006 A1: home-only second guest -> directory 200; original guest retains both venues; second guest has home history only')
   for(const value of [local,remote,directory])for(const restricted of ['synthetic-placemat-private',a.input.email,b.input.email,a.unverified.id,b.unverified.id])assert.ok(!JSON.stringify(value).includes(restricted),restricted)
   assert.equal((await f.home.request('/book',{as:''})).status,200)
   const before=(await f.home.api('/api/state')).state.bookings.length,messages=f.home.messages.length
@@ -51,6 +57,7 @@ export async function groupGuestJourney(){
   console.log('PROBE GUEST-006 native privacy: independently proved visits, separate purpose masks, scoped rebooking, host refusal, replay refusal, live grant revocation and account forgetting, opt-out and unavailable introspection passed')
  }finally{await f.close()}
  await groupGuestContactJourney()
+ await groupGuestDirectoryJourney()
 }
 export async function groupGuestCustodyJourney(){
  const f=await groupGuests(),restored=await installation(),stale=await installation()
@@ -94,5 +101,33 @@ async function groupGuestContactJourney(){
   await f.read(f.tap,403)
   assert.equal((await f.tap.db.prepare('SELECT count(*) AS n FROM pm_group_guests').first()).n,1,'Stale booking proof denies reads without rewriting recorded consent')
   console.log('PROBE GUEST-006 contact and concurrency: one concurrent link succeeds; upcoming visits excluded; real guest contact change immediately denies old group proof')
+ }finally{await f.close()}
+}
+
+export async function groupGuestDirectoryJourney(){
+ const f=await groupGuests()
+ try{
+  f.profileId=(await f.consent(0)).profileId;await f.link()
+  const ids=[f.profileId]
+  for(let n=10;n<40;n++)ids.push(await f.addGuest(n))
+  const directory=await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})
+  assert.equal(directory.profiles.length,ids.length)
+  for(const id of ids){
+   const profile=directory.profiles.find(p=>p.profileId===id)
+   assert.ok(profile,'Every consented diner remains readable')
+   assert.deepEqual(profile.venues.map(v=>v.venue),['Home Bistro','Tap Room'])
+   for(const venue of profile.venues){assert.equal(venue.visits.length,1);assert.ok(venue.purposes.preferences&&venue.purposes.visits)}
+  }
+  // A second ordinary refresh must also fit the unchanged limiter.
+  assert.equal((await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})).profiles.length,ids.length)
+  f.available=false
+  await f.home.api('/api/group/guest-directory',undefined,{as:f.reader,status:403})
+  f.available=true
+  await f.home.api('/api/group/admin',{operatorId:f.readerId,venues:{home:['guestbook.read']}})
+  const reduced=await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})
+  assert.ok(reduced.profiles.every(p=>p.venues.length===1),'Revoked venue rights never retain a remote projection')
+  await f.home.api('/api/group/admin/revoke',{operatorId:f.readerId})
+  await f.home.api('/api/group/guest-directory',undefined,{as:f.reader,status:403})
+  console.log('PROBE GUEST-006 A2: 31 fully linked consented diners -> two directory refreshes 200 with both histories; unavailable introspection and revoked reader refused')
  }finally{await f.close()}
 }

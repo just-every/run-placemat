@@ -47,9 +47,15 @@ export async function groupGuestRedeem(db:D1Database,header:string|null,p:any){
 export async function groupGuestCheck(db:D1Database,header:string|null,p:any){
  const link=await peer(db,header),grant=await groupIntrospect(db,header,p.token)
  if(!link||!grant.active||!grant.rights.includes('guestbook.read'))return {active:false}
- const homeRights=await venueRights(db,p.token,fetch).catch(()=>null),c=await current(db,String(p.profileId??''))
- const active=!!(homeRights?.rights.includes('guestbook.read')&&c)
- return {active,purposes:active&&c?Object.fromEntries(purposes.map(p=>[p,!!c.row[p]])):null}
+ const homeRights=await venueRights(db,p.token,fetch).catch(()=>null)
+ if(!homeRights?.rights.includes('guestbook.read'))return {active:false}
+ const batch=Array.isArray(p.profileIds),ids=batch?p.profileIds:[String(p.profileId??'')],profiles=[]
+ for(const profileId of ids){
+  if(typeof profileId!=='string')return {active:false}
+  const c=await current(db,profileId)
+  if(c)profiles.push({profileId,purposes:Object.fromEntries(purposes.map(p=>[p,!!c.row[p]]))})
+ }
+ return batch?{active:true,profiles}:{active:profiles.length===1,purposes:profiles[0]?.purposes??null}
 }
 export async function dinerGroup(db:D1Database,origin:string,action:string,p:any,s:Diner,fetcher:typeof fetch=fetch){
  const group=await membership(db,origin)
@@ -93,18 +99,32 @@ export async function groupGuestRead(db:D1Database,request:Request,url:URL,fetch
  const bearer=request.headers.get('authorization');if(!bearer?.startsWith('Bearer gt_'))fail(401,'Send a group token.')
  const token=bearer!.slice(7),rights=await venueRights(db,token,fetcher)
  if(!rights.rights.includes('guestbook.read'))return denied()
- const profileId=url.searchParams.get('profileId')??'',c=await current(db,profileId)
- if(!c)return denied()
- let allowed=Object.fromEntries(purposes.map(p=>[p,!!c.row[p]]))
+ const batch=url.searchParams.get('directory')==='1',ids=url.searchParams.getAll('profileId')
+ if(!batch&&ids.length!==1)return denied()
+ const profiles=[]
+ for(const profileId of ids){
+  const c=await current(db,profileId)
+  if(!c){
+   // An unlinked diner has no record here. An invalid existing relationship still fails closed.
+   if(batch&&!await db.prepare('SELECT profile_id FROM pm_group_guests WHERE profile_id=?').bind(profileId).first())continue
+   return denied()
+  }
+  profiles.push({profileId,c,allowed:Object.fromEntries(purposes.map(p=>[p,!!c.row[p]]))})
+ }
  const member=await db.prepare('SELECT home_origin,link_id,secret FROM pm_group_home').first<{home_origin:string;link_id:string;secret:string}>()
- if(member){
+ if(member&&profiles.length){
   let answer:any
-  try{const r=await fetcher(member.home_origin+'/api/group/guest-check',{method:'POST',redirect:'manual',headers:{'content-type':'application/json','x-group-link':member.link_id+'.'+member.secret},body:JSON.stringify({token,profileId}),signal:AbortSignal.timeout(5000)});answer=r.ok?await r.json():null}catch{return denied()}
-  if(answer?.active!==true)return denied()
-  allowed=Object.fromEntries(purposes.map(p=>[p,allowed[p]&&answer.purposes?.[p]===true]))
+  try{const r=await fetcher(member.home_origin+'/api/group/guest-check',{method:'POST',redirect:'manual',headers:{'content-type':'application/json','x-group-link':member.link_id+'.'+member.secret},body:JSON.stringify(batch?{token,profileIds:profiles.map(p=>p.profileId)}:{token,profileId:profiles[0].profileId}),signal:AbortSignal.timeout(5000)});answer=r.ok?await r.json():null}catch{return denied()}
+  if(answer?.active!==true||batch&&!Array.isArray(answer.profiles))return denied()
+  for(const profile of profiles){
+   const home=batch?answer.profiles.find((p:any)=>p.profileId===profile.profileId):answer
+   if(!home)return denied()
+   profile.allowed=Object.fromEntries(purposes.map(p=>[p,profile.allowed[p]&&home.purposes?.[p]===true]))
+  }
  }
  const {state}=await load(db)
- return {venue:state.venue.name,profileId,preferences:allowed.preferences?c.row.saved_preferences:null,visits:allowed.visits?c.bookings.filter(b=>['seated','completed'].includes(b.status)).map(b=>({startAt:b.startAt,partySize:b.partySize,status:b.status})):[],rebookUrl:allowed.rebooking?'/book':null,purposes:allowed}
+ const rows=profiles.map(({profileId,c,allowed})=>({venue:state.venue.name,profileId,preferences:allowed.preferences?c.row.saved_preferences:null,visits:allowed.visits?c.bookings.filter(b=>['seated','completed'].includes(b.status)).map(b=>({startAt:b.startAt,partySize:b.partySize,status:b.status})):[],rebookUrl:allowed.rebooking?'/book':null,purposes:allowed}))
+ return batch?{profiles:rows}:rows[0]
 }
 /** Home native reader directory. Remote reads go through each live venue door, with no cached personal projection. */
 export async function groupGuestDirectory(db:D1Database,actor:Actor,fetcher:typeof fetch=fetch){
@@ -112,18 +132,22 @@ export async function groupGuestDirectory(db:D1Database,actor:Actor,fetcher:type
  if(!rights.rights.includes('guestbook.read'))return denied()
  const links=(await db.prepare('SELECT l.id,l.name,l.origin,a.rights FROM pm_group_links l JOIN pm_group_admins a ON a.venue_id=l.id WHERE a.operator_id=? AND l.revoked_at IS NULL').bind(actor.id).all<{id:string;name:string;origin:string;rights:string}>()).results.filter(l=>parseRights(l.rights).includes('guestbook.read'))
  const profiles=(await db.prepare("SELECT profile_id FROM pm_group_guests WHERE binding='home' AND (preferences=1 OR visits=1 OR rebooking=1)").all<{profile_id:string}>()).results
- const rows=[]
- for(const {profile_id} of profiles){
-  if(!await current(db,profile_id))continue
-  const local=await groupGuestRead(db,new Request('https://local.invalid/api/group/guestbook',{headers:{authorization:'Bearer '+token}}),new URL('https://local.invalid/?profileId='+encodeURIComponent(profile_id)),fetcher)
-  const venues=[{...local,rebookUrl:local.rebookUrl?'/book':null}]
-  for(const link of links){
-   const response=await fetcher(link.origin+'/api/group/guestbook?profileId='+encodeURIComponent(profile_id),{redirect:'manual',headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(5000)}).catch(()=>null)
-   if(!response||!response.ok)return denied()
-   const data:any=await response.json()
-   venues.push({...data,rebookUrl:data.rebookUrl?link.origin+'/book':null})
+ const search=new URLSearchParams({directory:'1'})
+ for(const {profile_id} of profiles)if(await current(db,profile_id))search.append('profileId',profile_id)
+ const url=new URL('https://local.invalid/api/group/guestbook?'+search)
+ const local=await groupGuestRead(db,new Request(url,{headers:{authorization:'Bearer '+token}}),url,fetcher)
+ if(!('profiles' in local))return denied()
+ const rows=local.profiles.map(profile=>({profileId:profile.profileId,venues:[profile]}))
+ // One authenticated batch per venue keeps a refresh independent of diner count at the group limiter.
+ for(const link of links){
+  const response=await fetcher(link.origin+'/api/group/guestbook?'+search,{redirect:'manual',headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(5000)}).catch(()=>null)
+  if(!response||!response.ok)return denied()
+  const data:any=await response.json()
+  if(!Array.isArray(data?.profiles))return denied()
+  for(const row of rows){
+   const remote=data.profiles.find((p:any)=>p.profileId===row.profileId)
+   if(remote)row.venues.push({...remote,rebookUrl:remote.rebookUrl?link.origin+'/book':null})
   }
-  rows.push({profileId:profile_id,venues})
  }
  return {profiles:rows}
 }

@@ -168,6 +168,7 @@ for(const width of [1440,390]){
    await pages[i].locator('#diner-group').evaluate(el=>el.open=true)
    if(shots)await pages[i].locator('#diner-group').screenshot({path:resolve(shots,`GUEST-006-consent-${i}-${width}.png`)})
   }
+  const homeOnlyId=await f.addGuest(10,{linked:false})
   const addCookies=(context,cookie)=>context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transports[0].origin,secure:true,sameSite:'Lax'}}))
   const owner=await browser.newContext({viewport:{width,height:1100},ignoreHTTPSErrors:true});contexts.push(owner);await addCookies(owner,f.home.cookie)
   const setup=await owner.newPage();await setup.goto(transports[0].origin+'/setup');await setup.getByRole('checkbox').check();await setup.getByRole('button',{name:'Finish setup',exact:true}).click();await setup.locator('.app-main[aria-busy=false]').waitFor()
@@ -179,6 +180,10 @@ for(const width of [1440,390]){
    assert.match(await output.innerText(),/Home Bistro[\s\S]*synthetic-placemat-quiet-0[\s\S]*Attended visits: 1[\s\S]*Tap Room[\s\S]*synthetic-placemat-quiet-1[\s\S]*Attended visits: 1/)
    assert.equal(await output.getByRole('link',{name:'Rebook at Home Bistro'}).count(),1);assert.equal(await output.getByRole('link',{name:'Rebook at Tap Room'}).count(),0)
    assert.equal(await output.getByRole('link').first().getAttribute('href'),'/book')
+   assert.equal(await output.locator('article').count(),2,'A home-only diner does not block the linked guest')
+   assert.equal(await output.getByRole('heading',{name:'Tap Room',exact:true}).count(),1,'Unlinked diner has no remote projection')
+   const directory=await f.home.api('/api/group/guest-directory',undefined,{as:f.reader})
+   assert.equal(directory.profiles.find(p=>p.profileId===homeOnlyId).venues.length,1)
   }
   for(const touched of [pages[0],pages[1],page]){
    assert.ok(await touched.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Sharing screens fit phone and desktop')
