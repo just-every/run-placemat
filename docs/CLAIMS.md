@@ -64,7 +64,7 @@ Inventory: 57 done, 30 partial, 48 missing; 135 total.
 | MSG-006 | missing |  |
 | MSG-007 | missing |  |
 | MSG-008 | partial | `src/placemat/wait-join.ts`; `src/placemat/guest-state-erasure.ts`; `tests/api/wait-join.test.mjs`; `tests/api/audit.test.mjs`; `tests/api/guests.test.mjs` |
-| MSG-009 | missing |  |
+| MSG-009 | missing | `tests/api/message-templates.test.mjs`; `tests/message-templates-ui.mjs`; `tests/api/demo.test.mjs`; `tests/api/reminders.test.mjs` |
 | MSG-010 | missing |  |
 | MSG-011 | missing |  |
 | PAY-001 | partial | `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs` |
