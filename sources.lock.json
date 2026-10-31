@@ -5434,7 +5434,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "380f4ddf4bf93a7efce38afb9fea193ca4a49cd78e12d74649e95a51443ca75e",
+      "sha256": "eae2e972021580e1a76c97da0787c041e5b271cd278c9ad4d292adaee23ae381",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
@@ -5514,7 +5514,7 @@
       "executable": false
     },
     "tests/queue-ui.mjs": {
-      "sha256": "72c889583c4bc9e8ef855b3025262c568d68a50b288b1c9e9b42fb64a5ef9d27",
+      "sha256": "6c0407527b90e2605806dc26afb1ab025ac121b52b34ffe7a05e7bb8124fafbe",
       "executable": false
     },
     "tests/refund-notices-ui.mjs": {

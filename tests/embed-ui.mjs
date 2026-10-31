@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {randomBytes} from 'node:crypto'
 import {readFile,mkdir} from 'node:fs/promises'
 import {extname,resolve} from 'node:path'
-import {chromium} from '@playwright/test'
+import {chromium,expect} from '@playwright/test'
 import {installation} from './api/harness.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
@@ -38,7 +38,14 @@ try{
     if(file.startsWith(resolve('public')+'/')&&extname(file)){
      try{const body=await readFile(file),contentType={'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream';await route.fulfill({status:200,contentType,body});return}catch{}
     }
-    const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
+    let response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
+    // Routed redirects otherwise escape this synthetic HTTPS transport. Follow
+    // native document redirects through the same real Worker before framing.
+    for(let hop=0;request.isNavigationRequest()&&[301,302,303,307,308].includes(response.status)&&hop<5;hop++){
+     const target=new URL(response.headers.get('location'),url)
+     assert.equal(target.origin,h.origin,'document redirects stay on the native fixture origin')
+     response=await h.mf.dispatchFetch(target.href,{headers:{...request.headers(),host:target.host}})
+    }
     await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
    })
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
@@ -77,14 +84,22 @@ try{
    assert.equal(h.analytics.length,0,'accepting alone sends nothing')
    await tabTo('date')
    // Native date controls retain the host's segment order on macOS even with a US page locale.
-   // Use their actual keyboard spinboxes, preserving the all-keyboard guest journey.
+   // Read the focused native spinbox through Chromium's accessibility tree.
+   // Probing with an arrow key can make October 31 into an invalid November 31.
+   // All edits still use the keyboard, including temporarily incomplete dates.
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
-   for(let segment=0;segment<3;segment++){
-    const before=(await dateInput.inputValue()).split('-').map(Number);await page.keyboard.press('ArrowUp')
-    const after=(await dateInput.inputValue()).split('-').map(Number),index=after.findIndex((n,i)=>n!==before[i]);assert.ok(index>=0,'keyboard changes the focused date segment')
-    for(let step=0;step<366;step++){const current=(await dateInput.inputValue()).split('-').map(Number)[index];if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
-    assert.equal(Number((await dateInput.inputValue()).split('-')[index]),wanted[index]);await page.keyboard.press('ArrowRight')
+   const accessibility=await context.newCDPSession(page.frame({url:/\/book\?embed=1/})),visited=new Set()
+   const focusedDateSegment=async()=>{
+    const {nodes}=await accessibility.send('Accessibility.getFullAXTree')
+    return nodes.find(node=>node.role?.value==='spinbutton'&&node.properties?.some(property=>property.name==='focused'&&property.value.value===true))
    }
+   try{for(let segment=0;segment<3;segment++){
+    const focused=await focusedDateSegment(),name=focused?.name?.value.match(/\b(year|month|day)\b/i)?.[1]?.toLowerCase(),index=['year','month','day'].indexOf(name)
+    assert.ok(index>=0&&!visited.has(index),'each focused native date segment is identified once');visited.add(index)
+    for(let step=0;step<366;step++){const current=Number((await focusedDateSegment())?.value?.value);assert.ok(Number.isFinite(current),'the focused native segment retains a numeric value');if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
+    assert.equal(Number((await focusedDateSegment())?.value?.value),wanted[index]);await page.keyboard.press('ArrowRight')
+   }}finally{await accessibility.detach()}
+   assert.equal(visited.size,3)
    assert.equal(await dateInput.inputValue(),day)
    await tabTo('partySize');await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('2')
    await tabTo('Find available times');await page.keyboard.press('Enter')
@@ -145,11 +160,21 @@ try{
    await next.close()
    if(width===1440){
     // Staff and guest pages other than the widget refuse every frame, and an unlisted website gets no widget.
+    const refused=new Map()
+    page.on('requestfailed',request=>{
+     if(!request.isNavigationRequest())return
+     let initial=request;while(initial.redirectedFrom())initial=initial.redirectedFrom()
+     refused.set(initial.url(),request.failure()?.errorText)
+    })
     await page.goto(host+'/frames');await page.waitForLoadState('load')
-    for(const name of ['app','book','queue','inquiry'])assert.match(page.frame({name}).url(),/^chrome-error:/,`${name} is unframeable`)
+    for(const name of ['app','book','queue','inquiry']){
+     // CSP-blocked public frames can be detached instead of exposing an error document.
+     await expect.poll(()=>refused.get(h.origin+'/'+name),{message:`${name} is blocked by its response`}).toBe('net::ERR_BLOCKED_BY_RESPONSE')
+    }
     await page.goto(other+'/');await page.locator(`iframe[title="${title}"]`).waitFor();await page.waitForLoadState('load')
     await assert.rejects(()=>page.frameLocator(`iframe[title="${title}"]`).locator('[name=date]').waitFor({timeout:3000}))
-    assert.match(page.frames().find(f=>f!==page.mainFrame()).url(),/^chrome-error:/,'an unlisted website cannot frame the widget')
+    const unlisted=await page.locator(`iframe[title="${title}"]`).getAttribute('src')
+    await expect.poll(()=>refused.get(unlisted),{message:'an unlisted website cannot frame the widget'}).toBe('net::ERR_BLOCKED_BY_RESPONSE')
    }
    assert.deepEqual(errors,[])
    console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)
