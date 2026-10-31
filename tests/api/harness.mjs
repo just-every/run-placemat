@@ -9,9 +9,10 @@ import {join,resolve,basename} from 'node:path'
 import assert from 'node:assert/strict'
 export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge,accountingEdge,mailEdge,origin='https://venue.example.test',peers={},clock,legacyIntegration=false}={}){
  const directory=await mkdtemp(join(tmpdir(),'placemat-api-'))
- // Frozen current-main v1 modules run against the pre-upgrade schema. These are
+ // Frozen v1 modules from main 505c0a8880be93bce823d88fe6c271f510987bb4
+ // run against the pre-upgrade schema. These are
  // actual route and writer implementations, not replacement event SQL fixtures.
- const bundle=legacy=>build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*'],plugins:legacy?[{name:'installed-integration-v1',setup(builder){builder.onLoad({filter:/src\/placemat\/api\/(event-schema|events|reads)\.ts$/},async args=>({contents:await readFile(join('tests/api/fixtures/integration-v1',basename(args.path)),'utf8'),loader:'ts',resolveDir:resolve('src/placemat/api')}))}}]:[]})
+ const bundle=legacy=>build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*'],plugins:legacy?[{name:'installed-integration-v1',setup(builder){builder.onLoad({filter:/src\/placemat\/api\/(event-schema|events|reads)\.ts$/},async args=>({contents:await readFile(join('./tests/api/fixtures/integration-v1',basename(args.path)),'utf8'),loader:'ts',resolveDir:resolve('./src/placemat/api')}))}}]:[]})
  let bundled=await bundle(legacyIntegration)
  const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),messages=[]
  const mail=async request=>{if(mailEdge)return mailEdge(request);assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}

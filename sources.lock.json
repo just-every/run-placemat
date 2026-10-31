@@ -358,7 +358,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "25fa1f911f26ce9df91365fd5d684e3e5d2159329358d9786e9c8019ad0cdbba",
+      "sha256": "82b714188c3f1f3b3e625556064752e165a9fdef67b250beb07e2168d748bc83",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -3290,7 +3290,7 @@
       "executable": false
     },
     "src/placemat/api/event-schema.ts": {
-      "sha256": "e871e12600c562de9705023ea1e1f7abb60a1d0ae63c324ac8434a25f232496f",
+      "sha256": "67c50df8514640ddaef9374e25f90c52669174ba42d8c311876e85ccd133b007",
       "executable": false
     },
     "src/placemat/api/events.ts": {
@@ -3298,7 +3298,7 @@
       "executable": false
     },
     "src/placemat/api/reads.ts": {
-      "sha256": "81a70a5713d8529e28231e8dbd1c972637427d8c0e79c124818a87c516eece1a",
+      "sha256": "018201553b0cea51b3b61f219e66b2213598c8d1462719db0bb7cfb10105f23e",
       "executable": false
     },
     "src/placemat/api/reservations.ts": {
@@ -4242,7 +4242,7 @@
       "executable": false
     },
     "tests/api/harness.mjs": {
-      "sha256": "ffdd9cc16c98edac0edc539da6ad04fc73a146ac1640e03f5ff54d42423a17b1",
+      "sha256": "6c3ec3c137446023c8ecf6bb30cadeb62b3c9660b6c22560b01ec4f82f935d1c",
       "executable": false
     },
     "tests/api/inquiries-fixture.mjs": {
