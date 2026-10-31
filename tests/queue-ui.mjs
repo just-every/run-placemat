@@ -6,6 +6,8 @@ import {resolve,extname} from 'node:path'
 import {chromium} from '@playwright/test'
 import jsQR from 'jsqr'
 import {installation} from './api/harness.mjs'
+// Fix both clocks so calendar input and venue time remain independent of the run date.
+const now=Date.parse('2026-10-14T12:00:00Z')
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
@@ -21,16 +23,16 @@ async function transport(context,h,cookie=''){
 }
 try{
  for(const width of [1440,390]){
-  const h=await installation(),ownerContext=await browser.newContext({viewport:{width,height:1000}}),guestContext=await browser.newContext({viewport:{width,height:1000}}),hostContext=await browser.newContext({viewport:{width,height:1000}})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),ownerContext=await browser.newContext({viewport:{width,height:1000},extraHTTPHeaders:{'x-placemat-test-clock':String(now)}}),guestContext=await browser.newContext({viewport:{width,height:1000},extraHTTPHeaders:{'x-placemat-test-clock':String(now)}}),hostContext=await browser.newContext({viewport:{width,height:1000},extraHTTPHeaders:{'x-placemat-test-clock':String(now)}})
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Dining 4',seats:4,area:'Dining',accessTags:['step-free'],x:20,y:40})
-   const day=new Date(Date.now()+86400000).toISOString().slice(0,10),service=await h.command('service.save',{name:'Dinner',startAt:day+'T21:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:90,coverLimit:40})
+   const day=new Date(now+86400000).toISOString().slice(0,10),service=await h.command('service.save',{name:'Dinner',startAt:day+'T21:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:90,coverLimit:40})
    const plan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Public queue ready'});await h.command('proposal.approve',{proposalId:plan.id})
    const hostCookie=await h.signIn('queue-host@example.test'),host=(await h.api('/auth/operators')).find(p=>p.email==='queue-host@example.test');await h.command('team.host',{operatorId:host.id,enabled:true})
    await transport(ownerContext,h,h.cookie);await transport(guestContext,h);await transport(hostContext,h,hostCookie)
    const owner=await ownerContext.newPage(),guest=await guestContext.newPage(),hostPage=await hostContext.newPage(),errors=[]
-   for(const page of [owner,guest,hostPage])page.on('pageerror',error=>errors.push(error.message))
+   for(const page of [owner,guest,hostPage]){await page.clock.setFixedTime(new Date(now));page.on('pageerror',error=>errors.push(error.message))}
    await owner.goto(h.origin+'/setup');await owner.getByRole('checkbox').check();await owner.getByRole('button',{name:'Finish setup'}).click();await owner.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
    await owner.locator('#waitlist-content summary').filter({hasText:'Public queue joining'}).click()
    const qr=owner.getByRole('img',{name:'QR code for Dinner queue joining'});await qr.waitFor();await qr.evaluate(image=>image.decode())
