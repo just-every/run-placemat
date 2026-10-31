@@ -8,6 +8,9 @@ import jsQR from 'jsqr'
 import {installation} from './api/harness.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
+// Pin both sides of the public door across New York's 1 November DST change.
+// 5 PM is 22:00Z on this fixture day; the assertion below retains that contract.
+const now=Date.parse('2026-10-31T12:00:00Z'),day='2026-11-01'
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
 async function transport(context,h,cookie=''){
  if(cookie)await context.addCookies(cookie.split('; ').map(v=>{const i=v.indexOf('=');return {name:v.slice(0,i),value:v.slice(i+1),url:h.origin,secure:true,sameSite:'Lax'}}))
@@ -21,11 +24,12 @@ async function transport(context,h,cookie=''){
 }
 try{
  for(const width of [1440,390]){
-  const h=await installation(),ownerContext=await browser.newContext({viewport:{width,height:1000}}),guestContext=await browser.newContext({viewport:{width,height:1000}}),hostContext=await browser.newContext({viewport:{width,height:1000}})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),options={viewport:{width,height:1000},extraHTTPHeaders:{'x-placemat-test-clock':String(now)}},ownerContext=await browser.newContext(options),guestContext=await browser.newContext(options),hostContext=await browser.newContext(options)
   try{
+   for(const context of [ownerContext,guestContext,hostContext])await context.clock.setFixedTime(new Date(now))
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Dining 4',seats:4,area:'Dining',accessTags:['step-free'],x:20,y:40})
-   const day=new Date(Date.now()+86400000).toISOString().slice(0,10),service=await h.command('service.save',{name:'Dinner',startAt:day+'T21:00:00Z',endAt:day+'T23:00:00Z',turnMinutes:90,coverLimit:40})
+   const service=await h.command('service.save',{name:'Dinner',startAt:day+'T22:00:00Z',endAt:'2026-11-02T00:00:00Z',turnMinutes:90,coverLimit:40})
    const plan=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:service.id},reason:'Public queue ready'});await h.command('proposal.approve',{proposalId:plan.id})
    const hostCookie=await h.signIn('queue-host@example.test'),host=(await h.api('/auth/operators')).find(p=>p.email==='queue-host@example.test');await h.command('team.host',{operatorId:host.id,enabled:true})
    await transport(ownerContext,h,h.cookie);await transport(guestContext,h);await transport(hostContext,h,hostCookie)
