@@ -62,6 +62,10 @@ test('Native owner reservation mutations commit one anonymous receipt per reques
   const events=(await h.api('/api/v1/events?limit=100',undefined,opts)).items
   assert.deepEqual(events.map(event=>event.type),['reservation.created','reservation.changed','reservation.changed','reservation.cancelled'])
   assert.ok(events.every(event=>event.reservation.id===created.id))
+  const successor=(await h.api('/api/v2/events?limit=100',undefined,opts)).items
+  assert.deepEqual(successor.map(event=>event.id),events.map(event=>event.id))
+  assert.deepEqual(successor.map(event=>event.data.reservation),events.map(event=>event.reservation))
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS count FROM pm_integration_events').first()).count,events.length,'Schema projections do not append extra logical events')
   assert.equal((await h.api('/api/state')).state.bookings.length,1)
   const receipts=(await h.db.prepare('SELECT * FROM pm_reservation_requests').all()).results
   assert.equal(receipts.length,4,'Failed actions leave no receipt; each committed action retains one')

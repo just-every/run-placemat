@@ -1,5 +1,5 @@
 import {subscriptions} from './events'
-import {checkedEvent,type StoredEvent} from './event-schema'
+import {eventPayload,type StoredEvent} from './event-schema'
 import type {Bindings} from '../../auth.server'
 import {actorFor,jsonBody,originCheck,person} from '../access'
 import {Problem,fail,id,text,type Actor} from '../model'
@@ -77,9 +77,10 @@ async function integrationRoute(request:Request,env:Bindings):Promise<Response|n
  }
  if(path==='/api/integration-keys'||path.startsWith('/api/integration-keys/'))return manage(request,env,url)
  if(!/^\/api\/v[^/]*(?:\/|$)/.test(path))return null
- if(!path.startsWith('/api/v1/'))return reply({version:'1',error:'Unsupported API version. Use the documented v1 routes.'},404)
+ const eventVersion=path==='/api/v2/events'?2:1
+ if(!path.startsWith('/api/v1/')&&eventVersion!==2)return reply({version:'1',error:'Unsupported API version. Use the documented v1 routes.'},404)
  if(request.method!=='GET')return reply({version:'1',error:'This API slice permits reads only.'},405)
- const kind=path.slice('/api/v1/'.length)
+ const kind=eventVersion===2?'events':path.slice('/api/v1/'.length)
  if(!['availability','reservations','guests','events'].includes(kind))return reply({version:'1',error:'Unknown v1 collection.'},404)
  const bearer=request.headers.get('authorization')
  if(!bearer?.startsWith('Bearer ')||! /^[a-f0-9]{64}$/.test(bearer.slice(7)))fail(401,'An active scoped integration key is required.')
@@ -96,13 +97,15 @@ async function integrationRoute(request:Request,env:Bindings):Promise<Response|n
  }
  const limitText=url.searchParams.get('limit')??'50'
  if(!/^[1-9]\d?$|^100$/.test(limitText))fail(400,'Page size must be an integer from 1 to 100.')
- const limit=Number(limitText),after=await afterCursor(env.SESSION_SECRET,key,kind,url.searchParams.get('cursor'))
+ const cursorKind=kind==='events'&&eventVersion===2?'events-v2':kind
+ const limit=Number(limitText),after=await afterCursor(env.SESSION_SECRET,key,cursorKind,url.searchParams.get('cursor'))
  if(kind==='events'){
   if(after&&!/^[1-9]\d*$/.test(after))fail(400,'Invalid event cursor.')
   const rows=(await env.DB.prepare('SELECT sequence,id,type,schema_version,payload,created_at FROM pm_integration_events WHERE sequence>? ORDER BY sequence LIMIT ?').bind(after?Number(after):0,limit+1).all<StoredEvent&{sequence:number}>()).results
-  const items=rows.slice(0,limit),nextCursor=rows.length>limit?await cursor(env.SESSION_SECRET,key,kind,String(items.at(-1)!.sequence)):null
+  const items=rows.slice(0,limit),nextCursor=rows.length>limit?await cursor(env.SESSION_SECRET,key,cursorKind,String(items.at(-1)!.sequence)):null
   if(!await env.DB.prepare(live).bind(digest).first())fail(401,'Integration key was revoked or expired.')
-  return reply({version:'1',items:items.map(checkedEvent),nextCursor})
+  const envelopes=await Promise.all(items.map(async row=>(await eventPayload(env.DB,row,eventVersion)).envelope))
+  return new Response(JSON.stringify({version:String(eventVersion),items:envelopes,nextCursor}),{headers:{...headers,'content-type':'application/json','x-placemat-api-version':String(eventVersion)}})
  }
  const fields=kind==='guests'?['id']:['id','serviceId','partySize','startAt','endAt','status','source']
  if(url.searchParams.has('fields')&&url.searchParams.get('fields')!.split(',').some(field=>!fields.includes(field)))fail(403,'Requested fields are outside this read scope. Contact and private profile fields are denied.')
