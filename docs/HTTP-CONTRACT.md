@@ -2,6 +2,20 @@
 
 All private GETs require a native active owner/admin/member session (or read-only/preparation agent key). All private POSTs require exact Origin and owner/admin or an explicit product host capability, with owner-only keys, erase, backup/restore and move-in. Agents may only read state and prepare proposals; approval always needs a native person session. JSON errors are `{error:message}`; POST success `{result:...}`.
 
+Company agents use one CORE door at `/mcp`, `/agents`,
+`/api/rer/agent-policy` and `/docs/agents`, before application redirects.
+The native tool registry supports operations reads and proposal preparation;
+`docs/agents.md` records its limits. Signed Business policy, durable native
+sponsor mapping and the person's current native grants govern each call.
+Preparation keys keep their existing read/preparation scope. A person must
+still approve and execute a restaurant proposal. No company agent can send,
+change grants or move money through this registry.
+
+Agent-created deferred work requires a consent-bound continuation through the
+shared door. It must retain the original sponsor, agent, scope and consent and
+recheck Business/local Pause and current sponsor, agent and consent revocation
+before the next effect. A person/agent pair alone cannot authorize that work.
+
 - GET `/api/state`: `{state, guests, actor, version, names}`; `names` maps each person or preparation key that prepared or approved something to a readable name; guest rows are `{id, name, email, phone, notes, history?}`. State types in src/placemat/model.ts.
 - POST `/api/commands`: `{command, payload}`. Commands: `venue.update` {name,timezone}; `table.save` {id?,label,seats,x,y}; `service.save` {id?,name,startAt,endAt,turnMinutes,coverLimit}; `proposal.prepare` {kind,plan,reason}. Plans: service.publish {serviceId}; reminders {serviceId}; table.assign {bookingId,tableIds}. `proposal.approve` / `proposal.decline` {proposalId}; `booking.walkin` {serviceId,name,email?,phone?,partySize,startAt,tableIds?}; `booking.status` {bookingId,status}; `waitlist.add` {serviceId,name,email?,phone?,partySize}; `waitlist.seat` {waitlistId,startAt,tableIds?}; `guest.update` {guestId,notes}; `guest.erase` {guestId,confirm:"ERASE"}.
 - GET `/api/public/services`: published service objects plus current availability (no guest data).
