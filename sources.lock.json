@@ -246,7 +246,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c3dcbf019cb1ef8f93e56302267251de86103d3736210892c0109b0d537a9f8f",
+      "sha256": "676e0f2da1b48fc92b9ca85ed0113c48834e2d337c94d43b7606c1b941cba931",
       "executable": false
     },
     "deploy-demo.json": {
@@ -850,7 +850,7 @@
       "executable": false
     },
     "public/placemat-profiles.js": {
-      "sha256": "1ad225f632454953906073d13f6fdf5cf02ed8ae0788dcb2d031959159e47fa9",
+      "sha256": "b19e734b87c29352230dda0268e2adb3c175df61ec45a21a89f4724a8b2fab5e",
       "executable": false
     },
     "public/placemat-queue-guest-views.js": {
@@ -3306,7 +3306,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "b5c2d19f3823535cccb81ed83686635d35c1de0e5e5a6ee156f7d5c96f77a649",
+      "sha256": "8822b83ff4862e4da94626304818b244d68ca0566f6e3d3883ee4413f4a763c3",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -3354,7 +3354,7 @@
       "executable": false
     },
     "src/placemat/business-export.ts": {
-      "sha256": "e489d3bb96047d00c196001e7d67b2d8e45b4f1c064edfa83ec8dc7c8b70695b",
+      "sha256": "44875d5737c647e342420a46bd7a13aa541edaf00fe604177979762caa94c868",
       "executable": false
     },
     "src/placemat/capacity.ts": {
@@ -3530,7 +3530,7 @@
       "executable": false
     },
     "src/placemat/guest-enrichment.ts": {
-      "sha256": "67df76c0afd9a568a7e8747535dd17bd861c0f07bddb287cd68b6721f3f6fb4d",
+      "sha256": "6f1eef030ba18760883128507283b73898376bf659b916431ca8ff78151e2ed6",
       "executable": false
     },
     "src/placemat/guest-merge-archive.mjs": {
@@ -4226,7 +4226,7 @@
       "executable": false
     },
     "tests/api/guest-enrichment.test.mjs": {
-      "sha256": "4381723fc905178a4f4daa7a6fef875faac13118959f93060a0b7ca482681dd0",
+      "sha256": "6abd144c1c10a6de1b14438fe5011aff2c88c80b2b32cae94539a4d86fa8b077",
       "executable": false
     },
     "tests/api/guest-review-fixture.mjs": {
@@ -4470,7 +4470,7 @@
       "executable": false
     },
     "tests/guest-enrichment-ui.mjs": {
-      "sha256": "542452450b0d0f727a1197cdaa431f155083aabc3cb3ae254e6f84ed4146ab27",
+      "sha256": "9886dad10f2718b48da8925c4f70606fe6f53af0355c78e182f7eab5eacd88cb",
       "executable": false
     },
     "tests/guest-review-ui.mjs": {

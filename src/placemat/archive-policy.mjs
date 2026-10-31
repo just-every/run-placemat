@@ -52,7 +52,7 @@ export default {
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
  excludeTables:['pm_feedback_settings','pm_feedback_credentials','pm_diner_mail_limits','pm_diner_sessions','pm_diner_challenges','pm_payment_operation_custody','pm_report_schedules','pm_report_deliveries','pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
-  if(table==='pm_state'){const state=portableFeedbackState(JSON.parse(row.data));for(const p of state.guestEnrichments??[])if(p.status!=='erased'){p.status='archived';delete p.review;delete p.inputHash;delete p.identityHash}if(state.serviceChanges)state.serviceChanges=portableServiceChanges(state.serviceChanges);for(const p of state.proposals??[])if(p.plan?.snapshot?.serviceChanges)p.plan.snapshot.serviceChanges=portableServiceChanges(p.plan.snapshot.serviceChanges);return {...row,data:JSON.stringify(state)}}
+  if(table==='pm_state'){const state=portableFeedbackState(JSON.parse(row.data));for(const p of state.guestEnrichments??[])if(p.status!=='erased'){if(p.status!=='archived')p.archivedStatus=p.status;p.status='archived';delete p.review;delete p.inputHash;delete p.identityHash}if(state.serviceChanges)state.serviceChanges=portableServiceChanges(state.serviceChanges);for(const p of state.proposals??[])if(p.plan?.snapshot?.serviceChanges)p.plan.snapshot.serviceChanges=portableServiceChanges(p.plan.snapshot.serviceChanges);return {...row,data:JSON.stringify(state)}}
   if(table==='pm_fee_assessments')return {...row,processing_until:0}
   if(table==='pm_refund_webhooks')return {...row,claim:''}
   if(table==='pm_payment_requests')return {...row,provider_url:null}
@@ -81,6 +81,7 @@ export default {
     const guest=guests.find(row=>row.id===p.guestId)
     if(!p||typeof p.id!=='string'||!guest||!['archived','erased'].includes(p.status)||typeof p.preparedBy!=='string'||!Number.isFinite(Date.parse(p.preparedAt))||p.review||p.inputHash||p.identityHash)throw Error('Enrichment restore must be historical and inert')
     if(JSON.parse(guest.data).erased&&p.status!=='erased'||p.status==='erased'&&['candidates','unknown','addedTags','removedTags','preservedTags'].some(key=>p[key]!==undefined))throw Error('Erased enrichment contains personal facts')
+    if(p.archivedStatus!==undefined&&!['pending','approved','rejected','undone'].includes(p.archivedStatus))throw Error('Invalid historical enrichment decision')
     if(p.status!=='erased'&&(!Array.isArray(p.candidates)||!Array.isArray(p.unknown)||p.candidates.some(c=>!c||typeof c.tag!=='string'||c.confidence!=='high'||typeof c.explanation!=='string'||!Array.isArray(c.facts)||c.facts.some(f=>!f||typeof f.reference!=='string'||typeof f.value!=='string'||typeof f.source!=='string'))))throw Error('Invalid enrichment facts')
    }
   }
