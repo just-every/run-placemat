@@ -11,6 +11,13 @@ if(shots)await mkdir(shots,{recursive:true})
 const host='https://bistro.example',other='https://other.example',title='Book a table at Cedar & Salt'
 const ga4Secret=randomBytes(16).toString('hex'),metaToken=randomBytes(32).toString('hex')
 const quiet=()=>new Promise(r=>setTimeout(r,600))
+async function refusedFrame(element,message){
+ const child=await(await element.elementHandle()).contentFrame()
+ assert.ok(child,message)
+ // Chromium represents a CSP-blocked document as either an error URL or an
+ // anonymous empty URL. Locate the specific iframe instead of its lost name.
+ assert.match(child.url(),/^(?:chrome-error:.*)?$/,message)
+}
 const site=placemat=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bistro on Main</title></head><body style="margin:0;font-family:sans-serif"><header style="padding:16px"><h1>Bistro on Main</h1><a href="#menu">Menu</a></header><div data-placemat-book data-title="${title}"></div><script src="${placemat}/placemat-embed.js" async></script></body></html>`
 const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','/queue','/inquiry'].map(path=>`<iframe name="${path.slice(1)}" src="${placemat}${path}"></iframe>`).join('')}</body></html>`
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
@@ -154,10 +161,10 @@ try{
    if(width===1440){
     // Staff and guest pages other than the widget refuse every frame, and an unlisted website gets no widget.
     await page.goto(host+'/frames');await page.waitForLoadState('load')
-    for(const name of ['app','book','queue','inquiry'])assert.match(page.frame({name}).url(),/^chrome-error:/,`${name} is unframeable`)
+    for(const name of ['app','book','queue','inquiry'])await refusedFrame(page.locator(`iframe[name="${name}"]`),`${name} is unframeable`)
     await page.goto(other+'/');await page.locator(`iframe[title="${title}"]`).waitFor();await page.waitForLoadState('load')
     await assert.rejects(()=>page.frameLocator(`iframe[title="${title}"]`).locator('[name=date]').waitFor({timeout:3000}))
-    assert.match(page.frames().find(f=>f!==page.mainFrame()).url(),/^chrome-error:/,'an unlisted website cannot frame the widget')
+    await refusedFrame(page.locator(`iframe[title="${title}"]`),'an unlisted website cannot frame the widget')
    }
    assert.deepEqual(errors,[])
    console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)
