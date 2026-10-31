@@ -80,7 +80,7 @@ import {filterMergeAudit,readMergeJournal} from './guest-merge-store'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
-const paths=new Set(['/api/payments/ledger','/api/payments/ledger/payout','/api/payments/ledger/adjustment','/api/payments/guarantees','/api/payments/guarantees/issue','/api/payments/guarantees/end','/api/payments/merchant','/api/payments/merchant/connect','/api/payments/merchant/disconnect','/api/payments/merchant/collect','/api/payments/merchant/sync','/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/payments/ledger','/api/payments/ledger/payout','/api/payments/ledger/adjustment','/api/payments/guarantees','/api/payments/guarantees/issue','/api/payments/guarantees/end','/api/payments/merchant','/api/payments/merchant/connect','/api/payments/merchant/disconnect','/api/payments/merchant/collect','/api/payments/merchant/sync','/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/enrichment','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
@@ -375,6 +375,11 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   if(path.startsWith('/api/guests/')&&request.method==='GET'){
    person(actor!)
+   if(path==='/api/guests/enrichment'){
+    if(actor!.deviceId)fail(403,'Use a personal manager session.')
+    const guestId=text(url.searchParams.get('guestId'),'Guest'),{state}=await load(env.DB)
+    return json({proposals:(state.guestEnrichments??[]).filter(p=>p.guestId===guestId)})
+   }
    if(path==='/api/guests/merges')return json({merges:await readMergeJournal(env.DB,text(url.searchParams.get('guestId'),'Guest'))})
    const {state}=await load(env.DB)
    if(path==='/api/guests/merge-preview')return json(await mergeReview(env.DB,state,text(url.searchParams.get('guestId'),'Guest'),text(url.searchParams.get('duplicateId'),'Duplicate')))

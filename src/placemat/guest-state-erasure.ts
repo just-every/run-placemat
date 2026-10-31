@@ -16,6 +16,10 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  const noteIds=new Set((state.serviceNotes??[]).filter(n=>noteDates.has(n.date)).map(n=>n.id))
  for(const note of state.serviceNotes??[])if(noteIds.has(note.id))for(const entry of note.history)entry.text=''
  for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='serviceNotes'&&noteIds.has(change.id)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
+ for(const proposal of state.guestEnrichments??[])if(proposal.guestId===guestId){
+  for(const key of ['inputHash','identityHash','review','candidates','unknown','addedTags','removedTags','preservedTags'] as const)delete proposal[key]
+  proposal.status='erased'
+ }
  eraseAudit(state,guestId)
  for(const reminder of state.reminders)if(reminder.guestId===guestId){delete reminder.contactName;delete reminder.contactEmail;delete reminder.contactPhone}
  const bookings=[...state.bookings,...state.proposals.flatMap(p=>proposalBookings(p.plan)),...[...(state.serviceChanges??[]),...state.proposals.flatMap(p=>p.plan?.snapshot?.serviceChanges??[])].flatMap(c=>c.tasks.flatMap((t:any)=>t.relocation?[t.relocation.before,t.relocation.after]:[]))]

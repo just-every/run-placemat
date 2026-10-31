@@ -6,7 +6,7 @@ import {analyticsSettings} from './analytics'
 export const businessCsvVersion=1
 export const businessExportKinds=[
  'feedback-visits','feedback-messages','diner-accounts','diner-bookings','venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
- 'guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
+ 'guest-enrichments','guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
  'experiences','payment-cases','payment-reviews','accounting-exports','money-items','money-receipts','money-payouts','money-adjustments','card-guarantees','card-collections','fee-policies','fee-consents','fee-assessments','fee-events','fee-disputes','payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins','report-schedules','report-deliveries',
 ] as const
 export type BusinessExportKind=typeof businessExportKinds[number]
@@ -57,6 +57,7 @@ function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:Busi
   case 'money-receipts':return {fields:['event_id','source_id','received_at'],rows:finance.moneyReceipts??[]}
   case 'money-payouts':return {fields:['id','amount_cents','currency','items_json','actor_id','recorded_at'],rows:(finance.moneyPayouts??[]).map(r=>({...r,items:JSON.parse(String(r.items))}))}
   case 'money-adjustments':return {fields:['id','payout_id','transaction_id','booking_id','actor_id','recorded_at'],rows:finance.moneyAdjustments??[]}
+  case 'guest-enrichments':return {fields:['id','guestId','status','preparedBy','preparedAt','decidedBy','decidedAt','undoneBy','undoneAt','candidates_json','unknown_json','addedTags_json','removedTags_json','preservedTags_json'],rows:state.guestEnrichments??[]}
   case 'guest-merges':return {fields:['id','guestId','duplicateId','status','createdAt','createdBy','unmergedAt','unmergedBy','purgedAt','snapshots_json','pendingAssignment_json'],rows:merges}
   case 'venue':return {fields:['name','timezone','setup_json','hostIds_json','pacingHostIds_json','leadIds_json','serverIds_json','financeIds_json','reportScopes_json','managerRefundLimits_json','embedOrigins_json','analytics_json'],rows:[{...state.venue,hostIds:state.hostIds,pacingHostIds:state.pacingHostIds,leadIds:state.leadIds,serverIds:state.serverIds,financeIds:state.financeIds,reportScopes:state.reportScopes,managerRefundLimits:state.managerRefundLimits,embedOrigins:state.embed?.origins??[],analytics:analyticsSettings(state)}]}
   case 'inventories':return {fields:['id','name','kind','capacity','turnMinutes','arrivalCovers','intervalMinutes','adjacent'],rows:state.inventories??[]}

@@ -452,8 +452,8 @@ REPORT-005 was reopened in sx-placemat-c-r005 for changed-address renewal and st
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 15 | 0 | 0 | 15 |
-| Target and push further | 42 | 29 | 49 | 120 |
-| All | 57 | 29 | 49 | 135 |
+| Target and push further | 42 | 30 | 48 | 120 |
+| All | 57 | 30 | 48 | 135 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -590,5 +590,5 @@ REPORT-005 was reopened in sx-placemat-c-r005 for changed-address renewal and st
 | `AGENT-004` | Feasible seating and booking improvements | push-further | done | `src/placemat/allocation-advisor.ts`; `src/placemat/inventory-advisor.ts`; `src/placemat/shift-advisor.ts`; `src/placemat/direct-inventory.ts`; `public/placemat-allocation.js`; `public/placemat-allocation-policy.js`; `tests/api/assignments.test.mjs`; `tests/allocation-ui.mjs` |  |
 | `AGENT-005` | No-show risk and reconfirmation assistance | push-further | done | `src/placemat/no-show.ts`; `public/placemat-risk.js`; `tests/api/risk.test.mjs`; `tests/risk-ui.mjs` | All acceptance points asserted through native HTTP and 1440/390 manager journeys. |
 | `AGENT-006` | Evidence-based guest recovery | push-further | missing |  | No implementation of this journey exists. |
-| `AGENT-007` | Permissioned guest enrichment and next visit | push-further | missing |  | No implementation of this journey exists. |
+| `AGENT-007` | Permissioned guest enrichment and next visit | push-further | partial | `tests/api/guest-enrichment.test.mjs` — “Recorded guest enrichment requires exact current personal approval and preserves later edits on undo” proves fact-cited native proposals, confidence and unknowns, dietary exclusions, exact review, rejection, live authority, stale input and concurrent replay refusals, and attributed conflict-safe undo; “Enrichment exports are attributed and inert on restore; merged and erased identities cannot replay facts” proves audited CSV, historical archive restore, merged identity refusal and erasure without resurrection. `tests/guest-enrichment-ui.mjs` — guest profile review, rejection, exact approval and undo at 1440 with 390 browser proof. Existing `tests/api/guests.test.mjs` retained. | Native reviewed enrichment is built; preparation changes no profile. Personal owner or admin approval applies only the exact supported recorded occasion, preference and native attended-visit tags. Free notes never establish dietary conditions. Conservative default: no unattended rule execution, consent, group sharing, audience admission or outbound send is granted. Refunded-spend processing and spend-grounded enrichment still require GUEST-005 authorized POS venue, check, item and refund feed; native attendance is no substitute. CRM-001 downstream audience membership and campaign previews remain unproved pending connected POS spend or EXP-002 paid-event ledger. Person-approved low-risk policy and separately scoped execution remain owed under ROLE-004 marketing, execution and job-time revocation authority (RL-105); CRM-002 owner-only marketing approval, MSG-002 and MSG-008 messaging prerequisites, and DATA-004 category retention and purpose-specific doors (RL-101) remain unchanged. All original acceptance obligations remain binding; no DONE claim. |
 | `AGENT-008` | Measured reversible service experiments | push-further | missing |  | No implementation of this journey exists. |
