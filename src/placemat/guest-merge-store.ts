@@ -3,7 +3,8 @@ import type {Actor,State} from './model'
 /** Snapshots and the identity-change journal remain manager-only on every reader. */
 export function filterMergeAudit(state:State,actor:Actor):State {
  if(!actor.agent&&['owner','admin'].includes(actor.role))return state
- state.audit=state.audit.filter(event=>!['guest.merge','guest.unmerge'].includes(event.action))
+ delete state.guestEnrichments
+ state.audit=state.audit.filter(event=>!['guest.merge','guest.unmerge'].includes(event.action)&&!event.action.startsWith('guest.enrichment.'))
  return state
 }
 export async function readMergeJournal(db:D1Database,guestId:string){

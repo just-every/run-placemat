@@ -40,6 +40,7 @@ import { instant,bookingFit,serviceBy } from './availability'
 import { guestFor,guestInsert,guestGuard } from './guests'
 import { load,save,guests,hash } from './store'
 import { updateGuestProfile } from './profiles'
+import {executeEnrichment} from './guest-enrichment'
 import {mergeGuests,unmergeGuests} from './guest-merge'
 import {searchTables} from './reservation-search'
 import {saveCombination} from './combinations'
@@ -55,7 +56,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  const {state:s,version}=await load(db),now=new Date().toISOString(),before:D1PreparedStatement[]=[]
  const priorAuditIds=new Set(s.audit.map(e=>e.id))
  if(actor.deviceId)before.push(deviceFence(db,actor,Date.parse(now)))
- if(actor.agent&&command!=='proposal.prepare')fail(403,'Agents prepare proposals; a person must approve them.')
+ if(actor.agent&&!['proposal.prepare','guest.enrichment.prepare'].includes(command))fail(403,'Agents prepare proposals; a person must approve them.')
  const leadCommands=['booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','booking.walkin','waitlist.seat']
  const hostCommands=['booking.late','waitlist.quote','waitlist.priority','waitlist.status','waitlist.followup','booking.needs','booking.phone','booking.phone.change','booking.handover','booking.handover.assign','booking.handover.complete','booking.move','booking.swap','booking.lock','booking.stage','booking.status','booking.extend','waitlist.add','waitlist.party']
  if(!actor.agent&&!['owner','admin'].includes(actor.role)&&!(actor.role==='lead'&&s.leadIds?.includes(actor.id)&&leadCommands.includes(command))&&!(actor.role==='host'&&s.hostIds?.includes(actor.id)&&(hostCommands.includes(command)||['booking.walkin','waitlist.seat'].includes(command)&&mayPace(s,actor))))fail(403,'A venue manager is required.')
@@ -272,6 +273,10 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
    db.prepare('DELETE FROM pm_feedback_credentials WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE booking_id=?)').bind(b.id),
    db.prepare('UPDATE pm_feedback_visits SET guest_id=? WHERE booking_id=?').bind(b.guestId,b.id))
   result=change.result;mergeChanges=change.changes;break
+ }
+ case 'guest.enrichment.prepare':case 'guest.enrichment.approve':case 'guest.enrichment.reject':case 'guest.enrichment.undo':{
+  const changed=await executeEnrichment(db,s,actor,command,p,version,now)
+  before.push(...changed.statements);result=changed.proposal;guestChange=changed.change;break
  }
  case 'guest.update':case 'guest.profile':{
   const update=await updateGuestProfile(db,p.guestId,p,actor,version,now)

@@ -24,7 +24,7 @@ import {renderSchedules,scheduleEditor,parseSchedule,schedulePlan} from './place
 import {renderQueue,queueIntakeFields,queueCloseForm,intakeSettings,queueManagementLink} from './placemat-queue.js';
 import {turnPolicyFields,parseTurnPolicy} from './placemat-turns.js';
 import {bookingRuleFields,parseBookingRules} from './placemat-rules.js';
-import { guestProfile,profileSummary,duplicatePreview,mergePreview,mergeJournal,unmergePreview } from './placemat-profiles.js';
+import { enrichmentReview,guestProfile,profileSummary,duplicatePreview,mergePreview,mergeJournal,unmergePreview } from './placemat-profiles.js';
 import { renderReports } from './placemat-reports.js';
 import {assignmentEditor,hostGrant} from './placemat-assignments.js';
 import {createTimeline} from './placemat-timeline.js';
@@ -194,7 +194,7 @@ async function renderGuestResults(expanded=expandedGuests()) {
   if(query!==guestQuery)return;
   $('#guest-results').innerHTML = rows.map(g => {
     const visits = [...(g.history || []), ...state.bookings.filter(b => b.guestId === g.id).map(b => ({date:b.startAt, partySize:b.partySize, status:b.status}))].sort((a,b) => b.date.localeCompare(a.date));
-    return `<details class="card guest"${expanded.includes(g.id)?' open':''}><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}<button type="button" data-action="guest-review" data-id="${esc(g.id)}" aria-expanded="false">Review possible duplicates</button><div data-guest-review aria-live="polite"></div>${canEdit()?`<button type="button" class="secondary" data-action="guest-merge-journal" data-id="${esc(g.id)}" aria-expanded="false">Review merge journal</button><div data-merge-journal aria-live="polite"></div>`:''}</div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes, including reviewed aliases and unresolved merged identities. Merge snapshots are removed and reversal becomes unavailable. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
+    return `<details class="card guest"${expanded.includes(g.id)?' open':''}><summary><span class="guest-name">${esc(g.name)}</span> <span class="muted">${esc([g.email, g.phone].filter(Boolean).join(' · '))}</span></summary><div class="guest-body"><div class="guest-visits"><p>${visits.length} recorded visits</p>${visits.length ? `<ul class="visits">${visits.map(v => `<li><span>${esc(v.date.length === 10 ? v.date : time(v.date))} · ${v.partySize} guests</span>${badge(v.status)}</li>`).join('')}</ul>` : ''}</div><div class="guest-notes">${guestProfile(g,{esc,who,time,canEdit:canEdit(),form,field,select})}${canEdit()?`<details data-enrichment><summary data-action="guest-enrichment" data-id="${esc(g.id)}">Review guest enrichment</summary><div data-enrichment-review aria-live="polite"></div></details>`:''}<button type="button" data-action="guest-review" data-id="${esc(g.id)}" aria-expanded="false">Review possible duplicates</button><div data-guest-review aria-live="polite"></div>${canEdit()?`<button type="button" class="secondary" data-action="guest-merge-journal" data-id="${esc(g.id)}" aria-expanded="false">Review merge journal</button><div data-merge-journal aria-live="polite"></div>`:''}</div></div>${isOwner() ? `<details><summary>Erase personal details</summary><p class="help">Erases this guest’s personal details and notes, including reviewed aliases and unresolved merged identities. Merge snapshots are removed and reversal becomes unavailable. Booking records remain anonymous.</p>${form('guest.erase', `<input type="hidden" name="guestId" value="${esc(g.id)}">${field('Type ERASE to confirm','confirm','text','','required pattern="ERASE" autocomplete="off"')}`, 'Erase guest')}</details>` : ''}</details>`;
   }).join('') || empty(guestQuery ? 'No guests match your search.' : 'Guests appear here after a booking, walk-in, waitlist entry or import.');
 }
 async function loadGuestReview(button) {
@@ -296,6 +296,14 @@ async function prepare(kind, plan, reason) {
 }
 async function submitForm(el) {
   const command = el.dataset.command, payload = payloadFrom(el);
+  if(command.startsWith('guest.enrichment.')){
+    const guestId=payload.guestId;
+    if(command!=='guest.enrichment.prepare')delete payload.guestId;
+    await execute(command,payload);await loadStaff();
+    const control=[...document.querySelectorAll('[data-action=guest-enrichment]')].find(el=>el.dataset.id===guestId);
+    if(control){control.parentElement.open=true;const {proposals}=await api('/api/guests/enrichment?guestId='+encodeURIComponent(guestId));control.parentElement.querySelector('[data-enrichment-review]').innerHTML=enrichmentReview(proposals,{esc,who,time,form,field},guestId);}
+    notice('Enrichment review updated. No consent or sending authority is granted.','success');return;
+  }
   if(['guest.merge','guest.unmerge'].includes(command)) {
     if(!canEdit())throw new Error('A venue manager must review guest merges.');
     const guestId=payload.guestId;
@@ -398,6 +406,10 @@ document.addEventListener('click', event => {
   const action = el.dataset.action, id = el.dataset.id;
   if(action==='device-clear-code'){$('#device-registration').textContent='';return;}
   if(action==='device-revoke'){busy(async()=>{await api('/api/hoststand/revoke',{deviceId:id});await loadStaff();notice('Host stand revoked.','success')});return;}
+  if(action==='guest-enrichment'){
+    if(!canEdit())return;
+    busy(async()=>{const {proposals}=await api('/api/guests/enrichment?guestId='+encodeURIComponent(id));el.parentElement.querySelector('[data-enrichment-review]').innerHTML=enrichmentReview(proposals,{esc,who,time,form,field},id);},'Loading enrichment review…');return;
+  }
   if(action==='guest-review'){
     busy(async()=>{await loadGuestReview(el);notice('Duplicate review loaded. Profiles and permissions are unchanged.','success');},'Loading duplicate review…');return;
   }
