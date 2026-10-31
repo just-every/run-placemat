@@ -12,6 +12,21 @@ import {validateGuestMerges} from './guest-merge-archive.mjs'
 import {validateServiceNotes} from './service-notes-archive.mjs'
 import {validateOnboarding} from './onboarding-archive.mjs'
 import {validatePayments} from './payment-archive.mjs'
+function validateMessageTemplates(s){
+ const templates=s.messageTemplates??[],versions={en:0,es:0},templateIds=new Set()
+ if(!Array.isArray(templates))throw Error('Invalid message templates')
+ for(const t of templates){
+  if(!t||!['en','es'].includes(t.language)||t.version!==versions[t.language]+1||typeof t.id!=='string'||!t.id||templateIds.has(t.id)||typeof t.body!=='string'||!t.body.trim()||t.body.length>4000||typeof t.createdBy!=='string'||!Number.isFinite(Date.parse(t.createdAt)))throw Error('Invalid message template version')
+  const tokens=[...t.body.matchAll(/\{\{([^{}]+)\}\}/g)].map(m=>m[1])
+  if(tokens.some(k=>!['guest_name','venue_name','date_time','party_size','guest_phone','venue_phone','cancellation_terms'].includes(k))||/[{}]/.test(t.body.replace(/\{\{([^{}]+)\}\}/g,''))||['venue_name','date_time','party_size','cancellation_terms'].some(k=>!tokens.includes(k)))throw Error('Invalid template substitutions')
+  versions[t.language]=t.version;templateIds.add(t.id)
+ }
+ const messages=[...s.reminders,...s.proposals.filter(p=>p.kind==='reminders').flatMap(p=>p.plan?.messages??[])]
+ for(const m of messages){
+  if(m.templateVersion===undefined)continue // Earlier approved CSV records remain portable.
+  if(!s.bookings.some(b=>b.id===m.bookingId)||!['en','es'].includes(m.language)||typeof m.message!=='string'||!Number.isSafeInteger(m.templateVersion)||m.templateVersion<0||!(m.templateVersion===0?m.templateId==='reminder-'+m.language:templates.some(t=>t.id===m.templateId&&t.language===m.language&&t.version===m.templateVersion))||!Array.isArray(m.policies)||m.policies.some(p=>!p||!['fee','experience'].includes(p.source)||typeof p.id!=='string'||!Number.isSafeInteger(p.version)||p.version<1||typeof p.terms!=='string'||!p.terms.trim()))throw Error('Invalid reviewed reminder')
+ }
+}
 function validatePacing(s){
  for(const service of s.services){
   const p=service.pacing;if(p===undefined)continue
@@ -77,6 +92,7 @@ export default {
   validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
   validateOnboarding(s)
+  validateMessageTemplates(s)
   if(s.leadIds?.some(id=>s.hostIds?.includes(id))||s.serverIds?.some(id=>s.hostIds?.includes(id)||s.leadIds?.includes(id))||s.financeIds?.some(id=>s.hostIds?.includes(id)||s.leadIds?.includes(id)||s.serverIds?.includes(id)))throw Error('Conflicting staff grants')
   if(s.reportScopes!==undefined&&(!s.reportScopes||typeof s.reportScopes!=='object'||Array.isArray(s.reportScopes)||Object.entries(s.reportScopes).some(([id,ids])=>!id||!Array.isArray(ids)||new Set(ids).size!==ids.length||ids.some(id=>!s.services.some(service=>service.id===id)))))throw Error('Invalid report scope')
   if(s.managerRefundLimits!==undefined&&(!s.managerRefundLimits||typeof s.managerRefundLimits!=='object'||Array.isArray(s.managerRefundLimits)||Object.entries(s.managerRefundLimits).some(([id,cents])=>!id||!Number.isInteger(cents)||cents<0||cents>100000000)))throw Error('Invalid refund authority limit')

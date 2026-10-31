@@ -1,3 +1,4 @@
+import {saveMessageTemplate,prepareReminders,approveReminders} from './message-templates'
 import {normalizeExperienceCart} from './experience-cart'
 import {experienceContext} from './experience-fit'
 import {executeExperience} from './experiences'
@@ -62,6 +63,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  if(['experienceId','ticketClassId','experienceVersion'].some(key=>p[key]!==undefined))fail(400,'Experience reservations use the guest experience availability and booking doors. No reservation was made.')
  let result:any,guestChange:import('./audit').AuditChange|undefined,mergeChanges:import('./audit').AuditChange[]=[]
  switch(command){
+ case 'message-template.save':{result=saveMessageTemplate(s,actor,p,now);break}
  case 'experience.save':case 'experience.publish':case 'experience.withdraw':{result=executeExperience(s,actor,command,p,now);break}
  case 'booking.late':{result=executeLate(s,actor,p,now);break}
  case 'booking.needs':{result=executeNeeds(s,actor,p,now);break}
@@ -168,9 +170,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
    exact={serviceId:service.id,service:structuredClone(service),turnPolicy:policy,bookings:structuredClone(s.bookings),tables:structuredClone(s.tables),combinations:structuredClone(s.combinations??[]),impacts:turnImpact(s,service,policy)}
   }else if(kind==='reminders'){
    const service=serviceBy(s,plan.serviceId)
-   const rows=s.bookings.filter(b=>b.serviceId===service.id&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
-   if(!rows.length)fail(409,'There are no new booked guests to remind.')
-   exact={serviceId:service.id,bookings:structuredClone(rows),venue:structuredClone(s.venue)}
+   exact=await prepareReminders(db,s,{...plan,serviceId:service.id},before)
   }else if(kind==='table.assign'){
    if(!actor.agent)fail(403,'Use Change assignment for a direct human move. Preparation keys prepare table proposals.')
    const b=booking(s,plan.bookingId)
@@ -211,9 +211,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
    if(plain(service)!==plain(plan.service)||plain(s.bookings)!==plain(plan.bookings)||plain(s.tables)!==plain(plan.tables)||plain(s.combinations??[])!==plain(plan.combinations??[]))fail(409,'The service or bookings changed. Review the turn policy again.')
    service.turnPolicy=plan.turnPolicy;service.version++
   }else if(proposal.kind==='reminders'){
-   const rows=s.bookings.filter(b=>b.serviceId===plan.serviceId&&b.status==='booked'&&!s.reminders.some(r=>r.bookingId===b.id))
-   if(plain(rows)!==plain(plan.bookings)||plain(s.venue)!==plain(plan.venue))fail(409,'Bookings changed. Prepare and review the reminders again.')
-   for(const b of rows)s.reminders.push({id:id(),bookingId:b.id,guestId:b.guestId,message:reminderMessage(s,b),status:'approved',approvedBy:actor.id,approvedAt:now})
+   await approveReminders(db,s,plan,actor,now,before)
   }else{
    const b=booking(s,plan.bookingId)
    if(plan.assignmentInputs&&plain({services:s.services,bookings:s.bookings,tables:s.tables,serviceEvents:s.serviceEvents??[]})!==plain(plan.assignmentInputs))fail(409,'Shift staffing, kitchen limits, floor or commitments changed. Prepare a new assignment.')
@@ -283,6 +281,7 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
  for(const entry of s.audit)if(entry.at===now&&entry.actor===actor.id){entry.source=actor.agent?'preparation-key':'person';if(actor.deviceId&&!priorAuditIds.has(entry.id))entry.deviceId=actor.deviceId}
  if(guestChange)s.audit.at(-1)!.changes=[guestChange]
  if(mergeChanges.length)s.audit.at(-1)!.changes=mergeChanges
+ if(['message-template.save','proposal.approve','proposal.decline'].includes(command))before.push(db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND role IN ('owner','admin')) THEN 1 ELSE 0 END").bind(actor.id))
  if(commitStatements)before.push(...commitStatements(result))
  try{await save(db,s,version,before)}catch(error){if(actor.deviceId&&String(error).includes('CHECK constraint failed'))fail(409,'Host stand authorization changed. Unlock again.');throw error}
  return result
