@@ -72,7 +72,7 @@ Inventory: 57 done, 30 partial, 48 missing; 135 total.
 | PAY-003 | partial | `tests/api/card-hold-journey.mjs`; `tests/api/fee-expiry-journeys.mjs`; `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs` |
 | PAY-004 | partial | `src/placemat/fee-policy.ts`; `src/placemat/fees.ts`; `tests/api/fee-journeys.mjs`; `tests/fees-ui.mjs`; `tests/pacing-ui.mjs`; `scripts/fees-sandbox.mjs` |
 | PAY-005 | partial | `src/placemat/refunds.ts`; `tests/api/flows.test.mjs`; `tests/pacing-ui.mjs`; `tests/api/flows.test.mjs`; `scripts/refund-sandbox.mjs`; `scripts/refund-webhook-sandbox.mjs`; `tests/api/refund-notice-journeys.mjs`; `tests/refund-notices-ui.mjs` |
-| PAY-006 | partial | `tests/api/money-ledger-journeys.mjs` |
+| PAY-006 | partial | `tests/api/money-ledger-journeys.mjs`; `tests/audit-ui.mjs` |
 | PAY-007 | missing |  |
 | PAY-008 | missing |  |
 | PAY-009 | partial | `tests/api/money-ledger-journeys.mjs`; `tests/payment-operations-ui.mjs`; `docs/payment-operations.md`; `scripts/payment-operations-sandbox.mjs` |
