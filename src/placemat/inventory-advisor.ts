@@ -9,7 +9,7 @@ import {ruleFor} from './booking-rules'
 
 const inputsFor=(s:State)=>structuredClone({venue:s.venue,services:s.services,bookings:s.bookings,tables:s.tables,combinations:s.combinations??[],waitlist:s.waitlist,serviceEvents:s.serviceEvents??[]})
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b)
-export function adviseInventory(s:State,serviceId:string,now:string){
+function channelAdvice(s:State,serviceId:string,now:string,channel:'online'|'phone'){
  const service=serviceFor(s,serviceId,now),rows=demandRows(s,serviceId),before=evaluateDemand(s,service,rows,now),alternatives:any[]=[]
  const step=ruleFor(service,'online').slotMinutes*60000,origin=Date.parse(service.startAt)
  const startAt=new Date(origin+Math.ceil((Math.max(origin,Date.parse(now)+ruleFor(service,'online').leadMinutes*60000)-origin)/step)*step).toISOString()
@@ -19,19 +19,23 @@ export function adviseInventory(s:State,serviceId:string,now:string){
   try{
    const rule=ruleFor(service,'online'),partySize=Math.min(capacity,rule.maxParty,rule.inquiryAbove)
    if(partySize<rule.minParty||rule.blockedStarts.includes(startAt))continue
-   const fit=fitAt(s,service,partySize,startAt,tableIds)
-   const protection={id:'candidate',tableIds,startAt:fit.setupStartAt,endAt:fit.cleanupEndAt,partySize}
+   const fit=fitAt(s,service,partySize,startAt,tableIds,[],false,channel)
+   const protection={id:'candidate',tableIds,startAt:fit.setupStartAt,endAt:fit.cleanupEndAt,partySize,...channel==='phone'?{channel}:{} }
    if((service.directInventory??[]).some(p=>inventoryActive(p,now)&&p.startAt<protection.endAt&&p.endAt>protection.startAt&&p.tableIds.some(id=>tableIds.includes(id))))continue
    // No committed party can be displaced by a future channel restriction.
-   if(s.bookings.some(b=>b.source!=='online'&&b.tableIds.some(id=>tableIds.includes(id))&&['booked','seated'].includes(b.status)&&(b.setupStartAt??b.startAt)<protection.endAt&&occupiedEndAt(b,now)>protection.startAt))continue
+   if(s.bookings.some(b=>b.source!==channel&&b.tableIds.some(id=>tableIds.includes(id))&&['booked','seated'].includes(b.status)&&(b.setupStartAt??b.startAt)<protection.endAt&&occupiedEndAt(b,now)>protection.startAt))continue
    const next={...service,directInventory:[...service.directInventory??[],protection]},staged={...s,services:s.services.map(v=>v.id===serviceId?next:v)}
    const after=evaluateDemand(staged,next,rows,now)
    if(after.feasibleQueuedCovers<before.feasibleQueuedCovers||after.requestedSlotCovers<before.requestedSlotCovers)continue
-   const key=JSON.stringify([tableIds,startAt,fit.cleanupEndAt,partySize])
-   alternatives.push({id:'inventory:'+encodeURIComponent(key),serviceId,protection,before,after,explanations:[`Protect ${capacity} physical seats for direct website bookings from ${protection.startAt} through ${protection.endAt}; a fitting online party may use them.`,`${before.requestedSlotCovers} queued covers fit their requested slots before; ${after.requestedSlotCovers} after. No current booking moves.`, 'This is reserved channel inventory, not a guest reservation, guaranteed demand or a delivery. Walk-in and waitlist seating must use other inventory until explicit release, an approved release deadline or the interval end.']})
+   const key=JSON.stringify([tableIds,startAt,fit.cleanupEndAt,partySize,...channel==='phone'?[channel]:[]])
+   alternatives.push({id:'inventory:'+encodeURIComponent(key),serviceId,protection,before,after,explanations:[`Protect ${capacity} physical seats for ${channel==='phone'?'phone reservations':'direct website bookings'} from ${protection.startAt} through ${protection.endAt}; a fitting ${channel==='phone'?'phone':'website'} party may use them.`,`${before.requestedSlotCovers} queued covers fit their requested slots before; ${after.requestedSlotCovers} after. No current booking moves.`, 'This is reserved channel inventory, not a guest reservation, guaranteed demand or a delivery. Other channels must use other inventory until explicit release, an approved release deadline or the interval end.']})
   }catch(error){if(error instanceof Problem&&[400,404,409].includes(error.status))continue;throw error}
  }
  return {serviceId,generatedAt:now,before,alternatives,protected:service.directInventory??[]}
+}
+export function adviseInventory(s:State,serviceId:string,now:string){
+ const direct=channelAdvice(s,serviceId,now,'online'),phone=channelAdvice(s,serviceId,now,'phone')
+ return {...direct,alternatives:[...direct.alternatives,...phone.alternatives]}
 }
 export function prepareInventory(s:State,p:any,now:string){
  const report=adviseInventory(s,p.serviceId,now)

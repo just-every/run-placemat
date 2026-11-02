@@ -8,7 +8,8 @@
   for (const host of document.querySelectorAll('[data-placemat-book]')) {
     if (host.querySelector('iframe')) continue;
     const frame = document.createElement('iframe');
-    frame.src = `${placemat}/book?embed=1&origin=${encodeURIComponent(location.origin)}`;
+    const url=new URL('/book',placemat);url.searchParams.set('embed','1');url.searchParams.set('origin',location.origin);
+    frame.src = url.href;
     frame.title = host.dataset.title || 'Book a table';
     frame.style.cssText = 'display:block;width:100%;min-height:480px;border:0';
     host.append(frame);

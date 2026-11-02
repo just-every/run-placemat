@@ -686,7 +686,7 @@
       "executable": false
     },
     "public/placemat-allocation-policy.js": {
-      "sha256": "31dd6ce9e1f8b779139d4e5fd85c3b82801f5fa580d4e9f9cfce300a608922ef",
+      "sha256": "2fb4c91918a000a3e066b045ecea505b48cdbfe69eaaa20df4affa1612e64a5a",
       "executable": false
     },
     "public/placemat-allocation.js": {
@@ -758,7 +758,7 @@
       "executable": false
     },
     "public/placemat-embed.js": {
-      "sha256": "42d5d19e494ab72c578fd0296bb02bbe07b8767974b3a53e21d2a669f1280cc1",
+      "sha256": "550e92a77979e9236b8033ac522448a77f0b6c3be99fa98cdd295f5b44255e65",
       "executable": false
     },
     "public/placemat-experience-options.js": {
@@ -862,7 +862,7 @@
       "executable": false
     },
     "public/placemat-phone.js": {
-      "sha256": "1e7584cf653cfbd2cd76f43e71842f239c5b47544d93dbf5ea944ddaa2929889",
+      "sha256": "a335824758b7e9d2b3f47ff1ca8ddb83e2a3766c2ea4c2e1a12fb29c6bdb340d",
       "executable": false
     },
     "public/placemat-preshift.css": {
@@ -970,7 +970,7 @@
       "executable": false
     },
     "public/placemat-widget.js": {
-      "sha256": "49f9663868eaf70cb67353c75a7ea7e0c7578728c99ee84246b55804ebf6464f",
+      "sha256": "9be30f1db96f95c56e51195919af828ff205412ced2cd839f8daef541b4dd9d1",
       "executable": false
     },
     "public/placemat.css": {
@@ -978,7 +978,7 @@
       "executable": false
     },
     "public/placemat.js": {
-      "sha256": "8947d50fe92f484d9b4a8efa4ae79bf7ac9e85fa7147b3d24c81bf0e77b0dfa5",
+      "sha256": "339ae939cab38d2f94988625d3704603383a425c59952b602812d993e0773851",
       "executable": false
     },
     "public/plan.css": {
@@ -4334,7 +4334,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "b16233b9a7720764341f62400b112ade9ef1f9fc7865b50ce2a06883f46cf4d3",
+      "sha256": "e95b28faf83df3573430d1b6cbbda2629e055f8ad44109e626c5de9af9c79ce1",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -4346,7 +4346,7 @@
       "executable": false
     },
     "src/placemat/availability.ts": {
-      "sha256": "c80296f3f8772d19d2a8a3e4863401e8812e11e5b810e4bfd847021c4176b106",
+      "sha256": "69d4efa71acc6d6b45d204da87e185126e5dd9033ad4e5892dd28b0de47ad9e2",
       "executable": false
     },
     "src/placemat/backup.ts": {
@@ -4366,7 +4366,7 @@
       "executable": false
     },
     "src/placemat/booking-management.ts": {
-      "sha256": "5d33c7c74059c29616f4118b3b3e0e46f64cce089c84f5f44f63320885e2446e",
+      "sha256": "ed44637588fb54713591146f38a040dcfc1423953b316b7e147b809d7a46b86e",
       "executable": false
     },
     "src/placemat/booking-requests.ts": {
@@ -4406,7 +4406,7 @@
       "executable": false
     },
     "src/placemat/commands.ts": {
-      "sha256": "a786d83013448600b6f1f845196b180984bdb803a0ce3bf9d6195c9399f8aa7e",
+      "sha256": "cb6acecff3d5b189a95044f4626a73042f141abd64eb1aff21e17a5a5451d078",
       "executable": false
     },
     "src/placemat/costs-archive.mjs": {
@@ -4458,7 +4458,7 @@
       "executable": false
     },
     "src/placemat/direct-inventory.ts": {
-      "sha256": "8ff7623bd40bc6ff9cbed763243c4bca09545363341d7e82b673f507bf6476eb",
+      "sha256": "3ea49b916549d95219a9669e2163c1c4de41f9160e8a553a6bb239539d4e0379",
       "executable": false
     },
     "src/placemat/downloads.ts": {
@@ -4466,7 +4466,7 @@
       "executable": false
     },
     "src/placemat/embed.ts": {
-      "sha256": "e622790d250c68d553ee8709477cd5e7582c3c22f741ad8f08e9891677c76450",
+      "sha256": "dc9af1a1b92123bb1131801ce81be0d3e4b1f2065470b47f2c9966441676ac87",
       "executable": false
     },
     "src/placemat/experience-cart.ts": {
@@ -4574,7 +4574,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "bb05a19a96c45816c2259930970cbd2799913695e64859ceae168b3f5c692b48",
+      "sha256": "66ce60d87837b6a38333b8b3414eeb19a2cb11ff3b219c0a2ff713d8a951ef32",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -4642,7 +4642,7 @@
       "executable": false
     },
     "src/placemat/inventory-advisor.ts": {
-      "sha256": "347101b500763fcac73f4444095216d57accdb7a45dc4b92d1a5654d086cc531",
+      "sha256": "ff842a5ad01367890d045b5ae49757d964ca2af07ed41249cf2168c83d523c26",
       "executable": false
     },
     "src/placemat/kitchen-view.ts": {
@@ -4662,7 +4662,7 @@
       "executable": false
     },
     "src/placemat/model.ts": {
-      "sha256": "453384814d6153f32f2766f520ed80b14ae38d593ff2ba6483560cda5edbdf6b",
+      "sha256": "969fea7d907ce548119c25958c998b22990fe42d8fd875320ff86accd1b4e3ef",
       "executable": false
     },
     "src/placemat/money-ledger-archive.d.mts": {
@@ -4702,7 +4702,7 @@
       "executable": false
     },
     "src/placemat/pacing-review.ts": {
-      "sha256": "15b55e60500a793bbb2c57de6fb5b97f62d9ea0c76a7b2bc34978690bc35eb2d",
+      "sha256": "763d14cc4ebae302c48418dca30501d80306724e85fe96061b9095cf2151d544",
       "executable": false
     },
     "src/placemat/pacing.ts": {
@@ -4770,7 +4770,7 @@
       "executable": false
     },
     "src/placemat/phone-bookings.ts": {
-      "sha256": "0019740bdf3ce166b3a2461b1ad33c17d6db336311dcf43f18fb167aa077b6bf",
+      "sha256": "61639a645617422f3eea0ecdb12190a1b2c0c95ffb5c54e9eaa3167c684b4f12",
       "executable": false
     },
     "src/placemat/pin-crypto.ts": {
@@ -5142,7 +5142,7 @@
       "executable": false
     },
     "tests/allocation-ui.mjs": {
-      "sha256": "fd27dafa8f92bbaa300ae9fa3b3acc550df310c7cf4f28247e9a1add18ccc38a",
+      "sha256": "43575d9c6e43312102c09431ebf6f02c81d18c6b67465f48da7fa99a05a5ac91",
       "executable": false
     },
     "tests/api/allocation-fixture.mjs": {
@@ -5270,7 +5270,7 @@
       "executable": false
     },
     "tests/api/flows.test.mjs": {
-      "sha256": "f5bccb76dbb4b7127a05f17579ee4cbca41364fc0136bc6aa8e6b277eaf0387f",
+      "sha256": "5dcd1d0aa2519d76872d58b7a592f2fb93039871e5c029d2c62106aa513d339d",
       "executable": false
     },
     "tests/api/group.test.mjs": {
@@ -5342,7 +5342,7 @@
       "executable": false
     },
     "tests/api/phone-booking-journeys.mjs": {
-      "sha256": "18d2c77add5f12a199077048676129e640f96862e1126ec92224c4b3adf4a6ad",
+      "sha256": "bc09871031ebab0d7f7c41762d96171f29a8f2753cf6282a2d8f57300baa58f3",
       "executable": false
     },
     "tests/api/preshift-fixture.mjs": {
@@ -5562,7 +5562,7 @@
       "executable": false
     },
     "tests/phone-bookings-ui.mjs": {
-      "sha256": "4b23a5404c2ff3764b16cb56fec58f772bc6f995ec14268a3a7104bf767043be",
+      "sha256": "343ffb42fb4233587f6507b9acfa2566d791934c066b61ceaa1d4417debe943f",
       "executable": false
     },
     "tests/preshift-ui.mjs": {
@@ -5634,7 +5634,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "d643b2a8f69390cf2e255a03422486b4125f4fc28ea7c8a49ae0e7a7f86aef26",
+      "sha256": "c57de1abef23fab843edf3ee3978714abb5e720824748d4d53a77b298a7d72dd",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
