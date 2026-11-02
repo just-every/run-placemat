@@ -4510,7 +4510,7 @@
       "executable": false
     },
     "tests/floor-plan-ui.mjs": {
-      "sha256": "60ea5242864c7313082b079c6fbb08b0fbfa7e21883d71f6ee5dabcad9f22ea5",
+      "sha256": "8d5910d5e1c222e6a75b254294ccd6e96f19462c5c242078062f6358a8b83320",
       "executable": false
     },
     "tests/floor-ui.mjs": {

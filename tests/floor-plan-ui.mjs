@@ -178,6 +178,7 @@ try{
    for(const c of contexts){
     for(const p of c.pages())await p.goto('about:blank')
     for(const p of c.pages())await p.unrouteAll({behavior:'wait'})
+    await c.unrouteAll({behavior:'wait'})
     await c.close()
    }
    await h.close()
