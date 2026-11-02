@@ -6,8 +6,6 @@ import {resolve,extname} from 'node:path'
 import {chromium} from '@playwright/test'
 import jsQR from 'jsqr'
 import {installation} from './api/harness.mjs'
-import {browserClock} from './browser-clock.mjs'
-const fixtureNow=Date.parse('2026-10-20T12:00:00Z')
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 // Pin both sides of the public door across New York's 1 November DST change.

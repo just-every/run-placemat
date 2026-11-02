@@ -6,8 +6,6 @@ import {readFile,mkdir} from 'node:fs/promises'
 import {extname,resolve} from 'node:path'
 import {chromium} from '@playwright/test'
 import {installation} from './api/harness.mjs'
-import {browserClock} from './browser-clock.mjs'
-const fixtureNow=Date.parse('2026-10-20T12:00:00Z')
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const host='https://bistro.example',other='https://other.example',title='Book a table at Cedar & Salt'

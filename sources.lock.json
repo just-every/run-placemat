@@ -4490,7 +4490,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "a65fcf4918c617ec8e1b5dcbb7f7455b817882867d6187b110f439d92041817c",
+      "sha256": "0e92033ec3865807dada51da2eb7c869611976de4c5387d6cbf612046d1f2c27",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
@@ -4578,7 +4578,7 @@
       "executable": false
     },
     "tests/queue-ui.mjs": {
-      "sha256": "a5d8b697c142837e7ad4b5e887fe9538c32c9954ebee17ffe9ae1ce2eeef2a2d",
+      "sha256": "20cfb2d9f2c72d945185874cfc2fddc4ab3736d009e36f3a2cfda2d426f35394",
       "executable": false
     },
     "tests/refund-notices-ui.mjs": {
