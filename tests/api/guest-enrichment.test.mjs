@@ -1,0 +1,107 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {installation} from './harness.mjs'
+import {enrichmentFixture,enrichmentContact} from './guest-enrichment-fixture.mjs'
+
+// One public-door sanity journey covers safe preparation, exact person decisions and reversible changes.
+test('Recorded guest enrichment requires exact current personal approval and preserves later edits on undo',async()=>{
+ let clock=Date.parse('2026-10-20T08:00:00Z')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>clock})
+ try{
+  const f=await enrichmentFixture(h,value=>clock=value),read=async()=>(await h.api('/api/guests?search=Synthetic')).guests[0]
+  const before=await read(),manager=await h.signIn(enrichmentContact(2),'admin'),member=await h.signIn(enrichmentContact(3))
+  const key=(await h.api('/api/agent-keys',{name:'Enrichment preparation'})).result,agent={as:'',headers:{authorization:'Bearer '+key.key}}
+  const prepare=opts=>h.command('guest.enrichment.prepare',{guestId:f.guestId},opts)
+  const p=await prepare(agent),decision={proposalId:p.id,review:p.review,confirm:'APPROVE'}
+  assert.deepEqual(await read(),before,'Preparation changes no profile or notes')
+  assert.deepEqual(p.candidates.map(c=>c.tag),['Preference: quiet','Occasion: anniversary','Preference: window','Repeat visitor'])
+  assert.ok(p.candidates.every(c=>c.confidence==='high'&&c.facts.length&&c.facts.every(fact=>fact.reference&&fact.source&&fact.at)))
+  const repeat=p.candidates.find(c=>c.tag==='Repeat visitor')
+  assert.equal(repeat.facts.length,2)
+  for(const visit of f.visits.slice(2))assert.ok(!JSON.stringify(p.candidates).includes(visit.id),'Cancelled, no-show and future visits never support enrichment')
+  assert.ok(p.unknown.some(s=>s.includes('dietary')));assert.ok(p.unknown.some(s=>s.includes('Spend')))
+  assert.ok(!JSON.stringify(p.candidates).match(/allerg|nuts|diet/i),'Ambiguous notes never become dietary facts')
+  assert.deepEqual((await h.api('/api/state',undefined,agent)).state.guestEnrichments,undefined)
+  await h.command('guest.enrichment.prepare',{guestId:f.guestId,tags:['Allergic']},{...agent,status:400})
+  await h.command('guest.enrichment.approve',decision,{...agent,status:403})
+  await h.command('guest.profile',{guestId:f.guestId,tags:['Unreviewed']},{...agent,status:403})
+  await prepare({as:member,status:403});await prepare({as:'',status:401})
+  await h.api('/api/guests/enrichment?guestId='+f.guestId,undefined,{as:member,status:403})
+  await h.command('guest.enrichment.approve',decision,{as:member,status:403})
+  await h.command('guest.enrichment.approve',{...decision,review:'changed'},{status:409})
+  await h.command('guest.enrichment.approve',{...decision,confirm:''},{status:400})
+  await h.api('/api/commands',{command:'guest.enrichment.approve',payload:decision},{headers:{origin:'https://foreign.example.test'},status:403})
+  assert.deepEqual(await read(),before)
+  await h.command('guest.enrichment.reject',decision,{as:manager})
+  assert.deepEqual(await read(),before);await h.command('guest.enrichment.approve',decision,{status:409})
+  const stale=await prepare()
+  await h.command('guest.profile',{guestId:f.guestId,notes:'synthetic-placemat-corrected'})
+  await h.command('guest.enrichment.approve',{proposalId:stale.id,review:stale.review,confirm:'APPROVE'},{status:409})
+  const exact=await prepare(),approve={proposalId:exact.id,review:exact.review,confirm:'APPROVE'}
+  const attempts=await Promise.all([1,2].map(()=>h.request('/api/commands',{method:'POST',body:{command:'guest.enrichment.approve',payload:approve},as:manager})))
+  assert.deepEqual(attempts.map(r=>r.status).sort(),[200,409],'Concurrent exact decisions apply once')
+  const approved=(await attempts.find(r=>r.status===200).json()).result,after=await read()
+  assert.equal(approved.status,'approved');assert.ok(approved.decidedBy);assert.ok(Date.parse(approved.decidedAt))
+  assert.deepEqual(after.profile.tags,['Existing fact',...exact.candidates.map(c=>c.tag)])
+  assert.equal(after.profile.tagProvenance['Repeat visitor'].actor,approved.decidedBy)
+  await h.command('guest.enrichment.approve',approve,{status:409})
+  // Remove then independently re-add an approved tag. Undo must preserve that later human fact.
+  await h.command('guest.profile',{guestId:f.guestId,tags:after.profile.tags.filter(t=>t!=='Preference: window'),seatingPreference:'patio'})
+  await h.command('guest.profile',{guestId:f.guestId,tags:[...(await read()).profile.tags,'Preference: window','Later staff tag'],notes:'synthetic-placemat-later-note'})
+  const undo={...approve,confirm:'UNDO'}
+  await h.command('guest.enrichment.undo',undo,{...agent,status:403})
+  const undone=await h.command('guest.enrichment.undo',undo,{as:manager}),final=await read()
+  assert.equal(undone.status,'undone');assert.deepEqual(undone.preservedTags,['Preference: window'])
+  assert.deepEqual(final.profile.tags,['Existing fact','Preference: window','Later staff tag'])
+  assert.equal(final.profile.seatingPreference,'patio');assert.equal(final.notes,'synthetic-placemat-later-note')
+  await h.command('guest.enrichment.undo',undo,{status:409})
+  const pending=await prepare(),operators=await h.api('/auth/operators'),managerId=operators.find(o=>o.email===enrichmentContact(2)).id
+  await h.api('/auth/operator/status',{operatorId:managerId,status:'inactive'})
+  await h.command('guest.enrichment.approve',{proposalId:pending.id,review:pending.review,confirm:'APPROVE'},{as:manager,status:401})
+  await h.api('/api/agent-keys/'+key.id,undefined,{method:'DELETE'})
+  await prepare({...agent,status:401})
+  const audit=(await h.api('/api/audit')).rows.filter(e=>e.action.startsWith('guest.enrichment.'))
+  const approval=audit.find(e=>e.action==='guest.enrichment.approve'),reversal=audit.find(e=>e.action==='guest.enrichment.undo')
+  assert.equal(approval.actor,managerId);assert.equal(approval.source,'person');assert.ok(approval.changes.some(c=>c.kind==='guests'&&c.after.profile.tags.includes('Repeat visitor')))
+  assert.ok(reversal.changes.some(c=>c.kind==='guests'&&!c.after.profile.tags.includes('Repeat visitor')))
+  console.log('PROBE AGENT-007 native preparation, exclusions, exact approval, reject, undo, replay, stale facts and revoked authority: public command door -> passed')
+ }finally{await h.close()}
+})
+
+test('Enrichment exports are attributed and inert on restore; merged and erased identities cannot replay facts',async()=>{
+ let clock=Date.parse('2026-10-20T08:00:00Z')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>clock}),restored=await installation(),fenced=await installation()
+ try{
+  const f=await enrichmentFixture(h,value=>clock=value),p=await h.command('guest.enrichment.prepare',{guestId:f.guestId}),decision={proposalId:p.id,review:p.review,confirm:'APPROVE'}
+  await h.command('guest.enrichment.approve',decision)
+  const archive=await h.api('/api/backup'),csv=await (await h.request('/api/business-export/guest-enrichments.csv')).text()
+  assert.ok(csv.includes('Repeat visitor')&&csv.includes('staff-recorded')&&csv.includes('decidedBy'))
+  const auditCsv=await (await h.request('/api/business-export/audit.csv')).text();assert.ok(auditCsv.includes('guest.enrichment.approve')&&auditCsv.includes('Repeat visitor'))
+  await restored.api('/api/restore',{archive,confirm:'RESTORE'})
+  const history=(await restored.api('/api/guests/enrichment?guestId='+f.guestId)).proposals
+  assert.equal(history[0].status,'archived');assert.equal(history[0].review,undefined)
+  assert.ok((await restored.api('/api/guests?search=Synthetic')).guests[0].profile.tags.includes('Repeat visitor'))
+  await restored.command('guest.enrichment.undo',{...decision,confirm:'UNDO'},{status:409})
+  await restored.command('guest.enrichment.approve',decision,{status:409})
+  const pending=await h.command('guest.enrichment.prepare',{guestId:f.guestId})
+  await h.api('/api/public/book',{serviceId:f.service.id,startAt:'2026-10-20T19:00:00Z',name:'Synthetic Placemat Guest',email:enrichmentContact(4),phone:'2025550199',partySize:2},{as:'',status:201})
+  const other=(await h.api('/api/guests?search='+encodeURIComponent(enrichmentContact(4)))).guests[0]
+  const preview=await h.api('/api/guests/merge-preview?guestId='+other.id+'&duplicateId='+f.guestId)
+  await h.command('guest.merge',{guestId:other.id,duplicateId:f.guestId,review:preview.review,confirm:'MERGE'})
+  await h.command('guest.enrichment.approve',{proposalId:pending.id,review:pending.review,confirm:'APPROVE'},{status:409})
+  await h.command('guest.enrichment.undo',{...decision,confirm:'UNDO'},{status:409})
+  await h.command('guest.enrichment.prepare',{guestId:f.guestId},{status:409})
+  await h.command('guest.erase',{guestId:other.id,confirm:'ERASE'})
+  const erased=await h.api('/api/backup'),serialized=JSON.stringify(erased)
+  for(const value of ['Repeat visitor','Preference: quiet','synthetic-placemat-ambiguous','Maybe avoids nuts?'])assert.ok(!serialized.includes(value),value)
+  assert.ok((await h.api('/api/guests/enrichment?guestId='+f.guestId)).proposals.every(row=>row.status==='erased'&&!row.candidates&&!row.review))
+  await h.command('guest.enrichment.approve',decision,{status:409})
+  await h.command('guest.enrichment.prepare',{guestId:f.guestId},{status:409})
+  const erasedCsv=await (await h.request('/api/business-export/guest-enrichments.csv')).text();assert.ok(!erasedCsv.includes('Repeat visitor'))
+  const refusal=await fenced.api('/api/restore',{archive,journal:erased,confirm:'RESTORE'},{status:400});assert.match(refusal.error,/before a guest was erased/)
+  await fenced.api('/api/restore',{archive:erased,confirm:'RESTORE'})
+  assert.deepEqual((await fenced.api('/api/guests?search=Synthetic')).guests,[])
+  await fenced.command('guest.enrichment.prepare',{guestId:f.guestId},{status:409})
+  console.log('PROBE AGENT-007 portability and erasure: attributed CSV and structured archive doors -> inert restore, merged refusal and no resurrection passed')
+ }finally{await h.close();await restored.close();await fenced.close()}
+})

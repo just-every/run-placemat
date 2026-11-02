@@ -16,6 +16,10 @@ export async function guestStateErasure(db:D1Database,guestIds:string|string[]):
  const noteIds=new Set((state.serviceNotes??[]).filter(n=>noteDates.has(n.date)).map(n=>n.id))
  for(const note of state.serviceNotes??[])if(noteIds.has(note.id))for(const entry of note.history)entry.text=''
  for(const event of state.audit)for(const change of event.changes??[])if(change.kind==='serviceNotes'&&noteIds.has(change.id)){change.before=change.before===null?null:{redacted:true};change.after=change.after===null?null:{redacted:true}}
+ for(const proposal of state.guestEnrichments??[])if(proposal.guestId===guestId){
+  for(const key of ['inputHash','identityHash','review','candidates','unknown','addedTags','removedTags','preservedTags'] as const)delete proposal[key]
+  proposal.status='erased'
+ }
  eraseAudit(state,guestId)
  for(const reminder of state.reminders)if(reminder.guestId===guestId){delete reminder.contactName;delete reminder.contactEmail;delete reminder.contactPhone;reminder.message=''}
  for(const proposal of state.proposals)if(proposal.kind==='reminders')for(const message of proposal.plan?.messages??[])if(message.guestId===guestId){message.message='';message.contactName='';message.contactEmail='';message.contactPhone=''}

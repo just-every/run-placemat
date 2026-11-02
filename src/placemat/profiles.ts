@@ -17,7 +17,11 @@ export async function updateGuestProfile(db:D1Database,guestId:string,payload:Gu
   if(!Array.isArray(payload.tags)||payload.tags.length>20||payload.tags.some(tag=>typeof tag!=='string'||!tag.trim()||tag.trim().length>40))fail(400,'Use up to 20 unique tags of 1–40 characters.')
   const tags=payload.tags!.map(tag=>tag.trim())
   if(new Set(tags.map(tag=>tag.toLowerCase())).size!==tags.length)fail(400,'Tags must be unique.')
-  if(JSON.stringify(tags)!==JSON.stringify(profile.tags)){profile.tags=tags;profile.provenance.tags=origin}
+  if(JSON.stringify(tags)!==JSON.stringify(profile.tags)){
+   profile.tagProvenance=Object.fromEntries(tags.map(tag=>[tag,profile.tags.includes(tag)?profile.tagProvenance?.[tag]??profile.provenance.tags??origin:origin]))
+   profile.tags=tags;profile.provenance.tags=origin
+  }
+  profile.tagProvenance??=Object.fromEntries(tags.map(tag=>[tag,profile.provenance.tags??origin]))
   profileSupplied=true
  }
  if(Object.hasOwn(payload,'vipLevel')){
