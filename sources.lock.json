@@ -706,7 +706,7 @@
       "executable": false
     },
     "public/placemat-checkout.js": {
-      "sha256": "949bfa49bce1025dd54002a9a18e6f0485a4915e3681ef473b64d7b811603918",
+      "sha256": "c0f7fe0750e8ce439010ff50d1bc15df12b081fdf3c8f788d5ea7d1ca5b89729",
       "executable": false
     },
     "public/placemat-close-report.js": {
@@ -918,7 +918,7 @@
       "executable": false
     },
     "public/placemat-search.js": {
-      "sha256": "83d70112a4476a78c681ced5a8daea6f4e53dacfb2f546d0895294cc9607e902",
+      "sha256": "272e8cc467e7172500b7b04535fad807a725ea57dcdd763715f5e10cea004994",
       "executable": false
     },
     "public/placemat-service-changes.js": {
@@ -4461,6 +4461,10 @@
       "sha256": "6b9068caff7eaaf39e0c702b791cc438e0a7c8678e341dfe4185cd4ffa911a2e",
       "executable": false
     },
+    "tests/browser-clock.mjs": {
+      "sha256": "b2fcf57340fac2e4a058cb7d1bdc40684eae1871654729730501f601ff7df75a",
+      "executable": false
+    },
     "tests/browser-server.mjs": {
       "sha256": "17672b4affcda69cf0a5f06bd8924c955afb90b73f552009f9e50f868890b0dd",
       "executable": false
@@ -4486,7 +4490,7 @@
       "executable": false
     },
     "tests/embed-ui.mjs": {
-      "sha256": "e643e6fe06b7f5daa8d2dd1dab9d475c2508699d8c3f0ee7c6a77b16549bd935",
+      "sha256": "5d5c4ae2f54f007bcfa1351aca3251041968912a0b87380d8501b4af7df865c0",
       "executable": false
     },
     "tests/experiences-ui.mjs": {
@@ -4574,7 +4578,7 @@
       "executable": false
     },
     "tests/queue-ui.mjs": {
-      "sha256": "20cfb2d9f2c72d945185874cfc2fddc4ab3736d009e36f3a2cfda2d426f35394",
+      "sha256": "5a2de8ebd7dd1d2b62927fa03b259223f23d764f1c4f2f9cd089df6817e601be",
       "executable": false
     },
     "tests/refund-notices-ui.mjs": {
