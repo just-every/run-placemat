@@ -63,7 +63,13 @@ for(const width of [1440,390]){
    assert.deepEqual(errors,[])
   }
   await capture('undone')
+  await card.locator(':scope > details').getByText('Erase personal details',{exact:true}).click()
+  await card.getByLabel('Type ERASE to confirm',{exact:true}).fill('ERASE')
+  await card.getByRole('button',{name:'Erase guest',exact:true}).click()
+  await page.getByText('No guests match your search.',{exact:true}).waitFor()
+  if(width===1440){assert.equal(await page.locator('[data-enrichment-id]').count(),0);assert.ok(!JSON.stringify(await h.api('/api/backup')).includes('Repeat visitor'),'Erased enrichment facts cannot reappear in a backup')}
+  if(shots)await page.locator('#guest-results').screenshot({path:resolve(shots,`AGENT-007-erased-${width}.png`)})
   if(width===390)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Guest enrichment phone smoke fits viewport')
-  console.log(`PROBE AGENT-007 browser ${width}: guest profile -> fact-cited review, reject, exact approval and attributed undo shown`)
+  console.log(`PROBE AGENT-007 browser ${width}: guest profile -> fact-cited review, reject, exact approval, attributed undo and erasure shown`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }

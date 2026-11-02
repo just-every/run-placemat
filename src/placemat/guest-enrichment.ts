@@ -4,7 +4,7 @@ import {updateGuestProfile} from './profiles'
 
 export type EnrichmentFact={reference:string;value:string;source:string;actor:string|null;at:string|null}
 export type EnrichmentCandidate={tag:string;confidence:'high';explanation:string;facts:EnrichmentFact[]}
-export type GuestEnrichment={id:string;guestId:string;status:'pending'|'approved'|'rejected'|'undone'|'erased'|'archived';preparedBy:string;preparedAt:string;inputHash?:string;identityHash?:string;review?:string;candidates?:EnrichmentCandidate[];unknown?:string[];decidedBy?:string;decidedAt?:string;addedTags?:string[];undoneBy?:string;undoneAt?:string;removedTags?:string[];preservedTags?:string[]}
+export type GuestEnrichment={id:string;guestId:string;status:'pending'|'approved'|'rejected'|'undone'|'erased'|'archived';preparedBy:string;preparedAt:string;archivedStatus?:'pending'|'approved'|'rejected'|'undone';inputHash?:string;identityHash?:string;review?:string;candidates?:EnrichmentCandidate[];unknown?:string[];decidedBy?:string;decidedAt?:string;addedTags?:string[];undoneBy?:string;undoneAt?:string;removedTags?:string[];preservedTags?:string[]}
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b)
 const reference=(proposal:GuestEnrichment)=>'guest-enrichment:'+proposal.id
 const sensitive=/allerg|diet|gluten|celiac|coeliac|diabet|pregnan|religio|halal|kosher|vegan|vegetarian|medical|disab|wheelchair|peanut|shellfish|nut.free|health/i
@@ -30,7 +30,7 @@ async function describe(db:D1Database,s:State,guestId:string,now:string){
  const attended=bookings.filter(b=>['seated','completed'].includes(b.status)&&b.startAt<=now&&events.some(e=>e.bookingId===b.id&&e.at<=now&&['seated','completed'].includes(e.after.bookingStatus)))
  const candidates:EnrichmentCandidate[]=[],unknown=[
   'Free notes are ambiguous and are never used to infer dietary, medical, religious or accessibility conditions.',
-  'Spend and refunded spend are unknown: a connected POS feed has not been proven. No spend segment is proposed.',
+  'Spend and refunded spend are unknown. No connected spend records are available, so no spend segment is proposed.',
   'Tags grant no consent, group sharing, audience membership, outbound send or unattended execution authority.',
  ]
  const add=(tag:string,fact:EnrichmentFact,explanation:string)=>{

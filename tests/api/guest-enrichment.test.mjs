@@ -79,7 +79,7 @@ test('Enrichment exports are attributed and inert on restore; merged and erased 
   const auditCsv=await (await h.request('/api/business-export/audit.csv')).text();assert.ok(auditCsv.includes('guest.enrichment.approve')&&auditCsv.includes('Repeat visitor'))
   await restored.api('/api/restore',{archive,confirm:'RESTORE'})
   const history=(await restored.api('/api/guests/enrichment?guestId='+f.guestId)).proposals
-  assert.equal(history[0].status,'archived');assert.equal(history[0].review,undefined)
+  assert.equal(history[0].status,'archived');assert.equal(history[0].archivedStatus,'approved');assert.equal(history[0].decidedBy,(await h.api('/api/state')).actor.id);assert.equal(history[0].review,undefined)
   assert.ok((await restored.api('/api/guests?search=Synthetic')).guests[0].profile.tags.includes('Repeat visitor'))
   await restored.command('guest.enrichment.undo',{...decision,confirm:'UNDO'},{status:409})
   await restored.command('guest.enrichment.approve',decision,{status:409})
