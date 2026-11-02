@@ -16,7 +16,10 @@ const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','
 // Keep native date spinboxes and booking-policy time on the same fixture day,
 // away from month boundaries that can clamp a previously entered day segment.
 const now=Date.parse('2026-10-20T12:00:00Z')
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+// Keep Chromium's normal third-party storage partitioning enabled. Playwright's
+// default disabled-feature list otherwise denies the cross-site widget's tab-local
+// checkout recovery storage in current Chromium. Retain its routed-Origin fix.
+const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic','--disable-features=BlockOriginHeaderModificationOnRedirect']})
 try{
  for(const width of [1440,390]){
   const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US',extraHTTPHeaders:{'x-placemat-test-clock':String(now)}})
@@ -92,9 +95,19 @@ try{
    // Probing with an arrow key can make October 31 into an invalid November 31.
    // All edits still use the keyboard, including temporarily incomplete dates.
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
-   const accessibility=await context.newCDPSession(page.frame({url:/\/book\?embed=1/})),visited=new Set()
+   // Only out-of-process frames have their own session; same-process frames
+   // expose their accessibility nodes through the parent page's session.
+   const accessibility=await context.newCDPSession(page.frame({url:/\/book\?embed=1/})).catch(error=>{
+    if(!error.message.includes('This frame does not have a separate CDP session'))throw error
+    return context.newCDPSession(page)
+   }),visited=new Set()
+   // AX queries default to the session's root document, so select the widget
+   // explicitly when its document shares the page's session.
+   const {frameTree}=await accessibility.send('Page.getFrameTree')
+   const widgetTree=[frameTree,...frameTree.childFrames??[]].find(tree=>/\/book\?embed=1/.test(tree.frame.url))
+   assert.ok(widgetTree,'the accessibility session contains the booking widget frame')
    const focusedDateSegment=async()=>{
-    const {nodes}=await accessibility.send('Accessibility.getFullAXTree')
+    const {nodes}=await accessibility.send('Accessibility.getFullAXTree',{frameId:widgetTree.frame.id})
     return nodes.find(node=>node.role?.value==='spinbutton'&&node.properties?.some(property=>property.name==='focused'&&property.value.value===true))
    }
    try{for(let segment=0;segment<3;segment++){
