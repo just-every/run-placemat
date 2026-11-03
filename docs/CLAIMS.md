@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 57 done, 43 partial, 48 missing; 148 total.
+Inventory: 56 done, 43 partial, 49 missing; 148 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ Inventory: 57 done, 43 partial, 48 missing; 148 total.
 | MSG-006 | missing |  |
 | MSG-007 | missing |  |
 | MSG-008 | partial | `src/placemat/wait-join.ts`; `src/placemat/guest-state-erasure.ts`; `tests/api/wait-join.test.mjs`; `tests/api/audit.test.mjs`; `tests/api/guests.test.mjs` |
-| MSG-009 | missing | `tests/api/message-templates.test.mjs`; `tests/message-templates-ui.mjs`; `tests/api/demo.test.mjs`; `tests/api/reminders.test.mjs` |
+| MSG-009 | partial | `tests/api/message-templates.test.mjs`; `tests/message-templates-ui.mjs`; `tests/api/demo.test.mjs`; `tests/api/reminders.test.mjs` |
 | MSG-010 | missing |  |
 | MSG-011 | missing |  |
 | PAY-001 | partial | `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs` |
@@ -82,7 +82,7 @@ Inventory: 57 done, 43 partial, 48 missing; 148 total.
 | EXP-003 | missing |  |
 | EXP-004 | missing |  |
 | EXP-005 | missing |  |
-| GUEST-002 | done | `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs` |
+| GUEST-002 | partial | `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs` |
 | GUEST-003 | partial | `tests/api/guests.test.mjs`; `tests/api/assignments.test.mjs`; `tests/operations-ui-journey.mjs`; `tests/queue-ui.mjs` |
 | GUEST-004 | done | `tests/api/guests.test.mjs`; `tests/guest-review-ui.mjs` |
 | GUEST-005 | missing |  |
@@ -143,14 +143,14 @@ Inventory: 57 done, 43 partial, 48 missing; 148 total.
 | AGENT-008 | missing |  |
 | BASE-AGENT-001 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-002 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-003 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-003 | missing |  |
 | BASE-AGENT-004 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-005 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-006 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-007 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-008 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-009 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-010 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-010 | missing |  |
 | BASE-AGENT-011 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-013 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
