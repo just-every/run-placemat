@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {mkdir} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {chromium,expect} from '@playwright/test'
-import {installation} from './api/harness.mjs'
+import {installation,publicGuest} from './api/harness.mjs'
 import {guestReviewFixture} from './api/guest-review-fixture.mjs'
 import {browserServer} from './browser-server.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
@@ -31,8 +31,82 @@ async function screenshot(page,name,width){
  })),'Identity confirmation controls fit their review panel')
  if(shots)await page.locator('#guest-results').screenshot({path:resolve(shots,`GUEST-004-${name}-${width}.png`)})
 }
+async function hostProfileJourney(width){
+ const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]})
+ let hostContext
+ try{
+  const f=await guestReviewFixture(h),memberCookie=await h.signIn(['synthetic-placemat-host','example.test'].join('@'),'member','Profile host')
+  // The same read-only person can maintain bounded facts only after the owner grants host access.
+  const operator=(await h.api('/auth/operators')).find(p=>p.displayName==='Profile host')
+  await h.command('team.host',{operatorId:operator.id,enabled:true})
+  await h.command('booking.status',{bookingId:f.booking.id,status:'seated'})
+  await h.command('booking.status',{bookingId:f.booking.id,status:'completed'})
+  await h.command('booking.stage',{bookingId:f.booking.id,stage:'ready'})
+  hostContext=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
+  await signIn(hostContext,memberCookie,transport.origin)
+  const hostPage=await hostContext.newPage();await hostPage.goto(transport.origin+'/app#guests')
+  await hostPage.locator('#guest-search').fill('(415) 555-0123')
+  const matching=hostPage.locator('#guest-results > details')
+  await matching.filter({hasText:f.a.email}).waitFor()
+  if(width===1440)await expect(matching).toHaveCount(3)
+  const hostCard=matching.filter({hasText:f.a.email});await hostCard.locator(':scope > summary').click()
+  let hostForm=hostCard.locator('form[data-command="guest.profile"]')
+  await hostForm.waitFor()
+  if(width===1440){
+   await expect(hostForm.locator('[name=notes]')).toHaveCount(0)
+   await expect(hostCard.getByRole('button',{name:'Review merge journal'})).toHaveCount(0)
+   await expect(hostCard).toContainText('Quiet table')
+  }
+  await hostForm.getByLabel('Tags (comma separated)').fill('Host recorded anniversary')
+  await hostForm.getByLabel('VIP level').selectOption('vip')
+  await hostForm.getByLabel('Seating preference').fill('Quiet window requested from host')
+  await hostForm.getByRole('button',{name:'Save profile',exact:true}).click()
+  await hostPage.locator('#notice[data-kind=success]').waitFor()
+  const saved=(await h.api('/api/guests?search=alex.one')).guests[0]
+  if(width===1440){
+   assert.equal(saved.profile.vipLevel,'vip');assert.deepEqual(saved.profile.tags,['Host recorded anniversary'])
+   assert.equal(saved.profile.seatingPreference,'Quiet window requested from host');assert.equal(saved.notes,f.a.notes)
+   for(const field of ['tags','vipLevel','seatingPreference'])assert.equal(saved.profile.provenance[field].actor,operator.id)
+   await expect(hostCard).toContainText('Staff observed · Profile host')
+   assert.ok(await hostForm.locator('input:not([type=hidden]),select,button').evaluateAll(controls=>controls.every(control=>parseFloat(getComputedStyle(control).fontSize)>=13)))
+  }
+  if(shots)await hostCard.screenshot({path:resolve(shots,`GUEST-002-host-profile-${width}.png`)})
+  // A stale browser form cannot overwrite a later manager fact.
+  hostForm=hostCard.locator('form[data-command="guest.profile"]')
+  await hostForm.getByLabel('Seating preference').fill('Stale host choice')
+  const later=await h.command('guest.profile',{guestId:f.a.id,vipLevel:'regular'})
+  await hostForm.getByRole('button',{name:'Save profile',exact:true}).click()
+  await hostPage.locator('#notice[data-kind=error]').waitFor()
+  if(width===1440){
+   await expect(hostPage.locator('#notice')).toContainText('profile changed')
+   assert.deepEqual((await h.api('/api/guests?search=alex.one')).guests[0].profile,later.profile)
+  }
+  // Public rebooking leaves all original sources intact at the host arrival screen.
+  const returning=(await h.api('/api/public/book',publicGuest(f.s,0,{name:f.a.name,email:f.a.email,phone:f.a.phone,startAt:new Date(Date.parse(f.s.startAt)+90*60000).toISOString()}),{as:'',status:201})).result
+  await h.command('booking.stage',{bookingId:returning.id,stage:'arrived'},{as:memberCookie})
+  await hostPage.reload();await hostPage.getByRole('link',{name:'Floor & bookings',exact:true}).click()
+  const arrival=hostPage.locator('#bookings-list tr').filter({hasText:f.a.name}).filter({hasText:'Quiet window requested from host'})
+  await arrival.first().waitFor()
+  if(width===1440){
+   await expect(arrival).toHaveCount(2)
+   await expect(arrival.first()).toContainText('Host recorded anniversary')
+   await expect(arrival.first()).toContainText('Staff observed · Profile host')
+   await expect(arrival.first()).toContainText('Staff observed · Venue owner')
+   assert.deepEqual((await h.api('/api/guests?search=alex.one')).guests[0].profile,later.profile)
+  }
+  if(shots)await hostPage.locator('#bookings-list').screenshot({path:resolve(shots,`GUEST-002-host-arrival-${width}.png`)})
+  await h.command('team.host',{operatorId:operator.id,enabled:false})
+  await hostPage.reload();await hostPage.getByRole('link',{name:'Guests',exact:true}).click()
+  const revokedCard=await openGuest(hostPage,'alex.one')
+  if(width===1440)await expect(revokedCard.locator('form[data-command="guest.profile"]')).toHaveCount(0)
+  await hostContext.close();hostContext=undefined
+  console.log(`GUEST-002 personal host normalized search, explicit facts, stale refusal, rebooking sources and revocation passed at ${width}`)
+
+
+ }finally{if(hostContext)await hostContext.close();await browser.close();await transport.close();await h.close()}
+}
 for(const width of [1440,390]){
- const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
+ const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
  let memberContext
  try{
   const f=await guestReviewFixture(h),memberCookie=await h.signIn('duplicate-reviewer@example.test')
@@ -125,4 +199,5 @@ for(const width of [1440,390]){
   assert.deepEqual(errors,[])
   console.log(`GUEST-004 reviewed merge, scoped permissions, households, journal, later edits, reversal, member access and erasure passed at ${width}`)
  }finally{if(memberContext)await memberContext.close();await context.close();await browser.close();await transport.close();await h.close()}
+ await hostProfileJourney(width)
 }

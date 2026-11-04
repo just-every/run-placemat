@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {installation,service,publicGuest} from './harness.mjs'
 
 test('GUEST-002: normalized search, explicit profile facts, dated sources and returning visit history respect existing guest authority',async()=>{
- const h=await installation();try{
+ const h=await installation(),restored=await installation(),erased=await installation();try{
   const {service:s}=await service(h),manager=await h.signIn('profile-manager@example.test','admin'),member=await h.signIn('profile-reader@example.test')
   const csv='guest_id,name,email,phone,notes,visit_date,party_size,visit_status\nprofile-1,Álex Rivera,alex.rivera@example.test,+1 (415) 555-0123,Prefers a quiet table,2026-08-10,2,completed\n'
   const dry=(await h.api('/api/import/dry-run',{csv})).result
@@ -34,14 +34,65 @@ test('GUEST-002: normalized search, explicit profile facts, dated sources and re
   assert.equal(updated.notesHistory.at(-1).notes,profile.notes)
   const unchanged=await h.command('guest.profile',{guestId:imported.id,vipLevel:'vip'},{as:manager})
   assert.deepEqual(unchanged.profile.provenance.vipLevel,updated.profile.provenance.vipLevel,'Saving the same fact preserves its actual source')
+  // A personal host receives only explicit profile-fact authority from the owner.
+  const operator=(await h.api('/auth/operators')).find(p=>p.email.startsWith('profile-reader'))
+  await h.command('team.host',{operatorId:operator.id,enabled:true},{as:manager,status:403})
+  await h.command('team.host',{operatorId:operator.id,enabled:true})
+  const queued=await h.command('waitlist.add',{serviceId:s.id,name:imported.name,email:imported.email,phone:imported.phone,partySize:2,contactConsent:false})
+  const beforeHost=(await h.api('/api/guests?search=0123')).guests[0]
+  profile.tags=['VIP','Host recorded anniversary'];profile.seatingPreference='Quiet window requested from host'
+  const facts={guestId:imported.id,profileRevision:JSON.stringify(beforeHost.profile??null),tags:profile.tags,vipLevel:profile.vipLevel,seatingPreference:profile.seatingPreference}
+  const hostSaved=await h.command('guest.profile',facts,{as:member})
+  const event=(await h.api('/api/audit?subject='+imported.id)).rows.find(e=>e.actor===operator.id&&e.action==='guest.profile')
+  assert.equal(event.source,'person');assert.equal(event.subject,imported.id)
+  assert.deepEqual(event.changes,[{kind:'guests',id:imported.id,before:beforeHost,after:hostSaved}])
+  for(const field of ['tags','seatingPreference'])assert.deepEqual(hostSaved.profile.provenance[field],{source:'staff-observed',actor:operator.id,at:event.at})
+  assert.deepEqual(hostSaved.profile.provenance.vipLevel,updated.profile.provenance.vipLevel,'Unchanged VIP retains the manager source')
+  for(const field of ['name','email','phone','notes','notesHistory','provenance','history'])assert.deepEqual(hostSaved[field],beforeHost[field],field)
+  // Both command aliases reject the entire mixed payload before any write or audit.
+  facts.profileRevision=JSON.stringify(hostSaved.profile)
+  const refusalState=await h.api('/api/state')
+  for(const command of ['guest.profile','guest.update'])for(const forbidden of [
+   {notes:'Host note must refuse'},{name:'Different identity'},{email:imported.email},{phone:imported.phone},
+   {contactConsent:true},{marketingConsent:true},{profile:{vipLevel:'regular'}},{provenance:{}},
+   {notesHistory:[]},{requiredAccessTags:[]},{erased:true},{restrictedNotes:'Hidden field'},
+  ])await h.command(command,{...facts,vipLevel:'regular',...forbidden},{as:member,status:403})
+  assert.deepEqual(await h.api('/api/state'),refusalState,'Field smuggling is atomic, including the audit and consent')
+  const unchangedHost=await h.command('guest.update',facts,{as:member})
+  assert.deepEqual(unchangedHost,hostSaved,'A no-op through the alias preserves every original source')
+  const auditBeforeRace=(await h.api('/api/audit?subject='+imported.id)).rows.length
+  const races=await Promise.all(['First host fact','Second host fact'].map(tag=>h.request('/api/commands',{method:'POST',as:member,body:{command:'guest.update',payload:{guestId:imported.id,profileRevision:facts.profileRevision,tags:[tag]}}})))
+  assert.deepEqual(races.map(r=>r.status).sort(),[200,409],'A concurrent profile write refuses without overwriting the winner')
+  const winner=await races.find(r=>r.status===200).json()
+  assert.deepEqual((await h.api('/api/guests?search=0123')).guests[0],winner.result)
+  assert.equal((await h.api('/api/audit?subject='+imported.id)).rows.length,auditBeforeRace+1)
+  facts.profileRevision=JSON.stringify(winner.result.profile)
+  const arrivalProfile=await h.command('guest.update',facts,{as:member})
+  await h.command('team.host',{operatorId:operator.id,enabled:false})
+  for(const command of ['guest.profile','guest.update'])await h.command(command,facts,{as:member,status:403})
+  assert.deepEqual((await h.api('/api/guests?search=0123')).guests[0],arrivalProfile)
+  await h.command('team.host',{operatorId:operator.id,enabled:true})
   const second=(await h.api('/api/public/book',publicGuest(s,0,{name:'Álex Rivera',email:'ALEX.RIVERA@example.test',startAt:new Date(Date.parse(s.startAt)+90*60000).toISOString()}),{as:'',status:201})).result
   await h.command('booking.status',{bookingId:second.id,status:'seated'})
   const state=await h.api('/api/state'),guest=state.guests.find(g=>g.id===imported.id)
   assert.equal(state.guests.length,1);assert.equal(guest.history.length,1)
   assert.equal(state.state.bookings.filter(b=>b.guestId===guest.id).length,2)
   assert.deepEqual(guest.profile.tags,profile.tags);assert.equal(guest.profile.seatingPreference,profile.seatingPreference)
-  assert.equal(state.names[guest.profile.provenance.tags.actor],'Floor manager')
+  assert.equal(state.names[guest.profile.provenance.tags.actor],operator.displayName)
+  assert.deepEqual(guest.profile,arrivalProfile.profile,'Public rebooking and arrival preserve host fact sources')
+  assert.equal(state.state.waitlist.find(w=>w.id===queued.id).contactConsent,false)
+  const {csvRecords}=await import('./business-fixture.mjs')
+  const exported=csvRecords(await (await h.request('/api/business-export/guests.csv')).text()).find(g=>g.id===guest.id)
+  assert.deepEqual(JSON.parse(exported.profile_json),guest.profile)
+  const exportedAudit=csvRecords(await (await h.request('/api/business-export/audit.csv')).text()).find(e=>e.id===event.id)
+  assert.deepEqual(JSON.parse(exportedAudit.changes_json),event.changes)
+  const priorArchive=await h.api('/api/backup');await restored.api('/api/restore',{archive:priorArchive,confirm:'RESTORE'})
+  assert.deepEqual((await restored.api('/api/guests?search=0123')).guests[0].profile,guest.profile)
+  assert.deepEqual((await restored.api('/api/audit?subject='+guest.id)).rows.find(e=>e.id===event.id),event)
   for(const opts of [{as:member},agent])assert.equal((await h.api('/api/guests?search=0123',undefined,opts)).guests[0].profile.vipLevel,'vip')
+  await h.api('/auth/operator/status',{operatorId:operator.id,status:'inactive'})
+  for(const command of ['guest.profile','guest.update'])await h.command(command,facts,{as:member,status:401})
+  assert.deepEqual((await h.api('/api/guests?search=0123')).guests[0],arrivalProfile)
   // Only explicit staff changes create private facts; booking input cannot overwrite them.
   const publicRead=JSON.stringify(await h.api('/api/public/services',undefined,{as:''}))
   assert.ok(!publicRead.includes(profile.seatingPreference));assert.ok(!publicRead.includes(profile.notes))
@@ -58,15 +109,22 @@ test('GUEST-002: normalized search, explicit profile facts, dated sources and re
   await h.command('guest.update',{guestId:guest.id,notes:'Manager corrected the anniversary note'},{as:manager})
   const corrected=(await h.api('/api/guests?search=0123')).guests[0]
   assert.equal(corrected.notesHistory.length,2);assert.equal(corrected.notesHistory[0].notes,profile.notes)
-  assert.ok(corrected.notesHistory.every(n=>n.provenance.actor===guest.profile.provenance.tags.actor))
+  assert.ok(corrected.notesHistory.every(n=>n.provenance.actor===updated.provenance.notes.actor))
   await h.command('guest.erase',{guestId:guest.id,confirm:'ERASE'})
   assert.deepEqual((await h.api('/api/guests?search=0123')).guests,[])
   const archive=JSON.stringify(await h.api('/api/backup'))
-  for(const privateValue of ['Window by the cedar planter','Anniversary patio',profile.notes,'Manager corrected the anniversary note'])assert.ok(!archive.includes(privateValue),privateValue)
-  await h.command('guest.profile',{guestId:guest.id,tags:['Revive']},{status:409})
+  for(const privateValue of ['Window by the cedar planter','Anniversary patio',...profile.tags,profile.seatingPreference,profile.notes,'Manager corrected the anniversary note'])assert.ok(!archive.includes(privateValue),privateValue)
+  const erasedArchive=await h.api('/api/backup');await erased.api('/api/restore',{archive:erasedArchive,confirm:'RESTORE'})
+  for(const source of [h,erased]){
+   assert.deepEqual((await source.api('/api/guests?search=0123')).guests,[])
+   const csv=await (await source.request('/api/business-export/guests.csv')).text()
+   for(const value of [...profile.tags,profile.seatingPreference,profile.notes])assert.ok(!csv.includes(value),'Erased profile cannot return in CSV or restore')
+   for(const command of ['guest.profile','guest.update'])await source.command(command,{guestId:guest.id,tags:['Revive']},{status:409})
+  }
+  await h.api('/api/restore',{archive:priorArchive,confirm:'RESTORE'},{status:400})
   await h.api('/api/agent-keys/'+key.id,undefined,{method:'DELETE'})
   await h.api('/api/guests',undefined,{...agent,status:401})
- }finally{await h.close()}
+ }finally{await h.close();await restored.close();await erased.close()}
 })
 
 test('GUEST-004: exact identity suggestions separate households; reviewed manager merge and reversal preserve visits and restrictive contact permissions',async()=>{
