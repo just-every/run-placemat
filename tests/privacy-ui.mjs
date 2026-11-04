@@ -36,8 +36,16 @@ for(const width of [1440,390]){
   now=initialNow+2*86400000;await h.command('guest.update',{guestId:noteGuest.id,notes:'Recent service note retained'})
   now=initialNow+2.5*86400000;await context.setExtraHTTPHeaders({'x-placemat-test-clock':String(now)})
   await page.locator('#privacy-guest').selectOption(noteGuest.id)
+  const queued=await h.command('waitlist.add',publicGuest(s,1,{name:noteGuest.name,email:noteGuest.email}))
+  for(const status of ['offered','accepted'])await h.command('waitlist.status',{waitlistId:queued.id,status,reason:'Owner recorded the party response'})
+  await page.getByRole('button',{name:'Review selected guest notes',exact:true}).click();await page.getByRole('status').filter({hasText:'Note review complete.'}).waitFor()
+  if(width===1440){const blocked=page.locator('#note-retention-run label').filter({hasText:'Old private service note'});assert.equal(await blocked.locator('[type=checkbox]').isEnabled(),false);assert.ok((await blocked.innerText()).includes('Active service work'))}
+  await shot('active-note-review')
+  await h.command('waitlist.status',{waitlistId:queued.id,status:'abandoned',reason:'Party left with no remaining callback'})
+  for(const task of queued.followUps)await h.command('waitlist.followup',{waitlistId:queued.id,followUpId:task.id,outcome:'Owner confirmed the party left; no service work remains'})
   await page.getByRole('button',{name:'Review selected guest notes',exact:true}).click();await page.getByRole('status').filter({hasText:'Note review complete.'}).waitFor()
   const noteForm=page.locator('#note-retention-run'),expired=noteForm.locator('label').filter({hasText:'Old private service note'}),retained=noteForm.locator('label').filter({hasText:'Recent service note retained'})
+  await expired.locator('[type=checkbox]:enabled').waitFor()
   if(width===1440){assert.equal(await expired.locator('[type=checkbox]').isEnabled(),true);assert.equal(await retained.locator('[type=checkbox]').isEnabled(),false)}
   await shot('dated-note-review');await expired.locator('[type=checkbox]').check();await noteForm.locator('[name=confirm]').fill('EXPIRE');await page.getByRole('button',{name:'Expire selected notes',exact:true}).click();await page.getByRole('status').filter({hasText:'Selected guest notes expired.'}).waitFor()
   await page.getByRole('button',{name:'Review selected guest notes',exact:true}).click();await page.locator('#note-retention-review').getByText('Recent service note retained',{exact:true}).waitFor()

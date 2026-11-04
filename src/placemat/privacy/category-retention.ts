@@ -17,7 +17,7 @@ function entries(guest:Guest){
 }
 function activeWork(state:State,guestId:string){
  const bookings=state.bookings.filter(b=>b.guestId===guestId),ids=new Set(bookings.map(b=>b.id))
- return bookings.some(b=>['booked','seated'].includes(b.status)||(b.handover??[]).some(t=>!t.history.some(e=>e.action==='completed')))||state.waitlist.some(w=>w.guestId===guestId&&['waiting','queued','offered'].includes(w.status))||(state.inquiries??[]).some(i=>i.guestId===guestId&&!['converted','closed'].includes(i.status))||(state.riskDecisions??[]).some(d=>ids.has(d.bookingId)&&d.decision==='accepted'&&!d.completedAt)||(state.serviceChanges??[]).some(c=>c.tasks.some(t=>ids.has(t.bookingId)&&t.status!=='resolved'))
+ return bookings.some(b=>['booked','seated'].includes(b.status)||(b.handover??[]).some(t=>!t.history.some(e=>e.action==='completed')))||state.waitlist.some(w=>w.guestId===guestId&&(['waiting','queued','offered','accepted','arrived'].includes(w.status)||(w.followUps??[]).some(t=>t.status!=='completed')))||(state.inquiries??[]).some(i=>i.guestId===guestId&&!['converted','closed'].includes(i.status))||(state.riskDecisions??[]).some(d=>ids.has(d.bookingId)&&d.decision==='accepted'&&!d.completedAt)||(state.serviceChanges??[]).some(c=>c.tasks.some(t=>ids.has(t.bookingId)&&t.status!=='resolved'))
 }
 async function noteReview(db:D1Database,guestId:unknown){
  const current=await policy(db);if(!current)fail(409,'Record retention periods and grounds first.')

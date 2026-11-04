@@ -163,6 +163,27 @@ test('Owner-reviewed native note expiry uses original category dates, preserves 
   const returning=(await h.api('/api/public/book',publicGuest(nextService,0,{name:people[0].name,email:people[0].email}),{as:'',status:201})).result
   await run(r,[r.notes[0].key],{status:409});const busy=await preview(people[0].id);assert.ok(busy.notes.every(n=>!n.eligible));await run(busy,[busy.notes[0].key],{status:409})
   await h.command('booking.status',{bookingId:returning.id,status:'cancelled'});r=await preview(people[0].id)
+  // Accepted and arrived queue parties still need service, and an expired offer
+  // can retain an open callback after the party leaves the queue.
+  const queueInput=publicGuest(nextService,0,{name:people[0].name,email:people[0].email,phone:people[0].phone})
+  const waiting=await h.command('waitlist.add',queueInput)
+  await run(r,[r.notes[0].key],{status:409})
+  for(const status of ['offered','accepted','arrived']){
+   await h.command('waitlist.status',{waitlistId:waiting.id,status,reason:'Owner recorded the party response'})
+   const queued=await preview(people[0].id)
+   assert.ok(queued.notes.every(n=>!n.eligible&&n.reason==='Active service work'),status+' is active service work')
+   await run(queued,[queued.notes[0].key],{status:409})
+  }
+  await h.command('waitlist.status',{waitlistId:waiting.id,status:'abandoned',reason:'Party chose to leave; no callback promised'})
+  assert.ok((await preview(people[0].id)).notes[0].eligible,'A resolved queue alone does not prevent reviewed expiry')
+  const missed=await h.command('waitlist.add',queueInput)
+  await h.command('waitlist.status',{waitlistId:missed.id,status:'offered',reason:'Owner offered a table'})
+  const expiredOffer=await h.command('waitlist.status',{waitlistId:missed.id,status:'expired',reason:'Party missed the offer; owner owes a callback'})
+  const callback=await preview(people[0].id)
+  assert.ok(callback.notes.every(n=>!n.eligible&&n.reason==='Active service work'),'An open callback prevents expiry after queue resolution')
+  await run(callback,[callback.notes[0].key],{status:409})
+  await h.command('waitlist.followup',{waitlistId:missed.id,followUpId:expiredOffer.followUps[0].id,outcome:'Owner spoke with the party; no service work remains'})
+  r=await preview(people[0].id);assert.ok(r.notes[0].eligible,'Completing the callback permits a fresh expiry review')
   const archive=await h.api('/api/backup'),before=await h.api('/api/state'),calls=[...edge.calls],messages=h.messages.length
   const body={guestId:r.guestId,fingerprint:r.fingerprint,noteKeys:[r.notes[0].key],confirm:'EXPIRE'}
   const responses=await Promise.all([h.request('/api/privacy/note-retention-run',{method:'POST',body}),h.request('/api/privacy/note-retention-run',{method:'POST',body})])
