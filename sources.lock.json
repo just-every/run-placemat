@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "571d70b81cdc6311b1525f5cc81f1b7af1f28662099677580480e860909d15d6",
+      "sha256": "62d74e25e5f9b20fb4a8b27cafdf9ee9723d737a67b23603a30a65687e3ff925",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1898,7 +1898,7 @@
       "executable": false
     },
     "src/agent-door/docs.ts": {
-      "sha256": "c5f844ceb6a50d3462830c3468310b1641e0a6c5e929f1926cf9c585fea1c6fe",
+      "sha256": "756ee002bbeb64d7e191441914088c496858b9aee45dd55eb734db1366c6e11a",
       "executable": false
     },
     "src/agent-door/http.ts": {
@@ -1919,6 +1919,10 @@
     },
     "src/agent-door/reads.ts": {
       "sha256": "b448a57e470a0558399496d1539cc1602f48a0157447e23d05a9e9d5ecb7ac5f",
+      "executable": false
+    },
+    "src/agent-door/resources.ts": {
+      "sha256": "1c92058befb5521a4d3596422a4eca5b1aab0d75f502e9d34401139b920f4650",
       "executable": false
     },
     "src/auth.server.ts": {
@@ -5143,6 +5147,14 @@
     },
     "tests/allocation-ui.mjs": {
       "sha256": "fd27dafa8f92bbaa300ae9fa3b3acc550df310c7cf4f28247e9a1add18ccc38a",
+      "executable": false
+    },
+    "tests/api/agent-resources-worker.ts": {
+      "sha256": "f99c6700298cb8b64642b3fdd7a4749f32fe16716e84c75b4407565485574320",
+      "executable": false
+    },
+    "tests/api/agent-resources.test.mjs": {
+      "sha256": "e7f7658ab59672f8065287fc25ce3b47a551cb7b2b18ece64da06a1f4ea7e2c8",
       "executable": false
     },
     "tests/api/allocation-fixture.mjs": {
