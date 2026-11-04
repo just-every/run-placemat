@@ -45,6 +45,7 @@ async function hostProfileJourney(width){
   hostContext=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
   await signIn(hostContext,memberCookie,transport.origin)
   const hostPage=await hostContext.newPage();await hostPage.goto(transport.origin+'/app#guests')
+  await hostPage.locator('.app-main[aria-busy=false]').waitFor()
   await hostPage.locator('#guest-search').fill('(415) 555-0123')
   const matching=hostPage.locator('#guest-results > details')
   await matching.filter({hasText:f.a.email}).waitFor()

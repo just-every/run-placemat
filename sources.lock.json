@@ -5526,7 +5526,7 @@
       "executable": false
     },
     "tests/guest-review-ui.mjs": {
-      "sha256": "f3a9082a177fd4ad176442ea3fed2df40f87171f0cc600f5a4cd4614f51eb2c9",
+      "sha256": "2e60bc4474b46e0e8a2fc19eebe20a342654786649867c5264e7f29bf8b12d10",
       "executable": false
     },
     "tests/inquiries-ui.mjs": {
