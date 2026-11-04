@@ -1898,7 +1898,7 @@
       "executable": false
     },
     "src/agent-door/docs.ts": {
-      "sha256": "5878f07b859e46664d1fe55655bd9ac1911f3abb3d39d085427158c9724a23ec",
+      "sha256": "f9eccfa77d8b8ef97651343fd324caf2687d0908e4d4208ab2a4089dc4ad2d67",
       "executable": false
     },
     "src/agent-door/http.ts": {
@@ -1911,6 +1911,10 @@
     },
     "src/agent-door/native.ts": {
       "sha256": "07d028a6e12a91aef2c49369bdf230eb295ad2b994721f903fbf8f88643ff361",
+      "executable": false
+    },
+    "src/agent-door/prompts.ts": {
+      "sha256": "955859d7ccb4a95d4f1a6701646de832ad947cdd78803435d4de0eee3b893951",
       "executable": false
     },
     "src/agent-door/proposals.ts": {
@@ -5145,8 +5149,20 @@
       "sha256": "83341a656c1f19a01262924c3c0a7b2bbfc2003d114d1e85b6db86ab41e93b37",
       "executable": false
     },
+    "tests/agent-prompt-client.mjs": {
+      "sha256": "91e4dfecad9807c5ad272eaec47318f5997560f3f1cdcb3d878e5ac22a6091ab",
+      "executable": false
+    },
     "tests/allocation-ui.mjs": {
       "sha256": "fd27dafa8f92bbaa300ae9fa3b3acc550df310c7cf4f28247e9a1add18ccc38a",
+      "executable": false
+    },
+    "tests/api/agent-prompts.test.mjs": {
+      "sha256": "16b104b696ea3b5cd061a142e77632e804ee6fed1b23f89ecbefb92720ada47b",
+      "executable": false
+    },
+    "tests/api/agent-worker.ts": {
+      "sha256": "a5c085f04c65078cf02e593e565a29c250c6baae819fc3c8042974afa6a787be",
       "executable": false
     },
     "tests/api/allocation-fixture.mjs": {

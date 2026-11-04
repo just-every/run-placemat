@@ -52,6 +52,7 @@ test('Coordinator prompts are static private reads, fail closed and leave native
   }
   const unknown=await mcp(methods.get,{name:'synthetic-placemat-1'})
   assert.equal(unknown.message.error.code,-32602);assert.equal(unknown.result,undefined)
+  assert.deepEqual(await witness(h),before)
   const draft=await h.command('service.save',{name:'synthetic-placemat-2',startAt:'2032-06-01T08:00:00Z',endAt:'2032-06-01T12:00:00Z',turnMinutes:60,coverLimit:20})
   const afterDraft=await witness(h)
   assert.deepEqual((await mcp(methods.list)).result,first.result)
@@ -100,6 +101,8 @@ test('Public agent documentation matches discovered jobs, tool classes and exist
   for(const tool of tools) {
    const section=html.split(`data-agent-tool="${tool.name}"`)[1].split('</section>')[0]
    const declared=surface.tools.find(item=>item.name===tool.name)
+   assert.equal(declared.scope,tool._meta['com.runeditrun/scope'])
+   assert.deepEqual(declared.classes,tool._meta['com.runeditrun/classes'])
    assert.ok(section.includes(declared.scope))
    for(const cls of declared.classes)assert.ok(section.includes(cls))
    for(const step of surface.journey.filter(step=>step.tool===tool.name)) {
