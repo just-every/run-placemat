@@ -1,5 +1,7 @@
+import { inactiveSponsor } from './agent-inactive-sponsor.mjs'
+
 // Disposable conformance state uses only the real native person and guest doors.
-export default async function prepare({ request, origin, cookie }) {
+export default async function prepare({ request, origin, cookie, phase }) {
   const json = async (path, body) => {
     const response = await request(new URL(path, origin).href, { method: body === undefined ? 'GET' : 'POST', redirect: 'manual',
       headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
@@ -18,8 +20,9 @@ export default async function prepare({ request, origin, cookie }) {
     published = await command('service.save', { name: 'Agent journey dinner', startAt: day + 'T08:00:00Z', endAt: day + 'T12:00:00Z', turnMinutes: 60, coverLimit: 24 })
     const plan = await command('proposal.prepare', { kind: 'service.publish', plan: { serviceId: published.id }, reason: 'Venue manager reviewed this disposable dinner' })
     await command('proposal.approve', { proposalId: plan.id })
-    await json('/api/public/book', { serviceId: published.id, startAt: published.startAt, name: 'Morgan Lee', email: 'morgan@example.invalid', partySize: 2 })
+    await json('/api/public/book', { serviceId: published.id, startAt: published.startAt, name: 'Morgan Lee', email: ['synthetic-placemat-2', 'example.invalid'].join('@'), partySize: 2 })
     draft = await command('service.save', { name: 'Agent journey draft', startAt: day + 'T13:00:00Z', endAt: day + 'T15:00:00Z', turnMinutes: 60, coverLimit: 24 })
   }
-  return { values: { service: published.id, draft: draft.id, date: published.startAt.slice(0, 10) } }
+  const sponsors = phase === 'negative' ? { inactive: await inactiveSponsor({ request, origin, cookie }) } : {}
+  return { sponsors, values: { service: published.id, draft: draft.id, date: published.startAt.slice(0, 10) } }
 }

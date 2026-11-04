@@ -177,7 +177,29 @@
         "workspace-revision",
         "prepare-publication"
       ]
-    }
+    },
+    "owner": {
+      "initializer": "tests/agent-inactive-sponsor.mjs"
+    },
+    "sponsors": [
+      {
+        "label": "owner"
+      },
+      {
+        "label": "inactive",
+        "email": "synthetic-placemat-1\u0040example.invalid",
+        "role": "member",
+        "negativeOnly": true,
+        "initializer": "tests/agent-inactive-sponsor.mjs"
+      }
+    ],
+    "reviewers": [
+      {
+        "label": "inactive",
+        "email": "synthetic-placemat-1\u0040example.invalid",
+        "initializer": "tests/agent-inactive-sponsor.mjs"
+      }
+    ]
   },
   "journey": [
     {
