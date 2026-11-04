@@ -44,7 +44,7 @@ export default async function initialize(context) {
   const db = await context.database('DB')
   const binding = await db.prepare('SELECT operator_id FROM bs_team WHERE business_id=?').bind(sub).first()
   assert.equal(binding?.operator_id, session.operator.id)
-  sponsor = { sub, email, cookie, id: session.operator.id }
+  sponsor = { sub, email, cookie, id: session.operator.id, db }
   const result = confirmed
   confirmed = undefined
   return result
@@ -61,7 +61,12 @@ export async function inactiveSponsor(context) {
   assert.equal(changed.status, 200)
   const operator = await changed.json()
   assert.equal(operator.id, sponsor.id)
+  assert.equal(operator.email, sponsor.email)
   assert.equal(operator.status, 'inactive')
+  // Keep the signed subject bound after deactivation, so this negative probes
+  // an inactive native member rather than an unknown Business subject.
+  const binding = await sponsor.db.prepare('SELECT operator_id FROM bs_team WHERE business_id=?').bind(sponsor.sub).first()
+  assert.equal(binding?.operator_id, sponsor.id)
   const denied = await native(context, '/auth/session', undefined, sponsor.cookie)
   assert.equal(denied.status, 401)
   assert.equal((await denied.json()).error, 'unauthenticated')
