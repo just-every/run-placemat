@@ -71,11 +71,6 @@
         "node tests/onboarding-ui.mjs",
         "node tests/guest-review-ui.mjs",
         "node tests/schedules-ui.mjs",
-        "node tests/privacy-ui.mjs",
-        "node tests/costs-ui.mjs",
-        "node tests/experiences-ui.mjs",
-        "node tests/feedback-ui.mjs",
-        "node tests/reviews-ui.mjs",
         "node tests/message-templates-ui.mjs"
       ]
     },
@@ -88,6 +83,18 @@
         "node tests/group-ui.mjs",
         "node tests/finance-ui.mjs",
         "node tests/diner-ui.mjs"
+      ]
+    },
+    {
+      "name": "guest-journeys",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/privacy-ui.mjs",
+        "node tests/costs-ui.mjs",
+        "node tests/experiences-ui.mjs",
+        "node tests/feedback-ui.mjs",
+        "node tests/reviews-ui.mjs"
       ]
     }
   ],
