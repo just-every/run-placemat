@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "182d6e3801a41748425c6ac97ca29914e50816ccda1a21d5005a34f4512cdb60",
+      "sha256": "229e0199ff19b516ddc8ef06dbe077f70ab2dbdd3316a1bb6652bd58c0ec9fa2",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5158,7 +5158,7 @@
       "executable": false
     },
     "tests/api/agent-prompts.test.mjs": {
-      "sha256": "ac061a6aa0c42298a07b2a0ce93524f7911d7a9893a18ee5dc4edb4fa0c8486a",
+      "sha256": "e0d1588e81f0f406299c12c6cb16a1667aeff76bda53f156c3eb4b2384ba939d",
       "executable": false
     },
     "tests/api/agent-worker.ts": {
