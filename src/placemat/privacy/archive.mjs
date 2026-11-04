@@ -13,4 +13,8 @@ export async function validatePrivacy(read,guests){
  for(const r of requests)if(!str(r.id)||!guestIds.has(r.guest_id)||!['access','correction','deletion','retention'].includes(r.kind)||!['open','completed'].includes(r.state)||!str(r.actor_id)||!validDate(r.created_at)||r.state==='completed'&&!validDate(r.completed_at)||r.policy_version!==null&&(!Number.isSafeInteger(r.policy_version)||r.policy_version<1||r.policy_version>(policies[0]?.version??0)))bad()
  for(const t of tasks)if(!str(t.id)||!ids.has(t.request_id)||!str(t.provider)||!str(t.reference)||!['open','submitted','confirmed','retained'].includes(t.state)||!str(t.actor_id)||!validDate(t.updated_at)||typeof t.ground!=='string'||t.state!=='open'&&!str(t.ground))bad()
  for(const e of events)if(!str(e.id)||e.request_id!==null&&!ids.has(e.request_id)||!str(e.actor_id)||!str(e.action)||!validDate(e.at)||!JSON.parse(e.details)||typeof JSON.parse(e.details)!=='object')bad()
+ for(const e of events.filter(e=>e.action==='notes.expired')){
+  const d=JSON.parse(e.details)
+  if(!guestIds.has(d.guestId)||d.category!=='guestNotes'||!Number.isSafeInteger(d.policyVersion)||d.policyVersion<1||d.policyVersion>(policies[0]?.version??0)||!Number.isSafeInteger(d.guestVersion)||d.guestVersion<0||!Array.isArray(d.expired)||!d.expired.length||d.expired.some(n=>!str(n.key)||!validDate(n.at)||!str(n.actor)||n.source!=='staff-observed'||typeof n.current!=='boolean'||Object.keys(n).some(k=>!['key','at','actor','source','current'].includes(k)))||Object.keys(d).some(k=>!['guestId','category','policyVersion','guestVersion','expired'].includes(k)))bad()
+ }
 }

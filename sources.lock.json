@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6c1eabda326260fe77277adabc3854ea22e4e8c43a51dcf9c30172d6c56dea12",
+      "sha256": "e82bff851c4d12107433565f69258f71fe2b6ff84f05ebc64f0a7cfd1dd1736e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -314,7 +314,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "c1a345bebeca018c48d433b4f1788a4788a8885e0315991176ffba5aceb71fb3",
+      "sha256": "59018b02c4e4617e064faeed3ffc2dc0c264c6983c81fa7bb824d15e225962f4",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -874,11 +874,11 @@
       "executable": false
     },
     "public/placemat-privacy.css": {
-      "sha256": "89837f135922f6b6df99ce16e594f11296549978d50b6fdd9e4136db1d13ccb9",
+      "sha256": "08f9532ed96772914eb87d43ca9742795cb23e78e4bcbe46ca6d71d88467fdac",
       "executable": false
     },
     "public/placemat-privacy.js": {
-      "sha256": "70f0e5556583dc30fef74fd5abf3cdae47f6875bce101360b64452b102651eb5",
+      "sha256": "051161e72cf601c657ab9c8490f7348c9ab97693b764b2847cf1cec4caf2f183",
       "executable": false
     },
     "public/placemat-profiles.js": {
@@ -4342,7 +4342,7 @@
       "executable": false
     },
     "src/placemat/audit.ts": {
-      "sha256": "cafce9cdce0b19ab49c12cbe25bdfd1a13d2207f8904ca2aadefa7d553b039be",
+      "sha256": "9c5e05b1ea3523db9eb4af790bc7eeea50175888b0187604c973f53080ecd5b7",
       "executable": false
     },
     "src/placemat/availability.ts": {
@@ -4350,7 +4350,7 @@
       "executable": false
     },
     "src/placemat/backup.ts": {
-      "sha256": "795b3b81070faad13bde13928999ee4674c1c4257ff44fe2cc77abb8fa18f487",
+      "sha256": "b2ffab39e9e2e10e8a7e6bdc70844cd8a243f38f19d4c5d7e8be9ef0df45807f",
       "executable": false
     },
     "src/placemat/booking-holds.ts": {
@@ -4786,15 +4786,19 @@
       "executable": false
     },
     "src/placemat/privacy/access.ts": {
-      "sha256": "9605e6ef99f4d41b3926c0e604c7d7f8656e5896553c494d78c6df11323f7d67",
+      "sha256": "336925f31d8e6eadb316e001e8ee273019ad6fd7dd0ed78573f49bdf1de3d3d6",
       "executable": false
     },
     "src/placemat/privacy/archive.mjs": {
-      "sha256": "5c8dc2a72948cc5afac56c63b51a3e30a7be6952c7e5750bbe31b2abca7fbcd5",
+      "sha256": "da173a8017e20b8a43df672e0aa7f89781674d11d8ec9b048669235fe5a08678",
+      "executable": false
+    },
+    "src/placemat/privacy/category-retention.ts": {
+      "sha256": "044a31f570ae9d2be2eea8813a5af9c6733da2c7984565c275410473e8eae13d",
       "executable": false
     },
     "src/placemat/privacy/http.ts": {
-      "sha256": "556419193566500164f23aa06b71e555e245afcde9b90f22dd3d5ec23ec911d5",
+      "sha256": "bf21ff14bbe2f2f8989ea09f8958e07d9fd6bf48903223de3f4e0b9005ccc17a",
       "executable": false
     },
     "src/placemat/privacy/requests.ts": {
@@ -4806,11 +4810,11 @@
       "executable": false
     },
     "src/placemat/privacy/view.ts": {
-      "sha256": "774e470d8eec1c68e685ca743d5b181f6b44e5c44cd3568860fb5d819462d037",
+      "sha256": "7fd20df022e01371e70521857a37448a3ce7872dcbd675c74f6515768d4c8740",
       "executable": false
     },
     "src/placemat/profiles.ts": {
-      "sha256": "428286b8b1acb41b723fc21748d09a8055ad0cc3a7f6c6be419b5ff807a5843f",
+      "sha256": "c9d62785008b4da80c03f79b18c5a723bf04e8f32e1e9140f4bd784298e1db7f",
       "executable": false
     },
     "src/placemat/proposal-preparation.ts": {
@@ -5358,7 +5362,7 @@
       "executable": false
     },
     "tests/api/privacy.test.mjs": {
-      "sha256": "6362d9b58d4fc3bcc13205332876f74fc6abb9dfb2c8609de3cc9659aed5e619",
+      "sha256": "802c6d80e9789ea0df6386c3fe574322aa05533ec2d4469a02e33aabef89224b",
       "executable": false
     },
     "tests/api/queue.test.mjs": {
@@ -5574,7 +5578,7 @@
       "executable": false
     },
     "tests/privacy-ui.mjs": {
-      "sha256": "7c7c5d30f20479716918b74dc5566d5be4d78a043cd77502a378f214027ff58b",
+      "sha256": "93d97b3f72bc29df921c866bab3afedbe00152fbba02fdaa782813a747eef258",
       "executable": false
     },
     "tests/queue-ui.mjs": {

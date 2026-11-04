@@ -51,3 +51,11 @@ export async function updateGuestProfile(db:D1Database,guestId:string,payload:Gu
  ]
  return {guest,previous:JSON.parse(row!.data),statements}
 }
+
+export type DatedGuestNote={notes:string;provenance:GuestFieldProvenance}
+/** Remove an exact dated note from live and historical profile copies without touching other facts. */
+export function expireGuestNotes(guest:Guest,selected:DatedGuestNote[]):void{
+ const matches=(notes:string,provenance:GuestFieldProvenance|undefined)=>selected.some(n=>n.notes===notes&&n.provenance.at===provenance?.at&&n.provenance.actor===provenance?.actor&&n.provenance.source===provenance?.source)
+ if(matches(guest.notes,guest.provenance?.notes)){guest.notes='';if(guest.provenance)delete guest.provenance.notes}
+ if(guest.notesHistory)guest.notesHistory=guest.notesHistory.filter(n=>!matches(n.notes,n.provenance))
+}

@@ -1,3 +1,4 @@
+import {expireGuestNotes,type DatedGuestNote} from './profiles'
 import type {SettlementView} from './money-ledger-archive.mjs'
 import {fail,id,type Actor,type State,type AuditEntry} from './model'
 
@@ -67,4 +68,14 @@ export function recordMoneyAttribution(state:State,actor:Actor,at:string,payoutI
 export function filterLedgerAudit(state:State,actor:Actor):State {
  if(actor.role!=='owner'||actor.agent||actor.deviceId)state.audit=state.audit.filter(event=>event.action!=='payment.ledger-attribution')
  return state
+}
+
+/** Profile audit snapshots use the same original note dates as the live profile. */
+export function expireGuestNoteAudit(state:State,guestId:string,selected:DatedGuestNote[]):void{
+ const scrub=(value:unknown):void=>{
+  if(!value||typeof value!=='object')return
+  if(!Array.isArray(value)&&(value as any).id===guestId&&typeof (value as any).notes==='string')expireGuestNotes(value as any,selected)
+  for(const child of Object.values(value))scrub(child)
+ }
+ for(const entry of state.audit)scrub(entry)
 }
