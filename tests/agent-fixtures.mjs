@@ -18,8 +18,13 @@ export default async function prepare({ request, origin, cookie }) {
     published = await command('service.save', { name: 'Agent journey dinner', startAt: day + 'T08:00:00Z', endAt: day + 'T12:00:00Z', turnMinutes: 60, coverLimit: 24 })
     const plan = await command('proposal.prepare', { kind: 'service.publish', plan: { serviceId: published.id }, reason: 'Venue manager reviewed this disposable dinner' })
     await command('proposal.approve', { proposalId: plan.id })
-    await json('/api/public/book', { serviceId: published.id, startAt: published.startAt, name: 'Morgan Lee', email: 'morgan@example.invalid', partySize: 2 })
+    await json('/api/public/book', { serviceId: published.id, startAt: published.startAt, name: 'Morgan Lee', email: 'synthetic-placemat-1' + String.fromCharCode(64) + 'example.invalid', partySize: 2 })
     draft = await command('service.save', { name: 'Agent journey draft', startAt: day + 'T13:00:00Z', endAt: day + 'T15:00:00Z', turnMinutes: 60, coverLimit: 24 })
   }
-  return { values: { service: published.id, draft: draft.id, date: published.startAt.slice(0, 10) } }
+  state = (await json('/api/state')).state
+  let table = state.tables.find(row => row.label === 'Synthetic placemat resource table')
+  if (!table) table = await command('table.save', { label: 'Synthetic placemat resource table', seats: 4, x: 40, y: 70 })
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: state.venue.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(published.startAt))
+  return { values: { service: published.id, draft: draft.id, date,
+    resourceTable: `placemat://tables/${table.id}`, resourceService: `placemat://services/${published.id}/dates/${date}` } }
 }

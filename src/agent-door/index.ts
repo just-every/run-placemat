@@ -5,8 +5,9 @@ import { hasDeviceCookie } from '../placemat/shared-device-cookie'
 import { hash } from '../placemat/store'
 import { readTools } from './reads'
 import { proposalTool } from './proposals'
+import { resources } from './resources'
 
-const capabilities = ['tools', 'policy', 'pause', 'audit', 'idempotency'] as const
+const capabilities = ['tools', 'resources', 'policy', 'pause', 'audit', 'idempotency'] as const
 export const notTools = [
   { clauses: ['ACCESS-001'], reason: 'screen' as const },
   { clauses: ['FLOOR-008'], reason: 'device' as const },
@@ -24,7 +25,7 @@ export function companyDoor(env: Bindings) {
   const tools = [...readTools, proposalTool]
   const door = createAgentDoor({ seed: 'placemat', name: 'Placemat', specialist: 'restaurant service coordinator', capabilities: [...capabilities], db: env.DB, origin: env.AUTH_ORIGIN, trust,
     people: operatorAuthPeople({ db: env.DB, allowList: authConfig(env).allowList, session: request => hasDeviceCookie(request) ? Promise.resolve(null) : operatorAuth(env).getSession(request) }),
-    tools, resources: [], notTools,
+    tools, resources, notTools,
     async localCredentials(request) {
       const value = request.headers.get('authorization')
       if (!value?.startsWith('Bearer ')) return null

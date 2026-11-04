@@ -9,6 +9,39 @@ export default async function journey({ request, origin, cookie, tool }) {
     return response.json()
   }
   const state = () => person('/api/state')
+  // Use a separate native key so this journey also checks the unchanged local admission door.
+  const key = (await person('/api/agent-keys', { name: 'Synthetic placemat resource journey' })).result
+  const resource = async (method, params = {}) => {
+    const response = await request(new URL('/mcp', origin).href, { method: 'POST', headers: {
+      Origin: origin, Authorization: `Bearer ${key.key}`, 'Content-Type': 'application/json',
+      'MCP-Protocol-Version': '2025-11-25', 'Mcp-Method': method,
+      ...(params.uri ? { 'Mcp-Name': params.uri } : {}),
+    }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) })
+    return { status: response.status, ...await response.json() }
+  }
+  const native = await state(), table = native.state.tables.find(row => row.label === 'Synthetic placemat resource table')
+  const templates = (await resource('resources/templates/list')).result.resourceTemplates
+  assert.equal(templates.length, 2)
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: native.state.venue.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(native.state.services[0].startAt))
+  const uris = [templates.find(row => row.uriTemplate.includes('{tableId}')).uriTemplate.replace('{tableId}', table.id),
+    templates.find(row => row.uriTemplate.includes('{serviceId}')).uriTemplate.replace('{serviceId}', native.state.services[0].id).replace('{date}', date)]
+  for (const uri of uris) {
+    const answer = await resource('resources/read', { uri })
+    assert.equal(answer.error, undefined)
+    assert.equal(answer.result.contents[0]._meta['com.runeditrun/untrusted'], true)
+    const record = JSON.parse(answer.result.contents[0].text)
+    assert.ok(record.id)
+    assert.equal(record.bookings, undefined)
+    assert.equal(record.staffing, undefined)
+  }
+  await person('/api/commands', { command: 'table.save', payload: { ...table, seats: table.seats === 4 ? 6 : 4 } })
+  assert.notEqual(JSON.parse((await resource('resources/read', { uri: uris[0] })).result.contents[0].text).seats, table.seats)
+  await person(`/api/agent-keys/${key.id}`, undefined, 'DELETE')
+  for (const uri of uris) {
+    const refused = await resource('resources/read', { uri })
+    assert.equal(refused.status, 401)
+    assert.equal(refused.result, undefined)
+  }
   const before = await state(), draft = before.state.services.find(row => row.name === 'Agent journey draft')
   const args = { kind: 'service.publish', plan: { serviceId: draft.id }, reason: 'Coordinator prepares; the restaurant reviewer decides', idempotency_key: randomUUID(), expected_revision: before.version }
   const prepared = await tool('placemat.plans.prepare', args)
