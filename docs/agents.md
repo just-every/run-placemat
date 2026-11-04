@@ -46,7 +46,9 @@ separate signed `/auth/owner-claim` production handler retains its purpose.
 
 The argument-free `placemat.operations.review` prompt describes authorized
 operations reads and reports facts and alternatives without changing native
-records. Its tools are the nine registered read tools below.
+records. It derives dated reads from current service timestamps in the venue
+timezone and uses discovered input schemas. Its tools are the nine registered
+read tools below.
 
 The argument-free `placemat.service.publication.prepare` prompt starts with
 `placemat.workspace.snapshot`, selects a requested draft, reads
@@ -77,7 +79,9 @@ still require their own current scope, policy and native authority.
 These existing fixtures are seeded through `tests/agent-fixtures.mjs` and checked
 by the normal conformance journey under autonomous and held policies.
 `tests/agent-native-journey.mjs` follows discovery and the publication job through
-HTTP to a pending native proposal. `tests/api/agent-prompts.test.mjs` checks
+HTTP to a pending native proposal. Its operations-review leg compares all nine
+registered reads with populated native HTTP results under autonomous and held
+policies, using the Base journey’s signed-in person approvals for private reads. `tests/api/agent-prompts.test.mjs` checks
 prompt reads and refusals against unchanged native state and the documentation
 against the live registry. Full resource, event and subscription coverage, the
 complete specialist week, stranger-agent acceptance and remaining conformance

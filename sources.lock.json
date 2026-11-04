@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d3a6f5832c8d6c0b74040594261fa29d447371c4a26e4db57727a9db39279a8d",
+      "sha256": "182d6e3801a41748425c6ac97ca29914e50816ccda1a21d5005a34f4512cdb60",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "bcee3d2a4c2fcec19cd50f7573be62659b620624036a03c60ea4a5238cf1a6d3",
+      "sha256": "107bba67b2b5e000ced1ef8e6270d8b5d17d90c70f3a478259d9f2fe2df665f5",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -1914,7 +1914,7 @@
       "executable": false
     },
     "src/agent-door/prompts.ts": {
-      "sha256": "955859d7ccb4a95d4f1a6701646de832ad947cdd78803435d4de0eee3b893951",
+      "sha256": "5fbe9313e34a8b95821a109718caebb4aeaa5a58e63de74cf1c146f5aa8f11c9",
       "executable": false
     },
     "src/agent-door/proposals.ts": {
@@ -5138,7 +5138,7 @@
       "executable": false
     },
     "tests/agent-fixtures.mjs": {
-      "sha256": "8b2ce537c869f881371e127dff0774c31e2e4d022542ae6d7fb699f71f81c70b",
+      "sha256": "6fafeaf13375172723c3b0fe3d49edd77a540fd18b840603a29bb0d34c3c05f0",
       "executable": false
     },
     "tests/agent-inactive-sponsor.mjs": {
@@ -5146,7 +5146,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "83341a656c1f19a01262924c3c0a7b2bbfc2003d114d1e85b6db86ab41e93b37",
+      "sha256": "3f4413e15c6e02d9d342a23850ae2847f570b39ba555984146cfa65041140a29",
       "executable": false
     },
     "tests/agent-prompt-client.mjs": {
@@ -5158,7 +5158,7 @@
       "executable": false
     },
     "tests/api/agent-prompts.test.mjs": {
-      "sha256": "16b104b696ea3b5cd061a142e77632e804ee6fed1b23f89ecbefb92720ada47b",
+      "sha256": "ac061a6aa0c42298a07b2a0ce93524f7911d7a9893a18ee5dc4edb4fa0c8486a",
       "executable": false
     },
     "tests/api/agent-worker.ts": {
@@ -5662,7 +5662,7 @@
       "executable": false
     },
     "vite.config.ts": {
-      "sha256": "2542772b1ba0b5d914324981892bd7c5eb6539e4374cff87a4ed5453347b2e90",
+      "sha256": "83eafdc27f05f29806d757207963d2fb5e55d76ee9070a779f8a2dda44b95549",
       "executable": false
     },
     "wrangler.jsonc": {

@@ -18,6 +18,9 @@ export default async function prepare({ request, origin, cookie, phase }) {
     await command('table.save', { label: 'Garden 2', seats: 4, x: 65, y: 40 })
     const day = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10)
     published = await command('service.save', { name: 'Agent journey dinner', startAt: day + 'T08:00:00Z', endAt: day + 'T12:00:00Z', turnMinutes: 60, coverLimit: 24 })
+    const server = await command('server.save', { serviceId: published.id, name: 'Dinner floor', coverCap: 24 })
+    const floor = (await json('/api/state')).state.tables
+    await command('section.save', { serviceId: published.id, name: 'Dining room', serverId: server.id, tableIds: floor.map(table => table.id) })
     const plan = await command('proposal.prepare', { kind: 'service.publish', plan: { serviceId: published.id }, reason: 'Venue manager reviewed this disposable dinner' })
     await command('proposal.approve', { proposalId: plan.id })
     await json('/api/public/book', { serviceId: published.id, startAt: published.startAt, name: 'Morgan Lee', email: ['synthetic-placemat-2', 'example.invalid'].join('@'), partySize: 2 })

@@ -17,7 +17,7 @@ export const coordinatorJobs = [
     name: 'placemat.operations.review', title: 'Review restaurant operations',
     description: 'Read current operations and explain native availability, capacity and allocation alternatives without changing restaurant records.',
     tools: readTools,
-    instructions: `Discover the available tools and their input schemas. Start with ${snapshot.name} to identify current services and tables. Use the registered read tools as needed: ${readTools.map(tool => tool.name).join(', ')}. Obtain service identifiers and dates from authorized current reads; do not invent them. Report facts, uncertainty and alternatives without writing records. ${boundary}`,
+    instructions: `Discover the available tools and their input schemas. Start with ${snapshot.name} to identify current services and tables. Use the registered read tools as needed: ${readTools.map(tool => tool.name).join(', ')}. Obtain service identifiers, the venue timezone and service timestamps from authorized current reads; do not invent them. For dated reads, use the service date in that venue timezone. Follow each discovered input schema for required arguments. Report facts, uncertainty and alternatives without writing records. ${boundary}`,
   },
   {
     name: 'placemat.service.publication.prepare', title: 'Prepare service publication',

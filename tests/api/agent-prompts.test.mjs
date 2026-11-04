@@ -10,7 +10,7 @@ const witness = async h => {
  return {state,version,guests}
 }
 const policy = async (h, disposition) => h.api('/agents/api/policy', {document:{schema:'rer-agent-policy/1', catalogue:'rer-agent-classes/1',
- rules:[{id:'standard',class:'standard',do:disposition},{id:'sensitive',class:'sensitive',do:'autonomous'}], reviewers:['role:owner'],spend:{none:true}}}, {method:'PUT'})
+ rules:[{id:'standard',class:'standard',do:disposition,...(disposition==='approval'?{approver:['role:owner'],wait:'P1D'}:{})},{id:'sensitive',class:'sensitive',do:'autonomous'}], reviewers:['role:owner'],spend:{none:true}}}, {method:'PUT'})
 
 test('Coordinator prompts are static private reads, fail closed and leave native records unchanged', async () => {
  const h = await installation({entry:'tests/api/agent-worker.ts'})
@@ -53,6 +53,14 @@ test('Coordinator prompts are static private reads, fail closed and leave native
   const unknown=await mcp(methods.get,{name:'synthetic-placemat-1'})
   assert.equal(unknown.message.error.code,-32602);assert.equal(unknown.result,undefined)
   assert.deepEqual(await witness(h),before)
+  for(const disposition of ['review','approval']) {
+   await policy(h,disposition)
+   const answer=await mcp(methods.get,{name:first.result.prompts[0].name})
+   if(disposition==='review') assert.equal(answer.result.messages.map(message=>message.content.text).join('\n'),allText[0])
+   else {assert.equal(code(answer),'approval_required');assert.equal(answer.result,undefined)}
+   assert.deepEqual(await witness(h),before)
+  }
+  await policy(h,'autonomous')
   const draft=await h.command('service.save',{name:'synthetic-placemat-2',startAt:'2032-06-01T08:00:00Z',endAt:'2032-06-01T12:00:00Z',turnMinutes:60,coverLimit:20})
   const afterDraft=await witness(h)
   assert.deepEqual((await mcp(methods.list)).result,first.result)

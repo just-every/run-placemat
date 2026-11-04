@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { chromium } from '@playwright/test'
 import { methods, promptClient } from './agent-prompt-client.mjs'
@@ -67,7 +67,8 @@ export default async function journey({ request, origin, cookie, tool, docsOrigi
   await person('/api/agent-keys/' + credential.id, undefined, 'DELETE')
 }
 
-export async function afterStep({ request, origin, cookie, step, result }) {
+export async function afterStep({ request, origin, cookie, step, result, phase, outputs }) {
+  if (['autonomous', 'held'].includes(phase) && step.tool.endsWith('.audit.inspect')) await reviewOperations({ request, origin, cookie, phase, outputs })
   if (step.tool !== 'placemat.plans.prepare') return
   const response = await request(new URL('/api/state', origin).href, { headers: { Cookie: cookie } })
   assert.ok(response.ok)
@@ -78,6 +79,90 @@ export async function afterStep({ request, origin, cookie, step, result }) {
   assert.equal(proposal.preparation.label, `${proposal.preparation.agent.name} for ${proposal.preparation.for.name}`)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).preparation.label, proposal.preparation.label)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).source, 'company-agent')
+}
+
+// Verify the discovered review job against the native results the Base journey
+// obtained under each policy, including its signed-in person approval leg.
+export async function reviewOperations({ request, origin, cookie, phase, outputs }) {
+  const person = async (path, body, method = body === undefined ? 'GET' : 'POST') => {
+    const response = await request(new URL(path, origin).href, { method, headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+    assert.ok(response.ok, `Operations review person door returned ${response.status}`)
+    return response.json()
+  }
+  const credential = (await person('/api/agent-keys', { name: 'Operations review reader' })).result
+  const mcp = promptClient({ request, origin, token: credential.key })
+  try {
+    assert.ok((await mcp(methods.discover)).result.capabilities.prompts)
+    const registry = (await mcp(methods.tools)).result.tools
+    const offered = (await mcp(methods.list)).result.prompts
+    const job = offered.find(prompt => prompt.name.endsWith('.operations.review'))
+    assert.ok(job, 'Discovery offers the operations review job')
+    const instructions = (await mcp(methods.get, { name: job.name })).result.messages.map(message => message.content.text).join('\n')
+    const names = [...new Set([...instructions.matchAll(/placemat\.[a-z.]+/g)].map(match => match[0].replace(/\.$/, '')))]
+    const readers = registry.filter(tool => tool.annotations.readOnlyHint)
+    assert.deepEqual(names.sort(), readers.map(tool => tool.name).sort())
+    const surface = JSON.parse(await readFile(new URL('../agent-surface.json', import.meta.url), 'utf8'))
+    const results = new Map(surface.journey.filter(step => Object.hasOwn(outputs, step.id)).map(step => [step.tool, outputs[step.id].data]))
+    const snapshot = results.get(readers.find(tool => tool.name.endsWith('.workspace.snapshot')).name)
+    const service = snapshot.services.find(service => service.status === 'published' && snapshot.bookings.some(booking => booking.serviceId === service.id))
+    assert.ok(service, 'Review operates on a real populated service')
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: snapshot.venue.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(service.startAt))
+    const date = ['year', 'month', 'day'].map(type => parts.find(part => part.type === type).value).join('-')
+    const before = await person('/api/state')
+    const bookings = before.state.bookings.filter(booking => booking.serviceId === service.id)
+    for (const registered of readers) {
+      const properties = registered.inputSchema.properties
+      const args = { ...(properties.serviceId ? { serviceId: service.id } : {}), ...(properties.date ? { date } : {}), ...(properties.partySize ? { partySize: 2 } : {}) }
+      for (const required of registered.inputSchema.required ?? []) assert.ok(Object.hasOwn(args, required), 'Discovered schema is satisfied')
+      const data = results.get(registered.name)
+      assert.ok(data, 'The declared policy journey completed this job read')
+      if (registered.name.endsWith('.workspace.snapshot')) {
+        assert.deepEqual(data.services, before.state.services)
+        assert.deepEqual(data.tables, before.state.tables)
+        assert.ok(data.bookings.some(booking => booking.id === bookings[0].id))
+      } else if (registered.name.endsWith('.workspace.revision')) assert.equal(data.version, before.version)
+      else if (registered.name.endsWith('.guests.history')) {
+        const native = await person('/api/guests')
+        assert.ok(native.guests.length)
+        assert.deepEqual(data.guests, native.guests)
+      } else if (registered.name.endsWith('.availability.search')) {
+        const native = await person('/api/public/search?' + new URLSearchParams(args))
+        assert.ok(native.results.length)
+        assert.deepEqual(data.results, native.results)
+      } else if (registered.name.endsWith('.timeline.inspect')) {
+        const native = await person('/api/timeline?' + new URLSearchParams(args))
+        const fields = rows => rows.map(({ bookingId, guestName, tableNames, status, startAt }) => ({ bookingId, guestName, tableNames, status, startAt }))
+        assert.ok(native.rows.length)
+        assert.deepEqual(fields(data.rows), fields(native.rows))
+      } else if (registered.name.endsWith('.staffing.inspect')) {
+        const native = await person('/api/sections?' + new URLSearchParams(args))
+        assert.equal(data.serviceId, service.id)
+        assert.ok(native.servers.length && native.sections.length)
+        assert.ok(native.servers.some(server => server.expectedBookingIds.includes(bookings[0].id)))
+        assert.deepEqual(data.servers, native.servers)
+        assert.deepEqual(data.sections, native.sections)
+      } else if (registered.name.endsWith('.capacity.check')) {
+        const native = await person('/api/pacing?' + new URLSearchParams(args))
+        assert.ok(native.totalCovers > 0)
+        assert.equal(data.totalCovers, native.totalCovers)
+        assert.deepEqual(data.intervals, native.intervals)
+      } else if (registered.name.endsWith('.allocations.advise')) {
+        const native = await person('/api/allocation-advice?' + new URLSearchParams(args))
+        assert.equal(data.allocation.serviceId, service.id)
+        assert.deepEqual(data.allocation.before, native.before)
+        assert.deepEqual(data.allocation.alternatives, native.alternatives)
+      } else if (registered.name.endsWith('.audit.inspect')) {
+        const native = await person('/api/audit')
+        assert.ok(native.rows.some(row => row.action === 'service.save' && row.subject === service.id))
+        assert.deepEqual(data.rows, native.rows)
+      } else assert.fail('Operations job reader has no native outcome proof')
+    }
+    const after = await person('/api/state')
+    assert.equal(after.version, before.version)
+    assert.deepEqual(after.state, before.state)
+    assert.deepEqual(after.guests, before.guests)
+    console.log(`PROBE BASE-AGENT-013 operations-${phase}: discovered review job and ${readers.length} registered reads -> native parity after required person approvals; unchanged records`)
+  } finally { await person('/api/agent-keys/' + credential.id, undefined, 'DELETE') }
 }
 
 async function docsProof(request, origin, tools, prompts, publication, instructions) {
