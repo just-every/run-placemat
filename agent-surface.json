@@ -343,7 +343,14 @@
         {
           "class": "standard"
         }
-      ]
+      ],
+      "target": {
+        "kind": "service",
+        "id": {
+          "$fixture": "draftTarget",
+          "pointer": "/id"
+        }
+      }
     },
     {
       "id": "revision-for-reminders",
@@ -379,7 +386,14 @@
         {
           "class": "sensitive"
         }
-      ]
+      ],
+      "target": {
+        "kind": "service",
+        "id": {
+          "$fixture": "serviceTarget",
+          "pointer": "/id"
+        }
+      }
     }
   ]
 }

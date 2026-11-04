@@ -24,6 +24,14 @@ export const proposalTool: ToolDefinition = {
     })
   },
   async revision(_, ctx) { await nativeActor(ctx, true); return (await load(ctx.db)).version },
+  async target(args, ctx) {
+    if (!['service.publish', 'reminders'].includes(String(args.kind))) return null
+    return nativeCall(async () => {
+      const actor = await nativeActor(ctx, true), { state } = await load(ctx.db)
+      const proposed = await proposedPlan(state, actor, args, new Date(ctx.now()).toISOString(), ctx.db)
+      return { kind: 'service', id: proposed.plan.serviceId }
+    })
+  },
   async summary(args, ctx) {
     const actor = await nativeActor(ctx, true)
     const { state } = await load(ctx.db), proposed = await proposedPlan(state, actor, args, new Date(ctx.now()).toISOString(), ctx.db), plan = args.plan as Record<string, unknown>
