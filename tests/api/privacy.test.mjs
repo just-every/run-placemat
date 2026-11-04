@@ -111,7 +111,13 @@ test('Retention requires an exact owner review and erases only selected inactive
 test('Owner-reviewed native note expiry uses original category dates, preserves identity and money, refuses unsafe reviews and fences old backups',async()=>{
  const {paymentEdge}=await import('./payment-fixture.mjs'),edge=paymentEdge();let now=Date.parse('2030-01-01T12:00:00Z')
  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now,stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}}),copy=await installation(),old=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now})
- const contact=n=>['synthetic-placemat-'+n,'example.test'].join('@'),preview=guestId=>h.api('/api/privacy/note-retention-preview',{guestId}),run=(r,noteKeys=r.notes.filter(n=>n.eligible).map(n=>n.key),opts={})=>h.api('/api/privacy/note-retention-run',{guestId:r.guestId,fingerprint:r.fingerprint,noteKeys,confirm:'EXPIRE'},opts)
+ const contact=n=>['synthetic-placemat-'+n,'example.test'].join('@'),preview=guestId=>h.api('/api/privacy/note-retention-preview',{guestId}),run=async(r,noteKeys=r.notes.filter(n=>n.eligible).map(n=>n.key),opts={})=>{
+  const before=opts.status>=400?{state:await h.api('/api/state'),privacy:await h.api('/api/privacy')}:null
+  const result=await h.api('/api/privacy/note-retention-run',{guestId:r.guestId,fingerprint:r.fingerprint,noteKeys,confirm:'EXPIRE'},opts)
+  if(before){assert.deepEqual(await h.api('/api/state'),before.state,'Refusal changes no guest, consent, service or money facts');assert.deepEqual(await h.api('/api/privacy'),before.privacy,'Refusal records no expiry or processor work')}
+  return result
+ }
+
  try{
   await h.command('table.save',{label:'T1',seats:2,x:20,y:30})
   const s=await h.command('service.save',{name:'Dated dinner',startAt:'2030-01-02T18:00:00Z',endAt:'2030-01-02T22:00:00Z',turnMinutes:90,coverLimit:20})
@@ -152,6 +158,11 @@ test('Owner-reviewed native note expiry uses original category dates, preserves 
   now+=86400000;await run(r,[r.notes[0].key],{status:409});r=await preview(people[0].id)
   assert.equal((await h.api('/api/privacy')).events.filter(e=>e.action==='notes.expired').length,0)
   assert.deepEqual((await h.api('/api/state')).guests.map(g=>g.notes),beforeRefusals.guests.map(g=>g.notes))
+  const nextService=await h.command('service.save',{name:'Returning service',startAt:'2030-01-06T18:00:00Z',endAt:'2030-01-06T22:00:00Z',turnMinutes:90,coverLimit:8}),nextPublish=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:nextService.id},reason:'Owner reviewed return service'});await h.command('proposal.approve',{proposalId:nextPublish.id})
+  r=await preview(people[0].id)
+  const returning=(await h.api('/api/public/book',publicGuest(nextService,0,{name:people[0].name,email:people[0].email}),{as:'',status:201})).result
+  await run(r,[r.notes[0].key],{status:409});const busy=await preview(people[0].id);assert.ok(busy.notes.every(n=>!n.eligible));await run(busy,[busy.notes[0].key],{status:409})
+  await h.command('booking.status',{bookingId:returning.id,status:'cancelled'});r=await preview(people[0].id)
   const archive=await h.api('/api/backup'),before=await h.api('/api/state'),calls=[...edge.calls],messages=h.messages.length
   const body={guestId:r.guestId,fingerprint:r.fingerprint,noteKeys:[r.notes[0].key],confirm:'EXPIRE'}
   const responses=await Promise.all([h.request('/api/privacy/note-retention-run',{method:'POST',body}),h.request('/api/privacy/note-retention-run',{method:'POST',body})])

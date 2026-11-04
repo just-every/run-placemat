@@ -9,7 +9,7 @@ const dated=(p:GuestFieldProvenance|undefined)=>p?.source==='staff-observed'&&!!
 function entries(guest:Guest){
  const notes=(guest.notesHistory??[]).flatMap((n,index)=>n.notes?[{key:'history-'+index,...n,current:false}]:[])
  if(guest.notes){
-  const current=notes.findLast(n=>n.notes===guest.notes&&JSON.stringify(n.provenance)===JSON.stringify(guest.provenance?.notes))
+  const current=notes.findLast(n=>n.notes===guest.notes&&n.provenance?.at===guest.provenance?.notes?.at&&n.provenance?.actor===guest.provenance?.notes?.actor&&n.provenance?.source===guest.provenance?.notes?.source)
   if(current)current.current=true
   else notes.push({key:'current',notes:guest.notes,provenance:guest.provenance?.notes!,current:true})
  }
@@ -40,15 +40,15 @@ export async function runNoteRetention(db:D1Database,actor:Actor,p:any){
  if(p.fingerprint!==review.fingerprint)fail(409,'Guest, service work or retention review changed. Review again.')
  const selected=review.notes.filter(n=>p.noteKeys.includes(n.key))
  if(selected.length!==p.noteKeys.length||selected.some(n=>!n.eligible))fail(409,'Every selected note must have an expired original native date and no active work or import or merge lineage.')
- const owner=await db.prepare("SELECT version FROM oa_operators WHERE id=? AND role='owner' AND status='active'").bind(actor.id).first<{version:number}>()
- if(!owner||actor.agent||actor.deviceId)fail(403,'Use an active personal owner session.')
+ const owner=await db.prepare("SELECT version FROM oa_operators WHERE id=? AND role='owner' AND status='active'").bind(actor.id).first<{version:number}>()??fail(403,'Use an active personal owner session.')
+ if(actor.agent||actor.deviceId)fail(403,'Use an active personal owner session.')
  const guest:Guest=structuredClone(row.guest),expired:DatedGuestNote[]=selected.map(n=>({notes:n.notes,provenance:n.provenance})),at=new Date().toISOString(),receipt=id()
  expireGuestNotes(guest,expired);expireGuestNoteAudit(state,row.id,expired)
  const details={guestId:row.id,category:'guestNotes',policyVersion:review.policyVersion,guestVersion:review.guestVersion,expired: selected.map(n=>({key:n.key,at:n.provenance.at,actor:n.provenance.actor,source:n.provenance.source,current:n.current}))}
  state.audit.push({id:receipt,at,actor:actor.id,source:'person',action:'privacy.notes-expired',subject:row.id,changes:[{kind:'guest-note-expiry',id:receipt,before:null,after:details}]})
  const transfer=await portability(db)
  await save(db,state,review.floorVersion,[
-  db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND role='owner' AND status='active' AND version=?) AND EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) AND EXISTS(SELECT 1 FROM pm_privacy_policy WHERE id=1 AND version=?) THEN 1 ELSE 0 END").bind(actor.id,owner!.version,row.id,review.guestVersion,row.data,review.policyVersion),
+  db.prepare("INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND role='owner' AND status='active' AND version=?) AND EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=? AND data=?) AND EXISTS(SELECT 1 FROM pm_privacy_policy WHERE id=1 AND version=?) THEN 1 ELSE 0 END").bind(actor.id,owner.version,row.id,review.guestVersion,row.data,review.policyVersion),
   db.prepare('UPDATE pm_guests SET version=version+1,data=? WHERE id=?').bind(JSON.stringify(guest),row.id),
   event(db,actor,null,'notes.expired',details),
   ...await transfer.redactionStatements(),...await transfer.invalidateTransfersStatements(),

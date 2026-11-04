@@ -3,3 +3,5 @@
 .privacy-shell fieldset{border:0;padding:0;margin:18px 0}.privacy-shell legend{font-size:17px;font-weight:600}
 
 .rer-themed body[data-page=privacy]{padding:28px 16px}@media(max-width:600px){.rer-themed body[data-page=privacy]{padding:12px 8px}.rer-themed .privacy-shell{padding:18px 12px}}
+
+.privacy-shell .note-option{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;overflow-wrap:anywhere}.privacy-shell .note-option input{margin:4px 0 0}.privacy-shell .note-detail{display:block;margin-top:6px;font-size:15px}
