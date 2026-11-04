@@ -11,7 +11,7 @@ export async function backup(db:D1Database,actor:string){
  return lines
 }
 const damaged='Nothing was restored. This backup file is damaged or was changed after it was downloaded, so its integrity check failed. Download a fresh backup from the original installation and try again.'
-const erasedGuest='Nothing was restored. This backup was made before guest content was erased or notes expired here, so restoring it would bring removed personal text back. Use a backup made after that privacy action.'
+const erasedGuest='Nothing was restored. This backup was made before a guest was erased or guest notes expired here, so restoring it would bring removed personal text back. Use a backup made after that privacy action.'
 /** Plain-language refusals for the codes Base's portability module raises. */
 function refusal(error:unknown):unknown{
  if(!(error instanceof PortabilityError))return error
