@@ -3,14 +3,14 @@ import { Problem, type Actor } from '../placemat/model'
 import { load } from '../placemat/store'
 
 /** Company credentials retain the native person's grants and agent restrictions. */
-export async function nativeActor(ctx: ToolContext, write = false): Promise<Actor> {
+export async function nativeActor(ctx: Pick<ToolContext, 'db' | 'person' | 'consent'> & Partial<Pick<ToolContext, 'actor'>>, write = false): Promise<Actor> {
   const { state } = await load(ctx.db)
   const role = ctx.person.role
   if (!['owner', 'admin', 'member'].includes(role) || role === 'member' &&
       (write || state.serverIds?.includes(ctx.person.id) || state.financeIds?.includes(ctx.person.id))) {
     throw new ToolRefusal('native_authority_required')
   }
-  return { id: ctx.person.id, name: ctx.actor.label, role: 'agent', agent: true, companyAgent: !!ctx.consent, preparation: ctx.actor }
+  return { id: ctx.person.id, name: ctx.actor?.label ?? ctx.person.name, role: 'agent', agent: true, companyAgent: !!ctx.consent, preparation: ctx.actor }
 }
 
 export async function nativeCall<T>(action: () => Promise<T>): Promise<T> {

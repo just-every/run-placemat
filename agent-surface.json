@@ -4,6 +4,7 @@
   "specialist": "restaurant service coordinator",
   "capabilities": [
     "tools",
+    "resources",
     "policy",
     "pause",
     "audit",
@@ -125,7 +126,10 @@
       ]
     }
   ],
-  "resources": [],
+  "resources": [
+    "placemat://tables/{tableId}",
+    "placemat://services/{serviceId}/dates/{date}"
+  ],
   "notTools": [
     {
       "clauses": [
