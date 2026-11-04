@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5769d6cbe6d31ba71303ccf851148c25bc62c9f58befb57e3594063e5128a5f3",
+      "sha256": "e07843d5a0f8336b12f93789f6e0004a6298a7cb158a045a9edf5be7254fcd03",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5146,7 +5146,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "a9ab80cabf6fd8fe7573fe0a4dab0661645a96d4392c0522fafe7c6ce9d58a67",
+      "sha256": "8848e74784cc79ef1d1f8fe5eb80902465e1cd6a33c10c179a0a4920fbc9c179",
       "executable": false
     },
     "tests/allocation-ui.mjs": {

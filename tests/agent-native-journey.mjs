@@ -85,10 +85,21 @@ export default async function journey({ request, origin, cookie, tool }) {
   }
   assert.deepEqual(await state(), after)
   console.log('PROBE BASE-AGENT-009 private records: missing and unauthenticated preparation disclose no service content and change no native state')
+  const credential = (await person('/api/agent-keys', { name: 'synthetic-placemat-4' })).result
+  await person(`/api/agent-keys/${credential.id}`, undefined, 'DELETE')
+  const revokedState = await state()
+  for (const [kind, service] of [['service.publish', draft], ['reminders', published]]) {
+    const revoked = await tool('placemat.plans.prepare', { kind, plan: { serviceId: service.id }, reason: 'Revoked preparation identity must not resolve private targets', idempotency_key: randomUUID(), ...claims }, { token: credential.key })
+    assert.equal(revoked.status, 401)
+    assert.equal(revoked.result?.structuredContent, undefined)
+    assert.ok(!JSON.stringify(revoked).includes(service.name))
+  }
+  assert.deepEqual(await state(), revokedState)
+  console.log('PROBE BASE-AGENT-009 revoked credential: existing service targets confer no access; private content withheld and native state unchanged')
   await person('/agents/api/pause', { paused: true })
   await preparationRefusals({ person, tool, draft, published, refusal: 'agents_paused' })
   assert.equal(code(await tool('placemat.plans.prepare', { ...args, idempotency_key: randomUUID() })), 'agents_paused')
-  assert.equal((await state()).version, after.version)
+  assert.equal((await state()).version, revokedState.version)
   await person('/agents/api/pause', { paused: false })
   await person('/api/commands', { command: 'proposal.decline', payload: { proposalId: id } })
   const decided = await state(), final = decided.state.proposals.find(row => row.id === id)
