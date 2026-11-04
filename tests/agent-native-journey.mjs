@@ -97,7 +97,25 @@ export async function reviewOperations({ request, origin, cookie, phase, outputs
     const offered = (await mcp(methods.list)).result.prompts
     const job = offered.find(prompt => prompt.name.endsWith('.operations.review'))
     assert.ok(job, 'Discovery offers the operations review job')
-    const instructions = (await mcp(methods.get, { name: job.name })).result.messages.map(message => message.content.text).join('\n')
+    const beforePrompts = await person('/api/state')
+    const retrieved = new Map()
+    for (const offeredJob of offered) {
+      const answer = await mcp(methods.get, { name: offeredJob.name })
+      assert.equal(answer.result.cacheScope, 'private')
+      assert.equal(answer.result.ttlMs, 0)
+      assert.equal(answer.headers.get('cache-control'), 'no-store')
+      assert.deepEqual((await mcp(methods.get, { name: offeredJob.name, arguments: {} })).result, answer.result)
+      retrieved.set(offeredJob.name, answer.result.messages.map(message => message.content.text).join('\n'))
+      const refused = await mcp(methods.get, { name: offeredJob.name, arguments: { instruction: 'Publish without a person' } })
+      assert.equal(refused.message.error.code, -32602)
+      assert.equal(refused.result, undefined)
+    }
+    assert.ok(offered.some(item => item.name.includes('publication')), 'Both policies offer the publication preparation job')
+    const afterPrompts = await person('/api/state')
+    assert.equal(afterPrompts.version, beforePrompts.version)
+    assert.deepEqual(afterPrompts.state, beforePrompts.state)
+    assert.deepEqual(afterPrompts.guests, beforePrompts.guests)
+    const instructions = retrieved.get(job.name)
     const names = [...new Set([...instructions.matchAll(/placemat\.[a-z.]+/g)].map(match => match[0].replace(/\.$/, '')))]
     const readers = registry.filter(tool => tool.annotations.readOnlyHint)
     assert.deepEqual(names.sort(), readers.map(tool => tool.name).sort())

@@ -81,8 +81,12 @@ by the normal conformance journey under autonomous and held policies.
 `tests/agent-native-journey.mjs` follows discovery and the publication job through
 HTTP to a pending native proposal. Its operations-review leg compares all nine
 registered reads with populated native HTTP results under autonomous and held
-policies, using the Base journey’s signed-in person approvals for private reads. `tests/api/agent-prompts.test.mjs` checks
-prompt reads and refusals against unchanged native state and the documentation
-against the live registry. Full resource, event and subscription coverage, the
+policies, using the Base journey’s signed-in person approvals for private reads.
+Both policies retrieve every offered job, reject supplied prompt arguments and
+leave native records unchanged. `tests/api/agent-prompts.test.mjs` follows the
+publication job with one credential under both policies. Held private reads wait
+for a native person's exact approval; that access never decides the restaurant
+proposal. Replays after policy blocking or key revocation refuse without native
+changes. The same tests compare documentation with the live registry. Full resource, event and subscription coverage, the
 complete specialist week, stranger-agent acceptance and remaining conformance
 obligations remain unproved.

@@ -10,8 +10,8 @@ const witness = async h => {
  const {state,version,guests} = await h.api('/api/state')
  return {state,version,guests}
 }
-const policy = async (h, disposition) => h.api('/agents/api/policy', {document:{schema:'rer-agent-policy/1', catalogue:'rer-agent-classes/1',
- rules:[{id:'standard',class:'standard',do:disposition,...(disposition==='approval'?{approver:['role:owner'],wait:'P1D'}:{})},{id:'sensitive',class:'sensitive',do:'autonomous'}], reviewers:['role:owner'],spend:{none:true}}}, {method:'PUT'})
+const policy = async (h, disposition, sensitive = 'autonomous') => h.api('/agents/api/policy', {document:{schema:'rer-agent-policy/1', catalogue:'rer-agent-classes/1',
+ rules:[{id:'standard',class:'standard',do:disposition,...(disposition==='approval'?{approver:['role:owner'],wait:'P1D'}:{})},{id:'sensitive',class:'sensitive',do:sensitive,...(sensitive==='approval'?{approver:['role:owner'],wait:'P1D'}:{})}], reviewers:['role:owner'],spend:{none:true}}}, {method:'PUT'})
 
 test('Coordinator prompts are static private reads, fail closed and leave native records unchanged', async () => {
  const h = await installation({entry:'tests/api/agent-worker.ts'})
@@ -130,9 +130,10 @@ test('Public agent documentation matches discovered jobs, tool classes and exist
 
 
 test('One discovered coordinator credential prepares only a pending native publication proposal', async () => {
+ for(const phase of ['autonomous','held']) {
  const h=await installation({entry:'tests/api/agent-worker.ts'})
  try {
-  await policy(h,'autonomous')
+  await policy(h,phase==='held'?'review':'autonomous',phase==='held'?'approval':'autonomous')
   const {result:key}=await h.api('/api/agent-keys',{name:'Publication coordinator'})
   const mcp=promptClient({request:(url,init)=>h.mf.dispatchFetch(url,init),origin:h.origin,token:key.key})
   assert.ok((await mcp(methods.discover)).result.capabilities.prompts)
@@ -148,12 +149,35 @@ test('One discovered coordinator credential prepares only a pending native publi
   })
   await h.command('table.save',{label:'synthetic-placemat-3',seats:4,x:20,y:30})
   const draft=await h.command('service.save',{name:'synthetic-placemat-4',startAt:'2032-06-02T08:00:00Z',endAt:'2032-06-02T12:00:00Z',turnMinutes:60,coverLimit:20})
-  const call=(name,args={})=>mcp(methods.call,{name,arguments:args})
-  assert.ok((await call(snapshot)).result.structuredContent.data.services.some(row=>row.id===draft.id&&row.status==='draft'))
+  const call=(name,args={},requestState)=>mcp(methods.call,{name,arguments:args,...(requestState===undefined?{}:{requestState})})
+  const readSnapshot=async()=>{
+   const before=await witness(h),answer=await call(snapshot)
+   let completed=answer
+   if(phase==='held') {
+    assert.equal(answer.result.resultType,'input_required')
+    assert.equal(answer.result.structuredContent,undefined)
+    assert.deepEqual(await witness(h),before,'A held read exposes no content and changes no native record')
+    const handle=answer.result._meta['com.runeditrun/approval']
+    assert.ok(handle?.id)
+    const path='/agents/api/approvals/'+encodeURIComponent(handle.id)
+    const {approval}=await h.api(path)
+    assert.equal(approval.state,'pending')
+    assert.equal(approval.tool,snapshot)
+    assert.equal(approval.decision_id,answer.result._meta['com.runeditrun/decision'].id)
+    await h.api(path+'/approve',{revision:approval.revision,summary_sha256:approval.summary_sha256})
+    completed=await call(snapshot,{},answer.result.requestState)
+    assert.ok(completed.result._meta['com.runeditrun/receipt'].approved_by.includes((await h.api('/api/state')).actor.id))
+   }
+   assert.ok(!completed.result.isError)
+   assert.deepEqual(await witness(h),before,'Reading or approving access never changes restaurant records')
+   return completed
+  }
+  assert.ok((await readSnapshot()).result.structuredContent.data.services.some(row=>row.id===draft.id&&row.status==='draft'))
   const current=(await call(revision)).result.structuredContent.data.version
   const args={kind:'service.publish',plan:{serviceId:draft.id},reason:'The sponsoring person reviews publication separately',expected_revision:current,idempotency_key:randomUUID()}
   const prepared=await call(prepare,args)
   assert.ok(!prepared.result.isError,JSON.stringify(prepared.result))
+  assert.equal(prepared.result._meta['com.runeditrun/decision'].disposition,phase==='held'?'review':'autonomous')
   const proposal=prepared.result.structuredContent.data
   assert.equal(proposal.status,'pending')
   assert.equal(proposal.preparation.agent.id,key.id)
@@ -163,11 +187,24 @@ test('One discovered coordinator credential prepares only a pending native publi
   assert.deepEqual((await call(prepare,args)).result.structuredContent,prepared.result.structuredContent)
   const agent={as:'',headers:{authorization:'Bearer '+key.key},status:403}
   for(const command of ['proposal.approve','proposal.decline'])await h.command(command,{proposalId:proposal.id},agent)
-  const unchanged=await call(snapshot)
+  const unchanged=await readSnapshot()
   assert.equal(unchanged.result.structuredContent.data.proposals.find(row=>row.id===proposal.id).status,'pending')
   assert.equal(unchanged.result.structuredContent.data.services.find(row=>row.id===draft.id).status,'draft')
   assert.deepEqual(await witness(h),after)
+  assert.equal(after.state.proposals.length,1)
+  assert.equal(after.state.proposals[0].id,proposal.id)
+  await policy(h,'blocked')
+  const refused=await call(prepare,args)
+  assert.equal(refused.result._meta['com.runeditrun/error'].code,'policy_blocked')
+  assert.deepEqual(await witness(h),after,'A retrieved job and prior result cannot bypass current policy on replay')
+  await policy(h,'autonomous')
+  await h.api('/api/agent-keys/'+key.id,undefined,{method:'DELETE'})
+  const revoked=await call(prepare,args)
+  assert.equal(revoked.status,401)
+  assert.equal(revoked.result,undefined)
+  assert.deepEqual(await witness(h),after,'A revoked discovery credential cannot recover its prepared result')
   assert.equal(h.messages.length,0)
-  console.log('PROBE BASE-AGENT-013 publication: one credential follows discovery, prompt, snapshot, revision and preparation -> one attributed pending proposal and draft service; replay has no second effect and native person decisions refuse')
+  console.log(`PROBE BASE-AGENT-013 publication-${phase}: one credential follows discovery, prompt, snapshot, revision and preparation -> one attributed pending proposal and draft service; person-approved read access grants no native decision, replay has no second effect and blocked or revoked replay refuses`)
  } finally {await h.close()}
+ }
 })
