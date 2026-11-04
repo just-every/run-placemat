@@ -7,17 +7,20 @@ import {browserServer} from './browser-server.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 for(const width of [1440,390]){
- const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true})
+ let now=Date.now();const initialNow=now
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),transport=await browserServer(h),browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},extraHTTPHeaders:{'x-placemat-test-clock':String(now)},ignoreHTTPSErrors:true,acceptDownloads:true})
  try{
   const {service:s}=await service(h);await h.api('/api/public/book',publicGuest(s,0,{name:'Elena Torres',requests:{dietaryNotes:'No dairy please'},requestsAcknowledged:true}),{as:'',status:201})
   await h.api('/api/public/book',publicGuest(s,1,{name:'Marcus Chen'}),{as:'',status:201})
-  const guest=(await h.api('/api/state')).guests.find(g=>g.name==='Elena Torres'),errors=[]
+  const initial=await h.api('/api/state'),guest=initial.guests.find(g=>g.name==='Elena Torres'),noteGuest=initial.guests.find(g=>g.name==='Marcus Chen'),noteBooking=initial.state.bookings.find(b=>b.guestId===noteGuest.id),errors=[]
+  await h.command('guest.profile',{guestId:noteGuest.id,notes:'Old private service note'})
+  await h.command('booking.status',{bookingId:noteBooking.id,status:'cancelled'})
   await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.getByRole('link',{name:'Settings',exact:true}).click();await page.getByText('Backup & restore',{exact:true}).click();if(shots)await page.locator('#settings').screenshot({path:resolve(shots,`DATA-004-settings-${width}.png`)});await page.getByRole('link',{name:'Guest privacy and retention',exact:true}).click()
   await page.locator('#privacy-guest option').first().waitFor({state:'attached'});await page.locator('#privacy-guest').selectOption(guest.id)
   const shot=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await page.screenshot({path:resolve(shots,`DATA-004-${name}-${width}.png`),fullPage:true})}
   await page.getByText('Retention settings',{exact:true}).click()
-  for(const key of ['guestNotes','messageContent','imports','financialEvidence']){await page.locator(`[name="${key}-days"]`).fill('365');await page.locator(`[name="${key}-ground"]`).fill(key==='financialEvidence'?'Accounting evidence retained under owner review':'Service purpose and guest consent review')}
+  for(const key of ['guestNotes','messageContent','imports','financialEvidence']){await page.locator(`[name="${key}-days"]`).fill(key==='guestNotes'?'1':'365');await page.locator(`[name="${key}-ground"]`).fill(key==='financialEvidence'?'Accounting evidence retained under owner review':'Service purpose and guest consent review')}
   await page.locator('[name="financialEvidence-ground"]').press('Tab');await page.getByRole('status').filter({hasText:'Retention settings saved.'}).waitFor();await shot('retention-settings')
   await page.getByRole('button',{name:'Review access export',exact:true}).click();await page.getByRole('heading',{name:'Access export · Elena Torres'}).waitFor();await shot('guest-access')
   const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'Download guest data'}).click();assert.equal(await (await downloading).failure(),null)
@@ -27,6 +30,16 @@ for(const width of [1440,390]){
   await page.getByText('Add a processor record',{exact:true}).click();await page.locator('#processor-add [name=provider]').fill('Message provider');await page.locator('#processor-add [name=reference]').fill('synthetic-placemat-1');await page.getByRole('button',{name:'Add follow-up',exact:true}).click();await page.getByRole('status').filter({hasText:'Processor follow-up recorded.'}).waitFor()
   await page.locator('[data-task] [name=state]').selectOption('confirmed');await page.locator('[data-task] [name=ground]').fill('Provider confirmed deletion in receipt synthetic-placemat-2');await page.getByRole('button',{name:'Record outcome',exact:true}).click();await page.getByRole('status').filter({hasText:'Processor outcome recorded.'}).waitFor();await shot('erased-and-processor-confirmed')
   await page.getByRole('button',{name:'Review eligible guests'}).click();await page.locator('#retention-review').getByText('Marcus Chen',{exact:false}).waitFor();await shot('retention-review')
+  now=initialNow+2*86400000;await h.command('guest.update',{guestId:noteGuest.id,notes:'Recent service note retained'})
+  now=initialNow+2.5*86400000;await context.setExtraHTTPHeaders({'x-placemat-test-clock':String(now)})
+  await page.locator('#privacy-guest').selectOption(noteGuest.id)
+  await page.getByRole('button',{name:'Review selected guest notes',exact:true}).click();await page.getByRole('status').filter({hasText:'Note review complete.'}).waitFor()
+  const noteForm=page.locator('#note-retention-run'),expired=noteForm.locator('label').filter({hasText:'Old private service note'}),retained=noteForm.locator('label').filter({hasText:'Recent service note retained'})
+  if(width===1440){assert.equal(await expired.locator('[type=checkbox]').isEnabled(),true);assert.equal(await retained.locator('[type=checkbox]').isEnabled(),false)}
+  await shot('dated-note-review');await expired.locator('[type=checkbox]').check();await noteForm.locator('[name=confirm]').fill('EXPIRE');await page.getByRole('button',{name:'Expire selected notes',exact:true}).click();await page.getByRole('status').filter({hasText:'Selected guest notes expired.'}).waitFor()
+  await page.getByRole('button',{name:'Review selected guest notes',exact:true}).click();await page.locator('#note-retention-review').getByText('Recent service note retained',{exact:true}).waitFor()
+  if(width===1440){assert.equal(await page.locator('#note-retention-review').getByText('Old private service note',{exact:true}).count(),0);const kept=(await h.api('/api/privacy/access',{guestId:noteGuest.id})).guest;assert.equal(kept.notes,'Recent service note retained');assert.equal(kept.name,'Marcus Chen');assert.equal(kept.erased,undefined)}
+  await page.getByText('Request history',{exact:true}).click();await page.getByText('Guest notes expired',{exact:false}).waitFor();await shot('dated-notes-expired')
   assert.equal((await h.api('/api/privacy/access',{guestId:guest.id})).guest.erased,true);assert.deepEqual(errors,[]);console.log(`Privacy access, correction, erasure and processor follow-up passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }
