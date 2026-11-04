@@ -234,7 +234,7 @@
       "executable": false
     },
     "agent-surface.json": {
-      "sha256": "831de3a896d5fc287ed382b33c46cc68dd67e87350dbc4455094edbd25a89ec3",
+      "sha256": "8faff53fcd599ac1054f02be26c9976169ad9440816f986ab041ffc8bc980886",
       "executable": false
     },
     "AGENTS.md": {
@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6c1eabda326260fe77277adabc3854ea22e4e8c43a51dcf9c30172d6c56dea12",
+      "sha256": "d3a6f5832c8d6c0b74040594261fa29d447371c4a26e4db57727a9db39279a8d",
       "executable": false
     },
     "deploy-demo.json": {
@@ -270,7 +270,7 @@
       "executable": false
     },
     "docs/agents.md": {
-      "sha256": "a0f227904269624123e0dd3b8625d35ee444d54791ef12d0f00dd052f2357666",
+      "sha256": "bcee3d2a4c2fcec19cd50f7573be62659b620624036a03c60ea4a5238cf1a6d3",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -1898,15 +1898,15 @@
       "executable": false
     },
     "src/agent-door/docs.ts": {
-      "sha256": "0930fd38aced3f835b3edf196242d521ee6b215211e29b05f76adb293f93da9c",
+      "sha256": "5878f07b859e46664d1fe55655bd9ac1911f3abb3d39d085427158c9724a23ec",
       "executable": false
     },
     "src/agent-door/http.ts": {
-      "sha256": "ed198b11af550d44b252caab271e2a6a8c577140c7a38a95a970b50791e5f865",
+      "sha256": "815204a2b06a8b6b5f8a0474958ed20e1da4592aed0dc98cbdbc0664501c6738",
       "executable": false
     },
     "src/agent-door/index.ts": {
-      "sha256": "cabb70a93ddfecfbe025133c85fab673d34f6440822421a5c7d34a4bcf102d6f",
+      "sha256": "3be9590c415693c59c0cec78b1ea0339bd3af101197f6fb7029877f6b2e6a660",
       "executable": false
     },
     "src/agent-door/native.ts": {
@@ -5142,7 +5142,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "74b15a15f44e445656083c30e8495d182f71b7a25400ff23fb7ad9ab0c33f660",
+      "sha256": "83341a656c1f19a01262924c3c0a7b2bbfc2003d114d1e85b6db86ab41e93b37",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
