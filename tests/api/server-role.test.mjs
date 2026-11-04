@@ -30,6 +30,24 @@ test('ROLE-003: hosts act without approval, read-only members never mutate, and 
   await place(elena,tables[0]);await place(marcus,tables[2])
   await h.command('service.note',{date:day,kind:'shift',text:'Shift note: VIP table moves at nine'});await h.command('service.note',{date:day,kind:'kitchen',text:'Halibut: 12 portions'})
   await h.command('guest.profile',{guestId:(await h.api('/api/guests?search=Elena')).guests[0].id,vipLevel:'regular',tags:['Private celebration'],seatingPreference:'Window'})
+  const profileGuest=(await h.api('/api/guests?search=Elena')).guests[0],profileBefore=await h.api('/api/state')
+  for(const command of ['guest.profile','guest.update'])for(const name of ['member','ana','ben'])await h.command(command,{guestId:profileGuest.id,vipLevel:'vip'},{...as(name),status:403})
+  assert.deepEqual(await h.api('/api/state'),profileBefore,'Unauthorized profile writes change neither facts nor audit')
+  await h.command('guest.update',{guestId:profileGuest.id,notes:'Manager maintained service note'},as('manager'))
+  assert.equal((await h.api('/api/guests?search=Elena')).guests[0].notes,'Manager maintained service note')
+  await h.api('/api/hoststand/pin',{pin:'141592653589'},as('host'))
+  const registration=await h.api('/api/hoststand/devices',{label:'Profile refusal stand'},{status:201})
+  const claimed=await h.request('/api/hoststand/claim',{method:'POST',as:'',body:{claimCode:registration.claimCode}})
+  assert.equal(claimed.status,200)
+  const deviceCookie=claimed.headers.getSetCookie().map(value=>value.split(';')[0]).find(value=>value.startsWith('__Host-pm-device='))
+  assert.ok(deviceCookie);await h.api('/api/hoststand/unlock',{operatorId:people.host.id,pin:'141592653589'},{as:deviceCookie})
+  const stand=await h.api('/api/hoststand/floor',undefined,{as:deviceCookie}),beforeStand=await h.api('/api/state')
+  for(const command of ['guest.profile','guest.update']){
+   const payload={guestId:profileGuest.id,vipLevel:'vip'}
+   await h.api('/api/hoststand/commands',{generation:stand.generation,command,payload},{as:deviceCookie,status:403})
+   await h.command(command,payload,{as:deviceCookie+'; '+people.host.cookie,status:401})
+  }
+  assert.deepEqual(await h.api('/api/state'),beforeStand,'An unlocked PIN stand grants no profile editing')
   const secrets=['Marcus Chen','Peanut','Garden','G-21','G-22','Shift note','VIP table','role-manager@example.test','guest0@example.test','guest1@example.test','Private celebration','Deposit','checkout.stripe.com','service cover limit','arrivalCovers','concurrentCovers','areaArrivalCaps']
   const sheets=async(name,sheetValues,kitchenValues,absent)=>{
    for(const door of ['/api/preshift?date='+day,'/preshift?date='+day,'/api/preshift.pdf?date='+day,'/api/kitchen?serviceId='+service.id,'/kitchen?serviceId='+service.id]){
