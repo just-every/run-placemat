@@ -152,5 +152,5 @@ Inventory: 56 done, 43 partial, 49 missing; 148 total.
 | BASE-AGENT-009 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-010 | missing |  |
 | BASE-AGENT-011 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-replay.mjs` |
+| BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-replay.mjs`; `tests/agent-replay.mjs` |
 | BASE-AGENT-013 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
