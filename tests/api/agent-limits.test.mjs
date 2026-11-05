@@ -49,6 +49,11 @@ test('Agent rate overruns isolate credentials, preserve native work and recover 
    await overrun()
    // Even a real proposal attempt cannot enter native preparation after capacity is exhausted.
    await overrun('placemat.plans.prepare',{kind:'service.publish',plan:{serviceId:draft.id},reason:'Capacity must refuse before native preparation',idempotency_key:randomUUID(),expected_revision:before.version})
+   // A person's policy save cannot refill an installation capacity limit.
+   const policy=await h.api('/agents/api/policy')
+   const saved=await h.api('/agents/api/policy',{document},{method:'PUT'})
+   assert.equal(saved.revision,policy.revision+1)
+   await overrun()
    await revision(other.key,before.version,disposition)
    assert.deepEqual(await h.api('/api/state'),before)
    // The same sponsoring person's session can still make a native edit in the exhausted minute.
@@ -68,7 +73,16 @@ test('Agent rate overruns isolate credentials, preserve native work and recover 
    assert.deepEqual(await h.api('/api/state'),personState)
    assert.deepEqual(outbound,[])
    console.log(`PROBE BASE-AGENT-011 point 1 ${mode}: 600 native revision calls accepted; next read and preparation refused with 429 rate_limited and Retry-After 43; other agent and person edit worked; last millisecond refused with Retry-After 1; exact next minute recovered; native work unchanged by refusals; outbound effects 0`)
-   now=boundary+17250
+   await h.api('/api/agent-keys/'+limited.id,undefined,{method:'DELETE'})
+   now=boundary+60000
+   const revoked=await witness(),denied=await call(limited.key)
+   assert.equal(denied.response.status,401);assert.equal(denied.body.result,undefined)
+   assert.deepEqual(await witness(),revoked)
+   await revision(other.key,personState.version,disposition)
+   assert.deepEqual(await h.api('/api/state'),revoked.native)
+   assert.deepEqual(outbound,[])
+   console.log(`PROBE BASE-AGENT-011 authority ${mode}: policy resave did not refill capacity; next-minute reset did not revive a revoked key; second agent remained authorized`)
+   now=boundary+77250
   }
  }finally{await h.close()}
 })
