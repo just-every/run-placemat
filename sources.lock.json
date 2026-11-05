@@ -234,7 +234,7 @@
       "executable": false
     },
     "agent-surface.json": {
-      "sha256": "f7db57f2437c9d511684cb2f0ea97efdc52876c547f30b16b032077c51ee19b8",
+      "sha256": "0a93e35fa13b56aab55ea5919b0a5f858a9068628c64846d8ec99b57e6a45557",
       "executable": false
     },
     "AGENTS.md": {
@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "01b3d2bc2354a65b112589ad6b62082eb4b56330bbc36c4218b4d923f2c8495b",
+      "sha256": "d472b4bfed49ee53d5cfaaf13351b9ac059e64ee523de77ca5ace49669b015ac",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5138,7 +5138,7 @@
       "executable": false
     },
     "tests/agent-fixtures.mjs": {
-      "sha256": "8d3255599367278a14524227d9bb2621447e7edf9b9d9fc08e9ac2d0e13c4e89",
+      "sha256": "2b0ac6ae3e3a5f3a15656519a7a3ec0a9e8a1c3fe34bd07a2d3b84cd7c346ba9",
       "executable": false
     },
     "tests/agent-inactive-sponsor.mjs": {
@@ -5158,7 +5158,7 @@
       "executable": false
     },
     "tests/api/agent-classification.test.mjs": {
-      "sha256": "d5d4fec078565386288b7470c373be0fc8cb177fa54f5b0511d0239e395033a1",
+      "sha256": "2016eb8345a5d9a6451c541d2b160ca78dc9fdd06e451a5770a43cd23cc842ac",
       "executable": false
     },
     "tests/api/allocation-fixture.mjs": {

@@ -60,10 +60,12 @@ test('Guest-history classification counts authorized identities, ignores claims 
         const row = (await audit()).find(row => row.id === decision.id)
         assert.deepEqual(row.classes, expected(nativeIds.length))
         assert.equal(row.outcome, 'done')
+        if (extra === claims) assert.ok(Object.keys(claims).every(name => row.ignored_arguments.includes(name)))
       }
     }
     assert.deepEqual(await h.api('/api/state'), witness)
     assert.equal(h.messages.length, sent)
+    assert.equal(h.analytics.length, 0)
     console.log('PROBE BASE-AGENT-006 points 2 and 3: HTTP-created bookings, UI search and MCP -> measures 0, 1, 3 and erased 0; repeated identity counted once; record instructions and argument claims ignored')
 
     await policy(true)
@@ -110,6 +112,7 @@ test('Guest-history classification counts authorized identities, ignores claims 
     assert.equal(revoked.status, 401); contentFree(revoked.body)
     assert.deepEqual(await h.api('/api/state'), revokedState)
     assert.equal(h.messages.length, sent)
+    assert.equal(h.analytics.length, 0)
     console.log('PROBE BASE-AGENT-006 authority: Pause, missing credential and revoked owner-issued key -> content-free refusal; resume permits ordinary reads; native state and outbound counts unchanged')
   } finally { await h.close() }
 })
