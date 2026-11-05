@@ -74,7 +74,7 @@ const canPrepare = () => canEdit() || actor?.agent;
 const timeline=createTimeline({api,who:id=>who(id),esc,field,select,form,button,time,localTime,canOperate:canOperateFloor});
 const audit=createAudit({api,esc,field,select,time,isOwner});
 const guest = id => data.guests.find(g => g.id === id);
-const who = id => data.names?.[id] || 'Unknown person';
+const who = id => data.names?.[id] || data.people?.find(person => person.id === id)?.displayName || 'Unknown person';
 const service = () => state.services.find(s => s.id === serviceId);
 const tableNames = ids => ids.map(id => state.tables.find(t => t.id === id)?.label ?? id).join(', ');
 const zone = () => state.venue.timezone;

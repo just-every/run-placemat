@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { completedPublication, tightenedRecovery, recoveryCovered } from './agent-replay.mjs'
+import { csvRecords } from './api/business-fixture.mjs'
 
 const code = answer => answer.result?._meta?.['com.runeditrun/error']?.code ?? answer.message?.error?.data?.code
 const target = service => ({ kind: 'service', id: service.id })
@@ -107,6 +108,8 @@ export default async function journey({ request, origin, cookie, tool }) {
   const decided = await state(), final = decided.state.proposals.find(row => row.id === id)
   assert.equal(final.status, 'declined')
   assert.equal(final.approvedBy, decided.actor.id)
+  assert.deepEqual(final.preparation, proposal.preparation)
+  await attributionExports({ request, origin, cookie }, final)
   assert.equal(decided.state.audit.findLast(row => row.subject === id).preparation, undefined)
 }
 
@@ -125,6 +128,7 @@ export async function afterStep({ request, origin, cookie, step, args, phase, re
   assert.equal(proposal.preparation.label, `${proposal.preparation.agent.name} for ${proposal.preparation.for.name}`)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).preparation.label, proposal.preparation.label)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).source, 'company-agent')
+  await attributionExports({ request, origin, cookie }, proposal)
   const person = async path => {
     const response = await request(new URL(path, origin).href, { headers: { Cookie: cookie } })
     assert.ok(response.ok)
@@ -155,4 +159,18 @@ export async function afterStep({ request, origin, cookie, step, args, phase, re
   }
   console.log(`PROBE BASE-AGENT-009 ${phase} ${proposal.kind}: native service target retained through admission and replay${phase === 'held' && proposal.kind === 'reminders' ? ', approval summary and execution audit' : ''}`)
   if (phase === 'autonomous' && step.id === 'prepare-publication') await completedPublication({ request, origin, cookie })
+}
+
+// Both existing policy journeys retain the independently stored preparation identity in owner exports.
+async function attributionExports({ request, origin, cookie }, proposal) {
+  for (const path of ['/api/business-export/proposals.csv', '/api/audit.csv?' + new URLSearchParams({ subject: proposal.id })]) {
+    const response = await request(new URL(path, origin).href, { headers: { Cookie: cookie } })
+    assert.ok(response.ok)
+    const rows = csvRecords(await response.text())
+    const row = rows.find(row => path.startsWith('/api/audit.csv') ? row.action === 'proposal.prepare' && row.subject === proposal.id : row.id === proposal.id)
+    assert.ok(row)
+    const exported = JSON.parse(row.data_json)
+    assert.deepEqual(exported.preparation, proposal.preparation)
+    if (path.startsWith('/api/business-export/')) assert.equal(exported.approvedBy, proposal.approvedBy)
+  }
 }
