@@ -12,7 +12,7 @@ export async function replayDraft(person, name = 'synthetic-placemat-recovery') 
 }
 
 // Disposable conformance state uses only the real native person and guest doors.
-export default async function prepare({ request, origin, cookie, phase, tool, now }) {
+export default async function prepare({ request, origin, cookie, phase, tool, now, database }) {
   const json = async (path, body) => {
     const response = await request(new URL(path, origin).href, { method: body === undefined ? 'GET' : 'POST', redirect: 'manual',
       headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
@@ -42,6 +42,6 @@ export default async function prepare({ request, origin, cookie, phase, tool, no
   assert.equal(draft.status, 'draft')
   assert.ok(state.bookings.some(row => row.serviceId === published.id && row.status === 'booked'))
   if (phase === 'initial') await preparationRefusals({ person: json, tool, draft, published, refusal: 'policy_unset' })
-  const sponsors = phase === 'negative' ? { inactive: await inactiveSponsor({ request, origin, cookie }) } : {}
+  const sponsors = phase === 'negative' ? { inactive: await inactiveSponsor({ request, origin, cookie, database }) } : {}
   return { sponsors, values: { service: published.id, draft: draft.id, date: published.startAt.slice(0, 10), serviceTarget: { id: published.id }, draftTarget: { id: draft.id } } }
 }
