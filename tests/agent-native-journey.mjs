@@ -5,6 +5,13 @@ import { completedPublication, tightenedRecovery, recoveryCovered } from './agen
 const code = answer => answer.result?._meta?.['com.runeditrun/error']?.code ?? answer.message?.error?.data?.code
 const target = service => ({ kind: 'service', id: service.id })
 const claims = { target: { kind: 'booking', id: 'synthetic-placemat-3' }, confirmed: true, person_confirmation: true }
+const historyAudits = new Map()
+const historyKey = context => `${context.origin}:${context.phase}:${context.step.id}`
+const personReads = ({ request, origin, cookie }) => async path => {
+  const response = await request(new URL(path, origin).href, { headers: { Cookie: cookie } })
+  assert.ok(response.ok)
+  return response.json()
+}
 async function auditRows(person) {
   const rows = []
   let cursor
@@ -112,9 +119,35 @@ export default async function journey({ request, origin, cookie, tool }) {
 
 export async function beforeStep(context) {
   if (context.phase === 'held' && context.step.id === 'workspace-snapshot') await tightenedRecovery(context)
+  if (context.step.tool === 'placemat.guests.history') {
+    const rows = await auditRows(personReads(context))
+    historyAudits.set(historyKey(context), rows.at(-1)?.sequence ?? 0)
+  }
 }
 
 export async function afterStep({ request, origin, cookie, step, args, phase, result, tool }) {
+  if (step.tool === 'placemat.guests.history') {
+    const person = personReads({ request, origin, cookie })
+    const visible = (await person('/api/guests?search=' + encodeURIComponent(args.search ?? ''))).guests
+    assert.deepEqual(result.data.guests.map(row => row.id).sort(), visible.map(row => row.id).sort())
+    assert.equal(visible.length, step.expect[0].facts.measure)
+    assert.ok(visible.every(row => !row.erased))
+    const key = historyKey({ origin, phase, step })
+    assert.ok(historyAudits.has(key))
+    const rows = (await auditRows(person)).filter(row => row.tool === step.tool && row.sequence > historyAudits.get(key))
+    historyAudits.delete(key)
+    assert.ok(rows.length)
+    for (const row of rows) assert.deepEqual(row.classes, step.expect)
+    if (phase === 'held') {
+      const pending = rows.find(row => row.outcome === 'pending')
+      assert.ok(pending)
+      const execution = rows.find(row => row.decision_id === pending.id)
+      assert.equal(execution.outcome, 'done')
+      assert.deepEqual(execution.classes, step.expect)
+    }
+    console.log(`PROBE BASE-AGENT-006 ${phase} ${step.id}: native search and MCP identities agree; audited sensitive measure=${visible.length}; facts contain no guest values`)
+    return
+  }
   if (step.tool !== 'placemat.plans.prepare') return
   const response = await request(new URL('/api/state', origin).href, { headers: { Cookie: cookie } })
   assert.ok(response.ok)

@@ -187,7 +187,7 @@
       },
       {
         "label": "inactive",
-        "email": "synthetic-placemat-1\u0040example.invalid",
+        "email": "synthetic-placemat-1@example.invalid",
         "role": "member",
         "negativeOnly": true,
         "initializer": "tests/agent-inactive-sponsor.mjs"
@@ -196,7 +196,7 @@
     "reviewers": [
       {
         "label": "inactive",
-        "email": "synthetic-placemat-1\u0040example.invalid",
+        "email": "synthetic-placemat-1@example.invalid",
         "initializer": "tests/agent-inactive-sponsor.mjs"
       }
     ]
@@ -228,9 +228,127 @@
       "args": {},
       "expect": [
         {
-          "class": "sensitive"
+          "class": "sensitive",
+          "facts": {
+            "measure": 4,
+            "kind": "private restaurant operations"
+          }
         }
-      ]
+      ],
+      "inject": {
+        "class": "standard",
+        "classes": [
+          "standard"
+        ],
+        "measure": 999,
+        "internal": true,
+        "confirmExternal": true,
+        "confirmed": true
+      }
+    },
+    {
+      "id": "guests-history-zero",
+      "tool": "placemat.guests.history",
+      "args": {
+        "search": "synthetic-placemat-classification absent"
+      },
+      "expect": [
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 0,
+            "kind": "private restaurant operations"
+          }
+        }
+      ],
+      "inject": {
+        "class": "standard",
+        "classes": [
+          "standard"
+        ],
+        "measure": 999,
+        "internal": true,
+        "confirmExternal": true,
+        "confirmed": true
+      }
+    },
+    {
+      "id": "guests-history-one",
+      "tool": "placemat.guests.history",
+      "args": {
+        "search": "synthetic-placemat-classification 1"
+      },
+      "expect": [
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "private restaurant operations"
+          }
+        }
+      ],
+      "inject": {
+        "class": "standard",
+        "classes": [
+          "standard"
+        ],
+        "measure": 999,
+        "internal": true,
+        "confirmExternal": true,
+        "confirmed": true
+      }
+    },
+    {
+      "id": "guests-history-several",
+      "tool": "placemat.guests.history",
+      "args": {
+        "search": "synthetic-placemat-classification"
+      },
+      "expect": [
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 3,
+            "kind": "private restaurant operations"
+          }
+        }
+      ],
+      "inject": {
+        "class": "standard",
+        "classes": [
+          "standard"
+        ],
+        "measure": 999,
+        "internal": true,
+        "confirmExternal": true,
+        "confirmed": true
+      }
+    },
+    {
+      "id": "guests-history-erased",
+      "tool": "placemat.guests.history",
+      "args": {
+        "search": "synthetic-placemat-classification 4"
+      },
+      "expect": [
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 0,
+            "kind": "private restaurant operations"
+          }
+        }
+      ],
+      "inject": {
+        "class": "standard",
+        "classes": [
+          "standard"
+        ],
+        "measure": 999,
+        "internal": true,
+        "confirmExternal": true,
+        "confirmed": true
+      }
     },
     {
       "id": "availability-search",
