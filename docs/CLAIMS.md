@@ -144,7 +144,7 @@ Inventory: 56 done, 43 partial, 49 missing; 148 total.
 | BASE-AGENT-001 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-002 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-refusals.test.mjs` |
 | BASE-AGENT-003 | missing |  |
-| BASE-AGENT-004 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs` |
+| BASE-AGENT-004 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs` |
 | BASE-AGENT-005 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-006 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-007 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
