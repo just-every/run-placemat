@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { completedPublication, tightenedRecovery, recoveryCovered } from './agent-replay.mjs'
+import { completedPublication, tightenedRecovery, recoveryCovered, persistedPublication } from './agent-replay.mjs'
 import { csvRecords } from './api/business-fixture.mjs'
 
 const code = answer => answer.result?._meta?.['com.runeditrun/error']?.code ?? answer.message?.error?.data?.code
@@ -38,6 +38,7 @@ export async function preparationRefusals({ person, tool, draft, published, refu
 
 export default async function journey({ request, origin, cookie, tool }) {
   recoveryCovered(origin)
+  await persistedPublication()
   const person = async (path, body, method = body === undefined ? 'GET' : 'POST') => {
     const response = await request(new URL(path, origin).href, { method, headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
     assert.ok(response.ok, `Native person request returned ${response.status}`)
@@ -158,7 +159,7 @@ export async function afterStep({ request, origin, cookie, step, args, phase, re
     assert.deepEqual(refused.classes.map(item => item.class).sort(), ['sensitive', 'standard'])
   }
   console.log(`PROBE BASE-AGENT-009 ${phase} ${proposal.kind}: native service target retained through admission and replay${phase === 'held' && proposal.kind === 'reminders' ? ', approval summary and execution audit' : ''}`)
-  if (phase === 'autonomous' && step.id === 'prepare-publication') await completedPublication({ request, origin, cookie })
+  if (['autonomous', 'held'].includes(phase) && step.id === 'prepare-publication') await completedPublication({ request, origin, cookie }, phase)
 }
 
 // Both existing policy journeys retain the independently stored preparation identity in owner exports.
