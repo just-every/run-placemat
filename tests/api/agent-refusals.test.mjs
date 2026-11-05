@@ -110,5 +110,16 @@ test('Native publication refusals share UI and MCP codes, preserve records and a
   assert.equal(h.messages.length,outbound)
   assert.equal(h.analytics.length,0)
   console.log('PROBE BASE-AGENT-002 point5: person and MCP prepare the same draft -> equivalent pending plans, proposal.prepare native audit events with distinct provenance, no operational or outbound effect')
+  for(const command of ['proposal.approve','proposal.decline']){
+   const refused=await h.api('/api/commands',{command,payload:{proposalId:proposal.id}},{as:'',headers:{authorization:`Bearer ${credential.key}`},status:403})
+   assert.equal(refused.code,'native_authority_required')
+   assert.ok(refused.error)
+   assert.equal(refused.result,undefined)
+   assert.deepEqual(await h.api('/api/state'),personAfter,'Preparation credentials cannot decide either pending plan through the native command door')
+  }
+  assert.deepEqual((await h.api('/agents/api/audit')).rows,rows)
+  assert.equal(h.messages.length,outbound)
+  assert.equal(h.analytics.length,0)
+  console.log('PROBE BASE-AGENT-002 execution boundary: preparation credential attempts native approval and decline -> HTTP 403, no result, unchanged pending plans and audit, no outbound effect')
  }finally{await h.close()}
 })
