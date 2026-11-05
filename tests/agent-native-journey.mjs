@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { completedPublication, tightenedRecovery, recoveryCovered } from './agent-replay.mjs'
 
 const code = answer => answer.result?._meta?.['com.runeditrun/error']?.code ?? answer.message?.error?.data?.code
 const target = service => ({ kind: 'service', id: service.id })
@@ -35,6 +36,7 @@ export async function preparationRefusals({ person, tool, draft, published, refu
 }
 
 export default async function journey({ request, origin, cookie, tool }) {
+  recoveryCovered(origin)
   const person = async (path, body, method = body === undefined ? 'GET' : 'POST') => {
     const response = await request(new URL(path, origin).href, { method, headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
     assert.ok(response.ok, `Native person request returned ${response.status}`)
@@ -108,6 +110,10 @@ export default async function journey({ request, origin, cookie, tool }) {
   assert.equal(decided.state.audit.findLast(row => row.subject === id).preparation, undefined)
 }
 
+export async function beforeStep(context) {
+  if (context.phase === 'held' && context.step.id === 'workspace-snapshot') await tightenedRecovery(context)
+}
+
 export async function afterStep({ request, origin, cookie, step, args, phase, result, tool }) {
   if (step.tool !== 'placemat.plans.prepare') return
   const response = await request(new URL('/api/state', origin).href, { headers: { Cookie: cookie } })
@@ -148,4 +154,5 @@ export async function afterStep({ request, origin, cookie, step, args, phase, re
     assert.deepEqual(refused.classes.map(item => item.class).sort(), ['sensitive', 'standard'])
   }
   console.log(`PROBE BASE-AGENT-009 ${phase} ${proposal.kind}: native service target retained through admission and replay${phase === 'held' && proposal.kind === 'reminders' ? ', approval summary and execution audit' : ''}`)
+  if (phase === 'autonomous' && step.id === 'prepare-publication') await completedPublication({ request, origin, cookie })
 }

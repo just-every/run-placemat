@@ -2,6 +2,15 @@ import assert from 'node:assert/strict'
 import { preparationRefusals } from './agent-native-journey.mjs'
 import { inactiveSponsor } from './agent-inactive-sponsor.mjs'
 
+export async function replayDraft(person, name = 'synthetic-placemat-recovery') {
+  const { state } = await person('/api/state')
+  const start = Math.max(...state.services.map(row => Date.parse(row.endAt))) + 86400000
+  return (await person('/api/commands', { command: 'service.save', payload: {
+    name, startAt: new Date(start).toISOString(),
+    endAt: new Date(start + 7200000).toISOString(), turnMinutes: 60, coverLimit: 24,
+  } })).result
+}
+
 // Disposable conformance state uses only the real native person and guest doors.
 export default async function prepare({ request, origin, cookie, phase, tool, now }) {
   const json = async (path, body) => {

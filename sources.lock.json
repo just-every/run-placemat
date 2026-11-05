@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e07843d5a0f8336b12f93789f6e0004a6298a7cb158a045a9edf5be7254fcd03",
+      "sha256": "7a3a9c3f32032834e7c0bea78dc73fa6547260a9be23537b3e8cfb681d09a666",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1914,7 +1914,7 @@
       "executable": false
     },
     "src/agent-door/proposals.ts": {
-      "sha256": "fb9128c4a3a7c0cc8b3cef22f6d6ccfcea2f7f1b60728b39b827d9bd089329cf",
+      "sha256": "84161633e640a36d61fc884053c1db0e9ecc41f2c3be6aec407a5e39878e7dbd",
       "executable": false
     },
     "src/agent-door/reads.ts": {
@@ -5138,7 +5138,7 @@
       "executable": false
     },
     "tests/agent-fixtures.mjs": {
-      "sha256": "32dc0ce1c2636a9bb27b0fb9fd9dde1b006db982c294a527e5b92c07d07a5b2d",
+      "sha256": "52f6ee28f960e27077aaba2cdf84efb5eedc6d0fe164af1498586b9a12cae299",
       "executable": false
     },
     "tests/agent-inactive-sponsor.mjs": {
@@ -5146,7 +5146,11 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "8848e74784cc79ef1d1f8fe5eb80902465e1cd6a33c10c179a0a4920fbc9c179",
+      "sha256": "4dda9c2fd870aaff5df5db3fcb68983ac2773f55ba3095d5c672ccce56642849",
+      "executable": false
+    },
+    "tests/agent-replay.mjs": {
+      "sha256": "f58e7e70d0a45f275386babd73de764f2709a4b7b7e194ea1289634bab2779e3",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
