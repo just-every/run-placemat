@@ -97,10 +97,13 @@ export async function completedPublication(context) {
     const paused = await call(credential.key, args)
     assert.equal(error(paused.body)?.code, 'agents_paused')
     assert.equal(paused.body.result?.structuredContent, undefined)
+    for (const value of [originalResult.id, draft.name, args.reason]) {
+      assert.ok(!JSON.stringify(paused.body).includes(value), 'Pause withholds the saved preparation content')
+    }
     assert.deepEqual(await person('/api/state'), published)
   } finally { await person('/agents/api/pause', { paused: false }) }
   assert.equal((await call(credential.key, args)).body.result?.isError, false, 'Resume restores completed recovery')
-  recoveries.set(context.origin, { credential, args, policyChecked: false })
+  recoveries.set(context.origin, { credential, args, proposalId: originalResult.id, policyChecked: false })
   console.log('PROBE BASE-AGENT-012 pause: completed key while paused -> content-free refusal; resume -> recovery')
 }
 
@@ -111,6 +114,9 @@ export async function tightenedRecovery(context) {
   const tightened = await call(saved.credential.key, saved.args)
   assert.equal(error(tightened.body)?.code, 'review_required', 'Current held policy must refuse the older autonomous result')
   assert.equal(tightened.body.result?.structuredContent, undefined)
+  for (const value of [saved.proposalId, saved.args.reason]) {
+    assert.ok(!JSON.stringify(tightened.body).includes(value), 'Tightened policy withholds the saved preparation content')
+  }
   assert.deepEqual(facts(tightened.body.result._meta['com.runeditrun/decision']), [{ class: 'standard', facts: { measure: 1 } }])
   assert.deepEqual(await person('/api/state'), before)
   await person('/api/agent-keys/' + saved.credential.id, undefined, 'DELETE')
@@ -121,6 +127,9 @@ export async function tightenedRecovery(context) {
   const revoked = await call(saved.credential.key, saved.args)
   assert.equal(revoked.status, 401)
   assert.equal(revoked.body.result, undefined)
+  for (const value of [saved.proposalId, saved.args.reason]) {
+    assert.ok(!JSON.stringify(revoked.body).includes(value), 'Revocation withholds the saved preparation content')
+  }
   assert.deepEqual(await person('/api/state'), afterRevocation)
   saved.policyChecked = true
   console.log('PROBE BASE-AGENT-012 authority: tightened held policy and revoked native credential -> content-free refusals, unchanged native state')
