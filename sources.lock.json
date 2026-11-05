@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4ba1e687f47b7462d8ac4fc40afb6baed0fca9564a4a154f5764de5920edb919",
+      "sha256": "5df94c88bdb52d0538df7cd6cba15e4eefb502c96a9132398fa1825c1b51fb53",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5157,6 +5157,10 @@
       "sha256": "fd27dafa8f92bbaa300ae9fa3b3acc550df310c7cf4f28247e9a1add18ccc38a",
       "executable": false
     },
+    "tests/api/agent-limits.test.mjs": {
+      "sha256": "6d8de412f01d0790e38bc754f768e42f8117b9a2d6453d21c2455c660ef732ec",
+      "executable": false
+    },
     "tests/api/allocation-fixture.mjs": {
       "sha256": "6028a37bba271ddd2f14a977ae134c66c42933ce0dd63bb8d4eb84db58394554",
       "executable": false
@@ -5466,7 +5470,7 @@
       "executable": false
     },
     "tests/api/worker.ts": {
-      "sha256": "03501b26e1119a21157e7dff15abe69f38838f199f2fdfcc97ff7d0de99c7bd0",
+      "sha256": "1ca740dee3c595a4735baf550c65f2ec14a33bd5568e7f7f69a394f5c44f7097",
       "executable": false
     },
     "tests/audit-ui.mjs": {
