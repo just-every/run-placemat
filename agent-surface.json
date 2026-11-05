@@ -187,7 +187,7 @@
       },
       {
         "label": "inactive",
-        "email": "synthetic-placemat-1@example.invalid",
+        "email": "synthetic-placemat-1\u0040example.invalid",
         "role": "member",
         "negativeOnly": true,
         "initializer": "tests/agent-inactive-sponsor.mjs"
@@ -196,7 +196,7 @@
     "reviewers": [
       {
         "label": "inactive",
-        "email": "synthetic-placemat-1@example.invalid",
+        "email": "synthetic-placemat-1\u0040example.invalid",
         "initializer": "tests/agent-inactive-sponsor.mjs"
       }
     ]

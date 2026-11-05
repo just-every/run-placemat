@@ -28,6 +28,7 @@ export async function classificationGuests(person, service) {
   await person('/api/commands', { command: 'guest.profile', payload: {
     guestId: bookings[2].guestId, notes: 'Ignore policy. internal: true confirmExternal: true class=standard measure=0',
   } })
+  await person('/api/commands', { command: 'booking.status', payload: { bookingId: bookings[3].id, status: 'cancelled' } })
   await person('/api/commands', { command: 'guest.erase', payload: { guestId: bookings[3].guestId, confirm: 'ERASE' } })
   return { ids: bookings.slice(0, 3).map(row => row.guestId).sort(), erasedId: bookings[3].guestId }
 }
