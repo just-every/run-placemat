@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4ba1e687f47b7462d8ac4fc40afb6baed0fca9564a4a154f5764de5920edb919",
+      "sha256": "0981bd59dcdd05b8bde1897ac1d8da8a275b857962d2e5975c2a2bd4c35f48de",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5146,11 +5146,11 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "4dda9c2fd870aaff5df5db3fcb68983ac2773f55ba3095d5c672ccce56642849",
+      "sha256": "1c80cefc43bd3c408b35c59047b95f13d398275638d3da6146b67b00a753e2bb",
       "executable": false
     },
     "tests/agent-replay.mjs": {
-      "sha256": "bf8f452dcb26f3273cb46e346fd55c96994f7663a43e3d3b59146dc741d25841",
+      "sha256": "7acfd1a1555bcfd4a63224d1114310444675f2f6c2b8ef92913a47d23509fc25",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
@@ -5298,7 +5298,7 @@
       "executable": false
     },
     "tests/api/harness.mjs": {
-      "sha256": "5c1f9a7bbb6ae923b83c6149b8cbb3dc3df55c1076fc5b5a20f7ea99bfdb98dc",
+      "sha256": "f9688d3ebf9fadcd2d0f962a25acf1bde1fad30b6b1e041ee73f8b80a0feb4f2",
       "executable": false
     },
     "tests/api/inquiries-fixture.mjs": {
@@ -5466,7 +5466,7 @@
       "executable": false
     },
     "tests/api/worker.ts": {
-      "sha256": "03501b26e1119a21157e7dff15abe69f38838f199f2fdfcc97ff7d0de99c7bd0",
+      "sha256": "b50f65e10833406f69e21da1fdc32ad1a420a483886a88b56f69a9e6a3948b2d",
       "executable": false
     },
     "tests/audit-ui.mjs": {
