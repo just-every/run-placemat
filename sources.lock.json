@@ -234,7 +234,7 @@
       "executable": false
     },
     "agent-surface.json": {
-      "sha256": "bdf3d66f061f2a8cce1ce35ce06da8393e1edb1db48a2d4a8182fcc311c0a732",
+      "sha256": "0a93e35fa13b56aab55ea5919b0a5f858a9068628c64846d8ec99b57e6a45557",
       "executable": false
     },
     "AGENTS.md": {
@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4ba1e687f47b7462d8ac4fc40afb6baed0fca9564a4a154f5764de5920edb919",
+      "sha256": "d472b4bfed49ee53d5cfaaf13351b9ac059e64ee523de77ca5ace49669b015ac",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1918,7 +1918,7 @@
       "executable": false
     },
     "src/agent-door/reads.ts": {
-      "sha256": "b448a57e470a0558399496d1539cc1602f48a0157447e23d05a9e9d5ecb7ac5f",
+      "sha256": "951fb2101eca76c353ca6a7487053370e29de594828491455a98d7a449073c67",
       "executable": false
     },
     "src/auth.server.ts": {
@@ -5138,7 +5138,7 @@
       "executable": false
     },
     "tests/agent-fixtures.mjs": {
-      "sha256": "52f6ee28f960e27077aaba2cdf84efb5eedc6d0fe164af1498586b9a12cae299",
+      "sha256": "2b0ac6ae3e3a5f3a15656519a7a3ec0a9e8a1c3fe34bd07a2d3b84cd7c346ba9",
       "executable": false
     },
     "tests/agent-inactive-sponsor.mjs": {
@@ -5146,7 +5146,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "4dda9c2fd870aaff5df5db3fcb68983ac2773f55ba3095d5c672ccce56642849",
+      "sha256": "ab8384cd58cab857b6b30ed85e8db27b16d33069756cc05586e2779c75d8fbcf",
       "executable": false
     },
     "tests/agent-replay.mjs": {
@@ -5155,6 +5155,10 @@
     },
     "tests/allocation-ui.mjs": {
       "sha256": "fd27dafa8f92bbaa300ae9fa3b3acc550df310c7cf4f28247e9a1add18ccc38a",
+      "executable": false
+    },
+    "tests/api/agent-classification.test.mjs": {
+      "sha256": "2016eb8345a5d9a6451c541d2b160ca78dc9fdd06e451a5770a43cd23cc842ac",
       "executable": false
     },
     "tests/api/allocation-fixture.mjs": {
@@ -5466,7 +5470,7 @@
       "executable": false
     },
     "tests/api/worker.ts": {
-      "sha256": "03501b26e1119a21157e7dff15abe69f38838f199f2fdfcc97ff7d0de99c7bd0",
+      "sha256": "8bbdef175e101d47c50e0eb96c890479d8b6b9f5bc4dda48445250671711cd4b",
       "executable": false
     },
     "tests/audit-ui.mjs": {
