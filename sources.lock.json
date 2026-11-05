@@ -5162,7 +5162,7 @@
       "executable": false
     },
     "tests/api/agent-refusals.test.mjs": {
-      "sha256": "5d27d49a24cd1775e7c6c43d8b3678c11def60f4a8ce8e5493d1be90c19cfda0",
+      "sha256": "7a38ce170081828b56bdc4a674a290b9bc6dc460edc3c47cd896b39f9fd55408",
       "executable": false
     },
     "tests/api/allocation-fixture.mjs": {
