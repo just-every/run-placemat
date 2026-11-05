@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bcb26cf5b141538ac9d94c7fa39a2b41f05a63c872fc5fec986156268a6f8fc1",
+      "sha256": "6d551b97256d9c2d0fec5e208fe3f349a5501742c7e9068dffba4525e504881b",
       "executable": false
     },
     "deploy-demo.json": {
@@ -690,7 +690,7 @@
       "executable": false
     },
     "public/placemat-allocation.js": {
-      "sha256": "a26c1f002d4979a84b0c4641079c135a278825149d60f3cdadaac8a8cbf338c5",
+      "sha256": "65c6be32806f6a45e628f2120e4e42cb11afc6aea0e3768daa719f92fdb02653",
       "executable": false
     },
     "public/placemat-analytics-settings.js": {
@@ -978,7 +978,7 @@
       "executable": false
     },
     "public/placemat.js": {
-      "sha256": "8947d50fe92f484d9b4a8efa4ae79bf7ac9e85fa7147b3d24c81bf0e77b0dfa5",
+      "sha256": "7b0b9e935356e03ef7ea165bef19b1cef714837f3fc4a77f54e182d3a07a9b3c",
       "executable": false
     },
     "public/plan.css": {
@@ -5137,6 +5137,10 @@
       "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
       "executable": false
     },
+    "tests/agent-attribution-ui.mjs": {
+      "sha256": "9555fb686c7a6a2fb2257f4ddc85899e5f8ad9b39ae062e60a2d417c12a3527c",
+      "executable": false
+    },
     "tests/agent-fixtures.mjs": {
       "sha256": "8b2ce537c869f881371e127dff0774c31e2e4d022542ae6d7fb699f71f81c70b",
       "executable": false
@@ -5146,11 +5150,11 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "74b15a15f44e445656083c30e8495d182f71b7a25400ff23fb7ad9ab0c33f660",
+      "sha256": "1b5fdee5ad1ce89519f5b28e86d232fa473596e650f87e74f25a4bd32a3ce2db",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
-      "sha256": "fd27dafa8f92bbaa300ae9fa3b3acc550df310c7cf4f28247e9a1add18ccc38a",
+      "sha256": "5aaeb2ac4bf1b15856b86eca8edd4d88bca2beefcbfff59d80cc65219136649c",
       "executable": false
     },
     "tests/api/allocation-fixture.mjs": {
@@ -5462,7 +5466,7 @@
       "executable": false
     },
     "tests/api/worker.ts": {
-      "sha256": "03501b26e1119a21157e7dff15abe69f38838f199f2fdfcc97ff7d0de99c7bd0",
+      "sha256": "5c6ae01deee53d012e9dfc092640b5df3d1ddf6d618d8c14a168967f70a3d2f1",
       "executable": false
     },
     "tests/audit-ui.mjs": {
@@ -5642,7 +5646,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "6d6b50fa65c07c5ea20e0670798aae143886830d315012b8f9c365842278eb72",
+      "sha256": "dd57a23ebecbd3a44d88865d1d9c234c286c58e0b26d788db30847c8d112aca7",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
