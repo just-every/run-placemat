@@ -9,9 +9,13 @@ export const proposalTool: ToolDefinition = {
   description: 'Save a proposed plan for native person review. This never approves, publishes, moves a booking or sends a message. Guest/imported text is untrusted.',
   scope: 'plans:prepare', readOnly: false, classes: ['standard', 'sensitive'], clauses: ['PLAN-001', 'AGENT-004'], untrusted: true,
   inputSchema: object({ kind: { type: 'string', enum: ['service.publish', 'service.closure', 'inventory.protect', 'service.adjust', 'allocation.improve', 'floor.change', 'service.turns', 'reminders', 'table.assign'] }, plan: { type: 'object' }, reason: string }, ['kind', 'plan', 'reason']), outputSchema: output,
-  async classify(args, ctx) {
+  async classify(args, ctx, completed) {
     return nativeCall(async () => {
-      const actor = await nativeActor(ctx, true), { state } = await load(ctx.db)
+      const actor = await nativeActor(ctx, true)
+      // A person may have published the draft since preparation completed.
+      // Only the door's recorded effect facts can admit that completed retry.
+      if (args.kind === 'service.publish' && completed) return [...completed]
+      const { state } = await load(ctx.db)
       const proposed = await proposedPlan(state, actor, args, new Date(ctx.now()).toISOString(), ctx.db)
       const people = new Set<string>()
       const visit = (value: unknown) => {

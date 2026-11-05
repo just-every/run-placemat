@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { completedPublication, tightenedRecovery, recoveryCovered } from './agent-replay.mjs'
 
 const code = answer => answer.result?._meta?.['com.runeditrun/error']?.code ?? answer.message?.error?.data?.code
 export default async function journey({ request, origin, cookie, tool }) {
+  recoveryCovered(origin)
   const person = async (path, body, method = body === undefined ? 'GET' : 'POST') => {
     const response = await request(new URL(path, origin).href, { method, headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
     assert.ok(response.ok, `Native person request returned ${response.status}`)
@@ -38,7 +40,11 @@ export default async function journey({ request, origin, cookie, tool }) {
   assert.equal(decided.state.audit.findLast(row => row.subject === id).preparation, undefined)
 }
 
-export async function afterStep({ request, origin, cookie, step, result }) {
+export async function beforeStep(context) {
+  if (context.phase === 'held' && context.step.id === 'workspace-snapshot') await tightenedRecovery(context)
+}
+
+export async function afterStep({ request, origin, cookie, phase, step, result }) {
   if (step.tool !== 'placemat.plans.prepare') return
   const response = await request(new URL('/api/state', origin).href, { headers: { Cookie: cookie } })
   assert.ok(response.ok)
@@ -49,4 +55,5 @@ export async function afterStep({ request, origin, cookie, step, result }) {
   assert.equal(proposal.preparation.label, `${proposal.preparation.agent.name} for ${proposal.preparation.for.name}`)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).preparation.label, proposal.preparation.label)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).source, 'company-agent')
+  if (phase === 'autonomous' && step.id === 'prepare-publication') await completedPublication({ request, origin, cookie })
 }
