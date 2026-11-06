@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { completedPublication, tightenedRecovery, recoveryCovered } from './agent-replay.mjs'
+import { completedPublication, tightenedRecovery, recoveryCovered, persistedPublication } from './agent-replay.mjs'
+import { csvRecords } from './api/business-fixture.mjs'
 
 const code = answer => answer.result?._meta?.['com.runeditrun/error']?.code ?? answer.message?.error?.data?.code
 const target = service => ({ kind: 'service', id: service.id })
 const claims = { target: { kind: 'booking', id: 'synthetic-placemat-3' }, confirmed: true, person_confirmation: true }
+const historyAudits = new Map()
+const historyKey = context => `${context.origin}:${context.phase}:${context.step.id}`
+const personReads = ({ request, origin, cookie }) => async path => {
+  const response = await request(new URL(path, origin).href, { headers: { Cookie: cookie } })
+  assert.ok(response.ok)
+  return response.json()
+}
 async function auditRows(person) {
   const rows = []
   let cursor
@@ -37,6 +45,7 @@ export async function preparationRefusals({ person, tool, draft, published, refu
 
 export default async function journey({ request, origin, cookie, tool }) {
   recoveryCovered(origin)
+  await persistedPublication()
   const person = async (path, body, method = body === undefined ? 'GET' : 'POST') => {
     const response = await request(new URL(path, origin).href, { method, headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
     assert.ok(response.ok, `Native person request returned ${response.status}`)
@@ -107,14 +116,42 @@ export default async function journey({ request, origin, cookie, tool }) {
   const decided = await state(), final = decided.state.proposals.find(row => row.id === id)
   assert.equal(final.status, 'declined')
   assert.equal(final.approvedBy, decided.actor.id)
+  assert.deepEqual(final.preparation, proposal.preparation)
+  await attributionExports({ request, origin, cookie }, final)
   assert.equal(decided.state.audit.findLast(row => row.subject === id).preparation, undefined)
 }
 
 export async function beforeStep(context) {
   if (context.phase === 'held' && context.step.id === 'workspace-snapshot') await tightenedRecovery(context)
+  if (context.step.tool === 'placemat.guests.history') {
+    const rows = await auditRows(personReads(context))
+    historyAudits.set(historyKey(context), rows.at(-1)?.sequence ?? 0)
+  }
 }
 
 export async function afterStep({ request, origin, cookie, step, args, phase, result, tool }) {
+  if (step.tool === 'placemat.guests.history') {
+    const person = personReads({ request, origin, cookie })
+    const visible = (await person('/api/guests?search=' + encodeURIComponent(args.search ?? ''))).guests
+    assert.deepEqual(result.data.guests.map(row => row.id).sort(), visible.map(row => row.id).sort())
+    assert.equal(visible.length, step.expect[0].facts.measure)
+    assert.ok(visible.every(row => !row.erased))
+    const key = historyKey({ origin, phase, step })
+    assert.ok(historyAudits.has(key))
+    const rows = (await auditRows(person)).filter(row => row.tool === step.tool && row.sequence > historyAudits.get(key))
+    historyAudits.delete(key)
+    assert.ok(rows.length)
+    for (const row of rows) assert.deepEqual(row.classes, step.expect)
+    if (phase === 'held') {
+      const pending = rows.find(row => row.outcome === 'pending')
+      assert.ok(pending)
+      const execution = rows.find(row => row.decision_id === pending.id)
+      assert.equal(execution.outcome, 'done')
+      assert.deepEqual(execution.classes, step.expect)
+    }
+    console.log(`PROBE BASE-AGENT-006 ${phase} ${step.id}: native search and MCP identities agree; audited sensitive measure=${visible.length}; facts contain no guest values`)
+    return
+  }
   if (step.tool !== 'placemat.plans.prepare') return
   const response = await request(new URL('/api/state', origin).href, { headers: { Cookie: cookie } })
   assert.ok(response.ok)
@@ -125,6 +162,7 @@ export async function afterStep({ request, origin, cookie, step, args, phase, re
   assert.equal(proposal.preparation.label, `${proposal.preparation.agent.name} for ${proposal.preparation.for.name}`)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).preparation.label, proposal.preparation.label)
   assert.equal(native.state.audit.find(row => row.subject === proposal.id).source, 'company-agent')
+  await attributionExports({ request, origin, cookie }, proposal)
   const person = async path => {
     const response = await request(new URL(path, origin).href, { headers: { Cookie: cookie } })
     assert.ok(response.ok)
@@ -154,5 +192,19 @@ export async function afterStep({ request, origin, cookie, step, args, phase, re
     assert.deepEqual(refused.classes.map(item => item.class).sort(), ['sensitive', 'standard'])
   }
   console.log(`PROBE BASE-AGENT-009 ${phase} ${proposal.kind}: native service target retained through admission and replay${phase === 'held' && proposal.kind === 'reminders' ? ', approval summary and execution audit' : ''}`)
-  if (phase === 'autonomous' && step.id === 'prepare-publication') await completedPublication({ request, origin, cookie })
+  if (['autonomous', 'held'].includes(phase) && step.id === 'prepare-publication') await completedPublication({ request, origin, cookie }, phase)
+}
+
+// Both existing policy journeys retain the independently stored preparation identity in owner exports.
+async function attributionExports({ request, origin, cookie }, proposal) {
+  for (const path of ['/api/business-export/proposals.csv', '/api/audit.csv?' + new URLSearchParams({ subject: proposal.id })]) {
+    const response = await request(new URL(path, origin).href, { headers: { Cookie: cookie } })
+    assert.ok(response.ok)
+    const rows = csvRecords(await response.text())
+    const row = rows.find(row => path.startsWith('/api/audit.csv') ? row.action === 'proposal.prepare' && row.subject === proposal.id : row.id === proposal.id)
+    assert.ok(row)
+    const exported = JSON.parse(row.data_json)
+    assert.deepEqual(exported.preparation, proposal.preparation)
+    if (path.startsWith('/api/business-export/')) assert.equal(exported.approvedBy, proposal.approvedBy)
+  }
 }
