@@ -183,12 +183,19 @@ async function approvalScreens(browser) {
       await page.clock.setFixedTime(now)
       const response = page.waitForResponse(response => new URL(response.url()).pathname === approvalPath(approval) + '/' + action)
       await page.locator(`[data-approval-action="${action}"]`).click()
-      const answer = await response, body = await answer.json()
+      const answer = await response
+      let body
       if (answer.status() === 409) {
+        body = await answer.json()
         await page.locator('#action-status:focus').waitFor()
         assert.ok((await page.locator('#action-status').innerText()).trim(), 'The stale approval reports its refusal to the person')
       }
-      else await page.locator(`[data-approval-state="${body.approval.state}"]`).waitFor()
+      else {
+        await page.locator(`[data-approval-state="${action === 'reject' ? 'rejected' : 'executed'}"]`).waitFor()
+        // The shipped form reloads immediately. Read the durable result through
+        // the person API instead of racing Chromium's discarded response body.
+        body = await h.api(approvalPath(approval))
+      }
       return { status: answer.status(), body }
     },
     async terminal(h, approval, now) {
