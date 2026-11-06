@@ -1,0 +1,218 @@
+{
+  "repository": "just-every/run-placemat",
+  "branch": "cloud/sx-placemat-c-f54",
+  "head": "eea85727b2402f116b6579db85ec1eb47906db66",
+  "main": "9e6bb6147a834849683f30973a45a814a0ee0139",
+  "productStatus": "READY under generated-view exception",
+  "pr": null,
+  "clauses": [
+    {
+      "id": "MSG-003",
+      "before": "missing",
+      "after": "partial",
+      "doneClaim": false
+    }
+  ],
+  "checks": [
+    {
+      "name": "booking API",
+      "command": "node --test tests/api/booking-rules.test.mjs",
+      "exit": 0,
+      "tests": 4,
+      "passed": 4,
+      "log": "booking-api.log",
+      "head": "eea85727b2402f116b6579db85ec1eb47906db66"
+    },
+    {
+      "name": "custody API",
+      "command": "node --test --test-concurrency=1 tests/api/business-export.test.mjs tests/api/privacy.test.mjs",
+      "exit": 0,
+      "tests": 4,
+      "passed": 4,
+      "log": "custody-api.log",
+      "head": "eea85727b2402f116b6579db85ec1eb47906db66"
+    },
+    {
+      "name": "browser",
+      "command": "PLACEMAT_BOOK_ONLY=management node tests/search-ui.mjs",
+      "exit": 0,
+      "widths": [
+        1440,
+        390
+      ],
+      "log": "browser.log",
+      "head": "eea85727b2402f116b6579db85ec1eb47906db66"
+    },
+    {
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "name": "first-party",
+      "command": "pnpm run check --profile first-party",
+      "exit": 0,
+      "log": "first-party.log"
+    },
+    {
+      "name": "build",
+      "command": "cloud_run npx -y @runeditrun/rer build",
+      "exit": 0,
+      "log": "build.log",
+      "head": "eea85727b2402f116b6579db85ec1eb47906db66"
+    },
+    {
+      "name": "views write",
+      "command": "node scripts/contract-docs.mjs write REPORT-008 REPORT-005 CRM-005 MSG-003",
+      "exit": 0,
+      "log": "contract-views.log"
+    },
+    {
+      "name": "views check",
+      "command": "node scripts/contract-docs.mjs check REPORT-008 REPORT-005 CRM-005 MSG-003",
+      "exit": 0,
+      "log": "contract-views.log"
+    },
+    {
+      "name": "lock",
+      "command": "node scripts/edition-authoring/cli.mjs lock",
+      "exit": 0
+    },
+    {
+      "name": "lock check after final rebase",
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0
+    },
+    {
+      "name": "migration ledger",
+      "command": null,
+      "exit": 0,
+      "note": "No separate migration-ledger command is declared. Migration 0056 is appended; all real D1 migrations are applied in each public-door API installation. Existing migration files are unchanged."
+    }
+  ],
+  "generatedViewsCommitted": false,
+  "statusRows": 148,
+  "publicationScan": "fleet landing duty; not run in cloud",
+  "bundle": {
+    "path": "/home/agent/rer-consolidation/work/sx-placemat-c-f54/product.bundle",
+    "sha256": "eccc6b94cc7b0df01ff6d3f3926b72e395bb4564eb706cd15cca8d8b3b3a377d",
+    "verified": true,
+    "requires": "9e6bb6147a834849683f30973a45a814a0ee0139"
+  },
+  "mainCI": {
+    "Verify": 42137364393,
+    "RunSite": 42094882813,
+    "conclusion": "success"
+  },
+  "candidateCI": {
+    "id": 42189347280,
+    "conclusion": "failure",
+    "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+    "html_url": "https://github.com/just-every/run-placemat/actions/runs/42189347280",
+    "status": "completed",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797241786,
+        "name": "plan",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303550,
+        "name": "shards (api-1, false)",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "failure",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303560,
+        "name": "shards (source, false)",
+        "status": "completed",
+        "steps": [
+          {
+            "conclusion": "failure",
+            "name": "Run this shard"
+          }
+        ]
+      },
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303567,
+        "name": "shards (runtime-ui-1, true)",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303609,
+        "name": "shards (shared-hoststand, true)",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303617,
+        "name": "shards (runtime, true)",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303626,
+        "name": "shards (site, false)",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303666,
+        "name": "shards (runtime-ui-2, true)",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "success",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127797303712,
+        "name": "shards (api-2, false)",
+        "status": "completed",
+        "steps": []
+      },
+      {
+        "conclusion": "failure",
+        "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+        "id": 127801060003,
+        "name": "verify",
+        "status": "completed",
+        "steps": [
+          {
+            "conclusion": "failure",
+            "name": "Require every shard"
+          }
+        ]
+      }
+    ],
+    "allowedGeneratedViewException": true,
+    "readyEligible": true
+  },
+  "githubCalls": 10,
+  "preservedFiles": [
+    "copied mail intake and D1 store",
+    "copied Base source",
+    "GitHub workflows",
+    "rer and package pins",
+    "homepage and logos"
+  ],
+  "blockers": []
+}

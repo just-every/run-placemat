@@ -1,0 +1,6 @@
+{
+  "head": "f3bc094c006b33af63aae4a02178a484207caac8",
+  "job": "127775215495",
+  "command": "CI=true WRANGLER_SEND_METRICS=false PLAYWRIGHT_SKIP_BROWSER_GC=1 SHARD=runtime-ui-2 node scripts/verify-ci.mjs runtime-ui-2",
+  "exit": 0
+}

@@ -1,0 +1,57 @@
+{
+  "head": "eea85727b2402f116b6579db85ec1eb47906db66",
+  "command": "PLACEMAT_BOOK_ONLY=management PLACEMAT_SCREENSHOTS=<packet>/screens node tests/search-ui.mjs",
+  "exit": 0,
+  "widths": [
+    1440,
+    390
+  ],
+  "chromium": "/usr/bin/chromium",
+  "args": [
+    "--no-sandbox"
+  ],
+  "assertionWidth": 1440,
+  "screens": [
+    {
+      "path": "screens/BOOK-004-email-accepted-1440.png",
+      "bytes": 24199,
+      "sha256": "a2e5d32b224a4d596af5a082759be24737684fb74d3c688a0b81b39383851b6d"
+    },
+    {
+      "path": "screens/BOOK-004-email-accepted-390.png",
+      "bytes": 23687,
+      "sha256": "c5ef923390b730f62a50ac0a3d9970268c4eb245f612fbfc67de975ed62c2c40"
+    },
+    {
+      "path": "screens/BOOK-004-email-bounced-1440.png",
+      "bytes": 31600,
+      "sha256": "429292bbe5d8f573d2ba2fbdc03257dc1f5fd45909781d1a0624eb63a19b6679"
+    },
+    {
+      "path": "screens/BOOK-004-email-bounced-390.png",
+      "bytes": 31309,
+      "sha256": "cee7039d1f3f1fe87c15714383a31ce3d54018e5d768b4de9746739a27af6436"
+    },
+    {
+      "path": "screens/BOOK-004-email-complaint-1440.png",
+      "bytes": 36198,
+      "sha256": "6ac0fbeedb0835d725f720d98ba43115667f2c88916531efdc1ff0a5a78851ed"
+    },
+    {
+      "path": "screens/BOOK-004-email-complaint-390.png",
+      "bytes": 36465,
+      "sha256": "49f20c147fad64922d0099de68c93e73bfe841e6ddabc3b280fb6c63ba2f2a46"
+    },
+    {
+      "path": "screens/BOOK-004-email-delivered-1440.png",
+      "bytes": 29443,
+      "sha256": "5272d79d6efd038c7acc3f06328e4853a854f1aa77bdca1df832fbaa3fec514d"
+    },
+    {
+      "path": "screens/BOOK-004-email-delivered-390.png",
+      "bytes": 29781,
+      "sha256": "9ba60d4a67d54346752f4de022fa1b4077b53fc04ec6d3c18e98542fe046992c"
+    }
+  ],
+  "visualInspection": "Accepted, delivered, bounced and complained panel; no horizontal overflow; all boundaries and text readable at both widths"
+}

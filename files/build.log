@@ -1,0 +1,42 @@
+Heavy job admitted: Placemat build:workflow [f8199e9809e6]
+Checking pinned pnpm
+10.12.4
+Building your application
+build:app
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 135 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore               0.02 kB
+dist/client/assets/index-B_mkuos_.js  311.21 kB │ gzip: 100.87 kB
+
+✓ built in 320ms
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 777 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/wrangler.json                                      1.65 kB │ gzip:   0.83 kB
+dist/server/.vite/manifest.json                                3.07 kB │ gzip:   0.63 kB
+dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:   0.18 kB
+dist/server/assets/start-F3eVvvda.js                           0.28 kB │ gzip:   0.20 kB
+dist/server/assets/_tanstack-start-manifest_v-A3b3K4gG.js      0.39 kB │ gzip:   0.28 kB
+dist/server/assets/font-head-jF9pKUoY.js                       0.46 kB │ gzip:   0.30 kB
+dist/server/assets/rolldown-runtime-DC62tzP2.js                1.44 kB │ gzip:   0.67 kB
+dist/server/assets/hash-B34pK5CR.js                            4.63 kB │ gzip:   2.13 kB
+dist/server/assets/router-Ckll0Ngi.js                         37.26 kB │ gzip:  10.08 kB
+dist/server/assets/Match-CHZesyjQ.js                         161.10 kB │ gzip:  40.32 kB
+dist/server/assets/store-CAAk8fH6.js                         190.07 kB │ gzip:  49.14 kB
+dist/server/index.js                                       2,866.42 kB │ gzip: 693.63 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/modules/portability/storage.mjs is dynamically imported by src/modules/portability/import.mjs but also statically imported by src/modules/portability/backfills.mjs, src/modules/portability/bookkeeping.mjs, src/modules/portability/bridge.mjs, src/modules/portability/catalogue.mjs, src/modules/portability/copies.mjs, ..., dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/placemat/fee-policy.ts is dynamically imported by src/placemat/stripe-merchant.ts but also statically imported by src/placemat/card-guarantees.ts, src/placemat/card-hold-records.ts, src/placemat/fee-expiry.ts, src/placemat/fees.ts, src/placemat/payment-accounting.ts, ..., dynamic import will not move module into another chunk.
+
+✓ built in 695ms
+Your application is built
+build: complete (exit 0)

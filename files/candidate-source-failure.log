@@ -1,0 +1,33 @@
+shards (source, false)	Run this shard	﻿2026-11-06T08:40:55.9955726Z ##[group]Run node scripts/verify-ci.mjs "$SHARD"
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9956169Z [36;1mnode scripts/verify-ci.mjs "$SHARD"[0m
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9975822Z shell: /usr/bin/bash -e {0}
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9976080Z env:
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9976264Z   CI: true
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9976471Z   WRANGLER_SEND_METRICS: false
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9976733Z   PLAYWRIGHT_SKIP_BROWSER_GC: 1
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9976984Z   SHARD: source
+shards (source, false)	Run this shard	2026-11-06T08:40:55.9977180Z ##[endgroup]
+shards (source, false)	Run this shard	2026-11-06T08:40:56.0281914Z > pnpm run verify:app
+shards (source, false)	Run this shard	2026-11-06T08:40:56.3057075Z 
+shards (source, false)	Run this shard	2026-11-06T08:40:56.3058106Z > @hospitality/placemat@0.1.0 verify:app /home/runner/work/run-placemat/run-placemat
+shards (source, false)	Run this shard	2026-11-06T08:40:56.3058798Z > node scripts/verify-app.mjs
+shards (source, false)	Run this shard	2026-11-06T08:40:56.3059036Z 
+shards (source, false)	Run this shard	2026-11-06T08:40:56.3351772Z > pnpm run check --profile first-party
+shards (source, false)	Run this shard	2026-11-06T08:40:56.6096439Z 
+shards (source, false)	Run this shard	2026-11-06T08:40:56.6097451Z > @hospitality/placemat@0.1.0 check /home/runner/work/run-placemat/run-placemat
+shards (source, false)	Run this shard	2026-11-06T08:40:56.6098124Z > rer check --profile first-party
+shards (source, false)	Run this shard	2026-11-06T08:40:56.6098628Z 
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0264988Z > node scripts/contract-docs.mjs check REPORT-008 REPORT-005 CRM-005
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0830977Z file:///home/runner/work/run-placemat/run-placemat/scripts/contract-docs.mjs:24
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0832159Z  else if(read(path)!==output)throw Error('Regenerate '+path)
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0832838Z                                    ^
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0833245Z 
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0833674Z Error: Regenerate docs/CLAIMS.md
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0834547Z     at file:///home/runner/work/run-placemat/run-placemat/scripts/contract-docs.mjs:24:36
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0835786Z     at ModuleJob.run (node:internal/modules/esm/module_job:345:25)
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0836422Z     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0837086Z     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0837471Z 
+shards (source, false)	Run this shard	2026-11-06T08:40:57.0837572Z Node.js v22.20.0
+shards (source, false)	Run this shard	2026-11-06T08:40:57.1012310Z  ELIFECYCLE  Command failed with exit code 1.
+shards (source, false)	Run this shard	2026-11-06T08:40:57.1254650Z ##[error]Process completed with exit code 1.

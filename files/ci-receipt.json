@@ -1,0 +1,101 @@
+{
+  "id": 42189347280,
+  "conclusion": "failure",
+  "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+  "html_url": "https://github.com/just-every/run-placemat/actions/runs/42189347280",
+  "status": "completed",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797241786,
+      "name": "plan",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303550,
+      "name": "shards (api-1, false)",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "failure",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303560,
+      "name": "shards (source, false)",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "failure",
+          "name": "Run this shard"
+        }
+      ]
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303567,
+      "name": "shards (runtime-ui-1, true)",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303609,
+      "name": "shards (shared-hoststand, true)",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303617,
+      "name": "shards (runtime, true)",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303626,
+      "name": "shards (site, false)",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303666,
+      "name": "shards (runtime-ui-2, true)",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "success",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127797303712,
+      "name": "shards (api-2, false)",
+      "status": "completed",
+      "steps": []
+    },
+    {
+      "conclusion": "failure",
+      "head_sha": "eea85727b2402f116b6579db85ec1eb47906db66",
+      "id": 127801060003,
+      "name": "verify",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "failure",
+          "name": "Require every shard"
+        }
+      ]
+    }
+  ],
+  "allowedGeneratedViewException": true,
+  "readyEligible": true
+}
