@@ -76,10 +76,15 @@ export async function approvalOutcomes(screens) {
     assert.equal(afterReject.status, 200)
     assert.deepEqual((await afterReject.json()).approval, rejected.body.approval, 'Late approval cannot revive or add a person mark to a declined preparation')
     assert.deepEqual(await h.api('/api/state'), before)
-    console.log('PROBE BASE-AGENT-007 rejection: MCP pending preparation, named signed-in person declines, exact-key retries and late approval -> approval_rejected, no private result or native effect')
+    await h.restart()
+    assert.deepEqual((await h.api(approvalPath(rejection))).approval, rejected.body.approval, 'Rejection survives a new Worker against the saved installation')
+    await refused(rejectedArgs, 'approval_rejected')
+    console.log('PROBE BASE-AGENT-007 rejection: MCP pending preparation, named signed-in person declines, exact-key retries, late approval and Worker restart -> approval_rejected, no private result or native effect')
 
     const expiredArgs = args(), expiring = await pending(expiredArgs)
     const deadline = Date.parse(expiring.expires_at)
+    await h.restart()
+    assert.deepEqual((await h.api(approvalPath(expiring))).approval, expiring, 'Restart preserves the exact pending facts and original deadline')
     now = deadline - 1
     const waiting = await call(credential.key, expiredArgs)
     assert.equal(waiting.body.result?.resultType, 'input_required', 'The saved request still waits immediately before its deadline')
@@ -97,14 +102,23 @@ export async function approvalOutcomes(screens) {
     assert.equal(late.body.code, 'approval_expired')
     assert.deepEqual((await h.api(approvalPath(expiring))).approval, expired)
     await screens?.terminal(h, expired, now)
+    await h.restart()
+    assert.deepEqual((await h.api(approvalPath(expiring))).approval, expired, 'Expired approval stays terminal after restart')
     now = deadline + 1
     await refused(expiredArgs, 'approval_expired')
+    await refused(rejectedArgs, 'approval_rejected')
+    assert.deepEqual((await h.api(approvalPath(rejection))).approval, rejected.body.approval, 'Passing the original deadline cannot replace or revive a saved rejection')
+    const afterExpiry = await h.request(approvalPath(expiring) + '/approve', { method: 'POST', body: evidence(expiring) })
+    assert.equal(afterExpiry.status, 409)
+    assert.equal((await afterExpiry.json()).code, 'approval_expired')
+    assert.deepEqual((await h.api(approvalPath(expiring))).approval, expired)
+    assert.deepEqual(await h.api('/api/state'), before)
     for (const input of [rejectedArgs, expiredArgs]) {
       const rows = (await h.api('/agents/api/audit?agent=' + credential.id)).rows.filter(row => row.idempotency_key === input.idempotency_key)
       assert.ok(rows.some(row => row.outcome === 'pending'))
       assert.ok(!rows.some(row => row.outcome === 'done'), 'A terminal refusal has no successful execution audit')
     }
-    console.log('PROBE BASE-AGENT-007 expiry: saved deadline minus 1 ms -> same pending handle; exact deadline and beyond, exact-key retry and stale signed-in approval -> approval_expired, no private result or native effect')
+    console.log('PROBE BASE-AGENT-007 expiry: persisted pending preparation at saved deadline minus 1 ms -> same handle; exact deadline and beyond, exact-key retry, stale signed-in approval and Worker restart -> approval_expired, no private result or native effect')
 
     const successArgs = args(), successful = await pending(successArgs)
     await screens?.pending(h, successful, now)
@@ -212,6 +226,8 @@ async function approvalScreens(browser) {
 
 if (process.argv[1] === import.meta.filename) {
   const { chromium } = await import('@playwright/test')
-  const browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  const browser = await chromium.launch({ headless: true,
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}),
+    args: ['--no-sandbox', '--use-mock-keychain', '--password-store=basic'] })
   try { await approvalOutcomes(await approvalScreens(browser)) } finally { await browser.close() }
 }
