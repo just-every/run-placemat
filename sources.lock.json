@@ -4346,7 +4346,7 @@
       "executable": false
     },
     "src/placemat/archive-policy.mjs": {
-      "sha256": "5a4ab846ce3fd57222eb2af95eabf0ce02eded72ac2abfea018271f733615a37",
+      "sha256": "db1719b55e6e375de56d4eaafc332e579e13a4bca5390234d09587ec4a3fc548",
       "executable": false
     },
     "src/placemat/assignments.ts": {
@@ -4602,7 +4602,7 @@
       "executable": false
     },
     "src/placemat/guest-state-erasure.ts": {
-      "sha256": "ba82adec81e7e81c8abff6970cb8b31fe479af994a6e7e32507c7011330325c7",
+      "sha256": "460272068dc4d8d8286b1e336f7b95f92e932fa3798e228baabdec195b97510a",
       "executable": false
     },
     "src/placemat/guests.ts": {
@@ -4683,6 +4683,10 @@
     },
     "src/placemat/local-time.ts": {
       "sha256": "841be54104df7698e6a8f50e9cc1ba8e919a2e5d3102b4c9519ad06a328605c8",
+      "executable": false
+    },
+    "src/placemat/mail-history-archive.mjs": {
+      "sha256": "9501f2604e9311f39e8709fa8cd561d068bf0ebe3752abbefaff4effe92759a1",
       "executable": false
     },
     "src/placemat/message-templates.ts": {

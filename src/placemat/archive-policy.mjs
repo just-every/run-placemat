@@ -1,4 +1,4 @@
-import {validateBookingMail} from './booking-management-mail-archive.mjs'
+import {validateMailHistory} from './mail-history-archive.mjs'
 import {validateReviews} from './reviews-archive.mjs'
 import {validateFeedback,portableFeedbackState} from './feedback-archive.mjs'
 import {validateDiners} from './diner-archive.mjs'
@@ -67,7 +67,7 @@ function validateStaffing(s,tables){
 export default {
  product:'hospitality/placemat',
  // BOOK-002/DATA-003: analytics keys are write-only secrets and never leave the installation; a restore needs them entered again.
- excludeTables:['pm_refund_mail_custody','rer_mail_event_receipts','rer_mail_event_states','pm_feedback_settings','pm_feedback_credentials','pm_diner_mail_limits','pm_diner_sessions','pm_diner_challenges','pm_payment_operation_custody','pm_report_schedules','pm_report_deliveries','pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
+ excludeTables:['pm_refund_mail_custody','pm_feedback_settings','pm_feedback_credentials','pm_diner_mail_limits','pm_diner_sessions','pm_diner_challenges','pm_payment_operation_custody','pm_report_schedules','pm_report_deliveries','pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
   if(table==='pm_booking_mail')return {...row,historical:1}
   if(table==='pm_reviews')return {...row,historical:1}
@@ -90,7 +90,7 @@ export default {
   await validateDiners(read,rows,guests)
   await validateFeedback(read,rows,guests)
   await validateReviews(read,rows,guests)
-  await validateBookingMail(read,rows,guests)
+  await validateMailHistory(read,rows,guests)
   const bookingContacts=await read('pm_booking_contacts')
   for(const row of guests){const g=JSON.parse(row.data);if(g.id!==row.id||typeof g.name!=='string'||typeof g.email!=='string'||typeof g.notes!=='string')throw Error('Invalid guest')}
   if(!rows.length){if(reports.length||(await read('pm_guest_merges')).length)throw Error('Business journals need their venue state');await validatePayments({bookings:[]},read);await validateFees({bookings:[]},read);return}
