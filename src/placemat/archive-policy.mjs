@@ -1,3 +1,5 @@
+import {validateBookingMail} from './booking-management-mail-archive.mjs'
+import {validateReviews} from './reviews-archive.mjs'
 import {validateFeedback,portableFeedbackState} from './feedback-archive.mjs'
 import {validateDiners} from './diner-archive.mjs'
 import {validateExperiences,validateExperienceBookings} from './experiences-archive.mjs'
@@ -12,6 +14,21 @@ import {validateGuestMerges} from './guest-merge-archive.mjs'
 import {validateServiceNotes} from './service-notes-archive.mjs'
 import {validateOnboarding} from './onboarding-archive.mjs'
 import {validatePayments} from './payment-archive.mjs'
+function validateMessageTemplates(s){
+ const templates=s.messageTemplates??[],versions={en:0,es:0},templateIds=new Set()
+ if(!Array.isArray(templates))throw Error('Invalid message templates')
+ for(const t of templates){
+  if(!t||!['en','es'].includes(t.language)||t.version!==versions[t.language]+1||typeof t.id!=='string'||!t.id||templateIds.has(t.id)||typeof t.body!=='string'||!t.body.trim()||t.body.length>4000||typeof t.createdBy!=='string'||!Number.isFinite(Date.parse(t.createdAt)))throw Error('Invalid message template version')
+  const tokens=[...t.body.matchAll(/\{\{([^{}]+)\}\}/g)].map(m=>m[1])
+  if(tokens.some(k=>!['guest_name','venue_name','date_time','party_size','guest_phone','venue_phone','cancellation_terms'].includes(k))||/[{}]/.test(t.body.replace(/\{\{([^{}]+)\}\}/g,''))||['venue_name','date_time','party_size','cancellation_terms'].some(k=>!tokens.includes(k)))throw Error('Invalid template substitutions')
+  versions[t.language]=t.version;templateIds.add(t.id)
+ }
+ const messages=[...s.reminders,...s.proposals.filter(p=>p.kind==='reminders').flatMap(p=>p.plan?.messages??[])]
+ for(const m of messages){
+  if(m.templateVersion===undefined)continue // Earlier approved CSV records remain portable.
+  if(!s.bookings.some(b=>b.id===m.bookingId)||!['en','es'].includes(m.language)||typeof m.message!=='string'||!Number.isSafeInteger(m.templateVersion)||m.templateVersion<0||!(m.templateVersion===0?m.templateId==='reminder-'+m.language:templates.some(t=>t.id===m.templateId&&t.language===m.language&&t.version===m.templateVersion))||!Array.isArray(m.policies)||m.policies.some(p=>!p||!['fee','experience'].includes(p.source)||typeof p.id!=='string'||!Number.isSafeInteger(p.version)||p.version<1||typeof p.terms!=='string'||!p.terms.trim()))throw Error('Invalid reviewed reminder')
+ }
+}
 function validatePacing(s){
  for(const service of s.services){
   const p=service.pacing;if(p===undefined)continue
@@ -53,6 +70,8 @@ export default {
  excludeTables:['pm_group_guest_codes','pm_feedback_settings','pm_feedback_credentials','pm_diner_mail_limits','pm_diner_sessions','pm_diner_challenges','pm_payment_operation_custody','pm_report_schedules','pm_report_deliveries','pm_stripe_merchant','pm_stripe_collection_custody','pm_reservation_requests','pm_integration_keys','pm_integration_limits','pm_integration_audit','pm_integration_events','pm_integration_subscriptions','pm_integration_deliveries','pm_booking_holds','pm_fee_credentials','pm_booking_management','pm_group_invites','pm_group_links','pm_group_admins','pm_group_tokens','pm_group_home','pm_host_pins','pm_host_devices','pm_host_security_events','pm_agent_keys','pm_public_limits','pm_assertions','pm_analytics_keys','pm_analytics_results'],
  exportRow(table,row){
   if(table==='pm_group_guests')return {...row,preferences:0,visits:0,rebooking:0}
+  if(table==='pm_booking_mail')return {...row,historical:1}
+  if(table==='pm_reviews')return {...row,historical:1}
   if(table==='pm_state'){const state=portableFeedbackState(JSON.parse(row.data));if(state.serviceChanges)state.serviceChanges=portableServiceChanges(state.serviceChanges);for(const p of state.proposals??[])if(p.plan?.snapshot?.serviceChanges)p.plan.snapshot.serviceChanges=portableServiceChanges(p.plan.snapshot.serviceChanges);return {...row,data:JSON.stringify(state)}}
   if(table==='pm_fee_assessments')return {...row,processing_until:0}
   if(table==='pm_refund_webhooks')return {...row,claim:''}
@@ -71,6 +90,8 @@ export default {
   const ids=new Set(guests.map(row=>row.id))
   await validateDiners(read,rows,guests)
   await validateFeedback(read,rows,guests)
+  await validateReviews(read,rows,guests)
+  await validateBookingMail(read,rows,guests)
   const bookingContacts=await read('pm_booking_contacts')
   for(const row of guests){const g=JSON.parse(row.data);if(g.id!==row.id||typeof g.name!=='string'||typeof g.email!=='string'||typeof g.notes!=='string')throw Error('Invalid guest')}
   if(!rows.length){if(reports.length||(await read('pm_guest_merges')).length)throw Error('Business journals need their venue state');await validatePayments({bookings:[]},read);await validateFees({bookings:[]},read);return}
@@ -78,6 +99,7 @@ export default {
   validateGuestMerges(guests,await read('pm_guest_merges'),s)
   if(!s.venue||!['tables','services','bookings','waitlist','proposals','reminders','audit'].every(k=>Array.isArray(s[k])))throw Error('Invalid floor state')
   validateOnboarding(s)
+  validateMessageTemplates(s)
   if(s.leadIds?.some(id=>s.hostIds?.includes(id))||s.serverIds?.some(id=>s.hostIds?.includes(id)||s.leadIds?.includes(id))||s.financeIds?.some(id=>s.hostIds?.includes(id)||s.leadIds?.includes(id)||s.serverIds?.includes(id)))throw Error('Conflicting staff grants')
   if(s.reportScopes!==undefined&&(!s.reportScopes||typeof s.reportScopes!=='object'||Array.isArray(s.reportScopes)||Object.entries(s.reportScopes).some(([id,ids])=>!id||!Array.isArray(ids)||new Set(ids).size!==ids.length||ids.some(id=>!s.services.some(service=>service.id===id)))))throw Error('Invalid report scope')
   if(s.managerRefundLimits!==undefined&&(!s.managerRefundLimits||typeof s.managerRefundLimits!=='object'||Array.isArray(s.managerRefundLimits)||Object.entries(s.managerRefundLimits).some(([id,cents])=>!id||!Number.isInteger(cents)||cents<0||cents>100000000)))throw Error('Invalid refund authority limit')

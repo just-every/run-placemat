@@ -37,7 +37,7 @@ export async function assertFeedbackPortability(h,f){
   await assertMergedFeedbackRestore(h,f)
   const rules=Object.fromEntries(['guestNotes','messageContent','imports','financialEvidence'].map(k=>[k,{days:365,ground:'Recorded restaurant service and accounting purpose'}]))
   await h.api('/api/privacy/policy',{version:0,rules})
-  const result=await h.api('/api/privacy/erase',{guestId:f.visits[0].guestId,confirm:'ERASE'})
+  const result=await h.api('/api/privacy/erase',{guestId:f.visits[0].guestId,review:(await h.api('/api/privacy/erase-preview',{guestId:f.visits[0].guestId})).review,confirm:'ERASE'})
   assert.ok(result.processorTasks>=2,'Actual accepted survey and recovery provider references need processor follow-up')
   await h.api('/api/public/feedback/status',{token:f.tokens[0]},{as:'',status:404})
   assert.equal((await csv(h,'feedback-visits')).some(v=>v.id===f.visits[0].id),false)

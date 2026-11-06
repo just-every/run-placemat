@@ -95,6 +95,14 @@ async function session(db:D1Database,p:any){
  if(!bookings.length)unavailable()
  return {account:a!,digest,bookings,expiresAt:device!.expires_at}
 }
+/** Current booking proof shared by the review door; an account alone grants nothing. */
+export async function dinerBookingProof(db:D1Database,p:any){
+ const s=await session(db,p),c=await bookingContact(db,p.bookingId)
+ if(!c||!s.bookings.some(b=>b.id===p.bookingId)||email(c.contact.email)!==s.account.email)unavailable()
+ return {...c!,accountId:s.account.id,digest:s.digest,fences:[...contactFence(db,c!),
+  db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_diner_sessions WHERE digest=? AND account_id=? AND expires_at>?) AND EXISTS(SELECT 1 FROM pm_diner_bookings WHERE account_id=? AND booking_id=? AND guest_id=?) THEN 1 ELSE 0 END').bind(s.digest,s.account.id,Date.now(),s.account.id,c!.booking.id,c!.guest.id),
+  db.prepare('INSERT INTO pm_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) THEN 1 ELSE 0 END').bind(c!.version)]}
+}
 export async function dinerResponse(request:Request,env:Bindings):Promise<Response|null>{
  const path=new URL(request.url).pathname
  if(path==='/diner'||path==='/diner/manage'){

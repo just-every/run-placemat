@@ -5,6 +5,7 @@ import {guests} from '../store'
 import {accessExport} from './access'
 import {policy,savePolicy,reviewRetention} from './store'
 import {correctNeed,eraseRequest,processorTask,runRetention} from './requests'
+import {reviewErasure,validateErasure} from './erasure-review'
 import {privacyPage} from './view'
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
 export async function privacyResponse(request:Request,env:Bindings):Promise<Response|null>{
@@ -24,7 +25,8 @@ export async function privacyResponse(request:Request,env:Bindings):Promise<Resp
   if(path==='/api/privacy/policy')return reply(await savePolicy(env.DB,actor,p))
   if(path==='/api/privacy/access')return reply(await accessExport(env.DB,actor,p.guestId))
   if(path==='/api/privacy/correction')return reply(await correctNeed(env.DB,actor,p))
-  if(path==='/api/privacy/erase')return reply(await eraseRequest(env.DB,actor,p))
+  if(path==='/api/privacy/erase-preview')return reply(await reviewErasure(env.DB,actor,p.guestId,env.SESSION_SECRET))
+  if(path==='/api/privacy/erase')return reply(await eraseRequest(env.DB,actor,p,await validateErasure(env.DB,actor,p,env.SESSION_SECRET)))
   if(path==='/api/privacy/processors')return reply(await processorTask(env.DB,actor,p))
   if(path==='/api/privacy/retention-preview')return reply(await reviewRetention(env.DB))
   if(path==='/api/privacy/retention-run')return reply(await runRetention(env.DB,actor,p))
