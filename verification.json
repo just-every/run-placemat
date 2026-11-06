@@ -84,7 +84,8 @@
         "node tests/pacing-ui.mjs",
         "node tests/staffing-ui.mjs",
         "node tests/performance-ui.mjs",
-        "node tests/risk-ui.mjs"
+        "node tests/risk-ui.mjs",
+        "node tests/refund-notices-ui.mjs"
       ]
     },
     {

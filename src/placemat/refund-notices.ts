@@ -3,12 +3,14 @@ import {operatorMail} from '../mail.server.mjs'
 import {person} from './access'
 import {fail,id,text,type Actor} from './model'
 import {refundNoticeFollowup} from './refund-notice-followup'
+import {refundMailConfiguration,refundMailObservations,refundMailDelivery,refundMailAudit,type RefundMailObservation} from './refund-mail-events'
 
 type Refund={id:string;booking_id:string;charge_id:string;amount_cents:number;status:string;processor_id:string|null}
 type Notice={id:string;refund_id:string;outcome:string;amount_cents:number;remaining_cents:number;requested_by:string;requested_at:string;state:string;provider_id:string|null;accepted_at:string|null}
 const usd=(cents:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(cents/100)
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
-const receipt=(r:Notice)=>({id:r.id,refundId:r.refund_id,outcome:r.outcome,amountCents:r.amount_cents,remainingCents:r.remaining_cents,state:r.state,requestedBy:r.requested_by,requestedAt:r.requested_at,acceptedAt:r.accepted_at,mailboxDelivery:'unconfirmed',followupTaskId:'refund-notice-'+r.id})
+const receipt=(r:Notice,events:RefundMailObservation[]=[])=>({id:r.id,refundId:r.refund_id,outcome:r.outcome,amountCents:r.amount_cents,remainingCents:r.remaining_cents,state:r.state,requestedBy:r.requested_by,requestedAt:r.requested_at,acceptedAt:r.accepted_at,...refundMailDelivery(events.filter(e=>e.notice_id===r.id)),followupTaskId:'refund-notice-'+r.id})
+const savedReceipt=async(db:D1Database,n:Notice)=>receipt(n,await refundMailObservations(db))
 
 /** Explicit, one-attempt owner delivery of a saved refund outcome, never automatic retry. */
 export async function sendRefundNotice(env:Bindings,actor:Actor,p:any){
@@ -22,7 +24,7 @@ export async function sendRefundNotice(env:Bindings,actor:Actor,p:any){
  const refund=await env.DB.prepare('SELECT id,booking_id,charge_id,amount_cents,status,processor_id FROM pm_refunds WHERE id=?').bind(refundId).first<Refund>()??fail(404,'Refund not found.')
  if(refund.status!==expectedOutcome)fail(409,'The refund outcome changed. Review it before sending a notice.')
  const existing=await env.DB.prepare('SELECT * FROM pm_refund_notices WHERE refund_id=? AND outcome=?').bind(refundId,refund.status).first<Notice>()
- if(existing)return receipt(existing)
+ if(existing)return savedReceipt(env.DB,existing)
  const row=await env.DB.prepare(`SELECT COALESCE(c.data,g.data) AS contact,COALESCE(json_extract(g.data,'$.erased'),0) AS erased
  FROM pm_state s,json_each(s.data,'$.bookings') b JOIN pm_guests g ON g.id=json_extract(b.value,'$.guestId')
  LEFT JOIN pm_booking_contacts c ON c.booking_id=json_extract(b.value,'$.id')
@@ -33,32 +35,37 @@ export async function sendRefundNotice(env:Bindings,actor:Actor,p:any){
  const expectedContactEmail=text(p.expectedContactEmail,'Reviewed reservation contact email',254)
  if(contact.email!==expectedContactEmail)fail(409,'Refund notice refused: the reservation contact changed. Refresh and review it before sending. No email was sent.')
  const balanceSql="c.amount_cents-c.imported_refunded_cents-COALESCE((SELECT SUM(other.amount_cents) FROM pm_refunds other WHERE other.charge_id=c.charge_id AND other.status IN ('pending','succeeded')),0)"
- const noticeId=id(),now=new Date().toISOString()
+ const noticeId=id(),now=new Date().toISOString(),mailConfig=refundMailConfiguration(env)
+ const custody=mailConfig?[env.DB.prepare(`INSERT INTO pm_refund_mail_custody(notice_id,installation_id,tenant_id,guest_id,recipient)
+ SELECT n.id,?,?,json_extract(b.value,'$.guestId'),? FROM pm_refund_notices n JOIN pm_refunds r ON r.id=n.refund_id
+ JOIN pm_state s ON s.id=1,json_each(s.data,'$.bookings') b WHERE n.id=? AND json_extract(b.value,'$.id')=r.booking_id`).bind(mailConfig.installationId,mailConfig.tenantId,contact.email,noticeId)]:[]
  // This reservation checks live authority, the exact refund outcome and the current contact in one write.
  const claimed=await env.DB.batch<Notice>([env.DB.prepare(`INSERT INTO pm_refund_notices(id,refund_id,outcome,amount_cents,remaining_cents,requested_by,requested_at,state)
  SELECT ?,r.id,r.status,r.amount_cents,${balanceSql},?,?,'sending' FROM pm_refunds r JOIN pm_refund_charges c ON c.charge_id=r.charge_id JOIN oa_operators o ON o.id=?
  WHERE r.id=? AND r.status=? AND o.role='owner' AND o.status='active' AND ${balanceSql}>=0
  AND EXISTS(SELECT 1 FROM pm_guests g JOIN pm_state s ON s.id=1,json_each(s.data,'$.bookings') b WHERE json_extract(b.value,'$.id')=r.booking_id AND g.id=json_extract(b.value,'$.guestId') AND COALESCE(json_extract(g.data,'$.erased'),0)=0 AND COALESCE((SELECT c.data FROM pm_booking_contacts c WHERE c.booking_id=r.booking_id),g.data)=? AND COALESCE(json_array_length(b.value,'$.handover'),0)<40)
- ON CONFLICT(refund_id,outcome) DO NOTHING RETURNING *`).bind(noticeId,actor.id,now,actor.id,refundId,refund.status,row.contact),refundNoticeFollowup(env.DB,noticeId)])
+ ON CONFLICT(refund_id,outcome) DO NOTHING RETURNING *`).bind(noticeId,actor.id,now,actor.id,refundId,refund.status,row.contact),refundNoticeFollowup(env.DB,noticeId),...custody])
  const inserted=claimed[0].results[0]
- if(!inserted){const concurrent=await env.DB.prepare('SELECT * FROM pm_refund_notices WHERE refund_id=? AND outcome=?').bind(refundId,refund.status).first<Notice>();if(concurrent)return receipt(concurrent);fail(409,'The refund, charge balance, authority or recorded contact changed, or the reservation has forty follow-ups. Review it again. No email was sent.')}
+ if(!inserted){const concurrent=await env.DB.prepare('SELECT * FROM pm_refund_notices WHERE refund_id=? AND outcome=?').bind(refundId,refund.status).first<Notice>();if(concurrent)return savedReceipt(env.DB,concurrent);fail(409,'The refund, charge balance, authority or recorded contact changed, or the reservation has forty follow-ups. Review it again. No email was sent.')}
  const outcome=refund.status==='succeeded'?'succeeded':refund.status==='pending'?'is pending':refund.status==='failed'?'failed':'was canceled'
  const message=`Your refund of ${usd(refund.amount_cents)} USD ${outcome}. Remaining refundable balance on this charge: ${usd(inserted!.remaining_cents)} USD, after pending and succeeded refunds. A pending refund is not a completed return of funds. Contact the venue for help. Reservation reference: ${refund.booking_id}.`
  let accepted=false,providerId:string|null=null
  try{
-  const result=await sender!.send({deliveryId:noticeId,from:env.MAIL_FROM!,to:[contact.email],subject:`Reservation refund ${refund.status} · ${refund.id}`,text:message,html:`<p>${escape(message)}</p>`,headers:{'Auto-Submitted':'auto-generated'}})
+  const result=await sender!.send({deliveryId:noticeId,from:env.MAIL_FROM!,to:[contact.email],subject:`Reservation refund ${refund.status} · ${refund.id}`,text:message,html:`<p>${escape(message)}</p>`,headers:{'Auto-Submitted':'auto-generated'},...(mailConfig?{customArgs:{rer_product:mailConfig.product}}:{})})
   accepted=result.status==='accepted';providerId=result.providerMessageId
  }catch{/* Keep the attempt unconfirmed. No automatic or duplicate send follows. */}
  await env.DB.prepare('UPDATE pm_refund_notices SET state=?,provider_id=?,accepted_at=? WHERE id=?').bind(accepted?'accepted':'unconfirmed',providerId,accepted?new Date().toISOString():null,noticeId).run()
- return receipt((await env.DB.prepare('SELECT * FROM pm_refund_notices WHERE id=?').bind(noticeId).first<Notice>())!)
+ return savedReceipt(env.DB,(await env.DB.prepare('SELECT * FROM pm_refund_notices WHERE id=?').bind(noticeId).first<Notice>())!)
 }
 
 export async function refundNotices(db:D1Database){
- return (await db.prepare('SELECT * FROM pm_refund_notices ORDER BY requested_at,id').all<Notice>()).results.map(receipt)
+ const events=await refundMailObservations(db)
+ return (await db.prepare('SELECT * FROM pm_refund_notices ORDER BY requested_at,id').all<Notice>()).results.map(n=>receipt(n,events))
 }
 
 /** Existing audit door presents the personally requested delivery and its actual provider outcome. */
 export async function refundNoticeAudit(db:D1Database){
  const rows=await db.prepare('SELECT n.*,r.booking_id FROM pm_refund_notices n JOIN pm_refunds r ON r.id=n.refund_id ORDER BY n.requested_at,n.id').all<Notice&{booking_id:string}>()
- return rows.results.map(n=>({id:'refund-notice-'+n.id,at:n.accepted_at??n.requested_at,actor:n.requested_by,action:'payment.refund-notice',subject:n.booking_id,source:'person' as const,changes:[{kind:'refundNotices',id:n.id,before:null,after:receipt(n)}]}))
+ const events=await refundMailObservations(db),refunds=(await db.prepare('SELECT id,booking_id FROM pm_refunds').all<Refund&{booking_id:string}>()).results
+ return [...rows.results.map(n=>({id:'refund-notice-'+n.id,at:n.accepted_at??n.requested_at,actor:n.requested_by,action:'payment.refund-notice',subject:n.booking_id,source:'person' as const,changes:[{kind:'refundNotices',id:n.id,before:null,after:receipt(n)}]})),...refundMailAudit(events,rows.results,refunds)]
 }

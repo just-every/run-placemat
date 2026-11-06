@@ -1,6 +1,19 @@
 import {feeWork} from './placemat-fees.js';
 const usd = cents => new Intl.NumberFormat('en-US', {style:'currency',currency:'USD'}).format(cents / 100);
 const committed = refund => ['pending','succeeded'].includes(refund.status);
+const mailboxStates = {
+ unconfirmed:['Unconfirmed','No provider delivery observation has been recorded.'],
+ accepted:['Accepted; mailbox delivery unconfirmed','The provider processed this message.'],
+ deferred:['Deferred','The provider reports a delivery delay. Confirm receipt with the guest directly.'],
+ delivered:['Delivered','The provider reports mailbox delivery. Guest receipt still needs human confirmation.'],
+ bounced:['Bounced','The provider could not deliver this message. Contact the guest directly.'],
+ rejected:['Rejected','The provider rejected this message. Contact the guest directly.'],
+ complained:['Complaint reported','The recipient reported this message as spam. Review the contact before further communication.'],
+};
+function mailboxObservation(notice,{esc,time}) {
+ const [label,help] = mailboxStates[notice.mailboxDelivery] || mailboxStates.unconfirmed;
+ return `<p data-refund-mailbox="${esc(notice.mailboxDelivery || 'unconfirmed')}">Mailbox delivery: <strong>${esc(label)}</strong>${notice.deliveryObservedAt?` · Provider observed ${esc(time(notice.deliveryObservedAt))}`:''}<br>${esc(help)}</p>`;
+}
 function checkoutUrl(value) {
  if (!value) return '';
  try {
@@ -63,9 +76,9 @@ export function paymentWork({state,actor,paymentRequests=[],refundCharges=[],ref
    const contactEmail=!profile?.erased&&contact?.email||'';
    const deliveryTask=booking?.handover?.find(t=>t.id===notice?.followupTaskId);
    const completedDelivery=deliveryTask?.history?.findLast(e=>e.action==='completed');
-   const deliveryHelp=profile?.erased?'Delivery follow-up removed with guest erasure. The retained refund outcome remains.':completedDelivery?`Delivery follow-up completed by ${esc(personName(completedDelivery.actor))}. Human outcome: ${esc(completedDelivery.outcome)}. This records the person's observation, not provider mailbox delivery.`:deliveryTask?`Delivery follow-up owner: ${esc(personName(deliveryTask.ownerId))}. Due ${esc(time(deliveryTask.dueAt))} while mailbox delivery is unconfirmed or bounced. Confirm receipt with the guest and record the human outcome in Guest requests &amp; promised callbacks.`:'No delivery follow-up is present in this view.';
+   const deliveryHelp=profile?.erased?'Delivery follow-up removed with guest erasure. The retained refund outcome remains.':completedDelivery?`Delivery follow-up completed by ${esc(personName(completedDelivery.actor))}. Human outcome: ${esc(completedDelivery.outcome)}. This records the person's observation, not provider mailbox delivery.`:deliveryTask?`Delivery follow-up owner: ${esc(personName(deliveryTask.ownerId))}. Due ${esc(time(deliveryTask.dueAt))}. Provider observations do not complete this task. Confirm receipt with the guest and record the human outcome in Guest requests &amp; promised callbacks.`:'No delivery follow-up is present in this view.';
 
-   const notification=owner?(notice?`<p>Email notice: ${esc(notice.state==='accepted'?'Provider accepted; mailbox delivery unconfirmed':notice.state==='sending'?'Attempt in progress or unconfirmed; contact the guest directly':'Acceptance unconfirmed; contact the guest directly')} · ${esc(time(notice.requestedAt))}</p><p class="help">${deliveryHelp}</p>`:contactEmail?form('payment.refund-notice',hidden('refundId',refund.id)+hidden('outcome',refund.status)+hidden('expectedContactEmail',contactEmail)+`<p>Reviewed refund outcome: ${esc(refund.status)} · ${esc(usd(refund.amountCents))}. Email to ${esc(contactEmail)}.</p>`+'<label><input type="checkbox" name="acknowledged" required> Email this saved refund outcome once to the reviewed reservation contact.</label>','Send refund outcome email'):`<p class="help">Refund notice unavailable: ${profile?.erased?'the guest contact was erased':'record and review a reservation contact email first'}.</p>`):'';
+   const notification=owner?(notice?`<p>Email notice: ${esc(notice.state==='accepted'?'Provider accepted':notice.state==='sending'?'Attempt in progress or unconfirmed; contact the guest directly':'Acceptance unconfirmed; contact the guest directly')} · ${esc(time(notice.requestedAt))}</p>${mailboxObservation(notice,{esc,time})}<p class="help">${deliveryHelp}</p>`:contactEmail?form('payment.refund-notice',hidden('refundId',refund.id)+hidden('outcome',refund.status)+hidden('expectedContactEmail',contactEmail)+`<p>Reviewed refund outcome: ${esc(refund.status)} · ${esc(usd(refund.amountCents))}. Email to ${esc(contactEmail)}.</p>`+'<label><input type="checkbox" name="acknowledged" required> Email this saved refund outcome once to the reviewed reservation contact.</label>','Send refund outcome email'):`<p class="help">Refund notice unavailable: ${profile?.erased?'the guest contact was erased':'record and review a reservation contact email first'}.</p>`):'';
    return `<article class="card" data-refund-id="${esc(refund.id)}"><h4>${esc(bookingName(refund.bookingId))} · ${esc(usd(refund.amountCents))}</h4><p>${esc(refund.status)} · Submitted by ${esc(personName(refund.actorId))}<br>${esc(time(refund.createdAt))}<br>${esc(refund.reason)}</p>${replay}${notification}</article>`;
   }).join('');
   const followups=refundFollowups.map(t=>`<article class="card" data-refund-followup="${esc(t.refundId)}"><h4>${esc(bookingName(t.bookingId))} · ${esc(usd(t.amountCents))}</h4><p>${esc(t.state)} · ${esc(t.failureStatus)} refund<br>Follow-up owner: ${esc(personName(t.ownerId))}<br>Created ${esc(time(t.createdAt))}</p><p>${esc(t.reason)}</p><p class="help">Contact the guest and review the processor outcome. This task never submits another refund.</p></article>`).join('');
