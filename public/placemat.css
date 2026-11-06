@@ -380,4 +380,5 @@ body[data-page=staff] :focus-visible{outline:3px solid var(--pm-sea-deep);outlin
 #shift-handover button,#approvals-content button,.bookings-table button{white-space:normal;max-width:100%;height:auto;padding-top:10px;padding-bottom:10px}
 #approvals-content .split-heading{flex-wrap:wrap}
 #floor .floor-table,#floor .floor-table strong,#floor .floor-area-label,#floor .floor-stage-caption,.timeline-axis span,.rer-themed .timeline-turn{font-size:13px}
-@media(max-width:760px){.bookings-table tr{grid-template-columns:minmax(0,1fr) auto}.bookings-table td{overflow-wrap:anywhere}}
+/* The side column never takes more than 45% of a phone row, so the guest name keeps the rest and wraps at words. */
+@media(max-width:760px){.bookings-table tr{grid-template-columns:minmax(0,1fr) fit-content(45%)}.bookings-table td{overflow-wrap:anywhere}}
