@@ -19,10 +19,10 @@ function path(node) {
 }
 export function rememberFocus() {
  const active = document.activeElement;
- if (!active || active === document.body) return () => {};
+ if (!active || !active.matches('[data-action=refresh]') && !active.closest('#service-status-editor,[data-handover-task],[data-proposal-id],[data-timeline-filter]')) return () => {};
  const selector = path(active), region = active.closest('[data-handover-task],[data-proposal-id],#service-status-editor,section') || document.querySelector('main');
  const regionPath = path(region);
- const opened = [...document.querySelectorAll('details[open]')].map(path);
+ const opened = [...document.querySelectorAll('#service-status-editor details[open],[data-handover-task] details[open],[data-proposal-id] details[open]')].map(path);
  return () => {
   // A person who moved elsewhere while a request ran keeps that new position.
   if (document.activeElement !== document.body && document.activeElement !== active) return;

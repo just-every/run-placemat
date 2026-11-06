@@ -781,6 +781,10 @@
       "sha256": "db0669f280fba5bd16311e5ac2791a335a8fef7592be421ad33a172210227d3f",
       "executable": false
     },
+    "public/placemat-focus.js": {
+      "sha256": "b1132b9c098fabd36cadae25a2fff56e5014d0d23a723911634972794b36eb73",
+      "executable": false
+    },
     "public/placemat-group.js": {
       "sha256": "c715cb2f9625b4b5c1efe513eceba0e38ced24f66ecf91a8dc19a8982b51b6c7",
       "executable": false
@@ -974,7 +978,7 @@
       "executable": false
     },
     "public/placemat.css": {
-      "sha256": "b829ed73519df54671605326df967fc56f60f3d3ea0f9af5b2ab8383215f48dc",
+      "sha256": "aac064999f950e4e5d07e1a5567d257b625401c1d917643c9b28a41eb6d32c28",
       "executable": false
     },
     "public/placemat.js": {
@@ -5563,6 +5567,10 @@
     },
     "tests/message-templates-ui.mjs": {
       "sha256": "1b2b9fd24c0062f251056eef59fe2d1356f4dd4255c4f9f016ca87c90aa48ac2",
+      "executable": false
+    },
+    "tests/mobile-browser-journey.mjs": {
+      "sha256": "a88ceaacc430d50114ffd813c801d033a5423c9aa141d57de0c2b34904c37bd8",
       "executable": false
     },
     "tests/onboarding-ui.mjs": {

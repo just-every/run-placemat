@@ -59,10 +59,6 @@ export async function mobileBrowserJourney(){
     if(shots)await writeFile(resolve(shots,`MOBILE-001-${name}-${width}.aria.txt`),tree)
     return tree
    }
-   await host.evaluate(()=>{
-    window.shiftAnnouncements=[]
-    new MutationObserver(()=>{const el=document.querySelector('#notice');window.shiftAnnouncements.push({text:el.textContent,role:el.getAttribute('role'),live:el.getAttribute('aria-live'),busy:!!document.querySelector('section[aria-busy=true]')})}).observe(document.querySelector('#notice'),{childList:true,attributes:true})
-   })
    await activate(host,host.getByRole('link',{name:'Skip to operations',exact:true}))
    await expect(host.locator('#operations-main')).toBeFocused()
    // Existing booking search, submitted and read through the shipped timeline.
@@ -73,7 +69,7 @@ export async function mobileBrowserJourney(){
    await expect(host.getByRole('button',{name:'Apply timeline filters',exact:true})).toBeFocused()
    await expect(host.getByRole('columnheader',{name:'Guest',exact:true})).toHaveCount(1)
    assert.match(await snapshot(host,'lookup',host.locator('#floor-timeline')),new RegExp(longName))
-   await host.locator('#floor-timeline').scrollIntoViewIfNeeded();await shot(host,'lookup')
+   await host.locator('#floor-timeline').scrollIntoViewIfNeeded();await shot(host,'lookup',host.locator('#floor-timeline'))
    const update=host.locator(`#bookings-list [data-action=service-status][data-id="${bookings[0].id}"]`)
    await activate(host,update)
    const editor=host.locator('#service-status-editor'),step=editor.getByRole('combobox',{name:'Next service step',exact:true})
@@ -138,17 +134,20 @@ export async function mobileBrowserJourney(){
    // A real stale decision is announced as an error and never changes the other plan.
    const stale=admin.locator(`[data-proposal-id="${proposals[1].id}"]`)
    await h.command('proposal.decline',{proposalId:proposals[1].id})
+   const refusal=admin.waitForResponse(r=>new URL(r.url()).pathname==='/api/commands'&&r.request().postDataJSON()?.command==='proposal.approve')
    await activate(admin,stale.getByRole('button',{name:'Approve plan',exact:true}));await expect(admin.locator('#notice')).toHaveAttribute('role','alert');await expect(admin.locator('#notice')).toHaveAttribute('aria-live','assertive')
    await expect(stale.getByRole('button',{name:'Approve plan',exact:true})).toBeFocused()
    assert.equal((await h.api('/api/state')).state.proposals.find(p=>p.id===proposals[1].id).status,'declined')
-   await shot(admin,'decision-error',stale)
+   const refused=await refusal;assert.equal(refused.status(),409)
+   await expect(admin.locator('#notice')).toHaveText((await refused.json()).error)
+   await shot(admin,'decision-error',admin.locator('#notice'))
    const controls=await host.locator('#floor button,#bookings button,#approvals button').all()
    for(const control of controls)if(await control.isVisible())await expect(control).toHaveAccessibleName(/.+/)
    const announcements=await host.evaluate(()=>window.shiftAnnouncements)
    assert.ok(announcements.some(a=>a.text==='Saving…'&&a.role==='status'&&a.live==='polite'&&a.busy),'Busy work is announced')
    assert.ok(announcements.some(a=>a.text==='Saved successfully.'&&a.role==='status'&&a.live==='polite'),'Saved work is announced')
    assert.deepEqual(errors,[])
-   console.log(`PROBE MOBILE-001 online keyboard and semantics ${width}: booking lookup -> arrival and seating -> exact manager decision -> callback handover and completion; HTTP history and permissions confirmed`)
+   for(const [point,result] of [['lookup','long-name query returned one real booking with keyboard focus'],['arrival and seating','both observations persisted with the native host actor'],['manager decision','selected plan approved; other plan unchanged; stale decision announced and refused'],['callback handover','new assignee completed; former assignee lost private content and completion authority']])console.log(`PROBE MOBILE-001 ${point} ${width}: keyboard /app -> ${result}`)
   }finally{
    await Promise.all(contexts.map(c=>c.close()));await browser.close();await transport.close();await h.close()
   }

@@ -371,7 +371,7 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 @media(max-width:600px){#experiences-content dl{grid-template-columns:minmax(0,1fr);gap:4px}#experiences-content dt{font-weight:600}#experiences-content dd{margin:0 0 12px}}
 
 /* Keyboard position stays visible during live shift work. */
-:focus-visible{outline:3px solid var(--pm-sea-deep);outline-offset:4px}
+body[data-page=staff] :focus-visible{outline:3px solid var(--pm-sea-deep);outline-offset:4px}
 .skip-link{position:fixed;top:8px;left:8px;z-index:100;padding:12px 18px;border:1px solid var(--pm-ink);border-radius:10px;background:var(--pm-surface);transform:translateY(-180%)}
 .skip-link:focus{transform:none}
 #service-status-editor,#shift-handover,#approvals-content,.bookings-table{overflow-wrap:anywhere}
