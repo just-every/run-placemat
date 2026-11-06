@@ -5142,7 +5142,7 @@
       "executable": false
     },
     "tests/agent-approval-outcomes.mjs": {
-      "sha256": "cb8ef13e74d5788c2066c3fa56a305cfba3ad0d7bfdecac8caf76bc34314bfc6",
+      "sha256": "066125cc2195e2a403c5f21b6eea5c0187ba90261e59291c2733737b532a6804",
       "executable": false
     },
     "tests/agent-attribution-ui.mjs": {
