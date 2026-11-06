@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {readFile,mkdir} from 'node:fs/promises'
 import {extname,resolve} from 'node:path'
 import {chromium} from '@playwright/test'
-import {installation,publicGuest} from './api/harness.mjs'
+import {installation,publicGuest,resendDeliveryFixture} from './api/harness.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
@@ -74,7 +74,8 @@ try{
 // Private management uses the same real guest shell, with explicit consequence review.
 for(const width of [1440,390]){
  const {service}=await import('./api/harness.mjs'),{browserServer}=await import('./browser-server.mjs')
- const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
+ const deliveryFixture=resendDeliveryFixture()
+ const h=await installation({bindings:deliveryFixture.bindings}),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true})
  try{
   const f=await service(h,{tables:1,seats:4,covers:8}),booking=(await h.api('/api/public/book',publicGuest(f.service,1,{name:'Amelia Chen',email:'amelia@example.test',phone:'+1 212 555 0191'}),{as:'',status:201})).result
   const cookies=h.cookie.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}})
@@ -85,6 +86,24 @@ for(const width of [1440,390]){
   const send=page.locator('[data-command="booking.management.send"]');await send.locator('xpath=..').evaluate(el=>el.open=true);await send.locator('[name=bookingId]').selectOption(booking.id);await send.locator('[name=acknowledged]').check()
   const shot=async(name,locator=page.locator('.booking-shell'))=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(shots)await locator.screenshot({path:resolve(shots,`BOOK-004-${name}-${width}.png`)})}
   await shot('manager-send',send);await send.getByRole('button',{name:'Send private reservation link',exact:true}).click();await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()
+  const observations=page.locator('[data-booking-mail]')
+  const showObservations=async()=>{
+   await page.goto(transport.origin+'/app');await page.locator('.app-main[aria-busy=false]').waitFor()
+   await observations.evaluate(el=>el.open=true)
+  }
+  await observations.evaluate(el=>el.open=true)
+  if(width===1440)assert.match(await observations.innerText(),/Accepted by provider/)
+  await shot('email-accepted',observations)
+  const delivery=(await h.api('/api/booking-mail')).deliveries.at(-1)
+  for(const [type,label,name] of [['email.delivered','Delivered to receiving mail server','delivered'],['email.bounced','Bounced','bounced'],['email.complained','Complaint reported','complaint']]){
+   const result=await deliveryFixture.submit(h,deliveryFixture.event(delivery.providerMessageId,delivery.recipient,type))
+   assert.equal(result.status,200,await result.text())
+   await showObservations()
+   if(width===1440)assert.ok((await observations.innerText()).includes(label))
+   await shot('email-'+name,observations)
+  }
+  const observedSends=h.messages.length
+  if(width===1440){assert.match(await observations.innerText(),/email.delivered/);assert.match(await observations.innerText(),/email.bounced/);assert.equal(h.messages.length,observedSends)}
   const link=new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]),privateUrl=transport.origin+link.pathname+link.hash
   await context.clearCookies();await page.goto(privateUrl);await page.getByRole('status').filter({hasText:'Reservation opened'}).waitFor();assert.equal(new URL(page.url()).hash,'');await shot('opened')
   const change=page.locator('[data-management=change]');await change.locator('[name=partySize]').fill('4');await change.getByRole('button',{name:'Review changes',exact:true}).click();await page.getByRole('heading',{name:'Review reservation changes',exact:true}).waitFor();await shot('change-review')

@@ -2,7 +2,7 @@
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare'
 import {unstable_splitSqlQuery} from 'wrangler'
 import {build} from 'esbuild'
-import {randomBytes,randomUUID} from 'node:crypto'
+import {createHmac,randomBytes,randomUUID} from 'node:crypto'
 import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
@@ -56,3 +56,19 @@ export async function service(h,{tables=4,seats=2,covers=8}={}){
  return {floor,service:draft,startAt:draft.startAt}
 }
 export const publicGuest=(service,i,extra={})=>({serviceId:service.id,startAt:service.startAt,name:['Alex Rowan','Sam Patel','Morgan Lee','Jules Rivers','Taylor Quinn'][i]??`Guest ${i}`,email:`guest${i}@example.test`,partySize:2,...extra})
+
+// Real signatures around controlled provider-edge sends; no production key is used.
+export function resendDeliveryFixture(clock=Date.now){
+ const key=randomBytes(32)
+ return {
+  bindings:{RER_INSTALLATION_ID:'synthetic-placemat-installation',MAIL_EVENT_NAMESPACE:'synthetic-placemat-mail-events',RESEND_WEBHOOK_SECRET:'whsec_'+key.toString('base64')},
+  event(message,recipient,type='email.delivered',at=clock()){
+   return {type,created_at:new Date(at).toISOString(),data:{email_id:message,to:Array.isArray(recipient)?recipient:[recipient]}}
+  },
+  async submit(h,event,eventId='synthetic-placemat-'+randomUUID(),options={}){
+   const timestamp=String(Math.floor(clock()/1000)),body=JSON.stringify(event)
+   const signature=createHmac('sha256',key).update(eventId+'.'+timestamp+'.'+body).digest('base64')
+   return h.request('/api/booking-mail/events',{method:'POST',as:'',body:event,headers:{'svix-id':eventId,'svix-timestamp':timestamp,'svix-signature':'v1,'+signature,...options.headers}})
+  },
+ }
+}

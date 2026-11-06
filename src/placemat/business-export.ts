@@ -6,7 +6,7 @@ import {analyticsSettings} from './analytics'
 /** CSV business schema; independent of the structured backup format version. */
 export const businessCsvVersion=1
 export const businessExportKinds=[
- 'reviews','review-reports','review-events','feedback-visits','feedback-messages','diner-accounts','diner-bookings','venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
+ 'booking-mail','booking-mail-events','reviews','review-reports','review-events','feedback-visits','feedback-messages','diner-accounts','diner-bookings','venue','inventories','rooms','tables','allocation-tables','combinations','services','schedules',
  'message-templates','guest-merges','service-notes','service-changes','bookings','waitlist','guests','inquiries','risk-tasks','audit','service-events','proposals','reminders','performance-reports',
  'experiences','payment-cases','payment-reviews','accounting-exports','money-items','money-receipts','money-payouts','money-adjustments','card-guarantees','card-collections','fee-policies','fee-consents','fee-assessments','fee-events','fee-disputes','payment-requests','refund-charges','refunds','refund-events','refund-webhooks','refund-followups','refund-notices','group-links','group-admins','report-schedules','report-deliveries',
 ] as const
@@ -14,7 +14,7 @@ export type BusinessExportKind=typeof businessExportKinds[number]
 /** Native pm_performance_reports row; parse data before recursive credential scrubbing. */
 export type BusinessPerformanceReport={id:string;service_id:string;published_at:string;published_by:string;floor_version:number;data:string}
 type RecordValue=Record<string,unknown>
-export type BusinessFinancialRecords={reviews?:RecordValue[];reviewReports?:RecordValue[];reviewEvents?:RecordValue[];feedbackVisits?:RecordValue[];feedbackMessages?:RecordValue[];dinerAccounts?:RecordValue[];dinerBookings?:RecordValue[];paymentCases?:RecordValue[];paymentReviews?:RecordValue[];accountingExports?:RecordValue[];moneyItems?:RecordValue[];moneyReceipts?:RecordValue[];moneyPayouts?:RecordValue[];moneyAdjustments?:RecordValue[];reportSchedules?:RecordValue[];reportDeliveries?:RecordValue[];cardGuarantees?:RecordValue[];cardCollections?:RecordValue[];feePolicies?:RecordValue[];feeConsents?:RecordValue[];feeAssessments?:RecordValue[];feeEvents?:RecordValue[];feeDisputes?:RecordValue[];paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
+export type BusinessFinancialRecords={bookingMail?:RecordValue[];bookingMailEvents?:RecordValue[];reviews?:RecordValue[];reviewReports?:RecordValue[];reviewEvents?:RecordValue[];feedbackVisits?:RecordValue[];feedbackMessages?:RecordValue[];dinerAccounts?:RecordValue[];dinerBookings?:RecordValue[];paymentCases?:RecordValue[];paymentReviews?:RecordValue[];accountingExports?:RecordValue[];moneyItems?:RecordValue[];moneyReceipts?:RecordValue[];moneyPayouts?:RecordValue[];moneyAdjustments?:RecordValue[];reportSchedules?:RecordValue[];reportDeliveries?:RecordValue[];cardGuarantees?:RecordValue[];cardCollections?:RecordValue[];feePolicies?:RecordValue[];feeConsents?:RecordValue[];feeAssessments?:RecordValue[];feeEvents?:RecordValue[];feeDisputes?:RecordValue[];paymentRequests:RecordValue[];refundCharges:RecordValue[];refunds:RecordValue[];refundEvents:RecordValue[];refundNotices?:RecordValue[];refundWebhooks?:RecordValue[];refundFollowups?:RecordValue[];bookingContacts?:RecordValue[];groupLinks?:RecordValue[];groupAdmins?:RecordValue[]}
 const noFinancialRecords:BusinessFinancialRecords={paymentRequests:[],refundCharges:[],refunds:[],refundEvents:[]}
 type Dataset={fields:readonly string[];rows:readonly unknown[]}
 
@@ -47,6 +47,8 @@ function refundHistory(finance:BusinessFinancialRecords){
 }
 function dataset(state:State,people:Guest[],kind:BusinessExportKind,reports:BusinessPerformanceReport[],merges:unknown[],finance:BusinessFinancialRecords):Dataset {
  switch(kind) {
+  case 'booking-mail':return {fields:['delivery_id','booking_id','guest_id','provider','tenant_id','event_namespace','provider_message_id','recipient','actor_id','accepted_at','historical','status','occurred_at','event_id'],rows:finance.bookingMail??[]}
+  case 'booking-mail-events':return {fields:['provider','tenant_id','event_namespace','event_id','fingerprint','event_json'],rows:finance.bookingMailEvents??[]}
   case 'reviews':return {fields:['id','booking_id','guest_id','visit_date','rating','comment','published_at','consent_at','historical','reply','reply_at','reply_by','revision'],rows:(finance.reviews??[]).map(r=>({...r,historical:1}))}
   case 'review-reports':return {fields:['id','review_id','category','detail','at','outcome','decided_at','decided_by','reason'],rows:finance.reviewReports??[]}
   case 'review-events':return {fields:['id','review_id','booking_id','actor','action','at','before_data','after_data'],rows:finance.reviewEvents??[]}
