@@ -74,7 +74,7 @@ export async function approvalOutcomes(screens) {
     for (let attempt = 0; attempt < 2; attempt++) await refused(rejectedArgs, 'approval_rejected')
     const afterReject = await h.request(approvalPath(rejection) + '/approve', { method: 'POST', body: evidence(rejection) })
     assert.equal(afterReject.status, 200)
-    assert.equal((await afterReject.json()).approval.state, 'rejected', 'Late approval cannot revive a declined preparation')
+    assert.deepEqual((await afterReject.json()).approval, rejected.body.approval, 'Late approval cannot revive or add a person mark to a declined preparation')
     assert.deepEqual(await h.api('/api/state'), before)
     console.log('PROBE BASE-AGENT-007 rejection: MCP pending preparation, named signed-in person declines, exact-key retries and late approval -> approval_rejected, no private result or native effect')
 
@@ -191,6 +191,7 @@ async function approvalScreens(browser) {
         assert.ok((await page.locator('#action-status').innerText()).trim(), 'The stale approval reports its refusal to the person')
       }
       else {
+        assert.equal(answer.status(), 200)
         await page.locator(`[data-approval-state="${action === 'reject' ? 'rejected' : 'executed'}"]`).waitFor()
         // The shipped form reloads immediately. Read the durable result through
         // the person API instead of racing Chromium's discarded response body.
