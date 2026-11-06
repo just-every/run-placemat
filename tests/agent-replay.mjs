@@ -7,7 +7,7 @@ const recoveries = new Map()
 const facts = decision => decision.classes.map(({ class: cls, facts }) => ({ class: cls, facts }))
 const error = answer => answer.result?._meta?.['com.runeditrun/error'] ?? answer.error?.data
 
-function doors({ request, origin, cookie }) {
+export function preparationDoors({ request, origin, cookie }) {
   const person = async (path, body, method = body === undefined ? 'GET' : 'POST') => {
     const response = await request(new URL(path, origin).href, { method,
       headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' },
@@ -33,7 +33,7 @@ function doors({ request, origin, cookie }) {
 }
 
 export async function completedPublication(context, phase = 'autonomous') {
-  const { person, send, call } = doors(context)
+  const { person, send, call } = preparationDoors(context)
   const draft = await replayDraft(person)
   const unconsumed = await replayDraft(person, 'synthetic-placemat-stale')
   const credential = (await person('/api/agent-keys', { name: 'synthetic-placemat-recovery' })).result
@@ -117,7 +117,7 @@ export async function completedPublication(context, phase = 'autonomous') {
 export async function tightenedRecovery(context) {
   const saved = recoveries.get(context.origin)
   assert.ok(saved, 'Autonomous recovery must run before the held-policy contrast')
-  const { person, call } = doors(context), before = await person('/api/state')
+  const { person, call } = preparationDoors(context), before = await person('/api/state')
   const tightened = await call(saved.credential.key, saved.args)
   assert.equal(error(tightened.body)?.code, 'review_required', 'Current held policy must refuse the older autonomous result')
   assert.equal(tightened.body.result?.structuredContent, undefined)
@@ -162,7 +162,7 @@ export async function persistedPublication() {
     const policy = { schema: 'rer-agent-policy/1', catalogue: 'rer-agent-classes/1',
       rules: [{ id: 'all', class: '*', do: 'approval', approver: ['sponsor'], wait: 'PT1H' }], spend: { none: true } }
     await person('/agents/api/policy', { document: policy }, { method: 'PUT' })
-    const { call } = doors({ origin: h.origin, cookie: h.cookie, request: (absolute, init) =>
+    const { call } = preparationDoors({ origin: h.origin, cookie: h.cookie, request: (absolute, init) =>
       h.mf.dispatchFetch(absolute, { ...init, headers: { ...init.headers, 'x-placemat-test-clock': String(now) } }) })
     const before = await person('/api/state')
     const args = { kind: 'service.publish', plan: { serviceId: draft.id }, reason: 'synthetic-placemat-4',
