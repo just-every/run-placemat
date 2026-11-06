@@ -1,0 +1,292 @@
+{
+  "schema": 1,
+  "tag": "sx-placemat-c-f53",
+  "repository": "just-every/run-placemat",
+  "branch": "cloud/sx-placemat-c-f53",
+  "head": "f3bc094c006b33af63aae4a02178a484207caac8",
+  "main": "9e6bb6147a834849683f30973a45a814a0ee0139",
+  "runtime": {
+    "node": "22.20.0",
+    "pnpm": "10.12.4",
+    "browser": "/usr/bin/chromium",
+    "browserArgs": [
+      "--no-sandbox"
+    ],
+    "network": "controlled provider edge only"
+  },
+  "clause": {
+    "id": "MSG-003",
+    "before": "missing",
+    "after": "partial"
+  },
+  "counts": {
+    "before": {
+      "done": 56,
+      "partial": 43,
+      "missing": 49,
+      "total": 148
+    },
+    "after": {
+      "done": 56,
+      "partial": 44,
+      "missing": 48,
+      "total": 148
+    }
+  },
+  "checks": [
+    {
+      "command": "node --test tests/api/booking-rules.test.mjs tests/api/privacy.test.mjs",
+      "exit": 0,
+      "tests": 7,
+      "passed": 7,
+      "log": "api.log"
+    },
+    {
+      "command": "node --test tests/api/business-export.test.mjs",
+      "exit": 0,
+      "tests": 1,
+      "passed": 1,
+      "log": "business-export.log"
+    },
+    {
+      "command": "PLACEMAT_BOOK_ONLY=management node tests/search-ui.mjs (local Chromium launch adapter)",
+      "exit": 0,
+      "widths": [
+        1440,
+        390
+      ],
+      "log": "browser.log"
+    },
+    {
+      "command": "pnpm run typecheck",
+      "exit": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "command": "cloud_run npx -y @runeditrun/rer build",
+      "exit": 0,
+      "log": "build.log"
+    },
+    {
+      "command": "cloud_run npx -y @runeditrun/rer check --profile first-party",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/contract-docs.mjs write MSG-003 && node scripts/contract-docs.mjs check MSG-003",
+      "exit": 0,
+      "log": "views.log",
+      "viewsRestored": true
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs lock && node scripts/edition-authoring/cli.mjs check",
+      "exit": 0
+    },
+    {
+      "command": "pnpm exec wrangler d1 migrations apply DB --local && pnpm exec wrangler d1 migrations list DB --local",
+      "exit": 0,
+      "log": "migrations.log",
+      "unapplied": 0
+    }
+  ],
+  "hygiene": {
+    "addedEmailLiterals": 0,
+    "copiedBaseChanged": false,
+    "workflowChanged": false,
+    "generatedViewsCommitted": false,
+    "parentStatusRows": 148,
+    "candidateStatusRows": 148,
+    "authorCommitter": "fleet identity, both candidate commits checked, no trailers",
+    "publicationScan": "not run in cloud; fleet landing duty"
+  },
+  "screenshots": [
+    "screenshots/BOOK-004-email-accepted-1440.png",
+    "screenshots/BOOK-004-email-accepted-390.png",
+    "screenshots/BOOK-004-email-delivered-1440.png",
+    "screenshots/BOOK-004-email-delivered-390.png",
+    "screenshots/BOOK-004-email-bounced-1440.png",
+    "screenshots/BOOK-004-email-bounced-390.png",
+    "screenshots/BOOK-004-email-complaint-1440.png",
+    "screenshots/BOOK-004-email-complaint-390.png"
+  ],
+  "changedFiles": [
+    "CONTRACT.md",
+    "docs/HTTP-CONTRACT.md",
+    "migrations/core/0056_booking_mail_events.sql",
+    "public/placemat-booking-management-staff.js",
+    "public/placemat.js",
+    "sources.lock.json",
+    "src/auth.server.ts",
+    "src/placemat/archive-policy.mjs",
+    "src/placemat/booking-management-mail-archive.mjs",
+    "src/placemat/booking-management-mail-events.ts",
+    "src/placemat/booking-management-mail-store.ts",
+    "src/placemat/booking-management-mail-types.d.ts",
+    "src/placemat/booking-management-mail.ts",
+    "src/placemat/business-export-store.ts",
+    "src/placemat/business-export.ts",
+    "src/placemat/guest-state-erasure.ts",
+    "src/placemat/http.ts",
+    "src/placemat/privacy/access.ts",
+    "src/placemat/privacy/requests.ts",
+    "src/placemat/privacy/store.ts",
+    "tests/api/booking-rules.test.mjs",
+    "tests/api/harness.mjs",
+    "tests/search-ui.mjs"
+  ],
+  "testsAdded": 1,
+  "assertionsRemoved": 0,
+  "push": {
+    "firstSave": "0331bb22caeb7b23b1ef3be338e38755deabee9b",
+    "final": "f3bc094c006b33af63aae4a02178a484207caac8",
+    "attemptsPerPush": 1,
+    "confirmed": true
+  },
+  "ci": {
+    "workflow_runs": [
+      {
+        "conclusion": null,
+        "event": "push",
+        "head_sha": "f3bc094c006b33af63aae4a02178a484207caac8",
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902",
+        "id": 42182514902,
+        "name": "Verify",
+        "status": "in_progress"
+      }
+    ]
+  },
+  "ciPolls": [
+    {
+      "conclusion": null,
+      "head_sha": "f3bc094c006b33af63aae4a02178a484207caac8",
+      "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902",
+      "status": "in_progress"
+    },
+    {
+      "conclusion": "failure",
+      "head_sha": "f3bc094c006b33af63aae4a02178a484207caac8",
+      "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902",
+      "status": "completed"
+    }
+  ],
+  "githubCalls": 8,
+  "ciJobs": {
+    "jobs": [
+      {
+        "conclusion": "success",
+        "failed_steps": [],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775169961",
+        "id": 127775169961,
+        "name": "plan",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "failed_steps": [],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215406",
+        "id": 127775215406,
+        "name": "shards (runtime, true)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "failed_steps": [],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215407",
+        "id": 127775215407,
+        "name": "shards (runtime-ui-1, true)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "failed_steps": [],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215436",
+        "id": 127775215436,
+        "name": "shards (api-2, false)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "failed_steps": [],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215446",
+        "id": 127775215446,
+        "name": "shards (shared-hoststand, true)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "failed_steps": [],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215465",
+        "id": 127775215465,
+        "name": "shards (site, false)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "conclusion": "failure",
+            "name": "Run this shard"
+          }
+        ],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215472",
+        "id": 127775215472,
+        "name": "shards (source, false)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "conclusion": "failure",
+            "name": "Run this shard"
+          }
+        ],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215495",
+        "id": 127775215495,
+        "name": "shards (runtime-ui-2, true)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "failed_steps": [],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127775215514",
+        "id": 127775215514,
+        "name": "shards (api-1, false)",
+        "status": "completed"
+      },
+      {
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "conclusion": "failure",
+            "name": "Require every shard"
+          }
+        ],
+        "html_url": "https://github.com/just-every/run-placemat/actions/runs/42182514902/job/127778435831",
+        "id": 127778435831,
+        "name": "verify",
+        "status": "completed"
+      }
+    ]
+  },
+  "ciAssessment": "BLOCKED: Verify 42182514902 failed on unchanged onboarding at 390. Full failed-SHA shard reproduction exits 0 and main onboarding comparison exits 0. Source generated-view failure is expected and separately exempt. No speculative repair, rerun, or READY.",
+  "reproduction": {
+    "head": "f3bc094c006b33af63aae4a02178a484207caac8",
+    "job": 127775215495,
+    "command": "CI=true WRANGLER_SEND_METRICS=false PLAYWRIGHT_SKIP_BROWSER_GC=1 SHARD=runtime-ui-2 node scripts/verify-ci.mjs runtime-ui-2",
+    "browserAdapter": "Chromium /usr/bin/chromium --no-sandbox",
+    "test": "tests/onboarding-ui.mjs:50 at 390",
+    "reproduced": false,
+    "ciExit": 1,
+    "localExit": 0,
+    "ciFailure": "CI: locator.waitFor timeout waiting for next valid local time is 2027-03-14 03:00",
+    "environmentNote": "CI flags, shard and Node pin retained; cloud-required system Chromium launch adapter. This is not the original GitHub runner."
+  },
+  "mainComparison": {
+    "head": "9e6bb6147a834849683f30973a45a814a0ee0139",
+    "command": "CI=true WRANGLER_SEND_METRICS=false PLAYWRIGHT_SKIP_BROWSER_GC=1 node tests/onboarding-ui.mjs",
+    "browserAdapter": "Chromium /usr/bin/chromium --no-sandbox",
+    "exit": 0,
+    "runner": "same dedicated cloud VM as candidate reproduction"
+  },
+  "handoff": "BLOCKED"
+}

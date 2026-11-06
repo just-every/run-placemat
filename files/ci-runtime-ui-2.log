@@ -1,0 +1,45 @@
+shards (runtime-ui-2, true)	Run this shard	﻿2026-11-06T07:42:12.1789467Z ##[group]Run node scripts/verify-ci.mjs "$SHARD"
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.1789793Z [36;1mnode scripts/verify-ci.mjs "$SHARD"[0m
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.1806702Z shell: /usr/bin/bash -e {0}
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.2064865Z > pnpm run verify:app
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.4172278Z 
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.4173278Z > @hospitality/placemat@0.1.0 verify:app /home/runner/work/run-placemat/run-placemat
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.4174113Z > node scripts/verify-app.mjs
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.4174378Z 
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:12.4416167Z > node tests/inquiries-ui.mjs
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:26.6037282Z BOOK-007 required/requested booking and owned inquiry offer, guest acceptance, conversion and expired link passed at 1440
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:43.2198367Z BOOK-007 required/requested booking and owned inquiry offer, guest acceptance, conversion and expired link passed at 390
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:42:43.3042096Z > node tests/business-export-ui.mjs
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:43:02.8225627Z DATA-003 owner downloads, current changes, erasure and role controls passed at 1440
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:43:30.6045709Z DATA-003 owner downloads, current changes, erasure and role controls passed at 390
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:43:30.6755929Z > node tests/embed-ui.mjs
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:43:48.6156707Z BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at 1440
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:44:03.4206176Z BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at 390
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:44:03.5070225Z > node tests/preshift-ui.mjs
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:44:08.2387525Z FLOOR-012 navigation, date selection, manager/host filtering, PDF download, print, live reopen and erased end state passed at 1440
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:44:11.6768234Z FLOOR-012 navigation, date selection, manager/host filtering, PDF download, print, live reopen and erased end state passed at 390
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:44:27.5435363Z Counter inventory definition, guest seat choice, pool transfers and chef-counter screen/print/PDF passed at 1440
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:44:46.7943865Z Counter inventory definition, guest seat choice, pool transfers and chef-counter screen/print/PDF passed at 390
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:44:46.8730343Z > node tests/timeline-search-ui.mjs
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:45:08.0275420Z FLOOR-007 normalized guest/phone/ID/table search, combined filters, flags, host action, keyboard and erasure passed at 1440
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:45:24.3242936Z FLOOR-007 normalized guest/phone/ID/table search, combined filters, flags, host action, keyboard and erasure passed at 390
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:45:24.3998676Z > node tests/onboarding-ui.mjs
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:45:55.1511128Z SETUP-001 owner onboarding, policy acknowledgment, no-write preview, public booking, LA/NY gaps and both repeated offsets passed at 1440
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2747274Z node:internal/modules/run_main:123
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2747665Z     triggerUncaughtException(
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2747894Z     ^
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2747993Z 
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2748142Z locator.waitFor: Timeout 30000ms exceeded.
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2748375Z Call log:
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2748781Z   - waiting for getByRole('alert').filter({ hasText: 'next valid local time is 2027-03-14 03:00' }) to be visible
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2749126Z 
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2749362Z     at /home/runner/work/run-placemat/run-placemat/tests/onboarding-ui.mjs:50:237 {
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2749685Z   log: [
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2750420Z     "  - waiting for getByRole('alert').filter({ hasText: 'next valid local time is 2027-03-14 03:00' }) to be visible"
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2750811Z   ],
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2750979Z   name: 'TimeoutError'
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2751168Z }
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2751261Z 
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.2751543Z Node.js v22.20.0
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.3134764Z  ELIFECYCLE  Command failed with exit code 1.
+shards (runtime-ui-2, true)	Run this shard	2026-11-06T07:46:36.3351243Z ##[error]Process completed with exit code 1.

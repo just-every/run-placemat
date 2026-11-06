@@ -1,0 +1,93 @@
+> pnpm run verify:app
+
+> @hospitality/placemat@0.1.0 verify:app /workspace/run-placemat
+> node scripts/verify-app.mjs
+
+> node tests/inquiries-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+BOOK-007 required/requested booking and owned inquiry offer, guest acceptance, conversion and expired link passed at 1440
+BOOK-007 required/requested booking and owned inquiry offer, guest acceptance, conversion and expired link passed at 390
+> node tests/business-export-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+DATA-003 owner downloads, current changes, erasure and role controls passed at 1440
+DATA-003 owner downloads, current changes, erasure and role controls passed at 390
+> node tests/embed-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at 1440
+BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at 390
+> node tests/preshift-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+FLOOR-012 navigation, date selection, manager/host filtering, PDF download, print, live reopen and erased end state passed at 1440
+FLOOR-012 navigation, date selection, manager/host filtering, PDF download, print, live reopen and erased end state passed at 390
+Counter inventory definition, guest seat choice, pool transfers and chef-counter screen/print/PDF passed at 1440
+Counter inventory definition, guest seat choice, pool transfers and chef-counter screen/print/PDF passed at 390
+> node tests/timeline-search-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+FLOOR-007 normalized guest/phone/ID/table search, combined filters, flags, host action, keyboard and erasure passed at 1440
+FLOOR-007 normalized guest/phone/ID/table search, combined filters, flags, host action, keyboard and erasure passed at 390
+> node tests/onboarding-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+SETUP-001 owner onboarding, policy acknowledgment, no-write preview, public booking, LA/NY gaps and both repeated offsets passed at 1440
+SETUP-001 owner onboarding, policy acknowledgment, no-write preview, public booking, LA/NY gaps and both repeated offsets passed at 390
+> node tests/schedules-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+SERVICE-002 repeated-hour holiday offset, editor round trip and physical-seat preview passed at 1440
+SERVICE-002 repeated-hour holiday offset, editor round trip and physical-seat preview passed at 390
+> node tests/feedback-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+CRM-005 feedback, identical public invitations, assigned SLA, reply and closure passed at 1440
+CRM-005 feedback, identical public invitations, assigned SLA, reply and closure passed at 390
+> node tests/reviews-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+PROBE DIST-006 feedback link: private feedback, keyboard review navigation, fresh booking code and explicit publication -> token-free hyperlink and HTTP requests; no automatic publication
+PROBE DIST-006 screens: booking email code, explicit four-star submission, manager reply edit and report outcome -> dated venue and widget publication at 1440; changed screens captured at 390
+> node tests/pacing-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+SERVICE-005 / SERVICE-007 configured pacing, alternatives, full interval, granted host warning, exact override, timeline and report passed at 1440
+SERVICE-005 / SERVICE-007 configured pacing, alternatives, full interval, granted host warning, exact override, timeline and report passed at 390
+ROLE-002 reviewed lead seating, scoped read-only reports and owner-recorded limits passed at 1440
+ROLE-002 reviewed lead seating, scoped read-only reports and owner-recorded limits passed at 390
+PAY-004 owner policy, consent, charge, waiver and fixed fee report passed at 1440
+PAY-004 owner policy, consent, charge, waiver and fixed fee report passed at 390
+PAY-001 merchant settings and PAY-003 guest consent, renewal, owner-only sheets, print and PDF passed at 1440
+PAY-001 merchant settings and PAY-003 guest consent, renewal, owner-only sheets, print and PDF passed at 390
+PAY-005 current-contact refusal, uncertain delivery ownership, human completion and erased end state passed at 1440
+PAY-005 current-contact refusal, uncertain delivery ownership, human completion and erased end state passed at 390
+> node tests/staffing-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+FLOOR-004 shift sections, uneven covers, breaks, direct serving history and timeline passed at 1440
+FLOOR-004 shift sections, uneven covers, breaks, direct serving history and timeline passed at 390
+> node tests/performance-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+REPORT-002 distributions, service drilldowns, publication and traceable correction passed at 1440
+REPORT-002 distributions, service drilldowns, publication and traceable correction passed at 390
+> node tests/risk-ui.mjs
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+AGENT-005 manager review, declined policy, completed task, preserved commitment and attended outcome passed at 1440
+AGENT-005 manager review, declined policy, completed task, preserved commitment and attended outcome passed at 390

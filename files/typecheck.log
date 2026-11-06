@@ -1,0 +1,4 @@
+
+> @hospitality/placemat@0.1.0 typecheck /workspace/run-placemat
+> tsc --build --incremental
+

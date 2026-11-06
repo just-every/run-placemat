@@ -1,0 +1,4 @@
+verify	Require every shard	﻿2026-11-06T07:50:46.7133426Z ##[group]Run test "$PLAN" = success && test "$SHARDS" = success
+verify	Require every shard	2026-11-06T07:50:46.7134751Z [36;1mtest "$PLAN" = success && test "$SHARDS" = success[0m
+verify	Require every shard	2026-11-06T07:50:46.7673009Z shell: /usr/bin/bash -e {0}
+verify	Require every shard	2026-11-06T07:50:46.7873628Z ##[error]Process completed with exit code 1.

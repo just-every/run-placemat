@@ -1,0 +1,12 @@
+{
+  "head": "f3bc094c006b33af63aae4a02178a484207caac8",
+  "job": 127775215495,
+  "command": "CI=true WRANGLER_SEND_METRICS=false PLAYWRIGHT_SKIP_BROWSER_GC=1 SHARD=runtime-ui-2 node scripts/verify-ci.mjs runtime-ui-2",
+  "browserAdapter": "Chromium /usr/bin/chromium --no-sandbox",
+  "test": "tests/onboarding-ui.mjs:50 at 390",
+  "reproduced": false,
+  "ciExit": 1,
+  "localExit": 0,
+  "ciFailure": "CI: locator.waitFor timeout waiting for next valid local time is 2027-03-14 03:00",
+  "environmentNote": "CI flags, shard and Node pin retained; cloud-required system Chromium launch adapter. This is not the original GitHub runner."
+}

@@ -1,0 +1,56 @@
+TAP version 13
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and blocked guests; manager overrides remain physical and audited
+ok 1 - SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and blocked guests; manager overrides remain physical and audited
+  ---
+  duration_ms: 2364.616387
+  type: 'test'
+  ...
+# Subtest: BOOK-003: accessible Friday search offers a real Saturday alternative, commits exact area/access and reselects stale inventory without a false booking
+ok 2 - BOOK-003: accessible Friday search offers a real Saturday alternative, commits exact area/access and reselects stale inventory without a false booking
+  ---
+  duration_ms: 1706.477742
+  type: 'test'
+  ...
+# Subtest: Private guest reservation links deliver scoped consent, atomic two-to-four changes and replay-safe cancellation
+ok 3 - Private guest reservation links deliver scoped consent, atomic two-to-four changes and replay-safe cancellation
+  ---
+  duration_ms: 5268.506394
+  type: 'test'
+  ...
+# PROBE MSG-003 signed intake, order-safe history, current manager scope, original recipient, erasure and inert restore passed
+# Subtest: Signed booking email observations retain original recipients and order-safe facts without replaying booking effects
+ok 4 - Signed booking email observations retain original recipients and order-safe facts without replaying booking effects
+  ---
+  duration_ms: 9771.427465
+  type: 'test'
+  ...
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: PRIVACY-001: signed-out availability and confirmations isolate guest contacts, notes and visit history
+ok 5 - PRIVACY-001: signed-out availability and confirmations isolate guest contacts, notes and visit history
+  ---
+  duration_ms: 1566.61192
+  type: 'test'
+  ...
+# PROBE API privacy erasure: mismatched subject, missing or tampered review, stale revision and replay refused without writes; fresh reviewed subject erased with processor follow-up and saved-copy cleanup
+# Subtest: Privacy requests export only one guest, record corrections and processor follow-up, and restore retained money without erased text
+ok 6 - Privacy requests export only one guest, record corrections and processor follow-up, and restore retained money without erased text
+  ---
+  duration_ms: 6509.480862
+  type: 'test'
+  ...
+# Subtest: Retention requires an exact owner review and erases only selected inactive eligible guests including imported custody
+ok 7 - Retention requires an exact owner review and erases only selected inactive eligible guests including imported custody
+  ---
+  duration_ms: 4821.201142
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19798.742093
