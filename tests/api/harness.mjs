@@ -66,9 +66,9 @@ export function resendDeliveryFixture(clock=Date.now){
    return {type,created_at:new Date(at).toISOString(),data:{email_id:message,to:Array.isArray(recipient)?recipient:[recipient]}}
   },
   async submit(h,event,eventId='synthetic-placemat-'+randomUUID(),options={}){
-   const timestamp=String(Math.floor(clock()/1000)),body=JSON.stringify(event)
+   const timestamp=String(Math.floor((options.signedAt??clock())/1000)),body=JSON.stringify(event)
    const signature=createHmac('sha256',key).update(eventId+'.'+timestamp+'.'+body).digest('base64')
-   return h.request('/api/booking-mail/events',{method:'POST',as:'',body:event,headers:{'svix-id':eventId,'svix-timestamp':timestamp,'svix-signature':'v1,'+signature,...options.headers}})
+   return h.request('/api/booking-mail/events',{method:'POST',as:'',body:options.body??event,headers:{'svix-id':eventId,'svix-timestamp':timestamp,'svix-signature':'v1,'+signature,...options.headers}})
   },
  }
 }

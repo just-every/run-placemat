@@ -174,7 +174,7 @@ test('Private guest reservation links deliver scoped consent, atomic two-to-four
 
 
 test('Signed booking email observations retain original recipients and order-safe facts without replaying booking effects',async()=>{
- const now=Date.now(),clock=()=>now,fixture=resendDeliveryFixture(clock),bindings={...fixture.bindings}
+ const now=Date.now(),clock=()=>now,fixture=resendDeliveryFixture(clock),bindings={MAIL_PROVIDER:'resend',...fixture.bindings}
  const h=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings})
  const address=n=>['synthetic-placemat-'+n,'example.test'].join('@')
  try{
@@ -196,10 +196,13 @@ test('Signed booking email observations retain original recipients and order-saf
    const r=await fixture.submit(h,event,id,options),value=await r.json();assert.equal(r.status,status,JSON.stringify(value));return value
   }
   await submit(delivered,eventId,401,{headers:{'svix-signature':'v1,invalid'}})
+  await submit(delivered,eventId,401,{body:{...delivered,type:'email.bounced'}})
+  await submit(delivered,eventId,401,{signedAt:now-301000})
   await submit(fixture.event(message,address('wrong')),undefined,403)
   await submit(fixture.event('synthetic-placemat-foreign',recipient),undefined,403)
   await submit(fixture.event(message,[recipient,address('extra')]),undefined,403)
   assert.equal((await deliveries())[0].facts.length,0)
+  assert.deepEqual(await native(),baseline,'Forged, expired and unbound callbacks change no reservation or send custody')
   assert.equal((await submit(delivered,eventId)).results[0].outcome,'stored')
   for(const result of await Promise.all(Array.from({length:4},()=>submit(delivered,eventId))))assert.equal(result.results[0].outcome,'duplicate')
   await submit(fixture.event(message,recipient,'email.bounced',now-4000),eventId,409)
@@ -232,7 +235,7 @@ test('Signed booking email observations retain original recipients and order-saf
   const managerId=await personId(manager)
   await h.api('/auth/operator/status',{operatorId:managerId,status:'inactive'})
   await h.api('/api/booking-mail',undefined,{as:manager,status:401})
-  for(const name of ['MAIL_EVENT_NAMESPACE','RER_INSTALLATION_ID','RESEND_WEBHOOK_SECRET']){
+  for(const name of ['MAIL_PROVIDER','MAIL_EVENT_NAMESPACE','RER_INSTALLATION_ID','RESEND_WEBHOOK_SECRET']){
    const prior=bindings[name];bindings[name]='';await h.restart()
    await submit(fixture.event(message,recipient),undefined,503)
    bindings[name]=prior;await h.restart()

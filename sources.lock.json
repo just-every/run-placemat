@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "752891902341e4730c8432c920fae752ec28e4971e3d09135cb27de173b5bb2f",
+      "sha256": "89cacb75ea218e3c8a0c136d7399394955343dd220c77b2593e013bd7c108425",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5206,7 +5206,7 @@
       "executable": false
     },
     "tests/api/booking-rules.test.mjs": {
-      "sha256": "7c527e3e08f759b3efd40c2bfb8f82d6c617f4bae1c769ede3cb826da4478350",
+      "sha256": "260c4be1611f4493ac3f936b273dc06db3a656361256b9e389b439924b798155",
       "executable": false
     },
     "tests/api/business-export.test.mjs": {
@@ -5330,7 +5330,7 @@
       "executable": false
     },
     "tests/api/harness.mjs": {
-      "sha256": "cc2b504013f169765c6008a263c4f3f91d4864eec8064a8f4ba30dde7cac8719",
+      "sha256": "37629859fb3ffc1b09ccf8d9856177f7437eb9441d4a094e78450f3205f29a2d",
       "executable": false
     },
     "tests/api/inquiries-fixture.mjs": {
