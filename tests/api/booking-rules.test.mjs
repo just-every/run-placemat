@@ -257,6 +257,7 @@ test('Signed booking email observations retain original recipients and order-saf
   await submit(fixture.event(legacy.providerMessageId,address('updated')),undefined,403)
   const fresh=await h.command('booking.management.send',{bookingId:booked.id,acknowledged:true})
   await submit(fixture.event(fresh.providerMessageId,address('updated'),'email.bounced'))
+  await assertMergedBookingMailRestore({fixture,bindings,clock})
   const archive=await h.api('/api/backup'),csv=await (await h.request('/api/business-export/booking-mail.csv')).text(),events=await (await h.request('/api/business-export/booking-mail-events.csv')).text()
   assert.ok(csv.includes(message)&&csv.includes(recipient)&&csv.includes('complained'));assert.ok(events.includes('email.bounced'))
   assert.ok(!JSON.stringify(archive).includes(bindings.RESEND_WEBHOOK_SECRET));assert.ok(!JSON.stringify(archive).includes(token))
@@ -305,3 +306,51 @@ test('Signed booking email observations retain original recipients and order-saf
   console.log('PROBE MSG-003 signed intake, order-safe history, current manager scope, original recipient, erasure and inert restore passed')
  }finally{await h.close()}
 })
+
+/** The original ordinary send -> reviewed merge -> genuine inert restore regression. */
+async function assertMergedBookingMailRestore({fixture,bindings,clock}){
+ const {guestReviewFixture}=await import('./guest-review-fixture.mjs')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings})
+ try{
+  const f=await guestReviewFixture(h),manager=await h.signIn('synthetic-placemat-merge-manager@example.test','admin')
+  const issued=await h.command('booking.management.send',{bookingId:f.booking.id,acknowledged:true})
+  const token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+  const event=fixture.event(issued.providerMessageId,f.a.email),eventId='synthetic-placemat-merged-delivered'
+  assert.equal((await fixture.submit(h,event,eventId)).status,200)
+  const deliveries=async(as)=>(await h.api('/api/booking-mail',undefined,as?{as}:{})).deliveries
+  const history=await deliveries(),sends=h.messages.length
+  assert.equal(history.length,1);assert.equal(history[0].recipient,f.a.email);assert.equal(history[0].status,'delivered')
+  const review=await h.api('/api/guests/merge-preview?guestId='+f.b.id+'&duplicateId='+f.a.id)
+  const merged=await h.command('guest.merge',{guestId:f.b.id,duplicateId:f.a.id,review:review.review,confirm:'MERGE'})
+  for(const [guestId,reverse] of [[f.b.id,true],[f.a.id,false]]){
+   assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===f.booking.id).guestId,guestId)
+   assert.deepEqual(await deliveries(),history);assert.deepEqual(await deliveries(manager),history)
+   assert.equal((await h.api('/api/privacy/access',{guestId})).bookingMail.length,1)
+   assert.equal((await fixture.submit(h,event,eventId)).status,200)
+   for(const recipient of [f.b.email,[f.a.email,f.b.email]])assert.equal((await fixture.submit(h,fixture.event(issued.providerMessageId,recipient))).status,403)
+   const archive=await h.api('/api/backup'),copy=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings})
+   try{
+    await copy.api('/api/restore',{archive,confirm:'RESTORE'})
+    assert.deepEqual((await copy.api('/api/booking-mail')).deliveries,history.map(m=>({...m,historical:true})))
+    assert.equal((await copy.api('/api/state')).state.bookings.find(b=>b.id===f.booking.id).guestId,guestId)
+    assert.ok((await(await copy.request('/api/business-export/booking-mail.csv')).text()).includes(f.a.email))
+    await copy.api('/api/public/booking-management/status',{token},{as:'',status:404})
+    assert.equal((await fixture.submit(copy,event,eventId)).status,403)
+    assert.equal(copy.messages.length,0,'Restoring delivery history never sends mail')
+    if(reverse){
+     await copy.command('guest.erase',{guestId,confirm:'ERASE'})
+     assert.deepEqual((await copy.api('/api/booking-mail')).deliveries,[])
+     assert.equal((await fixture.submit(copy,event,eventId)).status,403)
+     assert.ok(!(await(await copy.request('/api/business-export/booking-mail.csv')).text()).includes(f.a.email))
+     assert.ok(!JSON.stringify(await copy.api('/api/backup')).includes(f.a.email))
+    }
+   }finally{await copy.close()}
+   if(reverse){
+    const undo=await h.api('/api/guests/unmerge-preview?mergeId='+merged.id)
+    await h.command('guest.unmerge',{mergeId:merged.id,review:undo.review,confirm:'UNMERGE'})
+   }
+  }
+  assert.equal(h.messages.length,sends,'Merge, reversal and callback replay never resend')
+  console.log('PROBE MSG-003 merge/reversal retain original-recipient history; genuine backups restore inertly; merged erasure removes history')
+ }finally{await h.close()}
+}

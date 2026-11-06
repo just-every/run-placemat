@@ -4426,7 +4426,7 @@
       "executable": false
     },
     "src/placemat/commands.ts": {
-      "sha256": "a786d83013448600b6f1f845196b180984bdb803a0ce3bf9d6195c9399f8aa7e",
+      "sha256": "add19786317ad10b743048a7a4e6e99bf1657f3a71db5f2590ab91424d792841",
       "executable": false
     },
     "src/placemat/costs-archive.mjs": {
@@ -5206,7 +5206,7 @@
       "executable": false
     },
     "tests/api/booking-rules.test.mjs": {
-      "sha256": "260c4be1611f4493ac3f936b273dc06db3a656361256b9e389b439924b798155",
+      "sha256": "9d8e04b906d7fa7e38ac3b185d91dc3e03aadb01a2b68f3bcffaf419c85cb094",
       "executable": false
     },
     "tests/api/business-export.test.mjs": {
