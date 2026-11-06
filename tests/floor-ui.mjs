@@ -138,3 +138,5 @@ if(process.env.PLACEMAT_FLOOR_ONLY!=='existing')for(const width of [1440,390]){
   console.log(`SEC-002 enrollment, personal PINs, two-host attribution, restricted reads, actual idle lock, throttle, suspension and revocation passed at ${width}`);
  }finally{await personal.close();await stand.close();await browser.close();await transport.close();await h.close()}
 }
+
+if(process.env.PLACEMAT_FLOOR_ONLY!=='hoststand')await (await import('./mobile-browser-journey.mjs')).mobileBrowserJourney()

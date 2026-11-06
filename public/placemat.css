@@ -207,7 +207,7 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
   .table-scroll:has(.bookings-table){overflow:visible;border:0}
   .rer-themed th,.rer-themed td{padding:9px 10px}
   .bookings-table,.bookings-table tbody,.bookings-table tr,.bookings-table td{display:block;width:100%}
-  .bookings-table thead{display:none}
+  .bookings-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .bookings-table tr{display:grid;grid-template-columns:1fr auto;gap:8px 14px;margin:0 0 10px;padding:14px 16px;border:1px solid var(--pm-rule);border-radius:12px}
   .rer-themed .bookings-table td{padding:0;border:0}
   .bookings-table td{font-size:14px}
@@ -369,3 +369,15 @@ body[data-page=public]::before{content:'';position:fixed;inset:0;z-index:-1;poin
 .booking-shell [data-public-command=book] .form-grid>.wide:last-child{flex-wrap:wrap;gap:8px}
 
 @media(max-width:600px){#experiences-content dl{grid-template-columns:minmax(0,1fr);gap:4px}#experiences-content dt{font-weight:600}#experiences-content dd{margin:0 0 12px}}
+
+/* Keyboard position stays visible during live shift work. */
+:focus-visible{outline:3px solid var(--pm-sea-deep);outline-offset:4px}
+.skip-link{position:fixed;top:8px;left:8px;z-index:100;padding:12px 18px;border:1px solid var(--pm-ink);border-radius:10px;background:var(--pm-surface);transform:translateY(-180%)}
+.skip-link:focus{transform:none}
+#service-status-editor,#shift-handover,#approvals-content,.bookings-table{overflow-wrap:anywhere}
+#shift-handover .card,#approvals-content .card,.bookings-table td{min-width:0}
+#shift-handover .form-grid>label{min-width:0}
+#shift-handover button,#approvals-content button,.bookings-table button{white-space:normal;max-width:100%;height:auto;padding-top:10px;padding-bottom:10px}
+#approvals-content .split-heading{flex-wrap:wrap}
+#floor .floor-table,#floor .floor-table strong,#floor .floor-area-label,#floor .floor-stage-caption,.timeline-axis span,.rer-themed .timeline-turn{font-size:13px}
+@media(max-width:760px){.bookings-table tr{grid-template-columns:minmax(0,1fr) auto}.bookings-table td{overflow-wrap:anywhere}}
