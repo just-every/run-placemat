@@ -20,7 +20,7 @@ const same=(a,b)=>['bookingId','chargeId','amountCents','reason','status','proce
 
 /** Validates retained facts and references only; restoration never calls a payment provider. */
 export async function validatePayments(state,read,erasedGuestIds=new Set()){
- const [payments,charges,refunds,events,notices,webhooks,followups]=await Promise.all(['pm_payment_requests','pm_refund_charges','pm_refunds','pm_refund_events','pm_refund_notices','pm_refund_webhooks','pm_refund_followups'].map(read))
+ const [payments,charges,refunds,events,notices,webhooks,followups,mailEvents]=await Promise.all(['pm_payment_requests','pm_refund_charges','pm_refunds','pm_refund_events','pm_refund_notices','pm_refund_webhooks','pm_refund_followups','pm_refund_mail_events'].map(read))
  const bookings=new Map(state.bookings.map(row=>[row.id,row]))
  const erased=bookingId=>erasedGuestIds.has(bookings.get(bookingId)?.guestId)
  unique(payments,'id','payment request')
@@ -52,6 +52,13 @@ export async function validatePayments(state,read,erasedGuestIds=new Set()){
  unique(followups,'refund_id','refund follow-up')
  for(const row of followups){const refund=refundMap.get(row.refund_id);if(!refund||row.owner_id!==refund.actor_id||row.actor_id!==refund.actor_id||row.request_id!==refund.request_id||!['open','resolved'].includes(row.state)||!['failed','canceled'].includes(row.failure_status)||!instant(row.created_at)||!instant(row.updated_at)||!nullable(row.resolved_at,instant)||row.state==='resolved'&&!instant(row.resolved_at)||row.state==='open'&&row.resolved_at!=null)throw bad('Invalid refund follow-up')}
  unique(notices,'id','refund notice')
+ const noticeIds=new Set(notices.map(n=>n.id)),mailIds=new Set(),mailKeys=new Set()
+ const mailStatuses={processed:'accepted',deferred:'deferred',delivered:'delivered',bounce:'bounced',dropped:'rejected',spamreport:'complained',open:null,click:null,unsubscribe:null,group_unsubscribe:null,group_resubscribe:null}
+ for(const row of mailEvents){
+  const key=JSON.stringify([row.notice_id,row.event_id]),notice=notices.find(n=>n.id===row.notice_id)
+  if(!Number.isSafeInteger(row.id)||row.id<1||mailIds.has(row.id)||!noticeIds.has(row.notice_id)||!string(row.event_id)||mailKeys.has(key)||!string(row.provider_message_id)||!Object.hasOwn(mailStatuses,row.event_type)||row.status!==mailStatuses[row.event_type]||!Number.isSafeInteger(row.occurred_at)||row.occurred_at<Math.floor(Date.parse(notice.requested_at)/1000)*1000||!instant(row.received_at)||Object.keys(row).some(k=>!['id','notice_id','event_id','provider_message_id','event_type','status','occurred_at','received_at'].includes(k)))throw bad('Invalid refund mail observation')
+  mailIds.add(row.id);mailKeys.add(key)
+ }
  const outcomes=new Set()
  for(const row of notices){const refund=refundMap.get(row.refund_id),key=JSON.stringify([row.refund_id,row.outcome]);if(!refund||!statuses.includes(row.outcome)||outcomes.has(key)||row.amount_cents!==refund.amount_cents||!money(row.remaining_cents,0)||!string(row.requested_by)||!instant(row.requested_at)||!['sending','accepted','unconfirmed'].includes(row.state)||!nullable(row.provider_id,string)||!nullable(row.accepted_at,instant)||row.state==='accepted'&&!instant(row.accepted_at)||row.state!=='accepted'&&row.accepted_at!=null)throw bad('Invalid refund notice');outcomes.add(key)}
  const eventIds=new Set(),previous=new Map()

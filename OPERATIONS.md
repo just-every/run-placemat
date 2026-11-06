@@ -90,3 +90,16 @@ supplies `MAIL_PROVIDER`, `MAIL_FROM`, `MAIL_RELAY_URL` and the private
 `MAIL_API_KEY`. The application passes the assigned relay URL to the RER sender.
 Development and demo sessions continue to suppress external mail. A provider's
 acceptance is distinct from delivery; preserve uncertain results for human review.
+
+
+Refund email observations use the native SendGrid provider only. Configure
+`SENDGRID_EVENT_TENANT_ID` for the authorized sender account and
+`SENDGRID_EVENT_PUBLIC_KEY` with its signed Event Webhook verification key,
+alongside the existing `RER_INSTALLATION_ID` and outbound mail settings. Route
+that provider's signed events to `/api/payments/refund-mail-events`.
+Treat these as server configuration; never accept a request-selected tenant or
+key. Changing the tenant or installation fences earlier send custody. Removing
+the key disables intake. Historical notices and restored observations have no
+live custody and cannot acquire delivery events. Configuration alone proves no
+provider authorization or actual delivery; qualify those with real signed
+provider receipts before claiming complete PAY-005 acceptance.

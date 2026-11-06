@@ -1,4 +1,5 @@
 import { createMailSender } from './modules/mail/index.mjs'
+export {createDeliveryEventIntake,createD1EventStore} from './modules/mail/index.mjs'
 
 export function operatorMail(env) {
  if (env.RER_DEMO === '1' || env.AUTH_LOCAL === 'true') {

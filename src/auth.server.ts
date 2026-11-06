@@ -50,6 +50,8 @@ export interface Bindings {
  MAIL_API_KEY?: string
  MAIL_RELAY_URL?: string
  MAIL_ACCOUNT_ID?: string
+ SENDGRID_EVENT_TENANT_ID?: string
+ SENDGRID_EVENT_PUBLIC_KEY?: string
 }
 
 export const runtimeBindings = (env: Bindings): Bindings => env.RER_DEV_ORIGIN && env.AUTH_LOCAL === 'true' ? { ...env, AUTH_ORIGIN: env.RER_DEV_ORIGIN } : env
