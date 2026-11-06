@@ -1,0 +1,11 @@
+{
+  "head": "7cd372dbe9a1906bc42e0457a5d7b19767c41c04",
+  "job": 127730945427,
+  "run": 42168614344,
+  "command": "node scripts/verify-ci.mjs source",
+  "test": "contract-docs generated acceptance freshness",
+  "exit": 1,
+  "failure": "Error: Regenerate ACCEPTANCE.md",
+  "runtime": "Node.js v22.20.0",
+  "disposition": "Expected generated-view exception. No repair and no view commit."
+}

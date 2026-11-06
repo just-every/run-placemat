@@ -1,0 +1,6 @@
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+PROBE BASE-AGENT-007 rejection: MCP pending preparation, named signed-in person declines, exact-key retries, late approval and Worker restart -> approval_rejected, no private result or native effect
+PROBE BASE-AGENT-007 expiry: persisted pending preparation at saved deadline minus 1 ms -> same handle; exact deadline and beyond, exact-key retry, stale signed-in approval and Worker restart -> approval_expired, no private result or native effect
+PROBE BASE-AGENT-007 contrast: named person approves a fresh MCP preparation -> exactly one pending restaurant proposal and replay receipt; service stays draft, no publication or outbound effect

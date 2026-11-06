@@ -1,0 +1,4 @@
+MECHANICAL lock=node scripts/edition-authoring/cli.mjs lock then node scripts/edition-authoring/cli.mjs check exit=0; views=node scripts/contract-docs.mjs write REPORT-008 REPORT-005 CRM-005 BASE-AGENT-007 then node scripts/contract-docs.mjs check REPORT-008 REPORT-005 CRM-005 BASE-AGENT-007 exit=0; ledger=none exit=0
+Generated ACCEPTANCE.md and docs/CLAIMS.md restored whole from origin/main after generation. Neither view is committed.
+All 148 parent Status IDs retained; complete table line count 239 before and after. Clause totals remain 56 done, 43 partial, 49 missing.
+No migration, Base module, workflow, tool, scope or production UI source changed.

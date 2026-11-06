@@ -1,0 +1,198 @@
+{
+  "base": "7cd372dbe9a1906bc42e0457a5d7b19767c41c04",
+  "blockers": [],
+  "branch": "cloud/sx-placemat-c-f52",
+  "checks": [
+    {
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "source_matches_candidate": true
+    },
+    {
+      "command": "npx -y @runeditrun/rer build",
+      "exit": 0,
+      "production_source_matches_candidate": true
+    },
+    {
+      "assertion_width": 1440,
+      "browser": "Chromium /usr/bin/chromium, headless, --no-sandbox",
+      "command": "node tests/agent-approval-outcomes.mjs",
+      "exit": 0,
+      "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba",
+      "screenshot_widths": [
+        1440,
+        390
+      ]
+    },
+    {
+      "command": "node node_modules/@runeditrun/rer/cli/agent-door.mjs .",
+      "exit": 0,
+      "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba",
+      "note": "The production entry point normal rer verify invokes; both existing policy journeys retained. No full local suite.",
+      "passed": 1280,
+      "total": 1280
+    },
+    {
+      "command": "pnpm exec rer check --profile first-party",
+      "exit": 0,
+      "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba"
+    },
+    {
+      "command": "node scripts/contract-docs.mjs write REPORT-008 REPORT-005 CRM-005 BASE-AGENT-007",
+      "exit": 0,
+      "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba"
+    },
+    {
+      "before_restoring_generated_views": true,
+      "command": "node scripts/contract-docs.mjs check REPORT-008 REPORT-005 CRM-005 BASE-AGENT-007",
+      "exit": 0,
+      "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba"
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs lock",
+      "exit": 0,
+      "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba"
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0,
+      "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba"
+    },
+    {
+      "command": "git diff --check",
+      "exit": 0
+    }
+  ],
+  "ci": [
+    {
+      "conclusion": null,
+      "event": "push",
+      "head_sha": "80b328c7a1a74c8cefb6895e926426b5fd098eba",
+      "html_url": "https://github.com/just-every/run-placemat/actions/runs/42171392574",
+      "id": 42171392574,
+      "name": "Verify",
+      "status": "in_progress"
+    }
+  ],
+  "ci_jobs": [],
+  "ci_observation": "Verify 42171392574 remains in progress after discovery and two polls at least 300 seconds apart. Eight of the ten permitted GitHub calls were used, including predecessor failure diagnosis. Two calls remain reserved for the failure diagnostic; no further polling or dispatch.",
+  "clauses_after": {
+    "done": 56,
+    "missing": 49,
+    "partial": 43,
+    "total": 148
+  },
+  "clauses_before": {
+    "done": 56,
+    "missing": 49,
+    "partial": 43,
+    "total": 148
+  },
+  "generated_views_committed": false,
+  "git_identity_and_trailers": "All candidate commits including side parents inspected; only fleet or configured owner identities; no trailers.",
+  "handoff": "PUSHED",
+  "head": "80b328c7a1a74c8cefb6895e926426b5fd098eba",
+  "main_green_runs": {
+    "Nightly journeys": 42156715996,
+    "Run site": 42094882813,
+    "Verify": [
+      42137364393,
+      42094882828,
+      42091564591
+    ]
+  },
+  "migration_changes": false,
+  "new_test_registrations": 0,
+  "origin_main": "9e6bb6147a834849683f30973a45a814a0ee0139",
+  "pr": null,
+  "product_push_attempts": 1,
+  "product_pushed": true,
+  "production_source_changes": 0,
+  "publication_scan": {
+    "reason": "Cloud branch exception; maintained lander must scan complete exact tree and history before landing.",
+    "status": "NOT RUN"
+  },
+  "remaining": "Complete dispositions, setup and policy upgrades, money thresholds and daily caps, remaining approval obligations, cross-door parity, policy timing and signature rejection, outside-provider and queued execution, and all inherited holds.",
+  "remote_head_verified": true,
+  "removed_assertions": 0,
+  "repository": "just-every/run-placemat",
+  "run_site": {
+    "reason": "No main push authorized.",
+    "status": "PENDING LANDER"
+  },
+  "schema": 1,
+  "screenshots": [
+    {
+      "bytes": 45949,
+      "path": "screenshots/BASE-AGENT-007-00705fd4-1cad-472d-9e9d-1f4fc07cbd4c-executed-1440.png",
+      "sha256": "0595586afe773bb53e9d0eb8d5358d38fd1ce1894d89f8e40735688be5b6e26d"
+    },
+    {
+      "bytes": 40043,
+      "path": "screenshots/BASE-AGENT-007-00705fd4-1cad-472d-9e9d-1f4fc07cbd4c-executed-390.png",
+      "sha256": "f6a19f0045baf2eb0b57e39cae7ea2142f804776104083c9abf686025eb4952f"
+    },
+    {
+      "bytes": 47284,
+      "path": "screenshots/BASE-AGENT-007-00705fd4-1cad-472d-9e9d-1f4fc07cbd4c-pending-1440.png",
+      "sha256": "bba14bbbb15ea7db13c4b5043afcbefec8a62eccf99a0fe5050ce355ebaf4d72"
+    },
+    {
+      "bytes": 41542,
+      "path": "screenshots/BASE-AGENT-007-00705fd4-1cad-472d-9e9d-1f4fc07cbd4c-pending-390.png",
+      "sha256": "1191a42f9859baf2a31dac8368f39c94df9af1c0fdee00e4564c9031108e1eea"
+    },
+    {
+      "bytes": 38571,
+      "path": "screenshots/BASE-AGENT-007-19f2b96b-bd31-411e-885d-26a0fe556700-expired-1440.png",
+      "sha256": "4ddc4344ce6adbde947e052046441b5638edfff9d99f4084c1c12b5e9a4cf5be"
+    },
+    {
+      "bytes": 33102,
+      "path": "screenshots/BASE-AGENT-007-19f2b96b-bd31-411e-885d-26a0fe556700-expired-390.png",
+      "sha256": "8d9ae716f5e4aeedc7c1db01b4957e3816a07db71e015c35de5c8f4da332d119"
+    },
+    {
+      "bytes": 47106,
+      "path": "screenshots/BASE-AGENT-007-19f2b96b-bd31-411e-885d-26a0fe556700-pending-1440.png",
+      "sha256": "1d7466e91a166333647f000172b6b33ed6bccd0617cf8f48e9d2ad3e4a30d2fd"
+    },
+    {
+      "bytes": 41356,
+      "path": "screenshots/BASE-AGENT-007-19f2b96b-bd31-411e-885d-26a0fe556700-pending-390.png",
+      "sha256": "2107973b31335c3f831f10f01f9ec6cfc0b246cb3dc331b6b752d1369286c94b"
+    },
+    {
+      "bytes": 47106,
+      "path": "screenshots/BASE-AGENT-007-b468ea04-7f95-45ba-8d07-0b33038e8bd6-pending-1440.png",
+      "sha256": "1d7466e91a166333647f000172b6b33ed6bccd0617cf8f48e9d2ad3e4a30d2fd"
+    },
+    {
+      "bytes": 41356,
+      "path": "screenshots/BASE-AGENT-007-b468ea04-7f95-45ba-8d07-0b33038e8bd6-pending-390.png",
+      "sha256": "2107973b31335c3f831f10f01f9ec6cfc0b246cb3dc331b6b752d1369286c94b"
+    },
+    {
+      "bytes": 38704,
+      "path": "screenshots/BASE-AGENT-007-b468ea04-7f95-45ba-8d07-0b33038e8bd6-rejected-1440.png",
+      "sha256": "0665336c7ae4e97359420550dd208c703cadd5ba89944233b6fb3970ea747a75"
+    },
+    {
+      "bytes": 33257,
+      "path": "screenshots/BASE-AGENT-007-b468ea04-7f95-45ba-8d07-0b33038e8bd6-rejected-390.png",
+      "sha256": "6da2704afd0b8424e24eed2c4900a81f9a342085d90abc9879293f850983fbfa"
+    }
+  ],
+  "source_sha256": {
+    "src/modules/agent-door/approvals.ts": "45757936fac519de054ca754fd45ea3e6def75f18f1e71cb6a651e6451bf767c",
+    "tests/agent-approval-outcomes.mjs": "44b479a296afc7760fb50055639960deb2ecdd91a8aeb3d761f3ceddbd9a919b",
+    "tests/agent-native-journey.mjs": "bca2f516430360b716c3cd26590990bafee130143a8df195ac4ce2dd012cf12e",
+    "tests/agent-replay.mjs": "da01d4c66a1d541c77793ec534997a795a887aa31a7abb02311dd566bd626ec4",
+    "tests/api/clock-worker.mjs": "b1319ec63c72b19c7beef934b1f1abe5c1fa8e88f85f9594d01f66e93eb4941f",
+    "tests/api/harness.mjs": "f9688d3ebf9fadcd2d0f962a25acf1bde1fad30b6b1e041ee73f8b80a0feb4f2",
+    "verification.json": "a5f185bb4785e721621b96cd6bac3e97af161089d1cb716a3dc26d89b39a52cd"
+  },
+  "status_after": "partial",
+  "status_before": "partial",
+  "tag": "sx-placemat-c-f52"
+}
