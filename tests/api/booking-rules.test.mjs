@@ -219,7 +219,14 @@ test('Signed booking email observations retain original recipients and order-saf
   for(const as of [host,member,server]){await h.api('/api/booking-mail',undefined,{as,status:403});if(as!==server)assert.equal((await h.api('/api/state',undefined,{as})).bookingMail,undefined)}
   const key=(await h.api('/api/agent-keys',{name:'Delivery refusal witness'})).result
   await h.api('/api/booking-mail',undefined,{as:'',headers:{authorization:'Bearer '+key.key},status:403})
-  await h.api('/api/booking-mail',undefined,{as:h.cookie+'; __Host-pm-device=synthetic-placemat-device',status:401})
+  const registration=await h.api('/api/hoststand/devices',{label:'Reservation desk'},{status:201})
+  const claim=await h.request('/api/hoststand/claim',{method:'POST',as:'',body:{claimCode:registration.claimCode}})
+  assert.equal(claim.status,200)
+  const device=claim.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='))
+  await h.api('/api/hoststand/pin',{pin:'161803398874'},{as:host})
+  await h.api('/api/hoststand/unlock',{operatorId:await personId(host),pin:'161803398874'},{as:device})
+  await h.api('/api/booking-mail',undefined,{as:device,status:401})
+  await h.api('/api/booking-mail',undefined,{as:h.cookie+'; '+device,status:401})
   await h.api('/api/agent-keys/'+key.id,undefined,{method:'DELETE'})
   await h.api('/api/booking-mail',undefined,{as:'',headers:{authorization:'Bearer '+key.key},status:401})
   const managerId=await personId(manager)
@@ -259,14 +266,39 @@ test('Signed booking email observations retain original recipients and order-saf
    assert.equal(restored.messages.length,0)
   }finally{await restored.close()}
   const guestId=(await h.api('/api/state')).state.bookings.find(b=>b.id===booked.id).guestId
+  const access=await h.api('/api/privacy/access',{guestId})
+  assert.equal(access.bookingMail.length,2);assert.equal(access.bookingMail.find(m=>m.providerMessageId===message).status,'complained')
+  assert.ok(!JSON.stringify(access).includes(bindings.RESEND_WEBHOOK_SECRET))
+  await h.api('/api/privacy/policy',{version:0,rules:Object.fromEntries(['guestNotes','messageContent','imports','financialEvidence'].map(k=>[k,{days:365,ground:'Recorded venue retention review'}]))})
+  const review=await h.api('/api/privacy/erase-preview',{guestId})
   // Race through public doors: whichever transaction wins, erasure removes all copies.
-  const race=await Promise.all([fixture.submit(h,fixture.event(message,recipient,'email.complained')),h.command('guest.erase',{guestId,confirm:'ERASE'})])
+  const race=await Promise.all([fixture.submit(h,fixture.event(message,recipient,'email.complained')),h.api('/api/privacy/erase',{guestId,review:review.review,confirm:'ERASE'})])
   assert.ok([200,403,409].includes(race[0].status));assert.deepEqual(await deliveries(),[])
+  assert.equal(race[1].processorTasks,2)
+  const tasks=(await h.api('/api/privacy')).tasks;assert.ok(tasks.some(t=>t.provider==='Resend'&&t.reference===message&&t.state==='open'))
   await submit(delivered,eventId,403)
   for(const table of ['pm_booking_mail','rer_mail_event_receipts','rer_mail_event_states'])assert.equal((await h.db.prepare('SELECT count(*) AS n FROM '+table).first()).n,0)
   assert.ok(!(await (await h.request('/api/business-export/booking-mail.csv')).text()).includes(recipient))
   const later=await h.api('/api/backup'),empty=await installation()
   try{await empty.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400})}finally{await empty.close()}
+  // A genuine send paused at the provider edge can finish after local erasure.
+  let release,observed
+  const accepted=new Promise(resolve=>release=resolve),atEdge=new Promise(resolve=>observed=resolve),outbound=[]
+  const late=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings,mailEdge:async request=>{
+   outbound.push(await request.json());observed();await accepted
+   return Response.json({id:'synthetic-placemat-late-message'})
+  }})
+  try{
+   const f=await service(late),b=(await late.api('/api/public/book',publicGuest(f.service,0,{email:address('late')}),{as:'',status:201})).result
+   const sending=late.command('booking.management.send',{bookingId:b.id,acknowledged:true})
+   await atEdge
+   const guestId=(await late.api('/api/state')).state.bookings.find(row=>row.id===b.id).guestId
+   await late.command('guest.erase',{guestId,confirm:'ERASE'});release();await sending
+   assert.equal(outbound.length,1);assert.deepEqual((await late.api('/api/booking-mail')).deliveries,[])
+   const callback=await fixture.submit(late,fixture.event('synthetic-placemat-late-message',address('late')))
+   assert.equal(callback.status,403)
+   assert.equal((await late.db.prepare('SELECT count(*) AS n FROM pm_booking_mail').first()).n,0)
+  }finally{release();await late.close()}
   console.log('PROBE MSG-003 signed intake, order-safe history, current manager scope, original recipient, erasure and inert restore passed')
  }finally{await h.close()}
 })

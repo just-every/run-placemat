@@ -567,3 +567,54 @@ reasons or payment credentials. Group grants never confer guest or finance acces
 existing local date, period and service filters. All scheduled kinds are shown
 under Weekly report delivery in Settings. Existing group recipients and native
 finance scopes are unchanged; no marketing or provider authority is created.
+
+
+### Booking email delivery observations
+
+The existing personal owner or admin `booking.management.send` command remains the
+only sending door in this slice. Callback observations grant no send, reply,
+retry, booking mutation or private-link authority. Existing acknowledgment,
+recorded-contact selection, link revocation and daily limits continue to apply.
+
+For Resend observations, the owner configures the stable runtime bindings
+`RER_INSTALLATION_ID` and `MAIL_EVENT_NAMESPACE`, with the private
+`RESEND_WEBHOOK_SECRET` belonging to that installation's Resend endpoint. These
+bindings are server configuration, never callback fields or browser settings.
+The endpoint is `POST /api/booking-mail/events`. Missing configuration refuses
+with 503. Development and demo modes refuse this intake. Key rotation preserves
+the same namespace. Changing the installation or namespace does not adopt old
+messages. No runtime secret or executable link is returned by a read or export.
+This native implementation establishes no live account, webhook configuration,
+sending-domain verification or provider qualification.
+
+Only newly accepted booking-link sends with a stored installation, Resend,
+namespace, message ID and original single recipient are eligible. Authentication
+mail, foreign IDs, inadequately bound earlier sends, altered or extra recipients,
+forged signatures, erased guests and historical restored bindings refuse.
+A later booking-contact change does not rewrite the original recipient.
+Exact raw bytes and Svix headers enter the shipped mail intake and D1 store
+unchanged. SQL receipt and state fences recheck the binding during the durable
+transaction. Erasure deletes bindings and all linked receipts and states in the
+same guest-erasure batch, including a racing callback or late send response.
+
+`GET /api/booking-mail` and the reservation email panel in the service view expose
+current personal owners and admins to provider acceptance, current delivery state
+and distinct retained provider facts. Host, member, server, preparation-key and
+shared-device reads refuse. Current authority is checked again on every read.
+Duplicate events add no fact. Conflicting identities roll back. Pending facts
+cannot regress a terminal state, and older or equal terminal facts do not replace
+the current state; distinct facts remain visible. Delivery means receiving mail
+server acceptance, without proof of a guest read. Observations never change a
+reservation, link, issue count or outbound count, and never initiate a resend.
+
+Owner business CSV kinds `booking-mail` and `booking-mail-events` reconcile the
+bindings, current state and normalized provider facts. Subject access exports
+include only that guest's observations. Retention review includes the message's
+recorded dates. Reviewed privacy erasure creates open Resend processor follow-up
+references without making a provider request or claiming deletion there.
+Business backups retain history with `historical=1`; staged validation rejects
+broken guest, booking, message, recipient, receipt and state relationships.
+Restored facts grant no callback authorization or executable management link.
+A trusted later same-source erasure journal refuses an older archive; current
+erasure also invalidates retained transfer snapshots. Full category expiry and
+actual processor deletion receipts remain DATA-004 duties.

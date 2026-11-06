@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f98f316649ad03f6ab47de733aba919272db06eb22eabbe76e32ca8e1e385d3d",
+      "sha256": "752891902341e4730c8432c920fae752ec28e4971e3d09135cb27de173b5bb2f",
       "executable": false
     },
     "deploy-demo.json": {
@@ -314,7 +314,7 @@
       "executable": false
     },
     "docs/HTTP-CONTRACT.md": {
-      "sha256": "3ef0bf9c25366e6aff4fad1b24326e4bde076b7c3367d1651251f933608accef",
+      "sha256": "2c5e987d48f7d3e369c64fc60031c7e68944bdc601906ca1c8f9ff9ce47e4faf",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -573,6 +573,10 @@
       "sha256": "016d8a98b964385f5c4a13447361c3c783910a76aaf4606b0e0081482bc819cc",
       "executable": false
     },
+    "migrations/core/0056_booking_mail_events.sql": {
+      "sha256": "ea7b4f5f6338a7d221034e614077c63a64eb14d155aa25a23429eec009c9aaed",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "c7c9808c1004339f5aa5b776511f382f2721dafe4614643a6e08e6118c9c2123",
       "executable": false
@@ -714,7 +718,7 @@
       "executable": false
     },
     "public/placemat-booking-management-staff.js": {
-      "sha256": "49d8fff225346c9cc0dff4bf8d4740e6ab883e65c4dd048376450563344cfcdd",
+      "sha256": "879de7ef7f262e8136332691080bf40d82276a486ec132f89812b8278a4faadc",
       "executable": false
     },
     "public/placemat-business-export.js": {
@@ -4357,6 +4361,22 @@
       "sha256": "375c26882821d56028118658dc02c7cae6141614d3e7175d4d9671f5ca3af140",
       "executable": false
     },
+    "src/placemat/booking-management-mail-archive.mjs": {
+      "sha256": "937948b1e0892162907ccd4334f7a06ae5260c2448304c675374539228a60ccc",
+      "executable": false
+    },
+    "src/placemat/booking-management-mail-events.ts": {
+      "sha256": "b71b7bae053a6fee2b53375328734e5449b1135c6bd15c7a7e347592cd78ac4c",
+      "executable": false
+    },
+    "src/placemat/booking-management-mail-store.ts": {
+      "sha256": "52decb9a9ddc7788d94f45668fc78b635352ab7c05fdd4a3c01cb27a5d28a364",
+      "executable": false
+    },
+    "src/placemat/booking-management-mail-types.d.ts": {
+      "sha256": "1ac7815dfcb0fe3f9de4e9c3f97582e4bc60b10d5e07dc5caaa6b6578dba7a1a",
+      "executable": false
+    },
     "src/placemat/booking-management-mail.ts": {
       "sha256": "b490105edce1c6f043f1e2fe2d95e7d49fd5f189e26e4e163017a4bcbec05788",
       "executable": false
@@ -4786,7 +4806,7 @@
       "executable": false
     },
     "src/placemat/privacy/access.ts": {
-      "sha256": "9605e6ef99f4d41b3926c0e604c7d7f8656e5896553c494d78c6df11323f7d67",
+      "sha256": "c73dc40f732571e15eaf3a6d1d7a59c92e6c170e11120929e0521dde5c387168",
       "executable": false
     },
     "src/placemat/privacy/archive.mjs": {
@@ -4802,11 +4822,11 @@
       "executable": false
     },
     "src/placemat/privacy/requests.ts": {
-      "sha256": "b4fa4e683b13ecdbcc8080fd201d4886bcf31b14192b5563146c95ba41b6af33",
+      "sha256": "cd096403690b94e1b727e737e74b4b43a3d82ab484941cb98c803091bde4354a",
       "executable": false
     },
     "src/placemat/privacy/store.ts": {
-      "sha256": "465911cffa8013efb1ae8f890db73d498cccdddbc3e8109c454d3448393afd44",
+      "sha256": "df3742048cb821ad362a6df31bf24cbe381c3aa5e86aab4ab7a7780c7cba5720",
       "executable": false
     },
     "src/placemat/privacy/view.ts": {
@@ -5186,7 +5206,7 @@
       "executable": false
     },
     "tests/api/booking-rules.test.mjs": {
-      "sha256": "01c2ac805804f73b7e0fc177b1ae089e8c1b8918595c7f8dd64ab74614c2b7da",
+      "sha256": "7c527e3e08f759b3efd40c2bfb8f82d6c617f4bae1c769ede3cb826da4478350",
       "executable": false
     },
     "tests/api/business-export.test.mjs": {
@@ -5622,7 +5642,7 @@
       "executable": false
     },
     "tests/search-ui.mjs": {
-      "sha256": "df66fd5151c4d9b0e2473372ddc4431f2e184fcd6265df135c1e0c1a840a254e",
+      "sha256": "df816c186a168feef4cbb63501c60d3da6d043e11b2d8cd718af64d1aa201cea",
       "executable": false
     },
     "tests/server-ui.mjs": {

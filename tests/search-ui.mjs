@@ -103,7 +103,7 @@ for(const width of [1440,390]){
    await shot('email-'+name,observations)
   }
   const observedSends=h.messages.length
-  if(width===1440){assert.match(await observations.innerText(),/email.delivered/);assert.match(await observations.innerText(),/email.bounced/);assert.equal(h.messages.length,observedSends)}
+  if(width===1440){assert.match(await observations.innerText(),/Delivered to receiving mail server/);assert.match(await observations.innerText(),/Bounced/);assert.equal(h.messages.length,observedSends)}
   const link=new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]),privateUrl=transport.origin+link.pathname+link.hash
   await context.clearCookies();await page.goto(privateUrl);await page.getByRole('status').filter({hasText:'Reservation opened'}).waitFor();assert.equal(new URL(page.url()).hash,'');await shot('opened')
   const change=page.locator('[data-management=change]');await change.locator('[name=partySize]').fill('4');await change.getByRole('button',{name:'Review changes',exact:true}).click();await page.getByRole('heading',{name:'Review reservation changes',exact:true}).waitFor();await shot('change-review')
