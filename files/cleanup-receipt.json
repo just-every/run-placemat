@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-06T09:36:01.476921+00:00",
+  "node_modules_removed": true,
+  "harness_temporary_installations": "disposed and removed in finally by all completed probes/journeys",
+  "main_control_temporary_source_removed": true,
+  "owned_persistent_servers_or_browsers_started": false,
+  "broad_process_stops_used": false,
+  "clone_retained_until_evidence_publication": true,
+  "packet_outside_clone": "/home/agent/rer-consolidation/work/sx-placemat-f54fix1/packet"
+}

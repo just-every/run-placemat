@@ -1,0 +1,99 @@
+TAP version 13
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and blocked guests; manager overrides remain physical and audited
+ok 1 - SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and blocked guests; manager overrides remain physical and audited
+  ---
+  duration_ms: 3403.639798
+  type: 'test'
+  ...
+# Subtest: BOOK-003: accessible Friday search offers a real Saturday alternative, commits exact area/access and reselects stale inventory without a false booking
+ok 2 - BOOK-003: accessible Friday search offers a real Saturday alternative, commits exact area/access and reselects stale inventory without a false booking
+  ---
+  duration_ms: 2250.033628
+  type: 'test'
+  ...
+# Subtest: Private guest reservation links deliver scoped consent, atomic two-to-four changes and replay-safe cancellation
+ok 3 - Private guest reservation links deliver scoped consent, atomic two-to-four changes and replay-safe cancellation
+  ---
+  duration_ms: 6782.249776
+  type: 'test'
+  ...
+# PROBE MSG-003 merge/reversal retain original-recipient history; genuine backups restore inertly; merged erasure removes history
+# PROBE MSG-003 signed intake, order-safe history, current manager scope, original recipient, erasure and inert restore passed
+# Subtest: Signed booking email observations retain original recipients and order-safe facts without replaying booking effects
+ok 4 - Signed booking email observations retain original recipients and order-safe facts without replaying booking effects
+  ---
+  duration_ms: 25452.650803
+  type: 'test'
+  ...
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: CRM-005 completed visits get identical review invitations, scoped feedback and assigned recovery through accepted reply and closure
+ok 5 - CRM-005 completed visits get identical review invitations, scoped feedback and assigned recovery through accepted reply and closure
+  ---
+  duration_ms: 18450.559147
+  type: 'test'
+  ...
+# Subtest: CRM-005 survey eligibility, withdrawal, manager permissions and contact and owner revocation are enforced
+ok 6 - CRM-005 survey eligibility, withdrawal, manager permissions and contact and owner revocation are enforced
+  ---
+  duration_ms: 1926.838306
+  type: 'test'
+  ...
+# Subtest: CRM-005 an uncertain provider acceptance never causes an automatic survey or recovery resend
+ok 7 - CRM-005 an uncertain provider acceptance never causes an automatic survey or recovery resend
+  ---
+  duration_ms: 1706.868305
+  type: 'test'
+  ...
+# Subtest: CRM-005 cancellation, no-show, owner revocation, uncertain recovery and development suppression never dispatch another invitation
+ok 8 - CRM-005 cancellation, no-show, owner revocation, uncertain recovery and development suppression never dispatch another invitation
+  ---
+  duration_ms: 3398.023398
+  type: 'test'
+  ...
+# [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+# Subtest: GUEST-002: normalized search, explicit profile facts, dated sources and returning visit history respect existing guest authority
+ok 9 - GUEST-002: normalized search, explicit profile facts, dated sources and returning visit history respect existing guest authority
+  ---
+  duration_ms: 3190.66853
+  type: 'test'
+  ...
+# Subtest: GUEST-004: exact identity suggestions separate households; reviewed manager merge and reversal preserve visits and restrictive contact permissions
+ok 10 - GUEST-004: exact identity suggestions separate households; reviewed manager merge and reversal preserve visits and restrictive contact permissions
+  ---
+  duration_ms: 3328.444156
+  type: 'test'
+  ...
+# Subtest: GUEST-004: merge journal exports and validated restore reconcile; erasure purges snapshots, aliases and all restore paths
+ok 11 - GUEST-004: merge journal exports and validated restore reconcile; erasure purges snapshots, aliases and all restore paths
+  ---
+  duration_ms: 15061.791779
+  type: 'test'
+  ...
+# Subtest: Declared needs: exact staff review, stale clarification, dated corrections, filtered handoff and erased portable history
+ok 12 - Declared needs: exact staff review, stale clarification, dated corrections, filtered handoff and erased portable history
+  ---
+  duration_ms: 5497.508326
+  type: 'test'
+  ...
+# Subtest: Diner verification attaches only one booking and supports independent devices with revocable venue preferences
+ok 13 - Diner verification attaches only one booking and supports independent devices with revocable venue preferences
+  ---
+  duration_ms: 10935.272674
+  type: 'test'
+  ...
+# Subtest: Diner credentials expire and stay out of archives while guest erasure removes account custody
+ok 14 - Diner credentials expire and stay out of archives while guest erasure removes account custody
+  ---
+  duration_ms: 19173.067516
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 123879.916844

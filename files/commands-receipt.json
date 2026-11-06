@@ -1,0 +1,39 @@
+{
+  "commands": [
+    {
+      "command": "node scripts/contract-docs.mjs write REPORT-008 REPORT-005 CRM-005 MSG-003",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/contract-docs.mjs check REPORT-008 REPORT-005 CRM-005 MSG-003",
+      "exit": 0
+    },
+    {
+      "command": "git checkout origin/main -- ACCEPTANCE.md docs/CLAIMS.md",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs lock",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/edition-authoring/cli.mjs check",
+      "exit": 0
+    },
+    {
+      "command": "npx -y @runeditrun/rer setup --owner-email fleet@runeditrun.com --non-interactive (through cloud_run)",
+      "exit": 0
+    },
+    {
+      "command": "python3 $HOME/rer-consolidation/.tools/cloud-push.py origin cloud/sx-placemat-f54fix1",
+      "exit": 0
+    }
+  ],
+  "node": "22.20.0",
+  "product_head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "repair_files": [
+    "sources.lock.json",
+    "src/placemat/commands.ts",
+    "tests/api/booking-rules.test.mjs"
+  ]
+}

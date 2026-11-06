@@ -1,0 +1,9 @@
+{
+  "head": "eea85727b2402f116b6579db85ec1eb47906db66",
+  "command": [
+    "node",
+    "../packet/original-probe.mjs"
+  ],
+  "node": "v22.20.0",
+  "exit": 1
+}

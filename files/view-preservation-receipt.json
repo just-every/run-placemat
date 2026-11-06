@@ -1,0 +1,7 @@
+{
+  "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "entire_contract_byte_identical_to_original_source": true,
+  "generated_views_byte_identical_to_fresh_main": true,
+  "repair_modified_acceptance_text": false,
+  "view_check_after_restore_expected_stale": true
+}

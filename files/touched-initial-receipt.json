@@ -1,0 +1,11 @@
+{
+  "base_head": "eea85727b2402f116b6579db85ec1eb47906db66",
+  "working_tree": true,
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "tests/api/booking-rules.test.mjs"
+  ],
+  "exit": 1
+}

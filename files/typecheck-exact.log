@@ -1,0 +1,4 @@
+
+> @hospitality/placemat@0.1.0 typecheck /home/agent/rer-consolidation/work/sx-placemat-f54fix1/repo
+> tsc --build --incremental
+

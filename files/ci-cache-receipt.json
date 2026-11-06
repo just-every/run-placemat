@@ -1,0 +1,12 @@
+{
+  "run_id": 42194869705,
+  "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "source": "local workflow archive downloaded by successful aggregate gh run view command",
+  "archive_sha256": "fa6818a8fa46aedc34b10b5e4bc6938bb6525a6d87a9f908f2422ea645515f19",
+  "entry": "shards (source, false)/12_Run this shard.txt",
+  "network_retry_used": false,
+  "initial_failed_command": "gh run view 42194869705 --repo just-every/run-placemat --job 127815531666 --log-failed",
+  "initial_exit": 1,
+  "initial_sanitized_error": "failed to get run log: unexpected EOF",
+  "HTTP_status": "not supplied"
+}

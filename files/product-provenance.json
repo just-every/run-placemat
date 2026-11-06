@@ -1,0 +1,25 @@
+{
+  "repository": "just-every/run-placemat",
+  "tag": "sx-placemat-f54fix1",
+  "branch": "cloud/sx-placemat-f54fix1",
+  "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "original_source": "eea85727b2402f116b6579db85ec1eb47906db66",
+  "mechanical_lander_source_not_repair": "a63b9227dd19b111656adbaf47a07eb969ce9691",
+  "merged_fresh_main": "9e6bb6147a834849683f30973a45a814a0ee0139",
+  "source_ancestor_of_candidate": true,
+  "fresh_main_ancestor_of_candidate": true,
+  "candidate_commits": [
+    "cbbb34241e8d86bd7a846de6002b88a1f7f9563b fix: reconcile booking delivery identity through reviewed guest merges",
+    "eea85727b2402f116b6579db85ec1eb47906db66 test: prove booking delivery signature and configuration refusals",
+    "f3bc094c006b33af63aae4a02178a484207caac8 feat: expose booking email history with erasure-safe custody",
+    "0331bb22caeb7b23b1ef3be338e38755deabee9b feat: retain signed booking email delivery observations [skip ci]"
+  ],
+  "pushed": true,
+  "product_pushes": 1,
+  "force_push": false,
+  "pr": null,
+  "full_history_COMPLETE_publication_scan": "pending Mac lander; not available in cloud",
+  "independent_regate": "owed against original A1 and ordinary regressions before landing",
+  "holds_released": false,
+  "lifetime_FIX_verdicts_consumed": 1
+}

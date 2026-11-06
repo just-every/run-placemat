@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "repository": "just-every/run-placemat",
+  "tag": "sx-placemat-f54fix1",
+  "branch": "cloud/sx-placemat-f54fix1",
+  "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "product_push_succeeded": true,
+  "product_push_attempts": 1,
+  "public_door_before": {
+    "head": "eea85727b2402f116b6579db85ec1eb47906db66",
+    "before_merge_count": 1,
+    "after_merge_count": 0,
+    "restore_http": 500,
+    "probe_exit": 1
+  },
+  "public_door_after": {
+    "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+    "before_merge_count": 1,
+    "after_merge_count": 1,
+    "restore_http": 200,
+    "probe_exit": 0
+  },
+  "public_door_tests": {
+    "passed": 14,
+    "failed": 0,
+    "skipped": 0,
+    "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b"
+  },
+  "typecheck_exit": 0,
+  "lock_check_exit": 0,
+  "counts": {
+    "fresh_main": {
+      "done": 56,
+      "partial": 43,
+      "missing": 49
+    },
+    "original_candidate": {
+      "done": 56,
+      "partial": 44,
+      "missing": 48
+    },
+    "repair_candidate": {
+      "done": 56,
+      "partial": 44,
+      "missing": 48
+    }
+  },
+  "clause_changes_this_repair": [],
+  "MSG-003": "PARTIAL",
+  "done_credit": 0,
+  "lifetime_FIX_used": 1,
+  "lifetime_FIX_max": 2,
+  "ci_run_id": 42194869705,
+  "ci_status": "completed",
+  "ci_head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "pr_url": null,
+  "main_pushed": false,
+  "holds_released": false,
+  "independent_regate_required": true,
+  "publication_COMPLETE_scan": "Mac lander pending",
+  "ci_conclusion": "failure",
+  "ci_generated_view_only_exception": true,
+  "ready_under_task_contract": true,
+  "ci_receipt": "ci-receipt.json",
+  "gh_calls": 7
+}

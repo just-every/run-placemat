@@ -1,0 +1,39 @@
+{
+  "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "node": "v22.20.0",
+  "clean_committed_tree": true,
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "tests/api/booking-rules.test.mjs",
+        "tests/api/guests.test.mjs",
+        "tests/api/feedback.test.mjs"
+      ],
+      "exit": 0,
+      "log": "touched-exact.log",
+      "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b"
+    },
+    {
+      "command": [
+        "pnpm",
+        "typecheck"
+      ],
+      "exit": 0,
+      "log": "typecheck-exact.log",
+      "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b"
+    },
+    {
+      "command": [
+        "node",
+        "scripts/edition-authoring/cli.mjs",
+        "check"
+      ],
+      "exit": 0,
+      "log": "lock-check-exact.log",
+      "head": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b"
+    }
+  ]
+}

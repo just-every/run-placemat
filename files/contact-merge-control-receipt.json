@@ -1,0 +1,11 @@
+{
+  "source_head": "9e6bb6147a834849683f30973a45a814a0ee0139",
+  "source": "unmodified git archive origin/main; dependencies symlinked only",
+  "command": [
+    "node",
+    "/home/agent/rer-consolidation/work/sx-placemat-f54fix1/packet/contact-merge-control.mjs"
+  ],
+  "exit": 0,
+  "temporary_source_removed": true,
+  "classification": "pre-existing main defect outside original A1; no repair attempted"
+}

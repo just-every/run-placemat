@@ -1,0 +1,10 @@
+{
+  "scope": "exact staged product diff",
+  "credential_shaped_values": 0,
+  "files": [
+    "sources.lock.json",
+    "src/placemat/commands.ts",
+    "tests/api/booking-rules.test.mjs"
+  ],
+  "full_history_COMPLETE_scan": "Mac lander dependency; unavailable in cloud per task adaptation"
+}

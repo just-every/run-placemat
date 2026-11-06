@@ -1,0 +1,7 @@
+{"call": 1, "at": "2026-11-06T09:25:11.669142+00:00", "command": ["gh", "api", "repos/just-every/run-placemat/actions/runs?head_sha=cbbb34241e8d86bd7a846de6002b88a1f7f9563b&per_page=100"]}
+{"call": 2, "at": "2026-11-06T09:30:11.696166+00:00", "command": ["gh", "api", "repos/just-every/run-placemat/actions/runs/42194869705", "--jq", "{status,conclusion,head_sha,html_url}"]}
+{"call": 3, "at": "2026-11-06T09:35:12.273911+00:00", "command": ["gh", "api", "repos/just-every/run-placemat/actions/runs/42194869705", "--jq", "{status,conclusion,head_sha,html_url}"]}
+{"call": 4, "at": "2026-11-06T09:40:12.780638+00:00", "command": ["gh", "api", "repos/just-every/run-placemat/actions/runs/42194869705", "--jq", "{status,conclusion,head_sha,html_url}"]}
+{"call": 5, "at": "2026-11-06T09:40:21.112159+00:00", "command": ["gh", "api", "repos/just-every/run-placemat/actions/runs/42194869705/jobs?per_page=100"]}
+{"call": 6, "at": "2026-11-06T09:40:32.315438+00:00", "command": ["gh", "run", "view", "42194869705", "--repo", "just-every/run-placemat", "--job", "127815531666", "--log-failed"]}
+{"call": 7, "at": "2026-11-06T09:40:32.316775+00:00", "command": ["gh", "run", "view", "42194869705", "--repo", "just-every/run-placemat", "--job", "127820011442", "--log-failed"]}

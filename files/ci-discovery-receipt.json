@@ -1,0 +1,9 @@
+{
+  "command": "gh api 'repos/just-every/run-placemat/actions/runs?head_sha=cbbb34241e8d86bd7a846de6002b88a1f7f9563b&per_page=100'",
+  "exit": 0,
+  "run_id": 42194869705,
+  "status": "in_progress",
+  "head_sha": "cbbb34241e8d86bd7a846de6002b88a1f7f9563b",
+  "html_url": "https://github.com/just-every/run-placemat/actions/runs/42194869705",
+  "diagnostic": "wrapper URL sanitization truncated trailing repository metadata; initial exact run fields retained; wrapper fixed before subsequent calls; no extra API call used"
+}
