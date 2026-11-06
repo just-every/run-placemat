@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f98f316649ad03f6ab47de733aba919272db06eb22eabbe76e32ca8e1e385d3d",
+      "sha256": "2d6fc5e456003e468f18ffd5a2743a5a8c8f291b8ee9931f6b9fde0cdb4ecbde",
       "executable": false
     },
     "deploy-demo.json": {
@@ -5141,6 +5141,10 @@
       "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
       "executable": false
     },
+    "tests/agent-approval-outcomes.mjs": {
+      "sha256": "cb8ef13e74d5788c2066c3fa56a305cfba3ad0d7bfdecac8caf76bc34314bfc6",
+      "executable": false
+    },
     "tests/agent-attribution-ui.mjs": {
       "sha256": "180bab9054459334e36b2e1cea2a5aaf28c914c2a78bbb1f1d80213ddcd98d35",
       "executable": false
@@ -5154,11 +5158,11 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "e899f374e8b2db89f668da4bea0a540416097705778bb9584766f687125f7091",
+      "sha256": "bca2f516430360b716c3cd26590990bafee130143a8df195ac4ce2dd012cf12e",
       "executable": false
     },
     "tests/agent-replay.mjs": {
-      "sha256": "7acfd1a1555bcfd4a63224d1114310444675f2f6c2b8ef92913a47d23509fc25",
+      "sha256": "da01d4c66a1d541c77793ec534997a795a887aa31a7abb02311dd566bd626ec4",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
@@ -5658,7 +5662,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "dd57a23ebecbd3a44d88865d1d9c234c286c58e0b26d788db30847c8d112aca7",
+      "sha256": "a5f185bb4785e721621b96cd6bac3e97af161089d1cb716a3dc26d89b39a52cd",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
