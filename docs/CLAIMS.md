@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 56 done, 43 partial, 49 missing; 148 total.
+Inventory: 56 done, 44 partial, 48 missing; 148 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ Inventory: 56 done, 43 partial, 49 missing; 148 total.
 | WAIT-005 | missing |  |
 | WAIT-006 | done | `src/placemat/queue.ts`; `src/placemat/commands.ts`; `src/placemat/people.ts`; `public/placemat-queue.js`; `tests/api/queue.test.mjs` |
 | MSG-002 | missing |  |
-| MSG-003 | missing |  |
+| MSG-003 | partial | `tests/api/booking-rules.test.mjs`; `tests/search-ui.mjs` |
 | MSG-004 | missing |  |
 | MSG-005 | partial | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs` |
 | MSG-006 | missing |  |
