@@ -45,38 +45,46 @@
         "node tests/queue-ui.mjs",
         "node tests/search-ui.mjs",
         "node tests/combinations-ui.mjs",
-        "node tests/floor-plan-ui.mjs",
-        "node tests/staffing-ui.mjs",
-        "node tests/pacing-ui.mjs",
-        "node tests/performance-ui.mjs",
-        "node tests/risk-ui.mjs",
-        "node tests/allocation-ui.mjs"
+        "node tests/floor-plan-ui.mjs"
       ]
     },
     {
-      "name": "runtime-ui",
+      "name": "runtime-ui-1",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/service-changes-ui.mjs",
+        "node tests/service-close-report-ui.mjs",
+        "node tests/server-ui.mjs",
+        "node tests/audit-ui.mjs",
+        "node tests/service-notes-ui.mjs",
+        "node tests/guest-review-ui.mjs",
+        "node tests/privacy-ui.mjs",
+        "node tests/costs-ui.mjs",
+        "node tests/experiences-ui.mjs",
+        "node tests/message-templates-ui.mjs",
+        "node tests/allocation-ui.mjs",
+        "node tests/agent-attribution-ui.mjs"
+      ]
+    },
+    {
+      "name": "runtime-ui-2",
       "browser": true,
       "hosted": false,
       "commands": [
         "node tests/inquiries-ui.mjs",
         "node tests/business-export-ui.mjs",
-        "node tests/service-changes-ui.mjs",
-        "node tests/service-close-report-ui.mjs",
         "node tests/embed-ui.mjs",
-        "node tests/server-ui.mjs",
-        "node tests/audit-ui.mjs",
         "node tests/preshift-ui.mjs",
-        "node tests/service-notes-ui.mjs",
         "node tests/timeline-search-ui.mjs",
         "node tests/onboarding-ui.mjs",
-        "node tests/guest-review-ui.mjs",
         "node tests/schedules-ui.mjs",
-        "node tests/privacy-ui.mjs",
-        "node tests/costs-ui.mjs",
-        "node tests/experiences-ui.mjs",
         "node tests/feedback-ui.mjs",
         "node tests/reviews-ui.mjs",
-        "node tests/message-templates-ui.mjs"
+        "node tests/pacing-ui.mjs",
+        "node tests/staffing-ui.mjs",
+        "node tests/performance-ui.mjs",
+        "node tests/risk-ui.mjs"
       ]
     },
     {

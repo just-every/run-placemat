@@ -6,12 +6,13 @@ import {installation,service,publicGuest} from './api/harness.mjs'
 import {browserServer} from './browser-server.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
-for(const width of [1440,390]){
- const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true})
+for(const width of (shots?[1440,390]:[1440])){
+ const h=await installation(),transport=await browserServer(h),browser=await chromium.launch({...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),headless:true,args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]}),context=await browser.newContext({viewport:{width,height:1000},ignoreHTTPSErrors:true,acceptDownloads:true})
  try{
   const {service:s}=await service(h);await h.api('/api/public/book',publicGuest(s,0,{name:'Elena Torres',requests:{dietaryNotes:'No dairy please'},requestsAcknowledged:true}),{as:'',status:201})
   await h.api('/api/public/book',publicGuest(s,1,{name:'Marcus Chen'}),{as:'',status:201})
-  const guest=(await h.api('/api/state')).guests.find(g=>g.name==='Elena Torres'),errors=[]
+  await h.api('/api/public/book',publicGuest(s,2,{name:'Morgan Lee'}),{as:'',status:201})
+  const people=(await h.api('/api/state')).guests,guest=people.find(g=>g.name==='Elena Torres'),other=people.find(g=>g.name==='Marcus Chen'),errors=[]
   await context.addCookies(h.cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transport.origin,secure:true,sameSite:'Lax'}}))
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(transport.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor();await page.getByRole('link',{name:'Settings',exact:true}).click();await page.getByText('Backup & restore',{exact:true}).click();if(shots)await page.locator('#settings').screenshot({path:resolve(shots,`DATA-004-settings-${width}.png`)});await page.getByRole('link',{name:'Guest privacy and retention',exact:true}).click()
   await page.locator('#privacy-guest option').first().waitFor({state:'attached'});await page.locator('#privacy-guest').selectOption(guest.id)
@@ -23,10 +24,22 @@ for(const width of [1440,390]){
   const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'Download guest data'}).click();assert.equal(await (await downloading).failure(),null)
   await page.locator('[data-correction] [name=value]').fill('Lactose-free requested');await page.locator('[data-correction] [name=reason]').fill('Guest clarified the request by phone');await page.locator('[name=guestConfirmed]').check();await page.getByRole('button',{name:'Record correction'}).click();await page.getByRole('status').filter({hasText:'Guest clarification recorded.'}).waitFor()
   await page.getByRole('button',{name:'Review access export',exact:true}).click();await page.locator('#guest-access-summary').filter({hasText:'Lactose-free requested'}).waitFor();await shot('corrected-need')
-  await page.getByRole('button',{name:'Review erasure',exact:true}).click();await page.locator('#erase-guest [name=confirm]').fill('ERASE');await page.getByRole('button',{name:'Erase guest content',exact:true}).click();await page.getByRole('status').filter({hasText:'Guest content erased.'}).waitFor()
+  await page.getByRole('button',{name:'Review erasure',exact:true}).click();await page.getByRole('heading',{name:'Erase Elena Torres',exact:true}).waitFor()
+  const unchanged=async()=>({state:await h.api('/api/state'),privacy:await h.api('/api/privacy')}),beforeSwitch=await unchanged(),guestBefore=(await h.api('/api/state')).guests.find(g=>g.id===guest.id)
+  await page.locator('#privacy-guest').selectOption(other.id)
+  // Attempt the old confirmation even if an obsolete form remains visible.
+  if(await page.locator('#erase-guest').count()){await page.locator('#erase-guest [name=confirm]').fill('ERASE');await page.getByRole('button',{name:'Erase guest content',exact:true}).click()}
+  await page.getByRole('status').filter({hasText:/review no longer applies/i}).waitFor({timeout:5000})
+  assert.equal(await page.locator('#erase-guest').count(),0);assert.deepEqual(await unchanged(),beforeSwitch);await shot('changed-subject-refused')
+  console.log('PROBE privacy erasure: review A, select B, confirm -> after: refused, no record changed')
+  await page.getByRole('button',{name:'Review erasure',exact:true}).click();await page.getByRole('heading',{name:'Erase Marcus Chen',exact:true}).waitFor();await shot('reviewed-subject')
+  await page.locator('#erase-guest [name=confirm]').fill('ERASE');await page.getByRole('button',{name:'Erase guest content',exact:true}).click();await page.getByRole('status').filter({hasText:'Guest content erased.'}).waitFor()
+  const erased=(await h.api('/api/state')).guests;assert.deepEqual(erased.find(g=>g.id===guest.id),guestBefore);assert.ok(!erased.find(g=>g.id===guest.id).erased);assert.equal(erased.find(g=>g.id===other.id).erased,true)
+  console.log('PROBE legitimate privacy erasure: review B, confirm -> only B erased; A retained')
+  await page.locator('#privacy-guest').selectOption(guest.id);await page.getByRole('button',{name:'Review erasure',exact:true}).click();await page.getByRole('heading',{name:'Erase Elena Torres',exact:true}).waitFor();await page.locator('#erase-guest [name=confirm]').fill('ERASE');await page.getByRole('button',{name:'Erase guest content',exact:true}).click();await page.getByRole('status').filter({hasText:'Guest content erased.'}).waitFor()
   await page.getByText('Add a processor record',{exact:true}).click();await page.locator('#processor-add [name=provider]').fill('Message provider');await page.locator('#processor-add [name=reference]').fill('synthetic-placemat-1');await page.getByRole('button',{name:'Add follow-up',exact:true}).click();await page.getByRole('status').filter({hasText:'Processor follow-up recorded.'}).waitFor()
   await page.locator('[data-task] [name=state]').selectOption('confirmed');await page.locator('[data-task] [name=ground]').fill('Provider confirmed deletion in receipt synthetic-placemat-2');await page.getByRole('button',{name:'Record outcome',exact:true}).click();await page.getByRole('status').filter({hasText:'Processor outcome recorded.'}).waitFor();await shot('erased-and-processor-confirmed')
-  await page.getByRole('button',{name:'Review eligible guests'}).click();await page.locator('#retention-review').getByText('Marcus Chen',{exact:false}).waitFor();await shot('retention-review')
+  await page.getByRole('button',{name:'Review eligible guests'}).click();await page.locator('#retention-review').getByText('Morgan Lee',{exact:false}).waitFor();await shot('retention-review')
   assert.equal((await h.api('/api/privacy/access',{guestId:guest.id})).guest.erased,true);assert.deepEqual(errors,[]);console.log(`Privacy access, correction, erasure and processor follow-up passed at ${width}`)
  }finally{await context.close();await browser.close();await transport.close();await h.close()}
 }

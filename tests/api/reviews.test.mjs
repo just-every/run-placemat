@@ -118,7 +118,7 @@ test('Reviews, reply history and reports export inertly, reject broken restores 
   altered.at(-1).contentHash=content.digest();altered.at(-1).archiveHash=integrity.digest()
   await refused.api('/api/restore',{archive:altered,confirm:'RESTORE'},{status:400});assert.equal((await refused.api('/api/state')).state.bookings.length,0)
   const rules=Object.fromEntries(['guestNotes','messageContent','imports','financialEvidence'].map(k=>[k,{days:365,ground:'Recorded venue service purpose'}]))
-  await h.api('/api/privacy/policy',{version:0,rules});await h.api('/api/privacy/erase',{guestId:b.guestId,confirm:'ERASE'})
+  await h.api('/api/privacy/policy',{version:0,rules});await h.api('/api/privacy/erase',{guestId:b.guestId,review:(await h.api('/api/privacy/erase-preview',{guestId:b.guestId})).review,confirm:'ERASE'})
   assert.equal((await pub(h,'')).count,0);await pub(h,'submit',payload(s.token,b),404)
   assert.equal((await csv(h,'reviews')).length,0);assert.equal((await csv(h,'review-events')).length,0);assert.equal((await csv(h,'review-reports')).length,0)
   const later=await h.api('/api/backup');for(const value of ['Synthetic visit content','Synthetic public reply','Synthetic report detail','Synthetic rating-neutral outcome'])assert.ok(!JSON.stringify(later).includes(value))

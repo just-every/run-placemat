@@ -397,7 +397,8 @@ A personal native owner session opens `/privacy` from venue Settings. Every `/ap
 - `POST /api/privacy/access` with `guestId` creates an audited access request and returns that guest's current profile, own reservations and declared-need history, own messages and queue history, booking contacts and minimal financial references. Other guests and execution credentials are absent.
 - `POST /api/privacy/correction` takes `guestId`, `bookingId`, the access export's `revision`, `field`, `value`, `reason` and `guestConfirmed:true`. It uses the existing needs correction path, retaining the original declaration and dated author history. Changed revisions refuse.
 - `POST /api/privacy/policy` takes the current `version` (zero when absent) and `rules` for `guestNotes`, `messageContent`, `imports` and `financialEvidence`, each with integer `days` and a documented `ground`. Personal-content periods may be zero for explicit immediate disposal; financial review is at least one day. No legal period is inferred or prescribed.
-- `POST /api/privacy/erase` takes `guestId` and `confirm:"ERASE"`. Recorded retention grounds are required. Existing atomic identity erasure also records the completed request and known processor follow-up. Financial references remain under the recorded ground; old backup restoration stays fenced. No provider request is sent.
+- `POST /api/privacy/erase-preview` takes `guestId` and returns the reviewed subject and a signed, five-minute `review` bound to that owner, subject, guest revision, floor revision and retention policy revision. It changes no records.
+- `POST /api/privacy/erase` takes that exact `guestId`, `review` and `confirm:"ERASE"`. Missing, mismatched, expired or stale reviews return a clear conflict before erasure; the revisions are fenced in the atomic erasure transaction. Recorded retention grounds are required. Existing atomic identity erasure also records the completed request and known processor follow-up. Financial references remain under the recorded ground; old backup restoration stays fenced. No provider request is sent.
 - `POST /api/privacy/processors` adds a provider record identifier to a deletion request, or records a submitted, confirmed or retained outcome with its receipt or ground. A finished provider decision cannot be overwritten. This is an owner's record of external action, not a delivery claim.
 - `POST /api/privacy/retention-preview` returns eligibility and an exact review fingerprint. `POST /api/privacy/retention-run` requires that fingerprint, selected `guestIds` and `confirm:"ERASE"`. Active service work is excluded. The first slice erases whole selected identities only after all personal-content periods have elapsed; it does not separately purge each category or automatically delete retained finance. Each completed identity has its own durable request if a later identity refuses.
 
@@ -468,7 +469,7 @@ PAY-002 disclosure: the per-person journey checks the hosted amount and booking-
 
 PAY-002 authenticated observation: the per-person journey repeats paid-state synchronization against the controlled Stripe edge without a second Checkout or booking. It establishes neither live collection nor bank settlement. Safe close: “Unconfirmed Checkout collection retains the reservation until stable recovery and an authoritative expired-unpaid observation” and “Checkout preparation fences cancellation before its provider call; processing stays protected and confirmed paid or never-attempted requests permit explicit cancellation” assert unresolved reservation preservation, authoritative closure and separate explicit cancellation. These journeys do not prove the full original failed-payment capacity-release, refund, seating or sheet acceptance.
 
-PAY-006 attribution: `tests/api/money-ledger-journeys.mjs`, “Signed money facts reconcile refund-before-charge and duplicate callbacks, payout fees and appended unmatched attribution without editing history”, imports gross USD 97.00 (9700 cents), fees USD 3.00 (300 cents) and net USD 94.00 (9400 cents) with one unattributed USD 2.00 (200 cents) settlement item. The adjustment adds a separate human attribution; assertions retain every source money item, original provider settlement item, and gross, fee and net total, while exposing the booking link, adjustment reference, actor and recorded instant. The response preserves provider source, amount, fee and net alongside the adjustment reference and actor and time record. Controlled native Stripe-edge cases cover both an absent signed fact and a conflicting USD 5.00 (500 cents) signed charge against that USD 2.00 provider item: the remaining difference is negative USD 3.00 (-300 cents) before and after explicit owner attribution. The same journey checks GET, parsed CSV, exact before-and-after audit with reason, concurrent and replay refusal, non-owner denial, revoked-session denial, redacted erasure and an empty-destination archive restore. An empty unmatched list is not reconciliation of conflicting economic facts. This is native fixture proof, not a live provider receipt. Actual Stripe payout proof, scoped finance authority and unimplemented lifecycles remain the PAY-006 gaps.
+PAY-006 attribution: `tests/api/money-ledger-journeys.mjs`, “Signed money facts reconcile refund-before-charge and duplicate callbacks, payout fees and appended unmatched attribution without editing history”, imports gross USD 97.00 (9700 cents), fees USD 3.00 (300 cents) and net USD 94.00 (9400 cents) with one unattributed USD 2.00 (200 cents) settlement item. The adjustment adds a separate human attribution; assertions retain every source money item, original provider settlement item, and gross, fee and net total, while exposing the booking link, adjustment reference, actor and recorded instant. The response preserves provider source, amount, fee and net alongside the adjustment reference and actor and time record. Controlled native Stripe-edge cases cover both an absent signed fact and a conflicting USD 5.00 (500 cents) signed charge against that USD 2.00 provider item: the remaining difference is negative USD 3.00 (-300 cents) before and after explicit owner attribution. The same journey checks GET, parsed CSV, exact before-and-after audit with reason, concurrent and replay refusal, non-owner denial, revoked-session denial, redacted erasure and empty-destination archive restores before and after erasure. The conflicting signed fact names a different existing booking from the human attribution; both booking references remain distinguishable. The intact restore retains the audit reason and exact before and after, every financial CSV agrees with the source installation, and signed callback replay appends no receipt or adjustment. Attribution and erasure preserve the original signed-event receipt history. An empty unmatched list is not reconciliation of conflicting economic facts. This is native fixture proof, not a live provider receipt. Actual Stripe payout proof, scoped finance authority and unimplemented lifecycles remain the PAY-006 gaps.
 
 ### Owner-held dispute and accounting operations
 
@@ -566,3 +567,54 @@ reasons or payment credentials. Group grants never confer guest or finance acces
 existing local date, period and service filters. All scheduled kinds are shown
 under Weekly report delivery in Settings. Existing group recipients and native
 finance scopes are unchanged; no marketing or provider authority is created.
+
+
+### Booking email delivery observations
+
+The existing personal owner or admin `booking.management.send` command remains the
+only sending door in this slice. Callback observations grant no send, reply,
+retry, booking mutation or private-link authority. Existing acknowledgment,
+recorded-contact selection, link revocation and daily limits continue to apply.
+
+For Resend observations, the owner configures the stable runtime bindings
+`RER_INSTALLATION_ID` and `MAIL_EVENT_NAMESPACE`, with the private
+`RESEND_WEBHOOK_SECRET` belonging to that installation's Resend endpoint. These
+bindings are server configuration, never callback fields or browser settings.
+The endpoint is `POST /api/booking-mail/events`. Missing configuration refuses
+with 503. Development and demo modes refuse this intake. Key rotation preserves
+the same namespace. Changing the installation or namespace does not adopt old
+messages. No runtime secret or executable link is returned by a read or export.
+This native implementation establishes no live account, webhook configuration,
+sending-domain verification or provider qualification.
+
+Only newly accepted booking-link sends with a stored installation, Resend,
+namespace, message ID and original single recipient are eligible. Authentication
+mail, foreign IDs, inadequately bound earlier sends, altered or extra recipients,
+forged signatures, erased guests and historical restored bindings refuse.
+A later booking-contact change does not rewrite the original recipient.
+Exact raw bytes and Svix headers enter the shipped mail intake and D1 store
+unchanged. SQL receipt and state fences recheck the binding during the durable
+transaction. Erasure deletes bindings and all linked receipts and states in the
+same guest-erasure batch, including a racing callback or late send response.
+
+`GET /api/booking-mail` and the reservation email panel in the service view expose
+current personal owners and admins to provider acceptance, current delivery state
+and distinct retained provider facts. Host, member, server, preparation-key and
+shared-device reads refuse. Current authority is checked again on every read.
+Duplicate events add no fact. Conflicting identities roll back. Pending facts
+cannot regress a terminal state, and older or equal terminal facts do not replace
+the current state; distinct facts remain visible. Delivery means receiving mail
+server acceptance, without proof of a guest read. Observations never change a
+reservation, link, issue count or outbound count, and never initiate a resend.
+
+Owner business CSV kinds `booking-mail` and `booking-mail-events` reconcile the
+bindings, current state and normalized provider facts. Subject access exports
+include only that guest's observations. Retention review includes the message's
+recorded dates. Reviewed privacy erasure creates open Resend processor follow-up
+references without making a provider request or claiming deletion there.
+Business backups retain history with `historical=1`; staged validation rejects
+broken guest, booking, message, recipient, receipt and state relationships.
+Restored facts grant no callback authorization or executable management link.
+A trusted later same-source erasure journal refuses an older archive; current
+erasure also invalidates retained transfer snapshots. Full category expiry and
+actual processor deletion receipts remain DATA-004 duties.

@@ -67,7 +67,7 @@ still require their own current scope, policy and native authority.
 | --- | --- | --- | --- |
 | `placemat.workspace.snapshot` | operations:read | sensitive | workspace-snapshot |
 | `placemat.workspace.revision` | operations:read | standard | workspace-revision; revision-for-reminders |
-| `placemat.guests.history` | operations:read | sensitive | guests-history |
+| `placemat.guests.history` | operations:read | sensitive | guests-history; guests-history-zero; guests-history-one; guests-history-several; guests-history-erased |
 | `placemat.availability.search` | operations:read | standard | availability-search |
 | `placemat.timeline.inspect` | operations:read | sensitive | timeline-inspect |
 | `placemat.staffing.inspect` | operations:read | standard | staffing-inspect |
