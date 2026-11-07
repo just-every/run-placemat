@@ -3,10 +3,9 @@ import { createBusinessSettings } from '../modules/business-settings/index.ts'
 import { operatorAuth, authConfig, type Bindings } from '../auth.server'
 import { hasDeviceCookie } from '../placemat/shared-device-cookie'
 import { hash } from '../placemat/store'
-import { readTools } from './reads'
-import { proposalTool } from './proposals'
+import { coordinatorPrompts, coordinatorTools } from './prompts'
 
-const capabilities = ['tools', 'policy', 'pause', 'audit', 'idempotency'] as const
+const capabilities = ['tools', 'policy', 'pause', 'audit', 'idempotency', 'prompts'] as const
 export const notTools = [
   { clauses: ['ACCESS-001'], reason: 'screen' as const },
   { clauses: ['FLOOR-008'], reason: 'device' as const },
@@ -21,10 +20,10 @@ export function companyDoor(env: Bindings) {
     if (!issuer || !installationId || !publicKeys) throw new Error('Incomplete owner-claim trust')
     trust = { issuer, installationId, appOrigin: env.AUTH_ORIGIN, publicKeys: JSON.parse(publicKeys) }
   }
-  const tools = [...readTools, proposalTool]
+  const tools = coordinatorTools
   const door = createAgentDoor({ seed: 'placemat', name: 'Placemat', specialist: 'restaurant service coordinator', capabilities: [...capabilities], db: env.DB, origin: env.AUTH_ORIGIN, trust,
     people: operatorAuthPeople({ db: env.DB, allowList: authConfig(env).allowList, session: request => hasDeviceCookie(request) ? Promise.resolve(null) : operatorAuth(env).getSession(request) }),
-    tools, resources: [], notTools,
+    tools, prompts: coordinatorPrompts, resources: [], notTools,
     async localCredentials(request) {
       const value = request.headers.get('authorization')
       if (!value?.startsWith('Bearer ')) return null

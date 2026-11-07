@@ -234,10 +234,12 @@ export async function execute(db:D1Database,actor:Actor,command:string,p:any,pac
   const identities=new Map(s.bookings.map(b=>[b.id,b.guestId]))
   const change=await (command==='guest.merge'?mergeGuests:unmergeGuests)(db,s,version,actor,p,now)
   before.push(...change.statements)
-  // Follow the reviewed booking identity atomically, without transferring private link authority.
+  // Follow the reviewed booking identity atomically, without transferring private link authority
+  // or changing the original delivery recipient and provider binding.
   for(const b of s.bookings)if(identities.get(b.id)!==b.guestId)before.push(
    db.prepare('DELETE FROM pm_feedback_credentials WHERE visit_id IN (SELECT id FROM pm_feedback_visits WHERE booking_id=?)').bind(b.id),
-   db.prepare('UPDATE pm_feedback_visits SET guest_id=? WHERE booking_id=?').bind(b.guestId,b.id))
+   db.prepare('UPDATE pm_feedback_visits SET guest_id=? WHERE booking_id=?').bind(b.guestId,b.id),
+   db.prepare('UPDATE pm_booking_mail SET guest_id=? WHERE booking_id=? AND guest_id=?').bind(b.guestId,b.id,identities.get(b.id)))
   result=change.result;mergeChanges=change.changes;break
  }
  case 'guest.update':case 'guest.profile':{

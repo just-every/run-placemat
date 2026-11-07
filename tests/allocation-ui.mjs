@@ -38,7 +38,11 @@ try{
     const response=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command==='proposal.prepare')
     await form.getByRole('button',{name:'Prepare allocation',exact:true}).click()
     const result=await response;assert.ok(result.ok(),await result.text());const proposal=(await result.json()).result
-    await root.locator(`[data-allocation-proposal="${proposal.id}"]`).waitFor();return proposal
+    const preparedCard=root.locator(`[data-allocation-proposal="${proposal.id}"]`)
+    await preparedCard.waitFor()
+    assert.equal(proposal.preparation,undefined)
+    assert.ok((await preparedCard.innerText()).includes('Prepared by Venue owner'),'Person-prepared plans retain their existing attribution')
+    return proposal
    }
    const first=await prepare(0),second=await prepare(1)
    assert.deepEqual((await h.api('/api/state')).state.bookings.find(b=>b.id===reservation.id),before)
