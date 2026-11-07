@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "582f72cd773a567c557bf272e067c35da9440b383904ca142081774bf175e96c",
+      "sha256": "d7a9ffa609d5e54f4ce08cd0b10bf195e945820349267cbcd6b93498d61aa3cd",
       "executable": false
     },
     "agent-surface.json": {
@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "25ff6dc6ac8db55552c8dab43f4ec5f68bad868b1f7fb29eb9f10d4f48f2032d",
+      "sha256": "3f90993ed05ca58b7a42a97fa4836053759f3b5be43d3af8b46d5bdeb7d3e6b1",
       "executable": false
     },
     "deploy-demo.json": {
@@ -278,7 +278,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "616af3f51ebde37dc55e496548693d7a74e83e1357a924884258daa325968c32",
+      "sha256": "54c2973eac44943f7d5655ca7f72bfe6821cf8b1b1c408207b3820cb7285b184",
       "executable": false
     },
     "docs/data-portability.md": {
@@ -5169,6 +5169,10 @@
       "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
       "executable": false
     },
+    "tests/agent-approval-outcomes.mjs": {
+      "sha256": "868a81a3e11f5c2ed72fe108dab7a657de3847c46ebd78713ada200262ec08c8",
+      "executable": false
+    },
     "tests/agent-attribution-ui.mjs": {
       "sha256": "180bab9054459334e36b2e1cea2a5aaf28c914c2a78bbb1f1d80213ddcd98d35",
       "executable": false
@@ -5182,11 +5186,11 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "b9f552963405cf179d6ff95550ceb40ada884aff94fb47ddd443024e3155b620",
+      "sha256": "6a21720f0c0afafd43a7e2c99ba521dc87ef7454d4af78a8225205543aab5a44",
       "executable": false
     },
     "tests/agent-replay.mjs": {
-      "sha256": "7acfd1a1555bcfd4a63224d1114310444675f2f6c2b8ef92913a47d23509fc25",
+      "sha256": "da01d4c66a1d541c77793ec534997a795a887aa31a7abb02311dd566bd626ec4",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
@@ -5698,7 +5702,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "dd57a23ebecbd3a44d88865d1d9c234c286c58e0b26d788db30847c8d112aca7",
+      "sha256": "a5f185bb4785e721621b96cd6bac3e97af161089d1cb716a3dc26d89b39a52cd",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
