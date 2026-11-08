@@ -1,0 +1,5 @@
+PASS: workflow differs only in two timeout defaults (12 -> 17).
+PASS: nightly override, shard selection, API partition, contract source and generated views byte-identical to origin/main.
+PASS: push matrix 8 shards
+PASS: all matrix 9 shards
+PASS: adaptation acknowledgement, offline Base copy verification, source lock check, contract documentation check and git diff --check.

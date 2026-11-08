@@ -1,0 +1,11 @@
+{
+  "adapted": "VERIFY-WORKFLOW.md",
+  "revision": "4280971d7c0295b8a88c3e1179048efcbbe14f30",
+  "sha256": "97d25a60dabe02ab4c30efbe226c8967b8fbac25b39f61467c2ef5a26186261d",
+  "acknowledged": {
+    "sha256": "b68a7e2b668c1418c8d0876d27bb7d486faa4f278dace46f52867630abea65fa",
+    "mode": "100644"
+  },
+  "record": "base-copies.json"
+}
+

@@ -1,0 +1,79 @@
+diff --git a/.github/workflows/verify.yml b/.github/workflows/verify.yml
+index 4cfc09b..74912b9 100644
+--- a/.github/workflows/verify.yml
++++ b/.github/workflows/verify.yml
+@@ -12,7 +12,7 @@ on:
+         default: push
+       timeout:
+         type: number
+-        default: 12
++        default: 17
+ 
+ permissions:
+   contents: read
+@@ -39,7 +39,7 @@ jobs:
+   shards:
+     needs: plan
+     runs-on: ubuntu-24.04
+-    timeout-minutes: ${{ inputs.timeout || 12 }}
++    timeout-minutes: ${{ inputs.timeout || 17 }}
+     strategy:
+       fail-fast: false
+       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+diff --git a/VERIFY-WORKFLOW.md b/VERIFY-WORKFLOW.md
+index cd84f0a..591b1db 100644
+--- a/VERIFY-WORKFLOW.md
++++ b/VERIFY-WORKFLOW.md
+@@ -16,7 +16,7 @@ The two workflows use the same declared shards:
+ 
+ Release tags use Nightly journeys' full coverage. The nightly workflow calls Verify with the full tier. Verify plans its matrix
+ from `verification.json`, then runs the shards in parallel on Ubuntu 24.04.
+-Push shards have a 12-minute timeout; the nightly workflow allows longer for the
++Push shards have a 17-minute timeout; the nightly workflow allows longer for the
+ full installation journeys. The final `verify` aggregate remains the stable
+ required check as shard names change. It succeeds only when planning and every
+ selected shard succeed; a failed or cancelled shard cannot produce a green
+diff --git a/base-copies.json b/base-copies.json
+index 54405ab..a48fe89 100644
+--- a/base-copies.json
++++ b/base-copies.json
+@@ -6564,7 +6564,7 @@
+       },
+       "acknowledged": {
+         "VERIFY-WORKFLOW.md": {
+-          "sha256": "f5b511d16c871e167173d157fe6f828648c5ef4143f4ff7959cbe3af7ccc7966",
++          "sha256": "b68a7e2b668c1418c8d0876d27bb7d486faa4f278dace46f52867630abea65fa",
+           "mode": "100644"
+         }
+       }
+diff --git a/sources.lock.json b/sources.lock.json
+index 5e493ef..4e5cfe0 100644
+--- a/sources.lock.json
++++ b/sources.lock.json
+@@ -218,7 +218,7 @@
+       "executable": false
+     },
+     ".github/workflows/verify.yml": {
+-      "sha256": "dd1eb7cbb9cd9e0800d676a51485b25ea0c36321d34488d4dac3cf5024ceba9a",
++      "sha256": "e97461ce61d81b8d77fc98f7788474080241ef10345025d7490dfcba7fce5deb",
+       "executable": false
+     },
+     ".gitignore": {
+@@ -242,7 +242,7 @@
+       "executable": false
+     },
+     "base-copies.json": {
+-      "sha256": "0e1e30a96340473f39fec20964779be9d0d7c7729b29fff781c98779743e4a38",
++      "sha256": "79e4eb43375db1690d548b9292b8821ea1a462204389352fa34254431dac626b",
+       "executable": false
+     },
+     "composition.lock.json": {
+@@ -5722,7 +5722,7 @@
+       "executable": false
+     },
+     "VERIFY-WORKFLOW.md": {
+-      "sha256": "f5b511d16c871e167173d157fe6f828648c5ef4143f4ff7959cbe3af7ccc7966",
++      "sha256": "b68a7e2b668c1418c8d0876d27bb7d486faa4f278dace46f52867630abea65fa",
+       "executable": false
+     },
+     "vite.config.ts": {

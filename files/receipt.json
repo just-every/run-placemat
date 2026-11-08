@@ -1,0 +1,140 @@
+{
+  "repository": "just-every/run-placemat",
+  "branch": "cloud/sx-placemat-ci-limit-1",
+  "head": "07025cc67737b2d127ea1162fc89d49039d95f90",
+  "base": "fa262c16d82bd74b2eaef7ff8ba68ac62bc42044",
+  "product_push": "success",
+  "product_push_attempts": 1,
+  "pr": null,
+  "changed_files": [
+    ".github/workflows/verify.yml",
+    "VERIFY-WORKFLOW.md",
+    "base-copies.json",
+    "sources.lock.json"
+  ],
+  "timeout_before_minutes": 12,
+  "timeout_after_minutes": 17,
+  "nightly_timeout_minutes": 45,
+  "clauses": {
+    "before": {
+      "done": 56,
+      "partial": 45,
+      "missing": 47,
+      "total": 148
+    },
+    "after": {
+      "done": 56,
+      "partial": 45,
+      "missing": 47,
+      "total": 148
+    },
+    "status_changes": []
+  },
+  "matrices": {
+    "push": {
+      "include": [
+        {
+          "name": "source",
+          "browser": false
+        },
+        {
+          "name": "api-1",
+          "browser": false
+        },
+        {
+          "name": "api-2",
+          "browser": false
+        },
+        {
+          "name": "site",
+          "browser": false
+        },
+        {
+          "name": "runtime",
+          "browser": true
+        },
+        {
+          "name": "runtime-ui-1",
+          "browser": true
+        },
+        {
+          "name": "runtime-ui-2",
+          "browser": true
+        },
+        {
+          "name": "shared-hoststand",
+          "browser": true
+        }
+      ]
+    },
+    "all": {
+      "include": [
+        {
+          "name": "source",
+          "browser": false
+        },
+        {
+          "name": "api-1",
+          "browser": false
+        },
+        {
+          "name": "api-2",
+          "browser": false
+        },
+        {
+          "name": "site",
+          "browser": false
+        },
+        {
+          "name": "runtime",
+          "browser": true
+        },
+        {
+          "name": "runtime-ui-1",
+          "browser": true
+        },
+        {
+          "name": "runtime-ui-2",
+          "browser": true
+        },
+        {
+          "name": "shared-hoststand",
+          "browser": true
+        },
+        {
+          "name": "installer",
+          "browser": true
+        }
+      ]
+    }
+  },
+  "checks": {
+    "source-lock": true,
+    "base-copies-offline": true,
+    "contract-projections": true,
+    "workflow-only-two-defaults": true,
+    "unchanged-shard-definitions": true,
+    "unchanged-contract-and-views": true,
+    "git-diff-check": true,
+    "fleet-identities-and-no-trailers": true,
+    "clean-worktree": true
+  },
+  "ci": {
+    "run_id": 42446693440,
+    "conclusion": "success",
+    "head_sha": "07025cc67737b2d127ea1162fc89d49039d95f90",
+    "html_url": "https://github.com/just-every/run-placemat/actions/runs/42446693440",
+    "status": "completed",
+    "state": "completed/success",
+    "reruns": 0
+  },
+  "notes": [
+    "No runtime or UI changes; no tests added.",
+    "No speed-tests-ci PLAN.md Appendix A exists in this checkout; VERIFY-WORKFLOW.md carries the timeout statement.",
+    "verify.yml is edition-owned local source and absent from base-copies.json. VERIFY-WORKFLOW.md is an acknowledged Base adaptation and was refreshed with adapt-base.",
+    "The fleet performs the independent publication scan and main landing."
+  ],
+  "github_calls_used": 7,
+  "blockers": [],
+  "product_custody": "READY"
+}

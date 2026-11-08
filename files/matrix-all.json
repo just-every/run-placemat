@@ -1,0 +1,1 @@
+{"include":[{"name":"source","browser":false},{"name":"api-1","browser":false},{"name":"api-2","browser":false},{"name":"site","browser":false},{"name":"runtime","browser":true},{"name":"runtime-ui-1","browser":true},{"name":"runtime-ui-2","browser":true},{"name":"shared-hoststand","browser":true},{"name":"installer","browser":true}]}

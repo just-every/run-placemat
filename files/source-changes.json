@@ -1,0 +1,19 @@
+{
+  "files": [
+    {
+      "path": "base-copies.json",
+      "change": "modified",
+      "before": {
+        "sha256": "0e1e30a96340473f39fec20964779be9d0d7c7729b29fff781c98779743e4a38",
+        "executable": false
+      },
+      "after": {
+        "sha256": "79e4eb43375db1690d548b9292b8821ea1a462204389352fa34254431dac626b",
+        "executable": false
+      }
+    }
+  ],
+  "metadata": [],
+  "meaning": "Origins are comparison baselines; changing an origin does not assert adoption or local byte equality."
+}
+
