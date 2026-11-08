@@ -3,9 +3,11 @@ import {cartSummary} from './placemat-experience-options.js'
 export function createCheckout({api,root,esc,notice,formatTime,onConfirmed,onReleased}){
  const key='placemat-checkout',random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('')
  let capability,payload,expiryTimer
- const read=()=>{try{return JSON.parse(sessionStorage.getItem(key)||'null')}catch{return null}}
- const retain=value=>{capability=value;sessionStorage.setItem(key,JSON.stringify(value))}
- const clear=()=>{clearInterval(expiryTimer);capability=undefined;payload=undefined;sessionStorage.removeItem(key)}
+ // Embedded browsers may refuse web storage. The frame's own history still
+ // retains its random capability across reloads, without contact or request text.
+ const read=()=>{try{const value=sessionStorage.getItem(key);if(value)return JSON.parse(value)}catch{};try{return history.state?.[key]??null}catch{return null}}
+ const retain=value=>{try{sessionStorage.setItem(key,JSON.stringify(value))}catch{history.replaceState({...history.state,[key]:value},'')};capability=value}
+ const clear=()=>{clearInterval(expiryTimer);capability=undefined;payload=undefined;try{sessionStorage.removeItem(key)}catch{};try{if(history.state?.[key]){const state={...history.state};delete state[key];history.replaceState(state,'')}}catch{}}
  function held(view){
   clearInterval(expiryTimer)
   root.innerHTML=`<article class="card" aria-label="Checkout hold"><h2>Table held for you</h2><p>Your table is reserved until <time>${esc(formatTime(view.hold.expiresAt))}</time>.</p><p data-hold-countdown role="status"></p><p>${esc(view.hold.partySize)} guests · ${esc(formatTime(view.hold.startAt))}, until ${esc(formatTime(view.hold.endAt))}.</p>${cartSummary(view.hold.experienceCart,esc,true)}<p class="help">A hold is not a confirmed booking. No payment is requested before your reservation is saved.${payload?' Review your visit, then finish the reservation.':' This tab has recovered the hold. Release it to re-enter your contact and visit details.'}</p>${payload?'<button type="button" data-checkout="finish">Finish reservation</button> ':''}<button type="button" class="secondary" data-checkout="release">Release hold</button></article>`

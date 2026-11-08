@@ -2,7 +2,7 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {installation,publicGuest} from './harness.mjs'
 import {feedbackFixture,feedbackTick} from './feedback-fixture.mjs'
-import {verify,call as diner} from './diner-client.mjs'
+import {verify,issue,call as diner} from './diner-client.mjs'
 import {csvRecords} from './business-fixture.mjs'
 import {makePart,ContentVerifier,ArchiveVerifier} from '../../src/modules/portability/format.mjs'
 const address=name=>[name,'example.test'].join(String.fromCharCode(64))
@@ -91,7 +91,27 @@ test('Review eligibility refuses absent visits, staff, changed contact, revoked 
   await pub(h,'submit',payload(proofs[4].token,b),404)
   await diner(h,'logout',{token:proofs[0].token});await pub(h,'status',payload(proofs[0].token,f.bookings[0]),404)
   assert.equal((await pub(h,'')).count,1)
+  // Change a reservation through the guest's real review and confirmation doors.
+  const oldEmail=address('synthetic-placemat-before'),newEmail=address('synthetic-placemat-after')
+  const changedVisit=(await h.api('/api/public/book',publicGuest(f.service,5,{email:oldEmail,feedbackEmailConsent:true}),{as:'',status:201})).result
+  const attached=await verify(h,changedVisit,oldEmail),pending=await issue(h,changedVisit,oldEmail)
+  const authority={token:attached.token,bookingId:changedVisit.id}
+  const preview=await diner(h,'/api/public/diner/management/preview',{...authority,action:'change',contact:{email:newEmail}})
+  await diner(h,'/api/public/diner/management/commit',{...authority,previewId:preview.previewId,acknowledged:true})
+  await diner(h,'verify',{code:pending,acknowledged:true},{status:404})
+  await pub(h,'status',payload(attached.token,changedVisit),404)
+  const beforeOldRequest=h.messages.length
+  await diner(h,'request',{bookingId:changedVisit.id,email:oldEmail,acknowledged:true},{status:202})
+  assert.equal(h.messages.length,beforeOldRequest,'The former booking contact receives no new code')
+  const current=await verify(h,changedVisit,newEmail),beforeCompletion=h.messages.length
+  await h.command('booking.status',{bookingId:changedVisit.id,status:'seated'});await h.command('booking.status',{bookingId:changedVisit.id,status:'completed'})
+  await feedbackTick(h);assert.equal(h.messages.length,beforeCompletion,'Old email consent never authorizes an invitation to the new contact')
+  await pub(h,'submit',payload(attached.token,changedVisit),404)
+  assert.equal((await pub(h,'')).count,1,'Refused old authority publishes nothing')
+  await pub(h,'submit',payload(current.token,changedVisit,{comment:'Fresh proof of the current booking contact'}))
+  assert.equal((await pub(h,'')).count,2,'Fresh booking proof and explicit publication work without an email invitation')
   console.log('PROBE DIST-006 eligibility: booked, no-show, cancelled, staff, changed contact, revoked device and withdrawn invitation -> refused; seated guest -> published; no resend')
+  console.log('PROBE DIST-006 current contact: guest-confirmed booking email change -> old session and pending code refused, no old-contact mail or transferred invitation consent; freshly verified contact explicitly publishes')
  }finally{await h.close()}
 })
 

@@ -5,8 +5,8 @@ availability and guest history, inspects timeline, sections, pacing and activity
 computes allocation alternatives, and prepares exact native proposals. The live
 registry, schemas, scopes and classes are at `/docs/agents` and `/mcp`.
 
-This installation declares tools, policy, pause, audit and idempotency. Events,
-resources, prompts and subscriptions are undeclared and return typed refusals.
+This installation declares tools, policy, pause, audit, idempotency and prompts. Events,
+resources and subscriptions are undeclared and return typed refusals.
 The restaurant's wider contract describes future jobs; it does not grant them.
 In particular this coordinator does not book, seat, publish, approve a plan, send
 messages, charge, refund, manage credentials or grant authority. A person uses
@@ -41,3 +41,48 @@ real dinner, tables, guest booking and draft through production HTTP doors in a
 disposable installation. No database fixture writes or provider credentials are
 used. Setup uses the existing setup-token `/auth/bootstrap` lifecycle; the
 separate signed `/auth/owner-claim` production handler retains its purpose.
+
+## Coordinator jobs
+
+The argument-free `placemat.operations.review` prompt describes authorized
+operations reads and reports facts and alternatives without changing native
+records. It derives dated reads from current service timestamps in the venue
+timezone and uses discovered input schemas. Its tools are the nine registered
+read tools below.
+
+The argument-free `placemat.service.publication.prepare` prompt starts with
+`placemat.workspace.snapshot`, selects a requested draft, reads
+`placemat.workspace.revision`, and calls `placemat.plans.prepare` with the current
+revision and a fresh idempotency key. It confirms a pending proposal and a draft
+service. Publication and approval remain separate native person decisions.
+
+Both jobs are static declarations. They include no installation records,
+credentials, fixture values or caller text. Retrieval uses the shipped Base
+adapter's standard policy guard, Pause and current credential admission. Unknown
+names and malformed or nonempty arguments return invalid params without native
+changes. Results have private cache scope and zero cache lifetime. Tool calls
+still require their own current scope, policy and native authority.
+
+| Tool | Scope | Possible classes | Class fixture steps in `agent-surface.json` |
+| --- | --- | --- | --- |
+| `placemat.workspace.snapshot` | operations:read | sensitive | workspace-snapshot |
+| `placemat.workspace.revision` | operations:read | standard | workspace-revision; revision-for-reminders |
+| `placemat.guests.history` | operations:read | sensitive | guests-history; guests-history-zero; guests-history-one; guests-history-several; guests-history-erased |
+| `placemat.availability.search` | operations:read | standard | availability-search |
+| `placemat.timeline.inspect` | operations:read | sensitive | timeline-inspect |
+| `placemat.staffing.inspect` | operations:read | standard | staffing-inspect |
+| `placemat.capacity.check` | operations:read | standard | capacity-check |
+| `placemat.allocations.advise` | operations:read | sensitive | allocations-advise |
+| `placemat.audit.inspect` | operations:read | sensitive | audit-inspect |
+| `placemat.plans.prepare` | plans:prepare | standard, sensitive | prepare-publication; prepare-reminders |
+
+These existing fixtures are seeded through `tests/agent-fixtures.mjs` and checked
+by the normal conformance journey under autonomous and held policies.
+`tests/agent-native-journey.mjs` follows discovery and the publication job through
+HTTP to a pending native proposal. Its operations-review leg compares all nine
+registered reads with populated native HTTP results under autonomous and held
+policies, using the Base journey’s signed-in person approvals for private reads. `tests/api/agent-prompts.test.mjs` checks
+prompt reads and refusals against unchanged native state and the documentation
+against the live registry. Full resource, event and subscription coverage, the
+complete specialist week, stranger-agent acceptance and remaining conformance
+obligations remain unproved.
