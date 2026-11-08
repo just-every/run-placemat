@@ -230,7 +230,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "631254d3d3f8f8f2a5be6c58497cab8a4d91fb821934725a491c83a7b1ccc6c9",
+      "sha256": "3a391b838336dec54bd778297cacea018bb2d10dd298aca869d10d4432432102",
       "executable": false
     },
     "agent-surface.json": {
@@ -250,7 +250,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2fc8167189ba0379b12c1a680cbbb99ba165b4039a967010c4848d4ceabce077",
+      "sha256": "9d21f9cd6d07b045060f3af3b94dd1060c65750b62434671823899db12e2144e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -278,7 +278,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "ecd8f4b77f174376cb1d40b1a9f502e6bcdfe62b47b91588ff6e607982eb6c1f",
+      "sha256": "7dc756808c6f42e606f79dca585a26cd9d55f41789bf053d66aa8637ada96093",
       "executable": false
     },
     "docs/data-portability.md": {
@@ -5173,6 +5173,10 @@
       "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
       "executable": false
     },
+    "tests/agent-approval-outcomes.mjs": {
+      "sha256": "44b479a296afc7760fb50055639960deb2ecdd91a8aeb3d761f3ceddbd9a919b",
+      "executable": false
+    },
     "tests/agent-attribution-ui.mjs": {
       "sha256": "180bab9054459334e36b2e1cea2a5aaf28c914c2a78bbb1f1d80213ddcd98d35",
       "executable": false
@@ -5186,7 +5190,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "b5c0ab7fec26a88a55139daac825cdf5793a2ae87edbe11e207f8fc4e86d88b0",
+      "sha256": "18cce23409f22700d80b0efbbf2b17353aba11c2b22f5e8dba194b3add39ef82",
       "executable": false
     },
     "tests/agent-prompt-client.mjs": {
@@ -5194,7 +5198,7 @@
       "executable": false
     },
     "tests/agent-replay.mjs": {
-      "sha256": "7acfd1a1555bcfd4a63224d1114310444675f2f6c2b8ef92913a47d23509fc25",
+      "sha256": "da01d4c66a1d541c77793ec534997a795a887aa31a7abb02311dd566bd626ec4",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
@@ -5714,7 +5718,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "dd57a23ebecbd3a44d88865d1d9c234c286c58e0b26d788db30847c8d112aca7",
+      "sha256": "a5f185bb4785e721621b96cd6bac3e97af161089d1cb716a3dc26d89b39a52cd",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
