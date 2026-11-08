@@ -11,7 +11,7 @@ for(const width of [1440,390]){
  let home,tap,homeTransport,tapTransport,browser,errors=[]
  home=await installation({origin:'https://home.example.test',peers:{'tap.example.test':()=>tap}});tap=await installation({origin:'https://tap.example.test',peers:{'home.example.test':()=>home}})
  homeTransport=await browserServer(home);tapTransport=await browserServer(tap)
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${homeTransport.certificateSpki},${tapTransport.certificateSpki}`]})
+ browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${homeTransport.certificateSpki},${tapTransport.certificateSpki}`]})
  try{
   for(const [h,name] of [[home,'Home Bistro'],[tap,'Tap Room']]){const {service:s}=await service(h);await h.command('venue.update',{name,timezone:'Australia/Brisbane'});await h.api('/api/public/book',publicGuest(s,0),{as:'',status:201})}
   const ga=await home.signIn('ui-group-admin@example.test')
@@ -40,7 +40,7 @@ for(const width of [1440,390]){
   await homeOwner.page.reload();await homeOwner.page.locator('.app-main[aria-busy=false]').waitFor();await homeOwner.page.getByRole('link',{name:'Settings',exact:true}).click();await group(homeOwner.page).evaluate(el=>el.open=true)
   assert.match(await group(homeOwner.page).innerText(),/Connected venues[\s\S]*Tap Room/)
   const grant=group(homeOwner.page).locator('form[data-group-form=grant]');await grant.locator('[name=operatorId]').selectOption({label:'Host reader'})
-  const boxes=grant.locator('input[type=checkbox]');assert.equal(await boxes.count(),3,'Home offers both rights and the member venue only its ceiling');for(const box of await boxes.all())await box.check()
+  const boxes=grant.locator('input[type=checkbox]');assert.equal(await boxes.count(),4,'Home offers all three rights and the member venue only its ceiling');for(const box of await boxes.all())await box.check()
   await submit(homeOwner.page,'grant','Grant group access','/api/group/admin');await group(homeOwner.page).evaluate(el=>el.open=true);const granted=await group(homeOwner.page).innerText();assert.match(granted,/Group admins/);assert.match(granted,/This venue: Reservation report, Pre-shift sheet/);assert.match(granted,/Tap Room: Reservation report\n/);await shot(homeOwner.page,'grants',group(homeOwner.page))
   // The group admin creates a token in their own settings and reads both venues until the owner revokes access.
   const admin=await open(home,homeTransport,ga);await group(admin.page).evaluate(el=>el.open=true);await group(admin.page).locator('form[data-group-form=token]').getByRole('button',{name:'Create group token',exact:true}).click();await admin.page.locator('#group-token pre').waitFor()
@@ -58,7 +58,7 @@ for(const width of [1440,390]){
 // REPORT-005 uses the same Settings components, two native venue Workers and authenticated downloads.
 for(const width of [1440,390]){
  const {reportGroup,reportDay,firstDue,publishReportService}=await import('./api/report-schedule-fixture.mjs'),f=await reportGroup(),transport=await browserServer(f.home)
- const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]})
+ const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]})
  try{
   const errors=[]
   const open=async(cookie,setup=false,financeOnly=false)=>{
@@ -137,4 +137,60 @@ for(const width of [1440,390]){
   await filters.locator('[name=period]').selectOption('past');await filters.getByRole('button',{name:'Apply report filters'}).click();const visits=owner.page.getByRole('link',{name:'Download attended visits CSV'});await visits.waitFor();fileEvent=owner.page.waitForEvent('download');await visits.click();downloaded=await fileEvent;contents=await(await import('node:fs/promises')).readFile(await downloaded.path(),'utf8');assert.ok(contents.includes(visit.id)&&!contents.includes('synthetic-placemat-visit@example.test'));await shot(owner.page,'historical-visits',owner.page.locator('#reports-content'))
   assert.deepEqual(errors,[]);await recipient.context.close();await owner.context.close();console.log(`REPORT-005 approval, uncertain delivery, manual resend, group comparison, download, revocation and local reservation, guest and finance delivery passed at ${width}`)
  }finally{await browser.close();await transport.close();await f.close()}
+}
+
+// Group guest sharing uses separate booking proofs and explicit consent on each native installation.
+for(const width of [1440,390]){
+ const {groupGuests}=await import('./api/group-guest-fixture.mjs'),f=await groupGuests()
+ const transports=[await browserServer(f.home),await browserServer(f.tap)]
+ const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transports.map(t=>t.certificateSpki).join(',')}`]})
+ try{
+  const contexts=[],pages=[],errors=[]
+  for(let i=0;i<2;i++){
+   const context=await browser.newContext({viewport:{width,height:1100},ignoreHTTPSErrors:true});contexts.push(context)
+   await context.addInitScript(token=>sessionStorage.setItem('placemat-diner-session',token),f.records[i].session.token)
+   const page=await context.newPage();pages.push(page);page.on('pageerror',e=>errors.push(e.message))
+   await page.goto(transports[i].origin+'/diner');await page.locator('#diner-group').waitFor();await page.locator('#diner-group').evaluate(el=>el.open=true)
+   if(width===1440)assert.equal(await page.locator('#diner-group form[data-diner=group-consent] input:checked').count(),0,'Every sharing purpose starts off')
+  }
+  const consent=pages[0].locator('[data-diner=group-consent]')
+  for(const box of await consent.locator('input[type=checkbox]').all())await box.check()
+  await consent.getByRole('button',{name:'Save group choices'}).click();await pages[0].getByRole('status').filter({hasText:'Group choices saved.'}).waitFor()
+  await pages[0].locator('#diner-group').evaluate(el=>el.open=true)
+  const codeForm=pages[0].locator('[data-diner=group-code]');await codeForm.locator('[name=acknowledged]').check();await codeForm.getByRole('button',{name:'Create group link code'}).click()
+  await pages[0].locator('#diner-group-code').filter({hasText:'gg_'}).waitFor();const code=(await pages[0].locator('#diner-group-code').innerText()).match(/gg_[a-f0-9]{64}/)[0]
+  const link=pages[1].locator('[data-diner=group-link]');await link.locator('[name=code]').fill(code)
+  for(const name of ['preferences','visits','acknowledged'])await link.locator(`[name=${name}]`).check()
+  await link.getByRole('button',{name:'Link verified restaurant'}).click();await pages[1].getByRole('status').filter({hasText:'Group choices saved.'}).waitFor()
+  for(let i=0;i<2;i++){
+   const {call}=await import('./api/diner-client.mjs');await call(f.records[i].h,'preferences',{token:f.records[i].session.token,acknowledged:true,favorite:true,preferences:'synthetic-placemat-quiet-'+i})
+   await pages[i].getByRole('button',{name:'Refresh account'}).click();await pages[i].getByRole('status').filter({hasText:'Account refreshed.'}).waitFor()
+   await pages[i].locator('#diner-group').evaluate(el=>el.open=true)
+   if(shots)await pages[i].locator('#diner-group').screenshot({path:resolve(shots,`GUEST-006-consent-${i}-${width}.png`)})
+  }
+  const addCookies=(context,cookie)=>context.addCookies(cookie.split('; ').map(value=>{const at=value.indexOf('=');return {name:value.slice(0,at),value:value.slice(at+1),url:transports[0].origin,secure:true,sameSite:'Lax'}}))
+  const owner=await browser.newContext({viewport:{width,height:1100},ignoreHTTPSErrors:true});contexts.push(owner);await addCookies(owner,f.home.cookie)
+  const setup=await owner.newPage();await setup.goto(transports[0].origin+'/setup');await setup.getByRole('checkbox').check();await setup.getByRole('button',{name:'Finish setup',exact:true}).click();await setup.locator('.app-main[aria-busy=false]').waitFor()
+  const admin=await browser.newContext({viewport:{width,height:1100},ignoreHTTPSErrors:true});contexts.push(admin);await addCookies(admin,f.reader)
+  const page=await admin.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(transports[0].origin+'/app');await page.locator('.app-main[aria-busy=false]').waitFor();await page.getByRole('link',{name:'Settings',exact:true}).click()
+  const panel=page.locator('details:has(> summary:text-is("Group access"))');await panel.evaluate(el=>el.open=true);await panel.getByRole('button',{name:'Read consented guestbook'}).click()
+  const output=page.locator('#group-guestbook');await output.getByText('Shared guest 1',{exact:true}).waitFor()
+  if(width===1440){
+   assert.match(await output.innerText(),/Home Bistro[\s\S]*synthetic-placemat-quiet-0[\s\S]*Attended visits: 1[\s\S]*Tap Room[\s\S]*synthetic-placemat-quiet-1[\s\S]*Attended visits: 1/)
+   assert.equal(await output.getByRole('link',{name:'Rebook at Home Bistro'}).count(),1);assert.equal(await output.getByRole('link',{name:'Rebook at Tap Room'}).count(),0)
+   assert.equal(await output.getByRole('link').first().getAttribute('href'),'/book')
+  }
+  for(const touched of [pages[0],pages[1],page]){
+   assert.ok(await touched.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Sharing screens fit phone and desktop')
+   const small=await touched.locator('#diner-group, #group-guestbook').locator('p,label,summary,button,a').evaluateAll(els=>els.filter(el=>el.getClientRects().length&&parseFloat(getComputedStyle(el).fontSize)<13).map(el=>el.tagName));assert.deepEqual(small,[])
+   const icons=await touched.locator('#diner-group, #group-guestbook').locator('button,a').evaluateAll(els=>els.filter(el=>!el.textContent.trim()).length);assert.equal(icons,0,'Sharing controls have visible labels')
+  }
+  if(shots)await output.screenshot({path:resolve(shots,`GUEST-006-reader-${width}.png`)})
+  // The next read clears the previous projection before an opt-out refusal.
+  const revoke=pages[1].locator('[data-diner=group-consent]');for(const box of await revoke.locator('input[type=checkbox]').all())await box.uncheck();await revoke.locator('[name=acknowledged]').check();await revoke.getByRole('button',{name:'Save group choices'}).click();await pages[1].getByRole('status').filter({hasText:'Group choices saved.'}).waitFor()
+  await panel.getByRole('button',{name:'Read consented guestbook'}).click();await page.getByRole('alert').filter({hasText:'Group guest access is not active.'}).waitFor()
+  if(width===1440)assert.equal(await output.innerText(),'','Refused refresh leaves no stale guest projection')
+  assert.deepEqual(errors,[]);for(const context of contexts)await context.close()
+  console.log(`PROBE GUEST-006 browser: default-off consent, two verified venues, purpose-scoped history and rebooking, opt-out and cleared projection passed at ${width}`)
+ }finally{await browser.close();for(const t of transports)await t.close();await f.close()}
 }

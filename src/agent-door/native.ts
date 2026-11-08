@@ -16,7 +16,7 @@ export async function nativeActor(ctx: ToolContext, write = false): Promise<Acto
 export async function nativeCall<T>(action: () => Promise<T>): Promise<T> {
   try { return await action() }
   catch (error) {
-    if (error instanceof Problem) throw new ToolRefusal(error.status === 404 ? 'resource_unavailable' : error.status === 403 ? 'native_authority_required' : error.status === 409 ? 'native_conflict' : 'invalid_arguments', error.message)
+    if (error instanceof Problem) throw new ToolRefusal(error.code, error.message)
     throw error
   }
 }
