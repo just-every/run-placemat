@@ -151,6 +151,6 @@ Inventory: 56 done, 45 partial, 47 missing; 148 total.
 | BASE-AGENT-008 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-attribution-ui.mjs`; `tests/allocation-ui.mjs` |
 | BASE-AGENT-009 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-010 | missing |  |
-| BASE-AGENT-011 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-011 | partial | `tests/api/agent-limits.test.mjs`; `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-replay.mjs`; `tests/agent-replay.mjs` |
 | BASE-AGENT-013 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-prompts.test.mjs` |
