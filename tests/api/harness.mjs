@@ -2,7 +2,7 @@
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare'
 import {unstable_splitSqlQuery} from 'wrangler'
 import {build} from 'esbuild'
-import {randomBytes,randomUUID} from 'node:crypto'
+import {createHmac,randomBytes,randomUUID} from 'node:crypto'
 import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 export async function installation({entry='tests/api/worker.ts',bindings={},stripeEdge,accountingEdge,mailEdge,origin='https://venue.example.test',peers={},clock}={}){
  const directory=await mkdtemp(join(tmpdir(),'placemat-api-'))
  const bundled=await build({entryPoints:[entry],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*']})
- const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),messages=[]
+ const setup=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex'),pepper=randomBytes(32).toString('hex'),messages=[]
  const mail=async request=>{if(mailEdge)return mailEdge(request);assert.equal(new URL(request.url).hostname,'api.resend.com');messages.push(await request.json());return Response.json({id:randomUUID()})}
  // GA4 Measurement Protocol answers 204 without confirming; Meta's Conversions API reports events_received. Tests may swap the answer.
  const analytics=[],answer={provider:async request=>new URL(request.url).hostname==='graph.facebook.com'?Response.json({events_received:1,messages:[],fbtrace_id:'edge-fake'}):new Response(null,{status:204})}
@@ -24,11 +24,11 @@ export async function installation({entry='tests/api/worker.ts',bindings={},stri
   analytics.push({url:url.href,method:request.method,headers:Object.fromEntries(request.headers),body:await request.clone().json()})
   return answer.provider(request)
  }
- const options=port=>({...convertV4MiniflareOptions({host:'127.0.0.1',upstream:origin,port,modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,HOST_PIN_PEPPER_V1:randomBytes(32).toString('hex'),HOST_PIN_PEPPER_VERSION:'v1',SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-network-edge',...bindings},outboundService:outbound}),resourcePersistencePath:directory})
- const mf=new Miniflare(options(0))
+ const options=port=>({...convertV4MiniflareOptions({host:'127.0.0.1',upstream:origin,port,modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,HOST_PIN_PEPPER_V1:pepper,HOST_PIN_PEPPER_VERSION:'v1',SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_FROM:'auth@example.test',MAIL_API_KEY:'test-network-edge',...bindings},outboundService:outbound}),resourcePersistencePath:directory})
+ let mf=new Miniflare(options(0))
  try{
   await mf.ready
-  const db=await mf.getD1Database('DB')
+   let db=await mf.getD1Database('DB')
   for(const f of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort())await db.batch(unstable_splitSqlQuery(await readFile(join('migrations/core',f),'utf8')).map(sql=>db.prepare(sql)))
   let cookie=''
   const request=(path,{method='GET',body,as=cookie,headers={}}={})=>mf.dispatchFetch(origin+path,{method,redirect:'manual',headers:{origin,host:new URL(origin).host,'content-type':'application/json',...(clock?{'x-placemat-test-clock':String(clock())}:{}),...(as?{cookie:as}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})})
@@ -43,7 +43,7 @@ export async function installation({entry='tests/api/worker.ts',bindings={},stri
    const link=new URL(match),confirmed=await request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}});assert.equal(confirmed.status,303)
    return confirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
   }
-  return {mf,db,origin,cookie,request,api,command,signIn,messages,analytics,answerAnalytics(provider){answer.provider=provider},async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  return {get mf(){return mf},get db(){return db},origin,cookie,request,api,command,signIn,messages,analytics,answerAnalytics(provider){answer.provider=provider},async restart(){await mf.dispose();mf=new Miniflare(options(0));await mf.ready;db=await mf.getD1Database('DB')},async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
 export async function service(h,{tables=4,seats=2,covers=8}={}){
@@ -56,3 +56,19 @@ export async function service(h,{tables=4,seats=2,covers=8}={}){
  return {floor,service:draft,startAt:draft.startAt}
 }
 export const publicGuest=(service,i,extra={})=>({serviceId:service.id,startAt:service.startAt,name:['Alex Rowan','Sam Patel','Morgan Lee','Jules Rivers','Taylor Quinn'][i]??`Guest ${i}`,email:`guest${i}@example.test`,partySize:2,...extra})
+
+// Real signatures around controlled provider-edge sends; no production key is used.
+export function resendDeliveryFixture(clock=Date.now){
+ const key=randomBytes(32)
+ return {
+  bindings:{RER_INSTALLATION_ID:'synthetic-placemat-installation',MAIL_EVENT_NAMESPACE:'synthetic-placemat-mail-events',RESEND_WEBHOOK_SECRET:'whsec_'+key.toString('base64')},
+  event(message,recipient,type='email.delivered',at=clock()){
+   return {type,created_at:new Date(at).toISOString(),data:{email_id:message,to:Array.isArray(recipient)?recipient:[recipient]}}
+  },
+  async submit(h,event,eventId='synthetic-placemat-'+randomUUID(),options={}){
+   const timestamp=String(Math.floor((options.signedAt??clock())/1000)),body=JSON.stringify(event)
+   const signature=createHmac('sha256',key).update(eventId+'.'+timestamp+'.'+body).digest('base64')
+   return h.request('/api/booking-mail/events',{method:'POST',as:'',body:options.body??event,headers:{'svix-id':eventId,'svix-timestamp':timestamp,'svix-signature':'v1,'+signature,...options.headers}})
+  },
+ }
+}

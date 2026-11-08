@@ -8,6 +8,11 @@ const native = ({ request, origin }, path, body, cookie) => request(new URL(path
   headers: { Origin: origin, 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 })
+const binding = async (context, sub, operatorId) => {
+  const db = await context.database('DB')
+  const row = await db.prepare('SELECT operator_id FROM bs_team WHERE business_id=?').bind(sub).first()
+  assert.equal(row?.operator_id, operatorId, 'Signed Business subject must retain its native member binding')
+}
 
 export default async function initialize(context) {
   const { claim, email, sub, owner, mail, returnTo } = context
@@ -41,9 +46,7 @@ export default async function initialize(context) {
   assert.equal(session.operator.role, 'member')
   // Read-only inspection proves the signed subject is durably attached to this
   // native member; every fixture mutation uses the public lifecycle above.
-  const db = await context.database('DB')
-  const binding = await db.prepare('SELECT operator_id FROM bs_team WHERE business_id=?').bind(sub).first()
-  assert.equal(binding?.operator_id, session.operator.id)
+  await binding(context, sub, session.operator.id)
   sponsor = { sub, email, cookie, id: session.operator.id }
   const result = confirmed
   confirmed = undefined
@@ -56,12 +59,18 @@ export async function inactiveSponsor(context) {
   assert.equal(active.status, 200)
   const session = await active.json()
   assert.equal(session.operator.id, sponsor.id)
+  assert.equal(session.operator.email, sponsor.email)
+  assert.equal(session.operator.role, 'member')
   assert.equal(session.operator.status, 'active')
   const changed = await native(context, '/auth/operator/status', { operatorId: sponsor.id, status: 'inactive' }, context.cookie)
   assert.equal(changed.status, 200)
   const operator = await changed.json()
   assert.equal(operator.id, sponsor.id)
+  assert.equal(operator.email, sponsor.email)
+  assert.equal(operator.role, 'member')
   assert.equal(operator.status, 'inactive')
+  // Missing subject admission must not masquerade as an inactive-person refusal.
+  await binding(context, sponsor.sub, sponsor.id)
   const denied = await native(context, '/auth/session', undefined, sponsor.cookie)
   assert.equal(denied.status, 401)
   assert.equal((await denied.json()).error, 'unauthenticated')

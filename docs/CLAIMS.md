@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 56 done, 43 partial, 49 missing; 148 total.
+Inventory: 56 done, 45 partial, 47 missing; 148 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ Inventory: 56 done, 43 partial, 49 missing; 148 total.
 | WAIT-005 | missing |  |
 | WAIT-006 | done | `src/placemat/queue.ts`; `src/placemat/commands.ts`; `src/placemat/people.ts`; `public/placemat-queue.js`; `tests/api/queue.test.mjs` |
 | MSG-002 | missing |  |
-| MSG-003 | missing |  |
+| MSG-003 | partial | `tests/api/booking-rules.test.mjs`; `tests/search-ui.mjs` |
 | MSG-004 | missing |  |
 | MSG-005 | partial | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs` |
 | MSG-006 | missing |  |
@@ -86,7 +86,7 @@ Inventory: 56 done, 43 partial, 49 missing; 148 total.
 | GUEST-003 | partial | `tests/api/guests.test.mjs`; `tests/api/assignments.test.mjs`; `tests/operations-ui-journey.mjs`; `tests/queue-ui.mjs` |
 | GUEST-004 | done | `tests/api/guests.test.mjs`; `tests/guest-review-ui.mjs` |
 | GUEST-005 | missing |  |
-| GUEST-006 | missing |  |
+| GUEST-006 | partial | `tests/api/group.test.mjs`; `tests/api/guests.test.mjs`; `tests/api/group-guest-journey.mjs`; `tests/group-ui.mjs` |
 | CRM-001 | missing |  |
 | CRM-002 | missing |  |
 | CRM-003 | missing |  |
@@ -142,15 +142,15 @@ Inventory: 56 done, 43 partial, 49 missing; 148 total.
 | AGENT-007 | missing |  |
 | AGENT-008 | missing |  |
 | BASE-AGENT-001 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-002 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-002 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-refusals.test.mjs` |
 | BASE-AGENT-003 | missing |  |
-| BASE-AGENT-004 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs` |
+| BASE-AGENT-004 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs` |
 | BASE-AGENT-005 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-006 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-007 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-008 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-006 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-classification.test.mjs` |
+| BASE-AGENT-007 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-approval-outcomes.mjs` |
+| BASE-AGENT-008 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-attribution-ui.mjs`; `tests/allocation-ui.mjs` |
 | BASE-AGENT-009 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
 | BASE-AGENT-010 | missing |  |
 | BASE-AGENT-011 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
-| BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-replay.mjs` |
-| BASE-AGENT-013 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-replay.mjs`; `tests/agent-replay.mjs` |
+| BASE-AGENT-013 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-prompts.test.mjs` |

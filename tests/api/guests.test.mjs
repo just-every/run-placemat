@@ -258,6 +258,8 @@ test('Diner verification attaches only one booking and supports independent devi
 })
 test('Diner credentials expire and stay out of archives while guest erasure removes account custody',async()=>{
  const {dinerCustodyJourney,failedDinerMailJourney}=await import('./diner-journeys.mjs')
+ const {groupGuestCustodyJourney}=await import('./group-guest-journey.mjs')
+ await groupGuestCustodyJourney()
  await dinerCustodyJourney()
  await failedDinerMailJourney()
 })
