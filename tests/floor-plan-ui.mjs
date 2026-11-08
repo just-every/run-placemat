@@ -12,17 +12,20 @@ try{
   const h=await installation(),contexts=[]
   try{
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
-   const context=async cookie=>{
+   const newPage=async cookie=>{
     const c=await browser.newContext({viewport:{width,height:1000}});contexts.push(c)
     if(cookie)await c.addCookies(cookie.split('; ').map(v=>{const at=v.indexOf('=');return {name:v.slice(0,at),value:v.slice(at+1),url:h.origin,secure:true,sameSite:'Lax'}}))
-    await c.route('**/*',async route=>{
+    const p=await c.newPage()
+    // Keep fallback and outage routes on the same page interceptor: removing a
+    // page interceptor can otherwise settle a request still in a context handler.
+    await p.route('**/*',async route=>{
      const req=route.request(),url=new URL(req.url());if(url.origin!==h.origin){await route.abort();return}
      const file=resolve('public','.'+url.pathname)
      if(file.startsWith(resolve('public')+'/')&&extname(file)){try{const body=await readFile(file);await route.fulfill({status:200,contentType:{'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream',body});return}catch{}}
      const r=await h.mf.dispatchFetch(req.url(),{method:req.method(),headers:{...req.headers(),host:url.host},...(req.postDataBuffer()?{body:req.postDataBuffer()}:{})});await route.fulfill({status:r.status,headers:Object.fromEntries(r.headers),body:Buffer.from(await r.arrayBuffer())})
-    });return c
+    });return p
    }
-   const page=await(await context(h.cookie)).newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install()
+   const page=await newPage(h.cookie),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install()
    await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
    const save=async command=>{const pending=page.waitForResponse(r=>r.url().endsWith('/api/commands')&&r.request().postDataJSON()?.command===command);await page.locator(`form[data-command="${command}"]`).getByRole('button',{name:command==='room.save'?'Save room':'Save table',exact:true}).click();assert.ok((await pending).ok());await page.getByRole('status').filter({hasText:'Saved successfully'}).waitFor()}
    for(const [name,kind] of [['Dining room','indoor'],['Patio','outdoor']]){
@@ -40,11 +43,11 @@ try{
    const earlier=(await h.api('/api/public/book',publicGuest(service,9,{name:'Earlier canceled guest',partySize:2}),{as:'',status:201})).result
    await h.command('booking.status',{bookingId:earlier.id,status:'cancelled'})
    const host=await h.signIn('live-host@example.test'),op=(await h.api('/auth/operators')).find(p=>p.email==='live-host@example.test');await h.command('team.host',{operatorId:op.id,enabled:true})
-   const second=await(await context(host)).newPage();second.on('pageerror',e=>errors.push(e.message));await second.goto(h.origin+'/app');await second.locator('.floor-table').first().waitFor()
+   const second=await newPage(host);second.on('pageerror',e=>errors.push(e.message));await second.goto(h.origin+'/app');await second.locator('.floor-table').first().waitFor()
    // FLOOR-008: an actual signed-out booking page changes the second host without a reload or Refresh gesture.
    assert.match(await second.locator('[data-new-booking-count]').innerText(),/^0 new since this view opened/)
    assert.equal(await second.locator('#bookings-list [data-new-booking]').count(),0,'Existing canceled bookings are part of the opening snapshot')
-   const guestPage=await(await context('')).newPage();guestPage.on('pageerror',e=>errors.push(e.message));await guestPage.goto(h.origin+'/book')
+   const guestPage=await newPage('');guestPage.on('pageerror',e=>errors.push(e.message));await guestPage.goto(h.origin+'/book')
    await guestPage.locator('#public-content[aria-busy]').waitFor({state:'detached'})
    const search=guestPage.locator('[data-public-command=search]')
    await search.getByLabel('Arrival date',{exact:true}).fill(day);await search.getByLabel('Party size',{exact:true}).fill('4')
@@ -65,6 +68,7 @@ try{
    await h.api('/api/public/book',publicGuest(service,1,{name:'Marco Rivera',partySize:2,area:'Patio'}),{as:'',status:201})
    await second.locator('.floor-table').filter({hasText:'Marco Rivera'}).waitFor({timeout:15000})
    await second.waitForFunction(()=>document.querySelector('[data-new-booking-count]')?.textContent.startsWith('2 new since this view opened'),null,{timeout:15000})
+   await second.locator('#floor-sync[data-state=synced]').waitFor()
    assert.match(await second.locator('#floor-sync').innerText(),/Floor synced.*Checking every 3 seconds/,'FLOOR-008 names the last successful sync')
    assert.equal(await second.locator('#bookings-list [data-new-booking]').count(),2)
    assert.equal(await second.locator('.floor-table[data-shape=round]').count(),1);assert.equal(await second.locator('.floor-table[data-area=Patio]').count(),1)
@@ -168,6 +172,15 @@ try{
    assert.equal(await page.evaluate(()=>localStorage.getItem('placemat.outage.v1')),null)
    await contexts[1].clearCookies();await second.locator('#floor-sync[data-state=error]').waitFor({timeout:15000});assert.match(await second.locator('#floor-sync').innerText(),/Sign in again/)
    assert.deepEqual(errors,[]);console.log(`FLOOR-002 / FLOOR-008 rooms, live guest booking markers, stale edits, encrypted outage capture and reviewed reconnect passed at ${width}`)
-  }finally{for(const c of contexts){await c.unrouteAll({behavior:'wait'});await c.close()}await h.close()}
+  }finally{
+   // Stop live pollers before draining routes; otherwise teardown can race a
+   // fresh request while removing its interceptor.
+   for(const c of contexts){
+    for(const p of c.pages())await p.goto('about:blank')
+    for(const p of c.pages())await p.unrouteAll({behavior:'wait'})
+    await c.close()
+   }
+   await h.close()
+  }
  }
 }finally{await browser.close()}

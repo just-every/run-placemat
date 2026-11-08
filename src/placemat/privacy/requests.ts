@@ -4,6 +4,7 @@ import {executeNeeds} from '../needs'
 import {eraseImportedGuest} from '../import/erase'
 import {erasureCheckpoint} from '../backup'
 import type {D1Sql} from '../import/kit'
+import {staleErasure,type ErasureRevision} from './erasure-review'
 import {event,guestRow,ownerFence,policy,reviewRetention} from './store'
 export async function correctNeed(db:D1Database,actor:Actor,p:any){
  const row=await guestRow(db,p.guestId);if(row.guest.erased)fail(409,'An erased guest cannot be corrected.')
@@ -16,20 +17,21 @@ export async function correctNeed(db:D1Database,actor:Actor,p:any){
 }
 async function processorRefs(db:D1Database,guestId:string){
  const {state}=await load(db),bookings=JSON.stringify(state.bookings.filter(b=>b.guestId===guestId).map(b=>b.id))
- const rows=(await db.prepare("SELECT 'Stripe' AS provider,provider_session_id AS reference FROM pm_payment_requests WHERE booking_id IN (SELECT value FROM json_each(?)) AND provider_session_id IS NOT NULL UNION SELECT 'Stripe',charge_id FROM pm_refund_charges WHERE booking_id IN (SELECT value FROM json_each(?)) UNION SELECT 'Email provider',n.provider_id FROM pm_refund_notices n JOIN pm_refunds r ON r.id=n.refund_id WHERE r.booking_id IN (SELECT value FROM json_each(?)) AND n.provider_id IS NOT NULL").bind(bookings,bookings,bookings).all<{provider:string;reference:string}>()).results
- return rows
+ const rows=(await db.prepare("SELECT 'Stripe' AS provider,provider_session_id AS reference FROM pm_payment_requests WHERE booking_id IN (SELECT value FROM json_each(?)) AND provider_session_id IS NOT NULL UNION SELECT 'Stripe',charge_id FROM pm_refund_charges WHERE booking_id IN (SELECT value FROM json_each(?)) UNION SELECT 'Email provider',n.provider_id FROM pm_refund_notices n JOIN pm_refunds r ON r.id=n.refund_id WHERE r.booking_id IN (SELECT value FROM json_each(?)) AND n.provider_id IS NOT NULL UNION SELECT 'Email provider',v.provider_id FROM pm_feedback_visits v WHERE v.booking_id IN (SELECT value FROM json_each(?)) AND v.provider_id IS NOT NULL UNION SELECT 'Email provider',m.provider_id FROM pm_feedback_messages m JOIN pm_feedback_visits v ON v.id=m.visit_id WHERE v.booking_id IN (SELECT value FROM json_each(?)) AND m.provider_id IS NOT NULL").bind(bookings,bookings,bookings,bookings,bookings).all<{provider:string;reference:string}>()).results
+ const mail=(await db.prepare("SELECT 'Resend' AS provider,provider_message_id AS reference FROM pm_booking_mail WHERE booking_id IN (SELECT value FROM json_each(?)) AND provider_message_id IS NOT NULL").bind(bookings).all<{provider:string;reference:string}>()).results
+ return [...rows,...mail]
 }
-export async function eraseRequest(db:D1Database,actor:Actor,p:any,kind='deletion'){
+export async function eraseRequest(db:D1Database,actor:Actor,p:any,revision:ErasureRevision,kind='deletion'){
  if(p.confirm!=='ERASE')fail(400,'Confirm erasure with ERASE.')
  const row=await guestRow(db,p.guestId),current=await policy(db)
  if(!current)fail(409,'Record retention grounds before completing privacy erasure.')
  if(row.guest.erased)return {completed:true,alreadyErased:true}
  const requestId=id(),at=new Date().toISOString(),refs=await processorRefs(db,row.id)
- const statements:D1Sql[]=[...(p.retentionReview?[{sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) AND EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=?) AND EXISTS(SELECT 1 FROM pm_privacy_policy WHERE id=1 AND version=?) THEN 1 ELSE 0 END',params:[p.retentionReview.floorVersion,row.id,p.retentionReview.guestVersion,p.retentionReview.policyVersion]}]:[]),{sql:'INSERT INTO pm_privacy_requests(id,guest_id,kind,state,actor_id,created_at,completed_at,policy_version) VALUES(?,?,?,?,?,?,?,?)',params:[requestId,row.id,kind,'completed',actor.id,at,at,current.version]},
+ const statements:D1Sql[]=[{sql:'INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN EXISTS(SELECT 1 FROM pm_state WHERE id=1 AND version=?) AND EXISTS(SELECT 1 FROM pm_guests WHERE id=? AND version=?) AND EXISTS(SELECT 1 FROM pm_privacy_policy WHERE id=1 AND version=?) THEN 1 ELSE 0 END',params:[revision.floorVersion,row.id,revision.guestVersion,revision.policyVersion]},{sql:'INSERT INTO pm_privacy_requests(id,guest_id,kind,state,actor_id,created_at,completed_at,policy_version) VALUES(?,?,?,?,?,?,?,?)',params:[requestId,row.id,kind,'completed',actor.id,at,at,current.version]},
   {sql:'INSERT INTO pm_privacy_events(id,request_id,actor_id,action,at,details) VALUES(?,?,?,?,?,?)',params:[id(),requestId,actor.id,'guest.erased',at,JSON.stringify({policyVersion:current.version,financialGround:current.rules.financialEvidence.ground,financialDays:current.rules.financialEvidence.days})]},
   ...refs.map(ref=>({sql:'INSERT INTO pm_privacy_processors(id,request_id,provider,reference,state,actor_id,updated_at) VALUES(?,?,?,?,?,?,?)',params:[id(),requestId,ref.provider,ref.reference,'open',actor.id,at]}))]
  await erasureCheckpoint(db)
- await eraseImportedGuest(db,row.id,actor,statements)
+ try{await eraseImportedGuest(db,row.id,actor,statements)}catch(error){if(/assertions|CHECK constraint failed/.test(String(error)))fail(409,staleErasure);throw error}
  await erasureCheckpoint(db)
  return {requestId,completed:true,processorTasks:refs.length,financialReferences:'Retained under the recorded ground; no provider deletion was sent.'}
 }
@@ -40,7 +42,7 @@ export async function runRetention(db:D1Database,actor:Actor,p:any){
  if(p.guestIds.some((id:unknown)=>!review.guests.some(g=>g.id===id&&g.eligible)))fail(409,'Every selected guest must be eligible for this reviewed run.')
  const completed=[];let floorVersion=review.floorVersion
  // Each identity erasure is atomic and resumable; a later refusal leaves prior completed requests visible.
- for(const guestId of p.guestIds){const result=await eraseRequest(db,actor,{guestId,confirm:'ERASE',retentionReview:{floorVersion,guestVersion:review.guestVersions[guestId],policyVersion:review.policy.version}},'retention');completed.push(result);if(!result.alreadyErased)floorVersion++}
+ for(const guestId of p.guestIds){const result=await eraseRequest(db,actor,{guestId,confirm:'ERASE'},{floorVersion,guestVersion:review.guestVersions[guestId],policyVersion:review.policy.version},'retention');completed.push(result);if(!result.alreadyErased)floorVersion++}
  return {completed}
 }
 export async function processorTask(db:D1Database,actor:Actor,p:any){

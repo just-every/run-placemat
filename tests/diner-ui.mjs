@@ -10,7 +10,8 @@ import {browserServer} from './browser-server.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 for(const width of [1440,390]){
- const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>dinerNow}),transport=await browserServer(h)
+ let now=Date.parse('2026-10-25T19:00:00Z')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),transport=await browserServer(h)
  const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--use-mock-keychain','--password-store=basic',`--ignore-certificate-errors-spki-list=${transport.certificateSpki}`]})
  const contexts=[],errors=[]
  let bookingsMade=0
@@ -61,7 +62,21 @@ for(const width of [1440,390]){
   return page.locator('.booking-confirmation code').innerText()
  }
  try{
-  const f=await dinerFixture(h),first=await device()
+  const f=await dinerFixture(h)
+  const priorService=await h.command('service.save',{name:'Sunday dinner',startAt:'2026-10-25T20:00:00Z',endAt:'2026-10-25T23:00:00Z',turnMinutes:90,coverLimit:40})
+  const priorProposal=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:priorService.id},reason:'Publish the reviewed prior service'})
+  await h.command('proposal.approve',{proposalId:priorProposal.id})
+  const prior=(await h.api('/api/public/book',{...f.input,serviceId:priorService.id,startAt:priorService.startAt},{as:'',status:201})).result
+  now=Date.parse(priorService.startAt)
+  await h.command('booking.stage',{bookingId:prior.id,stage:'seated'})
+  now+=90*60*1000
+  await h.command('booking.stage',{bookingId:prior.id,stage:'completed'})
+  await h.command('booking.stage',{bookingId:prior.id,stage:'ready'})
+  now=dinerNow
+  const priorVisit=(await h.api('/api/state')).state.bookings.find(b=>b.id===prior.id)
+  assert.equal(priorVisit.status,'completed')
+  assert.ok(Date.parse(priorVisit.endAt)<dinerNow,'The prior visit finished before either diner device signs in')
+  const first=await device()
   await first.goto(transport.origin+'/book')
   await shot(first,'guest-search')
   const booking=await book(first,'Alex Rowan')
@@ -91,6 +106,7 @@ for(const width of [1440,390]){
   await invalidCode.getByRole('checkbox').check()
   await invalidCode.getByRole('button',{name:'Verify booking',exact:true}).click()
   await expect(first.locator('#notice')).toContainText('Diner access not found')
+  await shot(first,'verification-refused')
   await expect(first.locator('[data-booking]')).toHaveCount(1)
   await expect(first.getByRole('textbox',{name:'Saved preferences',exact:true})).toHaveValue('<img src=x onerror=alert(1)> Quiet table requested')
 
@@ -138,20 +154,62 @@ for(const width of [1440,390]){
   await expect(first.getByRole('textbox',{name:'Saved preferences',exact:true})).toHaveValue('')
   await expect(first.getByRole('link',{name:'Book again at Cedar & Salt',exact:true})).toBeVisible()
   await shot(second,'preferences-revoked')
+
+  now+=60000
+  for(const context of contexts){
+   await context.setExtraHTTPHeaders({'x-placemat-test-clock':String(now)})
+   for(const page of context.pages())await page.clock.setFixedTime(new Date(now))
+  }
+  await first.getByText('Verify another booking',{exact:true}).click()
+  await verify(first,prior.id,f.input.email)
+  const priorSection=page=>page.locator('article').filter({has:page.getByRole('heading',{name:'Previous and resolved reservations',exact:true})})
+  const upcomingSection=page=>page.locator('article').filter({has:page.getByRole('heading',{name:'Upcoming reservations',exact:true})})
+  await expect(priorSection(first).locator('[data-booking]')).toHaveAttribute('data-booking',prior.id)
+  await second.getByRole('button',{name:'Refresh account',exact:true}).click()
+  await expect(second.locator('#notice')).toHaveText('Account refreshed.')
+  const priorRow=priorSection(second).locator(`[data-booking="${prior.id}"]`)
+  await expect(priorRow).toContainText('completed')
+  await expect(upcomingSection(second).locator('[data-booking]')).toHaveAttribute('data-booking',booking)
+  await expect(upcomingSection(second).locator(`[data-booking="${prior.id}"]`)).toHaveCount(0)
+  await expect(priorRow.getByRole('link',{name:'Manage reservation',exact:true})).toHaveCount(0)
+  await shot(second,'completed-prior-visit')
+  await priorRow.getByRole('link',{name:'Book another visit',exact:true}).click()
+  const priorRebook=await book(second,'Alex Rowan')
+  assert.ok(![booking,prior.id,rebook].includes(priorRebook),'Rebooking the completed visit creates a distinct reservation')
+  const afterPriorRebook=(await h.api('/api/state')).state.bookings
+  const nextVisit=afterPriorRebook.find(b=>b.id===priorRebook)
+  assert.equal(nextVisit.status,'booked')
+  assert.equal(nextVisit.serviceId,f.service.id)
+  assert.ok(Date.parse(nextVisit.startAt)>dinerNow,'The completed visit leads to a new upcoming reservation')
+  assert.equal(afterPriorRebook.find(b=>b.id===prior.id).status,'completed','Rebooking preserves the completed visit')
+  await shot(second,'prior-visit-repeat-booking')
+  await second.goto(transport.origin+'/diner')
+  await expect(second.locator('#notice')).toHaveText('Your verified reservations are ready.')
+  await first.getByRole('button',{name:'Refresh account',exact:true}).click()
+  await expect(first.locator('#notice')).toHaveText('Account refreshed.')
+  for(const page of [first,second]){
+   assert.deepEqual((await page.locator('[data-booking]').evaluateAll(rows=>rows.map(row=>row.dataset.booking))).sort(),[booking,prior.id].sort(),'Both devices retain only individually verified bookings after prior-visit rebooking')
+   await expect(priorSection(page).locator('[data-booking]')).toHaveAttribute('data-booking',prior.id)
+   await expect(upcomingSection(page).locator('[data-booking]')).toHaveAttribute('data-booking',booking)
+  }
   const noMerge=(await h.api('/api/state')).guests
   assert.ok(noMerge.some(g=>g.email==='guest0@example.test'))
   assert.ok(noMerge.some(g=>g.email==='guest1@example.test'),'Shared phone preserves distinct people')
   await first.getByRole('button',{name:'Sign out this device',exact:true}).click()
   await expect(first.getByRole('heading',{name:'Verify one booking',exact:true})).toBeVisible()
+  await shot(first,'device-signed-out')
   await second.getByRole('button',{name:'Refresh account',exact:true}).click()
-  await expect(second.locator('[data-booking]')).toHaveCount(1)
+  await expect(second.locator('[data-booking]')).toHaveCount(2)
   await second.getByText('Account settings',{exact:true}).click()
   const forget=second.locator('[data-diner=forget]')
   await forget.getByRole('checkbox').check()
+  await shot(second,'forget-confirmation')
   await forget.getByRole('button',{name:'Forget diner account',exact:true}).click()
   await expect(second.locator('#notice')).toHaveText('Account forgotten. Your reservations remain unchanged.')
+  await shot(second,'account-forgotten')
   assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===booking).status,'booked')
+  assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===prior.id).status,'completed')
   assert.deepEqual(errors,[])
-  console.log(`DIST-005 guest checkout, one-booking email verification, independent devices, favorite rebooking, confirmed management, isolated identity and preference revocation passed at ${width}`)
+  console.log(`DIST-005 guest checkout, one-booking email verification, independent devices, favorite and completed prior-visit rebooking, confirmed management, isolated identity and preference revocation passed at ${width}`)
  }finally{for(const context of contexts)await context.close();await browser.close();await transport.close();await h.close()}
 }

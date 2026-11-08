@@ -33,6 +33,7 @@ export interface Bindings {
  RER_OWNER_CLAIM_ISSUER?: string
  RER_OWNER_CLAIM_INSTALLATION_ID?: string
  RER_OWNER_CLAIM_PUBLIC_KEYS?: string
+ RER_BUSINESS_TRUST?: string
  RER_MANAGEMENT_ORIGIN?: string
  OWNER_EMAIL: string
  SESSION_SECRET: string
@@ -43,6 +44,8 @@ export interface Bindings {
  STRIPE_WEBHOOK_SECRET?: string
  SETUP_TOKEN?: string
  MAIL_PROVIDER?: 'development' | 'rer' | 'resend' | 'sendgrid' | 'cloudflare'
+ MAIL_EVENT_NAMESPACE?: string
+ RESEND_WEBHOOK_SECRET?: string
  MAIL_FROM?: string
  MAIL_API_KEY?: string
  MAIL_RELAY_URL?: string

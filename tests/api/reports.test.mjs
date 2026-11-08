@@ -277,6 +277,57 @@ test('Weekly group delivery requires explicit recipient approval, authenticates 
   assert.ok(!JSON.stringify(archive.filter(l=>l.kind==='part')).includes('recipient_hash'))
   for(const kind of ['report-schedules','report-deliveries']){const csv=await(await f.home.request('/api/business-export/'+kind+'.csv')).text();assert.ok(csv.includes(schedule.id));assert.ok(!csv.includes('recipient_hash'))}
   const restored=await installation();try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/report-schedules')).schedules,[])}finally{await restored.close()}
+
+  // Renew through the same owner approval door after a native recipient changes address.
+  // Keep the superseded schedule live first: a stop must not mask the address fence.
+  const oldAddress='synthetic-placemat-group@example.test',newAddress='synthetic-placemat-group-renewed@example.test'
+  const stale=await f.approve({nextAt:'2031-11-24T18:00:00.000Z'})
+  const reports=()=>f.mail.messages.filter(m=>m.subject==='Your weekly group cover report')
+  const beforeAddressChange=reports().length
+  await f.tick('2031-11-24T18:00:00.000Z')
+  assert.equal(reports().length,beforeAddressChange+1)
+  assert.deepEqual(reports().at(-1).to,[oldAddress])
+  const stalePath=new URL(reports().at(-1).text.match(/https:\/\/[^\s]+/)[0]).pathname
+  assert.ok((await(await f.home.request(stalePath,{as:f.recipient})).text()).includes('Home Bistro'))
+  const changed=await f.home.api('/auth/email',{email:newAddress},{as:f.recipient})
+  assert.equal(changed.id,f.recipientId);assert.equal(changed.email,newAddress)
+  const refused=await f.home.request(stalePath,{as:f.recipient})
+  assert.equal(refused.status,403)
+  const refusal=await refused.text()
+  assert.match(refusal,/identity changed or was removed/)
+  for(const privateValue of ['Home Bistro','Tap Room','bookedCovers','guest0@example.test',oldAddress,newAddress])assert.ok(!refusal.includes(privateValue),'Stale-address refusal discloses no report or recipient data')
+  await f.home.api('/api/report-schedules/resend',{scheduleId:stale.id,deliveryId:(await f.home.api('/api/report-schedules')).deliveries.find(d=>d.schedule_id===stale.id).id,acknowledged:true})
+  await f.tick('2031-12-01T18:00:00.000Z')
+  assert.equal(reports().length,beforeAddressChange+1,'Neither manual resend nor the next weekly attempt sends to the superseded address')
+  const staleAttempts=(await f.home.api('/api/report-schedules')).deliveries.filter(d=>d.schedule_id===stale.id&&d.due_at!=='2031-11-24T18:00:00.000Z')
+  assert.equal(staleAttempts.length,2);assert.ok(staleAttempts.every(d=>d.state==='blocked'),'Both manual and weekly stale-address attempts are recorded as blocked')
+  // An admin cannot carry the old owner approval over to the new address.
+  await f.home.api('/auth/operator/status',{operatorId:f.managerId,status:'active'})
+  f.manager=await f.signIn('synthetic-placemat-manager@example.test','admin')
+  await f.home.api('/api/report-schedules',{recipientId:f.recipientId,venueIds:f.venueIds,nextAt:'2031-12-08T18:00:00.000Z',acknowledged:true},{as:f.manager,status:403})
+  await f.home.api('/api/report-schedules/stop',{scheduleId:stale.id})
+  const renewed=await f.approve({nextAt:'2031-12-08T18:00:00.000Z'})
+  f.recipient=await f.signIn(newAddress)
+  const oldAddressReader=await f.signIn(oldAddress)
+  assert.notEqual((await f.home.api('/auth/operators')).find(p=>p.email===oldAddress).id,f.recipientId,'The stale mailbox is a different native identity after the change')
+  const renewedMailStart=f.mail.messages.length
+  await f.tick('2031-12-08T18:00:00.000Z')
+  const renewedMessages=f.mail.messages.slice(renewedMailStart).filter(m=>m.subject==='Your weekly group cover report')
+  assert.equal(renewedMessages.length,1)
+  assert.deepEqual(renewedMessages[0].to,[newAddress],'The next owner-approved weekly renewal goes only to the changed address')
+  assert.equal(reports().filter(m=>m.to.includes(oldAddress)).length,beforeAddressChange+1,'The old address receives no renewal')
+  const renewedPath=new URL(renewedMessages[0].text.match(/https:\/\/[^\s]+/)[0]).pathname
+  const renewedDownload=await f.home.request(renewedPath,{as:f.recipient})
+  assert.equal(renewedDownload.status,200);assert.equal(renewedDownload.headers.get('cache-control'),'no-store')
+  const renewedCsv=await renewedDownload.text();assert.ok(renewedCsv.includes('Home Bistro')&&renewedCsv.includes('Tap Room'));assert.ok(!renewedCsv.includes('guest0@example.test'))
+  for(const oldLink of [stalePath,renewedPath]){
+   const denied=await f.home.request(oldLink,{as:oldAddressReader});assert.equal(denied.status,403)
+   const body=await denied.text();for(const value of ['Home Bistro','Tap Room','bookedCovers',oldAddress,newAddress])assert.ok(!body.includes(value),'Reusing the stale mailbox never grants the report')
+  }
+  await f.tick('2031-12-08T18:00:00.000Z');assert.equal(reports().length,beforeAddressChange+2,'Renewal retains duplicate-tick suppression')
+  const renewalAudit=(await f.home.api('/api/audit')).rows
+  assert.ok(renewalAudit.some(e=>e.action==='report.recipient-approved'&&e.subject===renewed.id))
+  assert.ok(renewalAudit.some(e=>e.action==='report.recheck-refused'&&e.subject===stale.id))
  }finally{await f.close()}
 })
 
@@ -300,5 +351,59 @@ test('Uncertain report submissions stay unconfirmed across scheduler replay and 
   await f.home.api('/api/report-schedules/resend',{scheduleId:schedule.id,deliveryId:attempt.id,acknowledged:true})
   assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly group cover report').length,2)
   assert.ok((await f.home.api('/api/audit')).rows.some(e=>e.action==='report.recheck-refused'))
+ }finally{await f.close()}
+})
+
+test('Recurring native reports recheck purpose, service scope, consent facts and erasure on delivery, open and replay',async()=>{
+ const {reportGroup,firstDue}=await import('./report-schedule-fixture.mjs'),{paymentEdge}=await import('./payment-fixture.mjs')
+ const edge=paymentEdge(),f=await reportGroup({bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'},stripeEdge:edge.edge})
+ try{
+  const owner=(await f.home.api('/auth/operators')).find(p=>p.role==='owner'),booking=f.bookings[0],state=(await f.home.api('/api/state')).state,serviceId=state.bookings.find(b=>b.id===booking.id).serviceId
+  const phone=await f.home.command('booking.phone',{serviceId,startAt:new Date(Date.parse(state.services.find(s=>s.id===serviceId).startAt)+90*60000).toISOString(),name:'Synthetic consent guest',phone:'2025550118',partySize:2,staffIntake:{source:'phone',contactPreference:'none',confirmationConsent:false}})
+  const chargeId=edge.charge(booking.id);await f.home.command('payment.charge-sync',{bookingId:booking.id,chargeId})
+  await f.home.command('payment.refund',{bookingId:booking.id,chargeId,amountCents:4000,requestId:'synthetic-placemat-refund',reason:'Reviewed refund'})
+  const finance=await f.signIn('synthetic-placemat-finance'+String.fromCharCode(64)+'example.test'),financeId=(await f.home.api('/auth/operators')).find(p=>p.email.startsWith('synthetic-placemat-finance')).id
+  await f.home.command('team.finance',{operatorId:financeId,enabled:true})
+  await f.home.command('team.reports',{operatorId:f.managerId,serviceIds:[serviceId]})
+  const schedule=(reportKind,recipientId,extra={})=>f.home.api('/api/report-schedules',{reportKind,recipientId,venueIds:['home'],nextAt:firstDue,acknowledged:true,...extra},{status:201})
+  for(const reportKind of ['guests','finance','reservations'])await f.home.api('/api/report-schedules',{reportKind,recipientId:f.managerId,venueIds:['home'],nextAt:firstDue,acknowledged:true},{status:403})
+  await f.home.api('/api/report-schedules',{reportKind:'reservations',recipientId:f.managerId,venueIds:f.venueIds,nextAt:firstDue,acknowledged:true},{status:400})
+  const reservation=await schedule('reservations',f.managerId,{serviceId}),guest=await schedule('guests',owner.id),money=await schedule('finance',financeId)
+  await f.tick()
+  const deliveries=(await f.home.api('/api/report-schedules')).deliveries
+  assert.equal(deliveries.length,3);assert.deepEqual(deliveries.map(d=>d.state),['provider accepted','provider accepted','provider accepted'])
+  const path=s=>'/api/report-deliveries/'+deliveries.find(d=>d.schedule_id===s.id).id+'.csv'
+  const download=async(s,as)=>{const r=await f.home.request(path(s),{as});assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');return r.text()}
+  const reservations=await download(reservation,f.manager),guests=await download(guest,f.home.cookie),financeCsv=await download(money,finance)
+  assert.ok(reservations.includes(booking.id));assert.ok(!reservations.includes('Alex Rowan'))
+  assert.ok(guests.includes('Alex Rowan'));assert.ok(guests.includes('"not recorded","not recorded","Not recorded"'),'No contact or marketing permission is manufactured')
+  assert.ok(financeCsv.includes('"charge","'+booking.id+'","'+chargeId+'","15000"'))
+  assert.ok(financeCsv.includes('"4000"')&&financeCsv.includes('"11000"'));assert.ok(!financeCsv.includes('Alex Rowan')&&!financeCsv.includes('Reviewed refund'))
+  assert.ok(guests.includes(phone.id)&&guests.includes('"false","none","Not recorded"'),'Declined purpose-specific contact stays declined')
+  for(const [kind,value] of [['guests','Alex Rowan'],['finance',chargeId]]){
+   const future=await f.home.request('/api/report-export.csv?kind='+kind+'&period=future'),past=await f.home.request('/api/report-export.csv?kind='+kind+'&period=past')
+   assert.equal(future.status,200);assert.equal(past.status,200);assert.ok((await future.text()).includes(value));assert.ok(!(await past.text()).includes(value))
+  }
+  assert.deepEqual((await f.home.api('/api/state')).state.bookings.find(b=>b.id===phone.id).staffIntake,{source:'phone',contactPreference:'none',confirmationConsent:false})
+  assert.equal(f.mail.messages.filter(m=>m.subject.startsWith('Your weekly ')).length,3)
+  for(const message of f.mail.messages.filter(m=>m.subject.startsWith('Your weekly ')))assert.ok(!message.text.includes('Alex Rowan')&&!message.text.includes(chargeId),'Only authenticated links leave the installation')
+  for(const [s,as] of [[guest,f.manager],[guest,finance],[money,f.manager],[reservation,f.other],[money,'']])await f.home.api(path(s),undefined,{as,status:as?403:401})
+  const personal=(await f.home.api('/api/state')).state.bookings.find(b=>b.id===booking.id).guestId
+  await f.home.command('guest.erase',{guestId:personal,confirm:'ERASE'})
+  assert.ok(!(await download(guest,f.home.cookie)).includes(booking.id),'Erased guest rows leave the guest report')
+  assert.ok((await download(money,finance)).includes('"11000"'),'Erasure preserves financial facts without personal fields')
+  await f.tick();assert.equal(f.mail.messages.filter(m=>m.subject.startsWith('Your weekly ')).length,3,'Replayed captures never resend')
+  await f.home.command('team.finance',{operatorId:financeId,enabled:false});await f.home.command('team.reports',{operatorId:f.managerId,serviceIds:[]})
+  await f.home.api(path(money),undefined,{as:finance,status:403});await f.home.api(path(reservation),undefined,{as:f.manager,status:403})
+  await f.tick('2031-11-10T18:00:00.000Z')
+  assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly finance report').length,1)
+  assert.equal(f.mail.messages.filter(m=>m.subject==='Your weekly reservation report').length,1)
+  const later=(await f.home.api('/api/report-schedules')).deliveries
+  for(const s of [reservation,money])assert.equal(later.find(d=>d.schedule_id===s.id&&d.due_at!==firstDue).state,'blocked')
+  const guestAttempt=later.find(d=>d.schedule_id===guest.id&&d.due_at!==firstDue),erased=await f.home.request('/api/report-deliveries/'+guestAttempt.id+'.csv')
+  assert.equal(erased.status,200);assert.ok(!(await erased.text()).includes('Alex Rowan'))
+  await f.home.api('/api/report-schedules/stop',{scheduleId:guest.id});await f.home.api(path(guest),undefined,{status:403})
+  const archive=await f.home.api('/api/backup'),restored=await installation()
+  try{await restored.api('/api/restore',{archive,confirm:'RESTORE'});assert.deepEqual((await restored.api('/api/report-schedules')).schedules,[])}finally{await restored.close()}
  }finally{await f.close()}
 })

@@ -1,3 +1,7 @@
+import {reviewsResponse} from './reviews'
+import {reminderTemplates} from './message-templates'
+import {feedbackResponse} from './feedback-http'
+import {feedbackPage} from './feedback-view'
 import {dinerResponse} from './diner-accounts'
 import {publicExperiences} from './experiences'
 import {paymentOperationsResponse} from './payment-operations-http'
@@ -18,6 +22,8 @@ import {readManagement,previewManagement,commitManagement} from './booking-manag
 import {managementPage} from './booking-management-view'
 import {sendServiceOutreach,guestRelocation} from './service-outreach'
 import {relocationPage} from './service-relocation-view'
+import {bookingMailEvents} from './booking-management-mail-events'
+import {readBookingMail} from './booking-management-mail-store'
 import {sendManagement} from './booking-management-mail'
 import {handoverAssignees} from './host-projection'
 import {paymentAlerts,closePaymentRequest,createPaymentRequest,issuePaymentLink,syncPaymentRequest} from './payment-links'
@@ -32,7 +38,7 @@ import {kitchen,filterNotes} from './service-notes'
 import {kitchenPage} from './kitchen-view'
 import {preshift,serviceDate,preshiftPdf} from './preshift'
 import {preshiftPage} from './preshift-view'
-import {auditRows} from './audit'
+import {auditRows,filterLedgerAudit} from './audit'
 import {businessCsv} from './business-export'
 import {readCloseReport,closeReportCsv,closeReportPdf} from './service-close-report'
 import {businessExportKinds} from './business-export'
@@ -50,6 +56,7 @@ import {queueQr} from './queue-qr'
 import {publicJoin,publicQueue,publicQueueUpdate,publicQueueRotate} from './wait-join'
 import {sectionsDashboard} from './staffing'
 import {groupInvite,groupAccept,groupJoin,groupLeave,groupGrant,groupDisconnect,groupToken,groupStatus,isGroupAdmin} from './group'
+import {groupGuestBatch,groupGuestRead,groupGuestRedeem,groupGuestCheck,groupGuestDirectory} from './group-guestbook'
 import {groupIntrospect,groupRead} from './group-access'
 import {financeSummary,financeExport,isFinance} from './finance'
 import {financePage} from './finance-view'
@@ -78,10 +85,19 @@ import {filterMergeAudit,readMergeJournal} from './guest-merge-store'
 import {reservationSearch} from './reservation-search'
 
 const headers={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}
-const paths=new Set(['/api/payments/ledger','/api/payments/ledger/payout','/api/payments/ledger/adjustment','/api/payments/guarantees','/api/payments/guarantees/issue','/api/payments/guarantees/end','/api/payments/merchant','/api/payments/merchant/connect','/api/payments/merchant/disconnect','/api/payments/merchant/collect','/api/payments/merchant/sync','/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
+const paths=new Set(['/api/booking-mail','/api/payments/ledger','/api/payments/ledger/payout','/api/payments/ledger/adjustment','/api/payments/guarantees','/api/payments/guarantees/issue','/api/payments/guarantees/end','/api/payments/merchant','/api/payments/merchant/connect','/api/payments/merchant/disconnect','/api/payments/merchant/collect','/api/payments/merchant/sync','/api/payments/fee-expiry','/api/payments/fee-recollection','/api/payments/fee-policy','/api/payments/fee-consent','/api/payments/fee-preview','/api/payments/fees','/finance','/api/finance','/api/onboarding','/api/onboarding/preview','/kitchen','/api/kitchen','/preshift','/api/preshift','/api/preshift.pdf','/api/audit','/api/audit.csv','/api/reports/closed','/api/reports/closed.csv','/api/reports/closed.pdf','/api/allocation-advice','/api/reports/no-show','/api/reports/performance','/api/pacing','/api/pacing/preview','/api/sections','/api/floor-version','/api/public/search','/api/public/analytics','/api/queue-qr','/api/timeline','/api/guests','/api/guests/merge-preview','/api/guests/merges','/api/guests/unmerge-preview','/api/reports/reservations','/api/reports/reservations.csv','/api/state','/api/commands','/api/public/services','/api/public/book','/api/reminders.csv','/api/agent-keys','/api/backup','/api/restore'])
 paths.add('/api/outage/review')
 /** `defer` hands work to the runtime after the response (waitUntil); BOOK-002 analytics sends use it so a provider never delays a guest. */
 export async function placematResponse(request:Request,env:Bindings,defer:(work:Promise<unknown>)=>void):Promise<Response|null>{
+ if(new URL(request.url).pathname==='/api/booking-mail/events')return bookingMailEvents(request,env)
+ const reviews=await reviewsResponse(request,env);if(reviews)return reviews
+ const feedback=await feedbackResponse(request,env);if(feedback)return feedback
+ if(new URL(request.url).pathname==='/feedback'&&['GET','HEAD'].includes(request.method))return feedbackPage(request,env,'public')
+ if(['/feedback/manage','/feedback/settings'].includes(new URL(request.url).pathname)){
+  const actor=await actorFor(request,env)
+  if(!actor)return new Response(null,{status:303,headers:{location:'/signin?returnTo='+encodeURIComponent(new URL(request.url).pathname)}})
+  try{person(actor,new URL(request.url).pathname==='/feedback/settings');if(actor.deviceId)fail(403,'Use your personal manager session.');return feedbackPage(request,env,new URL(request.url).pathname==='/feedback/settings'?'settings':'manage')}catch(error){if(error instanceof Problem)return Response.json({error:error.message},{status:error.status,headers});throw error}
+ }
  const diner=await dinerResponse(request,env);if(diner)return diner
  const operations=await paymentOperationsResponse(request,env);if(operations)return operations
  const costs=await costsResponse(request,env);if(costs)return costs
@@ -206,18 +222,26 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(visit&&!result.checkoutReplay)defer(sendAnalytics(env.DB,'booking',visit,env.AUTH_ORIGIN+'/book'))
    return json({result},201)
   }
-  if(['/api/group/join-accept','/api/group/introspect'].includes(path)){
+  if(['/api/group/guest-redeem','/api/group/guest-check','/api/group/join-accept','/api/group/introspect'].includes(path)){
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    const bucket=await hash((request.headers.get('CF-Connecting-IP')??'local')+':group:'+Math.floor(Date.now()/60000))
    const count=await env.DB.prepare('INSERT INTO pm_public_limits(bucket,count) VALUES(?,1) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count').bind(bucket).first<{count:number}>()
    if((count?.count??0)>60)fail(429,'Too many group requests. Please wait a minute.')
    const p=await jsonBody(request)
+   if(path==='/api/group/guest-redeem')return json(await groupGuestRedeem(env.DB,request.headers.get('x-group-link'),p))
+   if(path==='/api/group/guest-check')return json(await groupGuestCheck(env.DB,request.headers.get('x-group-link'),p))
    return json(path==='/api/group/join-accept'?await groupAccept(env.DB,p):await groupIntrospect(env.DB,request.headers.get('x-group-link'),p.token))
   }
+  if(path==='/api/group/guestbook-batch')return json(await groupGuestBatch(env.DB,request,url))
+  if(path==='/api/group/guestbook')return json(await groupGuestRead(env.DB,request,url))
   if(path==='/api/group/reports/reservations'||path==='/api/group/preshift')return json(await groupRead(env.DB,request,url))
   const actor=await actorFor(request,env);responseActor=actor
   if(!actor){if(path==='/app')return new Response(null,{status:303,headers:{...headers,location:'/signin?returnTo=%2Fapp'}});fail(401,'Sign in to the venue first.')}
   if(!['owner','admin','member','host','lead','server','finance','agent'].includes(actor!.role))fail(403,'This role has no venue access.')
+  if(path==='/api/booking-mail'){
+   if(request.method!=='GET')return json({error:'Method not allowed'},405)
+   return json({deliveries:await readBookingMail(env.DB,actor!)})
+  }
   if(path.startsWith('/api/payments/ledger')){
    if(path==='/api/payments/ledger'&&request.method==='GET')return json(await readMoneyLedger(env.DB,actor!))
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
@@ -293,6 +317,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    if(path==='/api/payments/fees')return json({result:await assessFee(env,actor!,p)})
   }
   if(path==='/api/group'||path.startsWith('/api/group/')){
+   if(path==='/api/group/guest-directory'&&request.method==='GET')return json(await groupGuestDirectory(env.DB,actor!))
    if(path==='/api/group'&&request.method==='GET')return json(await groupStatus(env.DB,actor!))
    if(request.method!=='POST')return json({error:'Method not allowed'},405)
    if(path==='/api/group/token')return json({result:await groupToken(env.DB,actor!)},201)
@@ -345,7 +370,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    return json({...noShowReport(state,people,text(url.searchParams.get('serviceId'),'Service')),names:await actorNames(env.DB,state,people)})
   }
   if((path==='/api/audit'||path==='/api/audit.csv')&&request.method==='GET'){
-   const {state}=await load(env.DB);if(!actor!.agent&&['owner','admin'].includes(actor!.role))state.audit.push(...await refundAudit(env.DB),...await refundNoticeAudit(env.DB));if(actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId)state.audit.push(...await feeAudit(env.DB,actor!));const rows=auditRows(filterMergeAudit(filterNotes(state,actor!),actor!),url.searchParams)
+   const {state}=await load(env.DB);if(!actor!.agent&&['owner','admin'].includes(actor!.role))state.audit.push(...await refundAudit(env.DB),...await refundNoticeAudit(env.DB));if(actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId)state.audit.push(...await feeAudit(env.DB,actor!));const rows=auditRows(filterMergeAudit(filterNotes(filterLedgerAudit(state,actor!),actor!),actor!),url.searchParams)
    if(path.endsWith('.csv')){
     person(actor!,true)
     return new Response(businessCsv({...state,audit:rows},[],'audit'),{headers:{...headers,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="placemat-audit.csv"'}})
@@ -396,7 +421,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
    const analytics=actor!.role==='owner'?{keys:[...await savedKeys(env.DB)],results:(await env.DB.prepare('SELECT provider,event,status,detail,at FROM pm_analytics_results ORDER BY provider').all()).results}:undefined
    const handoverPeople=await handoverAssignees(env.DB,state),paymentRequests=!actor!.agent&&['host','owner','admin'].includes(actor!.role)?await paymentAlerts(env.DB):[],refundCharges=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT charge_id AS chargeId,booking_id AS bookingId,amount_cents AS amountCents,imported_refunded_cents AS importedRefundedCents FROM pm_refund_charges').all()).results:[],refunds=!actor!.agent&&['owner','admin'].includes(actor!.role)?(await env.DB.prepare('SELECT id,request_id AS requestId,actor_id AS actorId,booking_id AS bookingId,charge_id AS chargeId,amount_cents AS amountCents,reason,status,processor_id AS processorId,created_at AS createdAt FROM pm_refunds').all()).results:[]
    const bookingContacts=!actor!.agent?Object.fromEntries((await env.DB.prepare('SELECT booking_id,data FROM pm_booking_contacts').all<{booking_id:string;data:string}>()).results.map(row=>[row.booking_id,JSON.parse(row.data)])):{}
-   return json({merchantWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readMerchant(env.DB,actor!):undefined,queueOrder:queueOrder(state),feeWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readFees(env.DB,actor!):undefined,refundFollowups:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await refundFollowups(env.DB):[],refundNotices:actor!.role==='owner'?await refundNotices(env.DB):[],bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(state,actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
+   return json({bookingMail:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await readBookingMail(env.DB,actor!):undefined,reminderTemplates:reminderTemplates(state),merchantWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readMerchant(env.DB,actor!):undefined,queueOrder:queueOrder(state),feeWork:actor!.role==='owner'&&!actor!.agent&&!actor!.deviceId?await readFees(env.DB,actor!):undefined,refundFollowups:!actor!.agent&&!actor!.deviceId&&['owner','admin'].includes(actor!.role)?await refundFollowups(env.DB):[],refundNotices:actor!.role==='owner'?await refundNotices(env.DB):[],bookingContacts,handoverPeople,paymentRequests,refundCharges,refunds,state:filterMergeAudit(filterNotes(filterLedgerAudit(state,actor!),actor!),actor!),version,guests:people,actor,keys,groupAdmin:!actor!.agent&&await isGroupAdmin(env.DB,actor!.id),...(actor!.role==='owner'?{businessExportKinds,analytics}:{}),serviceStages:Object.fromEntries(state.bookings.map(b=>[b.id,floorStage(state,b,new Date().toISOString())])),names:await actorNames(env.DB,state,people)})
   }
   if(path==='/api/pacing'&&request.method==='GET'){const {state}=await load(env.DB);return json(pacingReport(state,url.searchParams.get('serviceId')??'',new Date().toISOString()))}
   if(path==='/api/pacing/preview'&&request.method==='POST'){
@@ -457,7 +482,7 @@ export async function placematResponse(request:Request,env:Bindings,defer:(work:
   }
   return json({error:'Method not allowed'},405)
  }catch(error){
-  if(error instanceof Problem)return json({error:error.message},error.status)
+  if(error instanceof Problem)return json({error:error.message,code:error.code},error.status)
   if(error instanceof Error&&'status' in error&&typeof error.status==='number')return json({error:('code' in error?String(error.code):error.message)},error.status)
   if(error instanceof Error&&(error.message.includes('pm_assertions')||error.message.includes('IMPORT_ATOMIC_GUARD')))return json({error:'The guest changed or was erased. Reload before saving again.'},409)
   console.error('Placemat request failed',error instanceof Error?error.name:'unknown')

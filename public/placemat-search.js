@@ -9,7 +9,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
   const pageSize = 40;
   let venue, response, query, selected, page = 0, working = false;
   let areas = [], accessTags = [], experiences = [], menus = new Map();
-  let contact = {name: '', email: '', phone: ''}, requests, experienceCart, closureEmailConsent=false;
+  let contact = {name: '', email: '', phone: ''}, requests, experienceCart, closureEmailConsent=false, feedbackEmailConsent=false;
   const find = selector => root.querySelector(selector);
   const action = (label, value, disabled = false) => `<button type="button" class="secondary" data-public-action="${value}"${disabled ? ' disabled' : ''}>${esc(label)}</button>`;
   const fullTime = value => new Intl.DateTimeFormat('en-US', {
@@ -26,6 +26,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if (!form) return;
     const values = new FormData(form);
     closureEmailConsent=values.has('closureEmailConsent');
+    feedbackEmailConsent=values.has('feedbackEmailConsent');
     experienceCart=selected?.experienceId?readCart(form):undefined;
     requests={...readRequests(form),preorders:readPreorders(form,menus.get(selected?.serviceId))};
     contact = Object.fromEntries(['name', 'email', 'phone'].map(name => [name, String(values.get(name) || '')]));
@@ -103,7 +104,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if (!selected) { target.innerHTML = ''; return; }
     const experience=selected.experienceId?experiences.find(entry=>entry.id===selected.experienceId):undefined;
     if(selected.experienceId&&(!experience||!experience.bookingAvailable||experience.kind!=='free')){target.innerHTML='<p role="alert">This experience is not available for online booking. Search again or contact the venue. No booking has been made.</p>';return;}
-    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<label class="wide"><input type="checkbox" name="closureEmailConsent"${closureEmailConsent?' checked':''}>Email me about a closure or proposed relocation for this reservation.</label>${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}${experience?cartFields(experience,query.partySize,experienceCart,esc,selected.serviceId)+experienceDisclosure(experience):''}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
+    target.innerHTML = `<article class="card"><h2>Your selected visit</h2><p>${esc(slotLabel(selected))}</p><p>${esc(constraints())}</p><p class="help">Availability is checked again when you confirm.</p><form data-public-command="book"><fieldset><div class="form-grid">${field('Your name', 'name', 'text', contact.name, 'required maxlength="200" autocomplete="name"')}${field('Email', 'email', 'email', contact.email, 'required autocomplete="email"')}${field('Phone (optional)', 'phone', 'tel', contact.phone, 'autocomplete="tel"')}<label class="wide"><input type="checkbox" name="closureEmailConsent"${closureEmailConsent?' checked':''}>Email me about a closure or proposed relocation for this reservation.</label><label class="wide"><input type="checkbox" name="feedbackEmailConsent"${feedbackEmailConsent?' checked':''}>Email me a survey after this visit, an optional public review invitation, and replies about my feedback. I can withdraw this permission in the survey.</label>${counterSeats()}${requestFields(field,requests?.requests,response?.inventoryOptions?.some(i=>i.name===query.area))}${preorderFields(menus.get(selected.serviceId),{esc,field})}${experience?cartFields(experience,query.partySize,experienceCart,esc,selected.serviceId)+experienceDisclosure(experience):''}<div class="wide"><button type="submit">Confirm booking</button><button type="button" class="secondary" data-public-action="hold">Hold and review</button></div></div></fieldset></form></article>`;
   }
   function counterSeats(){
     const inventory=response?.inventoryOptions?.find(i=>i.name===query.area&&i.kind==='counter');
@@ -139,7 +140,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     if(selected.experienceId&&!find('[name="acknowledgedExperienceTerms"]')?.checked)throw new Error('Read and agree to the experience terms before confirming.');
     const form=find('[data-public-command=book]');
     const embedOrigin = document.body.dataset.embedOrigin;
-    const payload = {...contact,...requests, closureEmailConsent:find('[name="closureEmailConsent"]')?.checked===true, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
+    const payload = {...contact,...requests, closureEmailConsent:find('[name="closureEmailConsent"]')?.checked===true, feedbackEmailConsent:find('[name="feedbackEmailConsent"]')?.checked===true, ...(embedOrigin ? {embedOrigin} : {}), ...analytics.bookingFields(), partySize: query.partySize, area: query.area,
       ...(find('[name="counterSeats"]')?.value?{tableIds:find('[name="counterSeats"]').value.split(',')} : {}),
       requiredAccessTags: [...query.requiredAccessTags], serviceId: selected.serviceId, startAt: selected.startAt,
       ...(selected.experienceId?{experienceId:selected.experienceId,ticketClassId:selected.ticketClassId,experienceVersion:selected.experienceVersion,acknowledgedExperienceTerms:true,experienceCart:readCart(form)}:{})};
@@ -191,7 +192,7 @@ export function createPublicSearch({api, esc, field, select, notice, analytics})
     document.querySelector('#venue-line').textContent = `${venue.name} · All times in ${venue.timezone}`;
     menus = new Map(bootstrap.services.map(s=>[s.id,s.preorderItems||[]]));
     analytics.offer(bootstrap.analytics, venue);
-    contact = {name: '', email: '', phone: ''};requests=undefined;closureEmailConsent=false;
+    contact = {name: '', email: '', phone: ''};requests=undefined;closureEmailConsent=false;feedbackEmailConsent=false;
     query??={date:today(),partySize:2,area:'',requiredAccessTags:[],experienceId:'',ticketClassId:''};
     if(await checkout.recover())return true;
     await search({date: today(), partySize: 2, area: '', requiredAccessTags: [],experienceId:'',ticketClassId:''});

@@ -2,6 +2,20 @@
 
 All private GETs require a native active owner/admin/member session (or read-only/preparation agent key). All private POSTs require exact Origin and owner/admin or an explicit product host capability, with owner-only keys, erase, backup/restore and move-in. Agents may only read state and prepare proposals; approval always needs a native person session. JSON errors are `{error:message}`; POST success `{result:...}`.
 
+Company agents use one CORE door at `/mcp`, `/agents`,
+`/api/rer/agent-policy` and `/docs/agents`, before application redirects.
+The native tool registry supports operations reads and proposal preparation;
+`docs/agents.md` records its limits. Signed Business policy, durable native
+sponsor mapping and the person's current native grants govern each call.
+Preparation keys keep their existing read/preparation scope. A person must
+still approve and execute a restaurant proposal. No company agent can send,
+change grants or move money through this registry.
+
+Agent-created deferred work requires a consent-bound continuation through the
+shared door. It must retain the original sponsor, agent, scope and consent and
+recheck Business/local Pause and current sponsor, agent and consent revocation
+before the next effect. A person/agent pair alone cannot authorize that work.
+
 - GET `/api/state`: `{state, guests, actor, version, names}`; `names` maps each person or preparation key that prepared or approved something to a readable name; guest rows are `{id, name, email, phone, notes, history?}`. State types in src/placemat/model.ts.
 - POST `/api/commands`: `{command, payload}`. Commands: `venue.update` {name,timezone}; `table.save` {id?,label,seats,x,y}; `service.save` {id?,name,startAt,endAt,turnMinutes,coverLimit}; `proposal.prepare` {kind,plan,reason}. Plans: service.publish {serviceId}; reminders {serviceId}; table.assign {bookingId,tableIds}. `proposal.approve` / `proposal.decline` {proposalId}; `booking.walkin` {serviceId,name,email?,phone?,partySize,startAt,tableIds?}; `booking.status` {bookingId,status}; `waitlist.add` {serviceId,name,email?,phone?,partySize}; `waitlist.seat` {waitlistId,startAt,tableIds?}; `guest.update` {guestId,notes}; `guest.erase` {guestId,confirm:"ERASE"}.
 - GET `/api/public/services`: published service objects plus current availability (no guest data).
@@ -383,7 +397,8 @@ A personal native owner session opens `/privacy` from venue Settings. Every `/ap
 - `POST /api/privacy/access` with `guestId` creates an audited access request and returns that guest's current profile, own reservations and declared-need history, own messages and queue history, booking contacts and minimal financial references. Other guests and execution credentials are absent.
 - `POST /api/privacy/correction` takes `guestId`, `bookingId`, the access export's `revision`, `field`, `value`, `reason` and `guestConfirmed:true`. It uses the existing needs correction path, retaining the original declaration and dated author history. Changed revisions refuse.
 - `POST /api/privacy/policy` takes the current `version` (zero when absent) and `rules` for `guestNotes`, `messageContent`, `imports` and `financialEvidence`, each with integer `days` and a documented `ground`. Personal-content periods may be zero for explicit immediate disposal; financial review is at least one day. No legal period is inferred or prescribed.
-- `POST /api/privacy/erase` takes `guestId` and `confirm:"ERASE"`. Recorded retention grounds are required. Existing atomic identity erasure also records the completed request and known processor follow-up. Financial references remain under the recorded ground; old backup restoration stays fenced. No provider request is sent.
+- `POST /api/privacy/erase-preview` takes `guestId` and returns the reviewed subject and a signed, five-minute `review` bound to that owner, subject, guest revision, floor revision and retention policy revision. It changes no records.
+- `POST /api/privacy/erase` takes that exact `guestId`, `review` and `confirm:"ERASE"`. Missing, mismatched, expired or stale reviews return a clear conflict before erasure; the revisions are fenced in the atomic erasure transaction. Recorded retention grounds are required. Existing atomic identity erasure also records the completed request and known processor follow-up. Financial references remain under the recorded ground; old backup restoration stays fenced. No provider request is sent.
 - `POST /api/privacy/processors` adds a provider record identifier to a deletion request, or records a submitted, confirmed or retained outcome with its receipt or ground. A finished provider decision cannot be overwritten. This is an owner's record of external action, not a delivery claim.
 - `POST /api/privacy/retention-preview` returns eligibility and an exact review fingerprint. `POST /api/privacy/retention-run` requires that fingerprint, selected `guestIds` and `confirm:"ERASE"`. Active service work is excluded. The first slice erases whole selected identities only after all personal-content periods have elapsed; it does not separately purge each category or automatically delete retained finance. Each completed identity has its own durable request if a later identity refuses.
 
@@ -439,7 +454,9 @@ The existing `payment.request` command accepts `perGuestCents` instead of an exp
 
 A personal owner opens `GET /api/payments/ledger`. `POST /api/payments/ledger/payout` with `payoutId` retrieves the paid USD payout and its complete paginated balance transactions. Gross, fees and net must reconcile exactly; incomplete or inconsistent retrieval records nothing. The review limit is 2,000 transactions. Payout snapshots cannot be changed. Repeating a matching import is safe.
 
-`POST /api/payments/ledger/adjustment` accepts `payoutId`, `transactionId` and an existing `bookingId`. The owner explicitly attributes an unmatched item by appending one actor-stamped adjustment. It changes no historical amount or reference, and refuses a second correction or an already matched item. This is manual attribution, not provider confirmation of an absent booking reference. Managers, finance identities, shared devices, members and agents cannot use these new doors under the conservative default pending policy approval. No automatic charge, refund, send or deletion occurs. Transfer, dispute and reversal lifecycles remain unimplemented.
+`POST /api/payments/ledger/adjustment` accepts `payoutId`, `transactionId`, an existing `bookingId` and an optional `reason`. The owner explicitly attributes an unmatched item by atomically appending one actor-stamped adjustment and its `payment.ledger-attribution` AUDIT-001 event. The event records the original and attributed settlement views, actor, instant, personal source and reason when supplied. A concurrent or repeated attribution refuses with 409 and appends neither a second adjustment nor an audit event. It changes no historical amount or reference, and refuses an already attributed item. This is manual attribution, not provider confirmation of an absent booking reference. Managers, finance identities, shared devices, members and agents cannot use these doors under the ct-approved 25 October owner-only interim authority. No automatic charge, refund, send or deletion occurs. Transfer, dispute and reversal lifecycles remain unimplemented.
+
+Each settlement item exposes the original provider `source`, `amount`, `fee` and `net`, its separately identifiable human `adjustmentId` and derived `bookingId`, and the original `signedFact` when present. The signed fact retains its source and charge references, original booking reference, currency, recorded instant and signed `amountCents` (refunds negative). `differenceCents` is provider gross minus that signed amount; it stays unchanged after attribution. With no signed fact, both `signedFact` and `differenceCents` are null, never a zero difference inferred from attribution. Payout `discrepancies` lists transactions with a nonzero known difference, `unverified` lists absent signed facts, and `unmatched` lists absent booking attribution. Empty `unmatched` proves only attribution. Payout gross, fees and net, original economic history and these independent reconciliation fields remain inspectable through GET and the `money-payouts` business CSV and are recomputed from immutable facts after archive restore. The shared state and change-history APIs omit these owner-only settlement audit events for non-owners. Settings change history keeps the complete financial context visible in both columns for money-attribution decisions, including unchanged provider and signed amounts and their difference. Financial references survive guest erasure; linked audit snapshots and reasons are redacted. A reason cannot be added for an already erased guest. These records confer no provider-write authority.
 
 
 ### Payment rider coverage at the approved 25 October slice
@@ -452,7 +469,7 @@ PAY-002 disclosure: the per-person journey checks the hosted amount and booking-
 
 PAY-002 authenticated observation: the per-person journey repeats paid-state synchronization against the controlled Stripe edge without a second Checkout or booking. It establishes neither live collection nor bank settlement. Safe close: “Unconfirmed Checkout collection retains the reservation until stable recovery and an authoritative expired-unpaid observation” and “Checkout preparation fences cancellation before its provider call; processing stays protected and confirmed paid or never-attempted requests permit explicit cancellation” assert unresolved reservation preservation, authoritative closure and separate explicit cancellation. These journeys do not prove the full original failed-payment capacity-release, refund, seating or sheet acceptance.
 
-PAY-006 attribution: `tests/api/money-ledger-journeys.mjs`, “Signed money facts reconcile refund-before-charge and duplicate callbacks, payout fees and appended unmatched attribution without editing history”, imports gross USD 97.00 (9700 cents), fees USD 3.00 (300 cents) and net USD 94.00 (9400 cents) with one unattributed USD 2.00 (200 cents) settlement item. The adjustment adds a separate human attribution; assertions retain every source money item, original provider settlement item, and gross, fee and net total, while exposing the booking link, adjustment reference, actor and recorded instant. The response preserves provider source, amount, fee and net alongside the adjustment reference and actor and time record. That fixture resolves missing attribution only. A conflicting provider amount remaining visibly discrepant after attribution is explicitly unproved; an empty unmatched list is not reconciliation of conflicting economic facts. Actual Stripe payout proof, scoped finance authority and unimplemented lifecycles remain the PAY-006 gaps.
+PAY-006 attribution: `tests/api/money-ledger-journeys.mjs`, “Signed money facts reconcile refund-before-charge and duplicate callbacks, payout fees and appended unmatched attribution without editing history”, imports gross USD 97.00 (9700 cents), fees USD 3.00 (300 cents) and net USD 94.00 (9400 cents) with one unattributed USD 2.00 (200 cents) settlement item. The adjustment adds a separate human attribution; assertions retain every source money item, original provider settlement item, and gross, fee and net total, while exposing the booking link, adjustment reference, actor and recorded instant. The response preserves provider source, amount, fee and net alongside the adjustment reference and actor and time record. Controlled native Stripe-edge cases cover both an absent signed fact and a conflicting USD 5.00 (500 cents) signed charge against that USD 2.00 provider item: the remaining difference is negative USD 3.00 (-300 cents) before and after explicit owner attribution. The same journey checks GET, parsed CSV, exact before-and-after audit with reason, concurrent and replay refusal, non-owner denial, revoked-session denial, redacted erasure and empty-destination archive restores before and after erasure. The conflicting signed fact names a different existing booking from the human attribution; both booking references remain distinguishable. The intact restore retains the audit reason and exact before and after, every financial CSV agrees with the source installation, and signed callback replay appends no receipt or adjustment. Attribution and erasure preserve the original signed-event receipt history. An empty unmatched list is not reconciliation of conflicting economic facts. This is native fixture proof, not a live provider receipt. Actual Stripe payout proof, scoped finance authority and unimplemented lifecycles remain the PAY-006 gaps.
 
 ### Owner-held dispute and accounting operations
 
@@ -466,7 +483,7 @@ Both public read doors include the intentionally public `experiences` projection
 
 Experience allocations stay in the same dated service and physical ledger as ordinary reservations. Class quantities count guest covers per dated service, including live holds. Committing the real reservation consumes its own hold atomically. A saved experience promise cannot be replaced through another staff command; guest management and closure relocation retain its frozen terms. CSV and structured archives document catalog records, uploaded images and reservation snapshots. EXP-002 inherits this inventory and checkout protection before payment collection ships.
 
-### Optional diner accounts (DIST-005, partial)
+### Optional diner accounts (DIST-005, PARTIAL)
 
 Guest checkout at `POST /api/public/book` remains available without an account.
 The public `/diner` screen requests verification, opens the account and manages its favorite, preferences and individually verified reservations.
@@ -507,14 +524,97 @@ A favorite’s Book again action opens the existing `/book` page for a fresh cap
 
 The `/diner/manage` screen reuses BOOK-004’s explicit preview and acknowledgment for time, party size, reservation contact, reconfirmation and cancellation. It grants no email-link issuance authority. Existing private booking-management links retain their own authority and financial restrictions. A changed contact email removes the old account’s access; proving the new address is required. Financially implicated reservations stay in manager review. Each device holds one reviewed reservation preview at a time; a replacement preview, changed reservation, consumed confirmation, expired session or revocation prevents reuse. Device credentials remain in tab session storage, never a URL, and all previews are excluded with sessions from archives.
 
-Owner-only CSV kinds `diner-accounts` and `diner-bookings` and structured
-archives contain the business records. Codes and sessions are excluded, so a
-restored account needs new email proof. Preference changes and forgetting fence
-older archives through the existing redaction checkpoint. Guest erasure removes
-linked diner account custody and every associated device session; privacy access
-exports include the linked account's saved preferences. Retention review includes
-the latest diner preference update.
+Owner-only CSV kinds `diner-accounts` and `diner-bookings` contain `csv_version`, `data_json` and these complete business fields. Structured archives retain the same fields in the named tables:
 
-Default ADOPTED pending ct: explicit booking-scoped proof, no automatic outbound
-action, no cross-installation identity or permission pooling. DIST-006 and
-GUEST-006 must independently establish review eligibility and group consent.
+| CSV kind and archive table | Portable fields |
+| --- | --- |
+| `diner-accounts`, `pm_diner_accounts` | `id`: stable account ID; `email`: trimmed lowercase verified email; `created_at`: creation instant; `updated_at`: latest favorite or preference update instant, initially creation; `favorite`: integer `0` or `1` for this restaurant; `preferences`: saved text of at most 500 characters, empty when revoked. |
+| `diner-bookings`, `pm_diner_bookings` | `account_id`: account link; `booking_id`: reservation link; `guest_id`: recorded guest link; `verified_at`: latest successful explicit verification instant for that account and reservation. The account and booking pair is the composite key; there is no separate link ID. |
+
+The [portability guide](./data-portability.md#diner-records-relationships-and-custody) defines reconciliation, relationships and exclusions. Staged restore rejects duplicate or malformed accounts and links, missing account, reservation or non-erased guest references, a link whose guest differs from its reservation’s guest, invalid timestamps, unsupported favorite values and overlong preferences before applying staged product records. Restored links are historical records; absent sessions require fresh email proof and live current-contact checks before access.
+
+`pm_diner_challenges`, `pm_diner_sessions` and `pm_diner_mail_limits` are archive exclusions and have no business CSV kind. Live pending proofs, their private booking, guest and current-contact references, code digests and expiry are excluded. Device digests, expiry and every reservation-management preview field are excluded with sessions. Raw codes and device bearers are never portable fields. Preference changes and forgetting fence older archives through the existing redaction checkpoint. Guest erasure removes linked diner accounts, verified links, pending proofs and associated device sessions; privacy access exports include linked account fields and saved preferences. Retention review includes the latest diner preference update. A new destination requires a trusted later same-source journal to recognize a forget or erasure absent from an old archive.
+
+CT approved the booking-scoped verification and management scope with riders in both 26 October 2026 rulings. The approved controls above retain explicit current-contact proof for each attached booking, independent expiring devices, explicit confirmation of fresh device-bound previews, unchanged financial obligations requiring manager review, and no charge, refund, fee waiver or automatic message authority. Verification grants no staff role, marketing permission, review eligibility or group-sharing permission. There is no cross-installation identity or permission pooling. The complete favorite, prior-visit repeat-booking and upcoming-reservation management target across devices remains binding, with DATA-003 portability, DATA-002 erasure and AUDIT-001 accountability. DIST-006 and GUEST-006 must independently establish review eligibility and group consent under their preserved receiving duties.
+
+DIST-005 remains PARTIAL under the 27 October 2026 CT ruling. Approval of this scope does not establish completion: every original acceptance point, both approved rider paragraphs and all DONE-RIDERS rows must pass, including direct public-door assertions and exact-candidate landing evidence, before DONE can be claimed.
+
+
+### Recurring native report types
+
+The existing report-schedule door accepts `reportKind`: `group-covers` (the
+unchanged default), `reservations`, `guests` or `finance`. Local kinds select
+only `venueIds: ["home"]`, with an optional existing `serviceId`; all filters
+use the service's local start date. The seven-day cadence and complete-date
+window are unchanged. The same native identities, current service scopes and
+field permissions govern the scheduled check, each explicit resend and every
+open of the authenticated live CSV. Exact-address approval, no report snapshot,
+private metadata, no automatic uncertain resend and inert restore remain binding.
+
+Reservation recipients are native owners or managers; scoped managers must have
+the selected service. Guest recipients and schedule creators use existing personal
+owner authority. Guest rows omit erased people, private notes and requests,
+and preserve recorded booking contact consent and preference, including false
+and unknown states. An owner data report never grants permission to contact a
+guest or marketing permission. Finance creators are owners; recipients are owners
+or current separately granted finance readers under ROLE-004 and ct RL-105.
+Finance CSVs contain booking-bound request, charge and refund amounts and current
+reconciliation in integer cents, without guest contacts, private notes, free-text
+reasons or payment credentials. Group grants never confer guest or finance access.
+
+`GET /api/report-export.csv?kind=guests` uses personal owner authority;
+`kind=finance` uses personal owner or current finance authority. Both reuse the
+existing local date, period and service filters. All scheduled kinds are shown
+under Weekly report delivery in Settings. Existing group recipients and native
+finance scopes are unchanged; no marketing or provider authority is created.
+
+
+### Booking email delivery observations
+
+The existing personal owner or admin `booking.management.send` command remains the
+only sending door in this slice. Callback observations grant no send, reply,
+retry, booking mutation or private-link authority. Existing acknowledgment,
+recorded-contact selection, link revocation and daily limits continue to apply.
+
+For Resend observations, the owner configures the stable runtime bindings
+`RER_INSTALLATION_ID` and `MAIL_EVENT_NAMESPACE`, with the private
+`RESEND_WEBHOOK_SECRET` belonging to that installation's Resend endpoint. These
+bindings are server configuration, never callback fields or browser settings.
+The endpoint is `POST /api/booking-mail/events`. Missing configuration refuses
+with 503. Development and demo modes refuse this intake. Key rotation preserves
+the same namespace. Changing the installation or namespace does not adopt old
+messages. No runtime secret or executable link is returned by a read or export.
+This native implementation establishes no live account, webhook configuration,
+sending-domain verification or provider qualification.
+
+Only newly accepted booking-link sends with a stored installation, Resend,
+namespace, message ID and original single recipient are eligible. Authentication
+mail, foreign IDs, inadequately bound earlier sends, altered or extra recipients,
+forged signatures, erased guests and historical restored bindings refuse.
+A later booking-contact change does not rewrite the original recipient.
+Exact raw bytes and Svix headers enter the shipped mail intake and D1 store
+unchanged. SQL receipt and state fences recheck the binding during the durable
+transaction. Erasure deletes bindings and all linked receipts and states in the
+same guest-erasure batch, including a racing callback or late send response.
+
+`GET /api/booking-mail` and the reservation email panel in the service view expose
+current personal owners and admins to provider acceptance, current delivery state
+and distinct retained provider facts. Host, member, server, preparation-key and
+shared-device reads refuse. Current authority is checked again on every read.
+Duplicate events add no fact. Conflicting identities roll back. Pending facts
+cannot regress a terminal state, and older or equal terminal facts do not replace
+the current state; distinct facts remain visible. Delivery means receiving mail
+server acceptance, without proof of a guest read. Observations never change a
+reservation, link, issue count or outbound count, and never initiate a resend.
+
+Owner business CSV kinds `booking-mail` and `booking-mail-events` reconcile the
+bindings, current state and normalized provider facts. Subject access exports
+include only that guest's observations. Retention review includes the message's
+recorded dates. Reviewed privacy erasure creates open Resend processor follow-up
+references without making a provider request or claiming deletion there.
+Business backups retain history with `historical=1`; staged validation rejects
+broken guest, booking, message, recipient, receipt and state relationships.
+Restored facts grant no callback authorization or executable management link.
+A trusted later same-source erasure journal refuses an older archive; current
+erasure also invalidates retained transfer snapshots. Full category expiry and
+actual processor deletion receipts remain DATA-004 duties.

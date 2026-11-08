@@ -1,3 +1,5 @@
+import {runFeedbackSurveys} from './placemat/feedback-mail'
+import {agentResponse, businessSettingsResponse} from './agent-door/http'
 import {runReportSchedules} from './placemat/scheduled-reports'
 import { withDemo } from './modules/demo/index.mjs'
 import { rejectedResponse } from './base/rejected-response'
@@ -28,7 +30,7 @@ function noTransform(response: Response): Response {
 
 export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async scheduled(_event, env, execution) {
-    execution.waitUntil(runReportSchedules(runtimeBindings(env),new Date(_event.scheduledTime)))
+    execution.waitUntil(Promise.all([runReportSchedules(runtimeBindings(env),new Date(_event.scheduledTime)),runFeedbackSurveys(runtimeBindings(env),new Date(_event.scheduledTime))]))
   },
   async fetch(request, env, execution) {
     return unframeable(request, await respond(request, env, execution))
@@ -39,6 +41,11 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
 async function respond(request: Request, env: Bindings, execution: ExecutionContext): Promise<Response> {
   const asset = await staticAssetResponse(request, env)
   if (asset) return asset
+  const bindings = runtimeBindings(env)
+  const door = await agentResponse(request, bindings)
+  if (door) return door
+  const business = await businessSettingsResponse(request, bindings)
+  if (business) return business
   const auth = await authResponse(request, env)
   if (auth) return auth
   const product = await placematResponse(request, runtimeBindings(env), work => execution.waitUntil(work))

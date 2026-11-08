@@ -21,6 +21,55 @@ function csvRecords(csv) {
 
 const configured=edge=>installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
 
+test('Owner phone changes to party size or arrival refuse the original fee agreement while an unchanged cancellation remains chargeable',async()=>{
+ const edge=feeEdge();let now=Date.parse('2030-10-20T12:00:00Z')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now,stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
+ try{
+  const {service}=await feeService(h,{startAt:'2030-10-21T18:00:00Z'}),policy=await feeApi(h,'fee-policy',feePolicyInput()),bookings=[],agreements=[]
+  for(let index=1;index<=3;index++){
+   const booking=await feeBooking(h,service,index)
+   bookings.push(booking)
+   agreements.push((await consentBooking(h,edge,booking,policy,{acceptedAt:new Date(now).toISOString()})).consent)
+  }
+  now+=60000
+  const changes=[{partySize:3,startAt:bookings[0].startAt},{partySize:bookings[1].partySize,startAt:'2030-10-21T18:30:00.000Z'}]
+  for(let index=0;index<changes.length;index++){
+   const before=bookings[index],version=(await h.api('/api/state')).version
+   const changed=await h.command('booking.phone.change',{bookingId:before.id,version,...changes[index]})
+   assert.equal(changed.partySize,changes[index].partySize);assert.equal(changed.startAt,changes[index].startAt)
+   assert.equal(changed.guestId,before.guestId);assert.equal(changed.serviceId,before.serviceId)
+  }
+  now+=60000
+  for(const booking of bookings)await h.command('booking.stage',{bookingId:booking.id,stage:'cancelled',reason:'synthetic-placemat-1'})
+  const decisions=[]
+  for(let index=0;index<bookings.length;index++){
+   const preview=await feeApi(h,'fee-preview',{bookingId:bookings[index].id,kind:'late_cancel'})
+   assert.equal(preview.actionable,true);assert.ok(preview.eventId);assert.equal(preview.observedAt,new Date(now).toISOString())
+   assert.equal(preview.consentId,agreements[index].id);assert.equal(preview.policyId,policy.id)
+   assert.equal(preview.beforeObservation,true);assert.equal(preview.authorizationCurrent,true)
+   assert.equal(preview.authorizationExpiresAt,agreements[index].expiresAt)
+   assert.equal(preview.amountCents,index===0?6000:4000)
+   assert.equal(preview.consentRecorded,index===2);assert.equal(preview.chargeAllowed,index===2)
+   assert.equal(preview.partySize,index===0?3:2)
+   assert.equal(preview.bookingSnapshot.startAt,index===1?changes[1].startAt:bookings[index].startAt)
+   decisions.push(feeDecision(preview))
+  }
+  const before=await h.api('/api/state'),history=(await h.api('/api/audit')).rows,providerCalls=[...edge.calls]
+  for(const decision of decisions.slice(0,2)){
+   await feeApi(h,'fees',decision,{status:409})
+   await feeApi(h,'fees',decision,{status:409})
+  }
+  const after=await h.api('/api/state')
+  assert.deepEqual(after.state,before.state);assert.deepEqual(after.feeWork,before.feeWork)
+  for(const agreement of agreements)assert.deepEqual(after.feeWork.consents.find(c=>c.id===agreement.id),agreement)
+  assert.deepEqual(after.feeWork.assessments,[]);assert.deepEqual(after.feeWork.guarantees,[])
+  assert.deepEqual((await h.api('/api/audit')).rows,history)
+  // Native proof at a controlled Stripe edge: neither refusal nor the allowed preview collects money or sends.
+  assert.deepEqual(edge.calls,providerCalls);assert.equal(edge.intents.size,0);assert.equal(h.messages.length,0)
+  assert.equal(after.feeWork.consents.filter(c=>c.recollection).length,0)
+ }finally{await h.close()}
+})
+
 test('Fee consent records the owner attestation to exact immutable terms and a verified off-session setup; other actors cannot decide fees',async()=>{
  const edge=feeEdge(),h=await configured(edge)
  try{

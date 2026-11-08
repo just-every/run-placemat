@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {installation,publicGuest} from './harness.mjs'
+import {installation,publicGuest,resendDeliveryFixture,service} from './harness.mjs'
 
 test('SERVICE-004: lunch/dinner channel rules refuse early, late, oversized and blocked guests; manager overrides remain physical and audited',async()=>{
  const h=await installation();try{
@@ -171,3 +171,186 @@ test('Private guest reservation links deliver scoped consent, atomic two-to-four
   assert.equal((await h.db.prepare('SELECT count(*) AS n FROM pm_booking_contacts WHERE guest_id=?').bind(guestId).first()).n,0)
  }finally{await h.close()}
 })
+
+
+test('Signed booking email observations retain original recipients and order-safe facts without replaying booking effects',async()=>{
+ const now=Date.now(),clock=()=>now,fixture=resendDeliveryFixture(clock),bindings={MAIL_PROVIDER:'resend',...fixture.bindings}
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings})
+ const address=n=>['synthetic-placemat-'+n,'example.test'].join('@')
+ try{
+  const f=await service(h,{tables:4,seats:4,covers:40})
+  const booked=(await h.api('/api/public/book',publicGuest(f.service,0,{email:address('recipient')}),{as:'',status:201})).result
+  const manager=await h.signIn(address('manager'),'admin'),member=await h.signIn(address('member')),host=await h.signIn(address('host')),server=await h.signIn(address('server'))
+  const personId=async as=>(await h.api('/api/state',undefined,{as})).actor.id
+  await h.command('team.host',{operatorId:await personId(host),enabled:true})
+  await h.command('team.server',{operatorId:await personId(server),enabled:true})
+  const issued=await h.command('booking.management.send',{bookingId:booked.id,acknowledged:true},{as:manager})
+  const recipient=address('recipient'),message=issued.providerMessageId
+  assert.ok(message);assert.equal(issued.token,undefined)
+  const token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+  const deliveries=async(as)=>(await h.api('/api/booking-mail',undefined,as?{as}:{})).deliveries
+  let rows=await deliveries(manager);assert.equal(rows.length,1);assert.equal(rows[0].status,'accepted');assert.equal(rows[0].recipient,recipient)
+  const native=async()=>({state:(await h.api('/api/state')).state,links:(await h.db.prepare('SELECT * FROM pm_booking_management ORDER BY booking_id').all()).results,sends:h.messages.length})
+  const baseline=await native(),delivered=fixture.event(message,recipient,'email.delivered',now-4000),eventId='synthetic-placemat-delivered'
+  const submit=async(event,id,status=200,options={})=>{
+   const r=await fixture.submit(h,event,id,options),value=await r.json();assert.equal(r.status,status,JSON.stringify(value));return value
+  }
+  await submit(delivered,eventId,401,{headers:{'svix-signature':'v1,invalid'}})
+  await submit(delivered,eventId,401,{body:{...delivered,type:'email.bounced'}})
+  await submit(delivered,eventId,401,{signedAt:now-301000})
+  await submit(fixture.event(message,address('wrong')),undefined,403)
+  await submit(fixture.event('synthetic-placemat-foreign',recipient),undefined,403)
+  await submit(fixture.event(message,[recipient,address('extra')]),undefined,403)
+  assert.equal((await deliveries())[0].facts.length,0)
+  assert.deepEqual(await native(),baseline,'Forged, expired and unbound callbacks change no reservation or send custody')
+  assert.equal((await submit(delivered,eventId)).results[0].outcome,'stored')
+  for(const result of await Promise.all(Array.from({length:4},()=>submit(delivered,eventId))))assert.equal(result.results[0].outcome,'duplicate')
+  await submit(fixture.event(message,recipient,'email.bounced',now-4000),eventId,409)
+  await submit(fixture.event(message,recipient,'email.sent',now-5000))
+  await submit(fixture.event(message,recipient,'email.bounced',now-3000))
+  await submit(fixture.event(message,recipient,'email.complained',now-2000))
+  await submit(fixture.event(message,recipient,'email.delivered',now-6000))
+  await submit(fixture.event(message,recipient,'email.bounced',now-2000))
+  await Promise.all([
+   submit(fixture.event(message,recipient,'email.delivered',now-1000)),
+   submit(fixture.event(message,recipient,'email.complained',now)),
+  ])
+  rows=await deliveries();assert.equal(rows[0].status,'complained');assert.equal(rows[0].facts.length,8)
+  assert.ok(rows[0].facts.some(e=>e.type==='email.delivered'));assert.ok(rows[0].facts.some(e=>e.type==='email.bounced'))
+  assert.deepEqual(await native(),baseline,'Provider observations never change bookings, link custody, audit or send counts')
+  await h.restart();assert.equal((await deliveries())[0].status,'complained');await submit(delivered,eventId);assert.equal((await deliveries())[0].facts.length,8)
+  for(const as of [host,member,server]){await h.api('/api/booking-mail',undefined,{as,status:403});if(as!==server)assert.equal((await h.api('/api/state',undefined,{as})).bookingMail,undefined)}
+  const key=(await h.api('/api/agent-keys',{name:'Delivery refusal witness'})).result
+  await h.api('/api/booking-mail',undefined,{as:'',headers:{authorization:'Bearer '+key.key},status:403})
+  const registration=await h.api('/api/hoststand/devices',{label:'Reservation desk'},{status:201})
+  const claim=await h.request('/api/hoststand/claim',{method:'POST',as:'',body:{claimCode:registration.claimCode}})
+  assert.equal(claim.status,200)
+  const device=claim.headers.getSetCookie().map(v=>v.split(';')[0]).find(v=>v.startsWith('__Host-pm-device='))
+  await h.api('/api/hoststand/pin',{pin:'161803398874'},{as:host})
+  await h.api('/api/hoststand/unlock',{operatorId:await personId(host),pin:'161803398874'},{as:device})
+  await h.api('/api/booking-mail',undefined,{as:device,status:401})
+  await h.api('/api/booking-mail',undefined,{as:h.cookie+'; '+device,status:401})
+  await h.api('/api/agent-keys/'+key.id,undefined,{method:'DELETE'})
+  await h.api('/api/booking-mail',undefined,{as:'',headers:{authorization:'Bearer '+key.key},status:401})
+  const managerId=await personId(manager)
+  await h.api('/auth/operator/status',{operatorId:managerId,status:'inactive'})
+  await h.api('/api/booking-mail',undefined,{as:manager,status:401})
+  for(const name of ['MAIL_PROVIDER','MAIL_EVENT_NAMESPACE','RER_INSTALLATION_ID','RESEND_WEBHOOK_SECRET']){
+   const prior=bindings[name];bindings[name]='';await h.restart()
+   await submit(fixture.event(message,recipient),undefined,503)
+   bindings[name]=prior;await h.restart()
+  }
+  const namespace=bindings.MAIL_EVENT_NAMESPACE;bindings.MAIL_EVENT_NAMESPACE+='-other';await h.restart()
+  await submit(fixture.event(message,recipient),undefined,403)
+  bindings.MAIL_EVENT_NAMESPACE=namespace;await h.restart()
+  const tenant=bindings.RER_INSTALLATION_ID;bindings.RER_INSTALLATION_ID+='-other';await h.restart()
+  await submit(fixture.event(message,recipient),undefined,403)
+  bindings.RER_INSTALLATION_ID=tenant;await h.restart()
+  // A real contact change does not reinterpret the original delivery recipient.
+  const change=await h.api('/api/public/booking-management/preview',{token,action:'change',contact:{email:address('updated')}},{as:''})
+  await h.api('/api/public/booking-management/commit',{token,previewId:change.previewId,acknowledged:true},{as:''})
+  await submit(fixture.event(message,address('updated')),undefined,403)
+  await submit(fixture.event(message,recipient,'email.opened'))
+  bindings.MAIL_EVENT_NAMESPACE='';await h.restart()
+  const legacy=await h.command('booking.management.send',{bookingId:booked.id,acknowledged:true})
+  bindings.MAIL_EVENT_NAMESPACE=namespace;await h.restart()
+  await submit(fixture.event(legacy.providerMessageId,address('updated')),undefined,403)
+  const fresh=await h.command('booking.management.send',{bookingId:booked.id,acknowledged:true})
+  await submit(fixture.event(fresh.providerMessageId,address('updated'),'email.bounced'))
+  await assertMergedBookingMailRestore({fixture,bindings,clock})
+  const archive=await h.api('/api/backup'),csv=await (await h.request('/api/business-export/booking-mail.csv')).text(),events=await (await h.request('/api/business-export/booking-mail-events.csv')).text()
+  assert.ok(csv.includes(message)&&csv.includes(recipient)&&csv.includes('complained'));assert.ok(events.includes('email.bounced'))
+  assert.ok(!JSON.stringify(archive).includes(bindings.RESEND_WEBHOOK_SECRET));assert.ok(!JSON.stringify(archive).includes(token))
+  const restored=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings})
+  try{
+   await restored.api('/api/restore',{archive,confirm:'RESTORE'})
+   const history=(await restored.api('/api/booking-mail')).deliveries
+   assert.equal(history.length,2);assert.ok(history.every(m=>m.historical));assert.equal(history.find(m=>m.providerMessageId===message).status,'complained')
+   const r=await fixture.submit(restored,fixture.event(message,recipient));assert.equal(r.status,403)
+   assert.equal(restored.messages.length,0)
+  }finally{await restored.close()}
+  const guestId=(await h.api('/api/state')).state.bookings.find(b=>b.id===booked.id).guestId
+  const access=await h.api('/api/privacy/access',{guestId})
+  assert.equal(access.bookingMail.length,2);assert.equal(access.bookingMail.find(m=>m.providerMessageId===message).status,'complained')
+  assert.ok(!JSON.stringify(access).includes(bindings.RESEND_WEBHOOK_SECRET))
+  await h.api('/api/privacy/policy',{version:0,rules:Object.fromEntries(['guestNotes','messageContent','imports','financialEvidence'].map(k=>[k,{days:365,ground:'Recorded venue retention review'}]))})
+  const review=await h.api('/api/privacy/erase-preview',{guestId})
+  // Race through public doors: whichever transaction wins, erasure removes all copies.
+  const race=await Promise.all([fixture.submit(h,fixture.event(message,recipient,'email.complained')),h.api('/api/privacy/erase',{guestId,review:review.review,confirm:'ERASE'})])
+  assert.ok([200,403,409].includes(race[0].status));assert.deepEqual(await deliveries(),[])
+  assert.equal(race[1].processorTasks,2)
+  const tasks=(await h.api('/api/privacy')).tasks;assert.ok(tasks.some(t=>t.provider==='Resend'&&t.reference===message&&t.state==='open'))
+  await submit(delivered,eventId,403)
+  for(const table of ['pm_booking_mail','rer_mail_event_receipts','rer_mail_event_states'])assert.equal((await h.db.prepare('SELECT count(*) AS n FROM '+table).first()).n,0)
+  assert.ok(!(await (await h.request('/api/business-export/booking-mail.csv')).text()).includes(recipient))
+  const later=await h.api('/api/backup'),empty=await installation()
+  try{await empty.api('/api/restore',{archive,journal:later,confirm:'RESTORE'},{status:400})}finally{await empty.close()}
+  // A genuine send paused at the provider edge can finish after local erasure.
+  let release,observed
+  const accepted=new Promise(resolve=>release=resolve),atEdge=new Promise(resolve=>observed=resolve),outbound=[]
+  const late=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings,mailEdge:async request=>{
+   outbound.push(await request.json());observed();await accepted
+   return Response.json({id:'synthetic-placemat-late-message'})
+  }})
+  try{
+   const f=await service(late),b=(await late.api('/api/public/book',publicGuest(f.service,0,{email:address('late')}),{as:'',status:201})).result
+   const sending=late.command('booking.management.send',{bookingId:b.id,acknowledged:true})
+   await atEdge
+   const guestId=(await late.api('/api/state')).state.bookings.find(row=>row.id===b.id).guestId
+   await late.command('guest.erase',{guestId,confirm:'ERASE'});release();await sending
+   assert.equal(outbound.length,1);assert.deepEqual((await late.api('/api/booking-mail')).deliveries,[])
+   const callback=await fixture.submit(late,fixture.event('synthetic-placemat-late-message',address('late')))
+   assert.equal(callback.status,403)
+   assert.equal((await late.db.prepare('SELECT count(*) AS n FROM pm_booking_mail').first()).n,0)
+  }finally{release();await late.close()}
+  console.log('PROBE MSG-003 signed intake, order-safe history, current manager scope, original recipient, erasure and inert restore passed')
+ }finally{await h.close()}
+})
+
+/** The original ordinary send -> reviewed merge -> genuine inert restore regression. */
+async function assertMergedBookingMailRestore({fixture,bindings,clock}){
+ const {guestReviewFixture}=await import('./guest-review-fixture.mjs')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings})
+ try{
+  const f=await guestReviewFixture(h),manager=await h.signIn('synthetic-placemat-merge-manager@example.test','admin')
+  const issued=await h.command('booking.management.send',{bookingId:f.booking.id,acknowledged:true})
+  const token=new URLSearchParams(new URL(h.messages.at(-1).text.match(/https:\/\/[^\s]+\/manage-booking#[^\s]+/)[0]).hash.slice(1)).get('token')
+  const event=fixture.event(issued.providerMessageId,f.a.email),eventId='synthetic-placemat-merged-delivered'
+  assert.equal((await fixture.submit(h,event,eventId)).status,200)
+  const deliveries=async(as)=>(await h.api('/api/booking-mail',undefined,as?{as}:{})).deliveries
+  const history=await deliveries(),sends=h.messages.length
+  assert.equal(history.length,1);assert.equal(history[0].recipient,f.a.email);assert.equal(history[0].status,'delivered')
+  const review=await h.api('/api/guests/merge-preview?guestId='+f.b.id+'&duplicateId='+f.a.id)
+  const merged=await h.command('guest.merge',{guestId:f.b.id,duplicateId:f.a.id,review:review.review,confirm:'MERGE'})
+  for(const [guestId,reverse] of [[f.b.id,true],[f.a.id,false]]){
+   assert.equal((await h.api('/api/state')).state.bookings.find(b=>b.id===f.booking.id).guestId,guestId)
+   assert.deepEqual(await deliveries(),history);assert.deepEqual(await deliveries(manager),history)
+   assert.equal((await h.api('/api/privacy/access',{guestId})).bookingMail.length,1)
+   assert.equal((await fixture.submit(h,event,eventId)).status,200)
+   for(const recipient of [f.b.email,[f.a.email,f.b.email]])assert.equal((await fixture.submit(h,fixture.event(issued.providerMessageId,recipient))).status,403)
+   const archive=await h.api('/api/backup'),copy=await installation({entry:'tests/api/clock-worker.mjs',clock,bindings})
+   try{
+    await copy.api('/api/restore',{archive,confirm:'RESTORE'})
+    assert.deepEqual((await copy.api('/api/booking-mail')).deliveries,history.map(m=>({...m,historical:true})))
+    assert.equal((await copy.api('/api/state')).state.bookings.find(b=>b.id===f.booking.id).guestId,guestId)
+    assert.ok((await(await copy.request('/api/business-export/booking-mail.csv')).text()).includes(f.a.email))
+    await copy.api('/api/public/booking-management/status',{token},{as:'',status:404})
+    assert.equal((await fixture.submit(copy,event,eventId)).status,403)
+    assert.equal(copy.messages.length,0,'Restoring delivery history never sends mail')
+    if(reverse){
+     await copy.command('guest.erase',{guestId,confirm:'ERASE'})
+     assert.deepEqual((await copy.api('/api/booking-mail')).deliveries,[])
+     assert.equal((await fixture.submit(copy,event,eventId)).status,403)
+     assert.ok(!(await(await copy.request('/api/business-export/booking-mail.csv')).text()).includes(f.a.email))
+     assert.ok(!JSON.stringify(await copy.api('/api/backup')).includes(f.a.email))
+    }
+   }finally{await copy.close()}
+   if(reverse){
+    const undo=await h.api('/api/guests/unmerge-preview?mergeId='+merged.id)
+    await h.command('guest.unmerge',{mergeId:merged.id,review:undo.review,confirm:'UNMERGE'})
+   }
+  }
+  assert.equal(h.messages.length,sends,'Merge, reversal and callback replay never resend')
+  console.log('PROBE MSG-003 merge/reversal retain original-recipient history; genuine backups restore inertly; merged erasure removes history')
+ }finally{await h.close()}
+}
