@@ -1,7 +1,7 @@
 import {fail} from './model'
 
 /** Group access is read-only by design: no right here changes records, money, people, exports or providers. */
-export const groupRights=['reports.read','preshift.read'] as const
+export const groupRights=['reports.read','preshift.read','guestbook.read'] as const
 export type GroupRight=typeof groupRights[number]
 export const groupSecret=(prefix:string)=>prefix+Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('')
 export function groupOrigin(value:unknown):string{

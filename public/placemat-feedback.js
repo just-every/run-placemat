@@ -60,7 +60,7 @@ document.addEventListener('submit',run(async event=>{
  }
 }))
 document.addEventListener('click',event=>{
- if(event.target.closest('[data-review-invitation]')){sessionStorage.setItem('placemat-review-invitation',token);return}
+ if(event.target.closest('[data-review-invitation]')){event.preventDefault();location.assign('/reviews#'+encodeURIComponent(token));return}
  if(!event.target.closest('[data-refresh],#withdraw-feedback'))return
  return run(async event=>{
  if(event.target.closest('[data-refresh]'))await refresh()

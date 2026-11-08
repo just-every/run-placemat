@@ -6,6 +6,50 @@ import {installation} from './harness.mjs'
 import {feeEdge,feePolicyInput,feeApi,feeService,feeBooking,consentBooking,feeDecision} from './fee-fixture.mjs'
 const configured=edge=>installation({stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
 
+test('Expired fee agreements refuse new recollection and prior-request replay at arrival and afterward without changing history',async()=>{
+ const edge=feeEdge();let now=Date.parse('2030-10-20T12:00:00Z')
+ const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now,stripeEdge:edge.edge,bindings:{STRIPE_SECRET_KEY:'synthetic-placemat-1'}})
+ try{
+  const {service}=await feeService(h,{startAt:'2030-10-21T18:00:00Z'}),policy=await feeApi(h,'fee-policy',feePolicyInput()),bookings=[],expired=[]
+  for(let index=1;index<=2;index++){
+   const booking=await feeBooking(h,service,index)
+   const {consent}=await consentBooking(h,edge,booking,policy,{acceptedAt:new Date(now).toISOString()})
+   const ended=await feeApi(h,'fee-expiry',{bookingId:booking.id})
+   assert.equal(ended.authorizationState,'expired');assert.equal(ended.expiresAt,new Date(now).toISOString())
+   assert.deepEqual(ended.bookingSnapshot,consent.bookingSnapshot);assert.equal(ended.reviewText,consent.reviewText)
+   assert.equal(ended.recollection.requestedAt,null)
+   bookings.push(booking);expired.push(ended)
+  }
+  now=Date.parse(service.startAt)-1
+  const payload={bookingId:bookings[1].id},requested=await feeApi(h,'fee-recollection',payload)
+  assert.deepEqual(requested,{...expired[1],recollection:{...expired[1].recollection,requestedAt:new Date(now).toISOString()}})
+  assert.deepEqual(await feeApi(h,'fee-recollection',payload),requested)
+  const before=await h.api('/api/state'),history=(await h.api('/api/audit')).rows,providerCalls=[...edge.calls]
+  const tasks=history.filter(row=>row.action==='payment.fee-recollection')
+  assert.equal(tasks.length,1);assert.equal(tasks[0].subject,bookings[1].id)
+  assert.equal(tasks[0].actor,before.actor.id);assert.equal(tasks[0].source,'person');assert.equal(tasks[0].at,new Date(now).toISOString())
+  assert.equal(tasks[0].changes[0].after.ownerId,expired[1].actorId)
+  assert.equal(tasks[0].changes[0].after.requestedAt,requested.recollection.requestedAt)
+  assert.equal(tasks[0].changes[0].after.delivery,'not-sent')
+  for(const at of [Date.parse(service.startAt),Date.parse(service.startAt)+60000]){
+   now=at
+   for(const booking of bookings){
+    const refused=await h.api('/api/payments/fee-recollection',{bookingId:booking.id},{status:409})
+    assert.match(refused.error,/upcoming active reservation/)
+   }
+   const after=await h.api('/api/state')
+   assert.ok(after.state.bookings.every(booking=>booking.status==='booked'))
+   assert.deepEqual(after.state,before.state);assert.deepEqual(after.feeWork,before.feeWork)
+   assert.deepEqual(after.feeWork.consents.find(c=>c.id===expired[0].id),expired[0])
+   assert.deepEqual(after.feeWork.consents.find(c=>c.id===requested.id),requested)
+   assert.deepEqual((await h.api('/api/audit')).rows,history)
+  }
+  // Native proof at a controlled Stripe edge: no renewal, processor write or outbound message is implied.
+  assert.deepEqual(edge.calls,providerCalls);assert.equal(edge.intents.size,0);assert.equal(h.messages.length,0)
+  assert.deepEqual(before.feeWork.assessments,[]);assert.deepEqual(before.feeWork.guarantees,[])
+ }finally{await h.close()}
+})
+
 test('Shortening a reviewed service permanently restricts both attested and guest-captured fee authority',async()=>{
  const {merchantEdge}=await import('./merchant-fixture.mjs'),edge=merchantEdge(),h=await configured(edge)
  try{

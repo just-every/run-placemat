@@ -4,32 +4,32 @@ import assert from 'node:assert/strict'
 import {randomBytes} from 'node:crypto'
 import {readFile,mkdir} from 'node:fs/promises'
 import {extname,resolve} from 'node:path'
-import {chromium} from '@playwright/test'
+import {chromium,expect} from '@playwright/test'
 import {installation} from './api/harness.mjs'
 const shots=process.env.PLACEMAT_SCREENSHOTS
 if(shots)await mkdir(shots,{recursive:true})
 const host='https://bistro.example',other='https://other.example',title='Book a table at Cedar & Salt'
 const ga4Secret=randomBytes(16).toString('hex'),metaToken=randomBytes(32).toString('hex')
 const quiet=()=>new Promise(r=>setTimeout(r,600))
-async function refusedFrame(element,message){
- const child=await(await element.elementHandle()).contentFrame()
- assert.ok(child,message)
- // Chromium represents a CSP-blocked document as either an error URL or an
- // anonymous empty URL. Locate the specific iframe instead of its lost name.
- assert.match(child.url(),/^(?:chrome-error:.*)?$/,message)
-}
 const site=placemat=>`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bistro on Main</title></head><body style="margin:0;font-family:sans-serif"><header style="padding:16px"><h1>Bistro on Main</h1><a href="#menu">Menu</a></header><div data-placemat-book data-title="${title}"></div><script src="${placemat}/placemat-embed.js" async></script></body></html>`
 const frames=placemat=>`<!doctype html><html lang="en"><body>${['/app','/book','/queue','/inquiry'].map(path=>`<iframe name="${path.slice(1)}" src="${placemat}${path}"></iframe>`).join('')}</body></html>`
-const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+// Keep native date spinboxes and booking-policy time on the same fixture day,
+// away from month boundaries that can clamp a previously entered day segment.
+const now=Date.parse('2026-10-20T12:00:00Z')
+// Keep Chromium's normal third-party storage partitioning enabled. Playwright's
+// default disabled-feature list otherwise denies the cross-site widget's tab-local
+// checkout recovery storage in current Chromium. Retain its routed-Origin fix.
+const browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic','--disable-features=BlockOriginHeaderModificationOnRedirect']})
 try{
  for(const width of [1440,390]){
-  const h=await installation(),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US'})
+  const h=await installation({entry:'tests/api/clock-worker.mjs',clock:()=>now}),context=await browser.newContext({viewport:{width,height:1000},locale:'en-US',extraHTTPHeaders:{'x-placemat-test-clock':String(now)}})
   try{
    // Exercise the ordinary browser policy that blocks storage in an embedded page.
    await context.addInitScript(()=>{if(window!==window.parent)Object.defineProperty(window,'sessionStorage',{get(){throw new DOMException('Embedded storage is blocked','SecurityError')}})})
+   await context.clock.setFixedTime(new Date(now))
    await h.command('venue.update',{name:'Cedar & Salt',timezone:'America/New_York'})
    await h.command('table.save',{label:'Window two',seats:2,area:'Dining',x:30,y:30})
-   const date=new Date();date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
+   const date=new Date(now);date.setUTCDate(date.getUTCDate()+((5-date.getUTCDay()+7)%7||7));const day=date.toISOString().slice(0,10),startAt=day+'T23:00:00.000Z'
    const dinner=await h.command('service.save',{name:'Friday dinner',startAt,endAt:new Date(Date.parse(startAt)+90*60000).toISOString(),turnMinutes:90,coverLimit:8,bookingRules:{online:{minParty:1,maxParty:6,horizonDays:60,leadMinutes:30,sameDayCutoff:'16:00',slotMinutes:15,inquiryAbove:6,blockedStarts:[]}}})
    const p=await h.command('proposal.prepare',{kind:'service.publish',plan:{serviceId:dinner.id},reason:'Publish Friday dinner'});await h.command('proposal.approve',{proposalId:p.id})
    // A second dinner three weeks out lets a declined visit book on the standalone page after the widget takes the first.
@@ -47,13 +47,17 @@ try{
     if(file.startsWith(resolve('public')+'/')&&extname(file)){
      try{const body=await readFile(file),contentType={'.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2'}[extname(file)]||'application/octet-stream';await route.fulfill({status:200,contentType,body});return}catch{}
     }
-    const response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
+    let response=await h.mf.dispatchFetch(request.url(),{method:request.method(),headers:{...request.headers(),host:url.host},...(request.postDataBuffer()?{body:request.postDataBuffer()}:{})})
+    // Routed redirects otherwise escape this synthetic HTTPS transport. Follow
+    // native document redirects through the same real Worker before framing.
+    for(let hop=0;request.isNavigationRequest()&&[301,302,303,307,308].includes(response.status)&&hop<5;hop++){
+     const target=new URL(response.headers.get('location'),url)
+     assert.equal(target.origin,h.origin,'document redirects stay on the native fixture origin')
+     response=await h.mf.dispatchFetch(target.href,{headers:{...request.headers(),host:target.host}})
+    }
     await route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())})
    })
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
-   // Keep native date spinboxes valid while discovering the platform's segment order.
-   // A real month-end such as October 31 becomes invalid on an ArrowUp into November.
-   await page.clock.setFixedTime(new Date('2026-10-15T12:00:00Z'))
    const screenshot=async name=>{if(shots)await page.screenshot({path:resolve(shots,`BOOK-002-${name}-${width}.png`),fullPage:true})}
    // The owner allows the restaurant's website from Settings; the change is audited with the owner and time.
    await page.goto(h.origin+'/setup');await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click();await page.getByRole('heading',{name:'Cedar & Salt',exact:true}).waitFor()
@@ -89,14 +93,32 @@ try{
    assert.equal(h.analytics.length,0,'accepting alone sends nothing')
    await tabTo('date')
    // Native date controls retain the host's segment order on macOS even with a US page locale.
-   // Use their actual keyboard spinboxes, preserving the all-keyboard guest journey.
+   // Read the focused native spinbox through Chromium's accessibility tree.
+   // Probing with an arrow key can make October 31 into an invalid November 31.
+   // All edits still use the keyboard, including temporarily incomplete dates.
    const dateInput=frame.locator('[name=date]'),wanted=day.split('-').map(Number)
-   for(let segment=0;segment<3;segment++){
-    const before=(await dateInput.inputValue()).split('-').map(Number);await page.keyboard.press('ArrowUp')
-    const after=(await dateInput.inputValue()).split('-').map(Number),index=after.findIndex((n,i)=>n!==before[i]);assert.ok(index>=0,'keyboard changes the focused date segment')
-    for(let step=0;step<366;step++){const current=(await dateInput.inputValue()).split('-').map(Number)[index];if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
-    assert.equal(Number((await dateInput.inputValue()).split('-')[index]),wanted[index]);await page.keyboard.press('ArrowRight')
+   // Only out-of-process frames have their own session; same-process frames
+   // expose their accessibility nodes through the parent page's session.
+   const accessibility=await context.newCDPSession(page.frame({url:/\/book\?embed=1/})).catch(error=>{
+    if(!error.message.includes('This frame does not have a separate CDP session'))throw error
+    return context.newCDPSession(page)
+   }),visited=new Set()
+   // AX queries default to the session's root document, so select the widget
+   // explicitly when its document shares the page's session.
+   const {frameTree}=await accessibility.send('Page.getFrameTree')
+   const widgetTree=[frameTree,...frameTree.childFrames??[]].find(tree=>/\/book\?embed=1/.test(tree.frame.url))
+   assert.ok(widgetTree,'the accessibility session contains the booking widget frame')
+   const focusedDateSegment=async()=>{
+    const {nodes}=await accessibility.send('Accessibility.getFullAXTree',{frameId:widgetTree.frame.id})
+    return nodes.find(node=>node.role?.value==='spinbutton'&&node.properties?.some(property=>property.name==='focused'&&property.value.value===true))
    }
+   try{for(let segment=0;segment<3;segment++){
+    const focused=await focusedDateSegment(),name=focused?.name?.value.match(/\b(year|month|day)\b/i)?.[1]?.toLowerCase(),index=['year','month','day'].indexOf(name)
+    assert.ok(index>=0&&!visited.has(index),'each focused native date segment is identified once');visited.add(index)
+    for(let step=0;step<366;step++){const current=Number((await focusedDateSegment())?.value?.value);assert.ok(Number.isFinite(current),'the focused native segment retains a numeric value');if(current===wanted[index])break;await page.keyboard.press(current<wanted[index]?'ArrowUp':'ArrowDown')}
+    assert.equal(Number((await focusedDateSegment())?.value?.value),wanted[index]);await page.keyboard.press('ArrowRight')
+   }}finally{await accessibility.detach()}
+   assert.equal(visited.size,3)
    assert.equal(await dateInput.inputValue(),day)
    await tabTo('partySize');await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('2')
    await tabTo('Find available times');await page.keyboard.press('Enter')
@@ -160,11 +182,21 @@ try{
    await next.close()
    if(width===1440){
     // Staff and guest pages other than the widget refuse every frame, and an unlisted website gets no widget.
+    const refused=new Map()
+    page.on('requestfailed',request=>{
+     if(!request.isNavigationRequest())return
+     let initial=request;while(initial.redirectedFrom())initial=initial.redirectedFrom()
+     refused.set(initial.url(),request.failure()?.errorText)
+    })
     await page.goto(host+'/frames');await page.waitForLoadState('load')
-    for(const name of ['app','book','queue','inquiry'])await refusedFrame(page.locator(`iframe[name="${name}"]`),`${name} is unframeable`)
+    for(const name of ['app','book','queue','inquiry']){
+     // CSP-blocked public frames can be detached instead of exposing an error document.
+     await expect.poll(()=>refused.get(h.origin+'/'+name),{message:`${name} is blocked by its response`}).toBe('net::ERR_BLOCKED_BY_RESPONSE')
+    }
     await page.goto(other+'/');await page.locator(`iframe[title="${title}"]`).waitFor();await page.waitForLoadState('load')
     await assert.rejects(()=>page.frameLocator(`iframe[title="${title}"]`).locator('[name=date]').waitFor({timeout:3000}))
-    await refusedFrame(page.locator(`iframe[title="${title}"]`),'an unlisted website cannot frame the widget')
+    const unlisted=await page.locator(`iframe[title="${title}"]`).getAttribute('src')
+    await expect.poll(()=>refused.get(unlisted),{message:'an unlisted website cannot frame the widget'}).toBe('net::ERR_BLOCKED_BY_RESPONSE')
    }
    assert.deepEqual(errors,[])
    console.log(`BOOK-002 owner allowlist and analytics, keyboard widget booking with accepted GA4/Meta test events, declined standalone booking, shared ledger, owner key removal and frame refusals passed at ${width}`)

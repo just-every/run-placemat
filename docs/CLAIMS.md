@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. The acceptance journeys are in ACCEPTANCE.md.
 
-Inventory: 57 done, 29 partial, 49 missing; 135 total.
+Inventory: 56 done, 45 partial, 47 missing; 148 total.
 
 | Clause | Status | Evidence |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ Inventory: 57 done, 29 partial, 49 missing; 135 total.
 | DIST-003 | missing |  |
 | DIST-004 | partial | `tests/api/assignments.test.mjs`; `tests/allocation-ui.mjs`; `tests/api/embed.test.mjs`; `tests/api/flows.test.mjs` |
 | DIST-005 | done | `tests/diner-ui.mjs`; `tests/api/guests.test.mjs`; `tests/api/diner-journeys.mjs`; `tests/api/diner-management-journey.mjs`; `tests/api/diner-custody-journey.mjs`; `tests/api/diner-journeys.mjs`; `tests/api/diner-portability.mjs`; `docs/data-portability.md` |
-| DIST-006 | missing |  |
+| DIST-006 | partial | `tests/api/reviews.test.mjs`; `tests/reviews-ui.mjs`; `tests/api/feedback.test.mjs`; `scripts/reviews-sandbox.mjs`; `docs/reviews.md` |
 | FLOOR-002 | done | `src/placemat/floor-plan.ts`; `src/placemat/combinations.ts`; `public/placemat-floor-plan.js`; `tests/api/combinations.test.mjs`; `tests/floor-plan-ui.mjs` |
 | FLOOR-003 | done | `src/placemat/combinations.ts`; `src/placemat/capacity.ts`; `src/placemat/assignments.ts`; `public/placemat-combinations.js`; `tests/api/combinations.test.mjs`; `tests/combinations-ui.mjs` |
 | FLOOR-004 | done | `src/placemat/staffing.ts`; `src/placemat/staffing-capacity.ts`; `public/placemat-staffing.js`; `tests/api/staffing.test.mjs`; `tests/staffing-ui.mjs` |
@@ -58,21 +58,21 @@ Inventory: 57 done, 29 partial, 49 missing; 135 total.
 | WAIT-005 | missing |  |
 | WAIT-006 | done | `src/placemat/queue.ts`; `src/placemat/commands.ts`; `src/placemat/people.ts`; `public/placemat-queue.js`; `tests/api/queue.test.mjs` |
 | MSG-002 | missing |  |
-| MSG-003 | missing |  |
+| MSG-003 | partial | `tests/api/booking-rules.test.mjs`; `tests/search-ui.mjs` |
 | MSG-004 | missing |  |
 | MSG-005 | partial | `src/placemat/commands.ts`; `src/placemat/downloads.ts`; `tests/api/flows.test.mjs` |
 | MSG-006 | missing |  |
 | MSG-007 | missing |  |
 | MSG-008 | partial | `src/placemat/wait-join.ts`; `src/placemat/guest-state-erasure.ts`; `tests/api/wait-join.test.mjs`; `tests/api/audit.test.mjs`; `tests/api/guests.test.mjs` |
-| MSG-009 | missing |  |
+| MSG-009 | partial | `tests/api/message-templates.test.mjs`; `tests/message-templates-ui.mjs`; `tests/api/demo.test.mjs`; `tests/api/reminders.test.mjs` |
 | MSG-010 | missing |  |
 | MSG-011 | missing |  |
 | PAY-001 | partial | `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs` |
 | PAY-002 | partial | `tests/api/checkout-payment-journeys.mjs` |
-| PAY-003 | partial | `tests/api/card-hold-journey.mjs`; `tests/api/fee-expiry-journeys.mjs`; `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs` |
+| PAY-003 | partial | `tests/api/card-hold-journey.mjs`; `tests/api/fee-expiry-journeys.mjs`; `tests/api/fee-journeys.mjs`; `tests/guarantees-ui.mjs`; `scripts/merchant-sandbox.mjs`; `tests/api/fee-journeys.mjs`; `tests/api/fee-expiry-journeys.mjs` |
 | PAY-004 | partial | `src/placemat/fee-policy.ts`; `src/placemat/fees.ts`; `tests/api/fee-journeys.mjs`; `tests/fees-ui.mjs`; `tests/pacing-ui.mjs`; `scripts/fees-sandbox.mjs` |
 | PAY-005 | partial | `src/placemat/refunds.ts`; `tests/api/flows.test.mjs`; `tests/pacing-ui.mjs`; `tests/api/flows.test.mjs`; `scripts/refund-sandbox.mjs`; `scripts/refund-webhook-sandbox.mjs`; `tests/api/refund-notice-journeys.mjs`; `tests/refund-notices-ui.mjs` |
-| PAY-006 | partial | `tests/api/money-ledger-journeys.mjs` |
+| PAY-006 | partial | `tests/api/money-ledger-journeys.mjs`; `tests/audit-ui.mjs` |
 | PAY-007 | missing |  |
 | PAY-008 | missing |  |
 | PAY-009 | partial | `tests/api/money-ledger-journeys.mjs`; `tests/payment-operations-ui.mjs`; `docs/payment-operations.md`; `scripts/payment-operations-sandbox.mjs` |
@@ -82,11 +82,11 @@ Inventory: 57 done, 29 partial, 49 missing; 135 total.
 | EXP-003 | missing |  |
 | EXP-004 | missing |  |
 | EXP-005 | missing |  |
-| GUEST-002 | done | `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs` |
+| GUEST-002 | partial | `src/placemat/profiles.ts`; `src/placemat/guests.ts`; `public/placemat-profiles.js`; `tests/api/guests.test.mjs` |
 | GUEST-003 | partial | `tests/api/guests.test.mjs`; `tests/api/assignments.test.mjs`; `tests/operations-ui-journey.mjs`; `tests/queue-ui.mjs` |
 | GUEST-004 | done | `tests/api/guests.test.mjs`; `tests/guest-review-ui.mjs` |
 | GUEST-005 | missing |  |
-| GUEST-006 | missing |  |
+| GUEST-006 | partial | `tests/api/group.test.mjs`; `tests/api/guests.test.mjs`; `tests/api/group-guest-journey.mjs`; `tests/group-ui.mjs` |
 | CRM-001 | missing |  |
 | CRM-002 | missing |  |
 | CRM-003 | missing |  |
@@ -141,3 +141,16 @@ Inventory: 57 done, 29 partial, 49 missing; 135 total.
 | AGENT-006 | missing |  |
 | AGENT-007 | missing |  |
 | AGENT-008 | missing |  |
+| BASE-AGENT-001 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-002 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-refusals.test.mjs` |
+| BASE-AGENT-003 | missing |  |
+| BASE-AGENT-004 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs`; `tests/agent-inactive-sponsor.mjs`; `tests/agent-fixtures.mjs` |
+| BASE-AGENT-005 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-006 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-classification.test.mjs` |
+| BASE-AGENT-007 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-approval-outcomes.mjs` |
+| BASE-AGENT-008 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-attribution-ui.mjs`; `tests/allocation-ui.mjs` |
+| BASE-AGENT-009 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-010 | missing |  |
+| BASE-AGENT-011 | partial | `tests/api/agent-limits.test.mjs`; `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs` |
+| BASE-AGENT-012 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/agent-replay.mjs`; `tests/agent-replay.mjs` |
+| BASE-AGENT-013 | partial | `agent-surface.json`; `tests/agent-fixtures.mjs`; `tests/agent-native-journey.mjs`; `tests/api/agent-prompts.test.mjs` |
