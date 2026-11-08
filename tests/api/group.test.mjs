@@ -67,3 +67,8 @@ test('ROLE-001: an owner connects two venues, grants a scoped read-only group ad
   assert.equal((await tap.api('/api/group')).standing,'none');await tap.api('/api/group/reports/reservations',undefined,{...bearer(token),status:403})
  }finally{await home.close();await tap.close();await empty.close()}
 })
+
+test('Consented group guestbook reads only independently verified visits and preferences with live purpose and venue fences',async()=>{
+ const {groupGuestJourney}=await import('./group-guest-journey.mjs')
+ await groupGuestJourney()
+})

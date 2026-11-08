@@ -44,6 +44,8 @@ export interface Bindings {
  STRIPE_WEBHOOK_SECRET?: string
  SETUP_TOKEN?: string
  MAIL_PROVIDER?: 'development' | 'rer' | 'resend' | 'sendgrid' | 'cloudflare'
+ MAIL_EVENT_NAMESPACE?: string
+ RESEND_WEBHOOK_SECRET?: string
  MAIL_FROM?: string
  MAIL_API_KEY?: string
  MAIL_RELAY_URL?: string

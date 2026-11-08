@@ -14,6 +14,7 @@ import type {QueueEntry} from './queue'
 import type {TurnPolicy} from './turn-policy'
 import type { BookingRules } from './booking-rules'
 import type {AnalyticsSettings,AnalyticsAudit} from './analytics'
+import {problemCode} from './problem-codes'
 export type TableShape = 'round'|'square'|'rectangle'|'bar'
 export type Room = {id:string;name:string;kind:'indoor'|'outdoor'|'bar'}
 export type Inventory = {id:string;name:string;kind:'counter'|'pool';capacity:number;turnMinutes:number;arrivalCovers:number;intervalMinutes:number;adjacent:boolean}
@@ -41,7 +42,7 @@ export type AuditEntry = { preparation?:import('../modules/agent-door/types').Pr
 export type State = { messageTemplates?:import('./message-templates').MessageTemplate[]; experiences?:Experience[]; holds?:HoldAllocation[]; financeIds?:string[];serverIds?:string[];leadIds?:string[];reportScopes?:Record<string,string[]>;managerRefundLimits?:Record<string,number>; inventories?:Inventory[]; serviceNotes?:ServiceNote[]; embed?:{origins:string[]}; analytics?:AnalyticsSettings; serviceChanges?:ServiceChange[]; inquiries?:Inquiry[]; riskDecisions?:RiskDecision[]; venue:{name:string;timezone:string;setup?:import('./onboarding').RestaurantSetup}; hostIds?:string[]; pacingHostIds?:string[]; rooms?:Room[]; allocationTables?:Table[]; tables:Table[]; combinations?:Combination[]; services:Service[]; schedules?:ScheduleTemplate[]; serviceEvents?:ServiceEvent[]; bookings:Booking[]; waitlist:Waiting[]; proposals:Proposal[]; reminders:Reminder[]; audit:AuditEntry[] }
 export type Actor = { companyAgent?:boolean; preparation?:import('../modules/agent-door/types').PreparedBy;deviceId?:string;deviceGeneration?:number;id:string;name:string;role:string;agent?:boolean}
 export const emptyState = ():State => ({venue:{name:'Placemat',timezone:'America/New_York'},rooms:[],tables:[],combinations:[],services:[],bookings:[],waitlist:[],proposals:[],reminders:[],audit:[]})
-export class Problem extends Error { constructor(public status:number, message:string){super(message)} }
+export class Problem extends Error { readonly code; constructor(public status:number, message:string){super(message);this.code=problemCode(status)} }
 export const fail = (status:number,message:string):never=>{throw new Problem(status,message)}
 export const id = ()=>crypto.randomUUID()
 export const text = (value:unknown,label:string,max=200):string => typeof value==='string' && value.trim().length>0 && value.trim().length<=max ? value.trim() : fail(400,`${label} is required (up to ${max} characters).`)
