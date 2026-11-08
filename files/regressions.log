@@ -1,0 +1,25 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+PROBE BASE-AGENT-011 point 1 autonomous: 600 native revision calls accepted; next read and preparation refused with 429 rate_limited and Retry-After 43; other agent and person edit worked; last millisecond refused with Retry-After 1; exact next minute recovered a full 600-call quota with only one of two concurrent last-slot calls accepted, then refused with Retry-After 60; native work and complete paginated audit unchanged by refusals; outbound effects 0
+PROBE BASE-AGENT-011 authority autonomous: policy resave did not refill capacity; next-minute reset did not revive a revoked key; second agent remained authorized
+PROBE BASE-AGENT-011 point 1 held: 600 native revision calls accepted; next read and preparation refused with 429 rate_limited and Retry-After 43; other agent and person edit worked; last millisecond refused with Retry-After 1; exact next minute recovered a full 600-call quota with only one of two concurrent last-slot calls accepted, then refused with Retry-After 60; native work and complete paginated audit unchanged by refusals; outbound effects 0
+PROBE BASE-AGENT-011 authority held: policy resave did not refill capacity; next-minute reset did not revive a revoked key; second agent remained authorized
+✔ Agent rate overruns isolate credentials, preserve native work and recover exactly at the minute boundary under both policies (92873.699601ms)
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+PROBE BASE-AGENT-002 point4 404: person proposal.prepare and MCP on the same service -> resource_unavailable, typed refusal, separate door audit, native state unchanged
+PROBE BASE-AGENT-002 point4 409: person proposal.prepare and MCP on the same service -> native_conflict, typed refusal, separate door audit, native state unchanged
+PROBE BASE-AGENT-002 point4 contrast: MCP prepares the real draft -> one pending native proposal and preparation audit; services unchanged and no outbound effect
+PROBE BASE-AGENT-002 point5: person and MCP prepare the same draft -> equivalent pending plans, proposal.prepare native audit events with distinct provenance, no operational or outbound effect
+PROBE BASE-AGENT-002 execution boundary: preparation credential attempts native approval and decline -> HTTP 403, no result, unchanged pending plans and audit, no outbound effect
+✔ Native publication refusals share UI and MCP codes, preserve records and audit the agent door (3104.014851ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 99458.727678

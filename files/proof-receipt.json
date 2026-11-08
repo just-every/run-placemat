@@ -1,0 +1,278 @@
+{
+  "schema": 1,
+  "head": "6232d682d8356f2eb0f2d9e58b4e44bba51fd9cd",
+  "branch": "cloud/sx-placemat-c-f56",
+  "clause": "BASE-AGENT-005",
+  "point": 3,
+  "status": "passed",
+  "cases": [
+    {
+      "mode": "autonomous",
+      "change": "downgrade",
+      "lastOwnerGuard": true,
+      "freshIdentityProof": true,
+      "issuingKeyUnrevoked": true,
+      "administrativeOwnerAgentKeys": 0,
+      "allowed": {
+        "revision": true,
+        "mcpPreparation": true,
+        "mcpReplay": true,
+        "nativePreparation": true,
+        "pendingProposals": 2,
+        "publishedServices": 0
+      },
+      "refusals": [
+        {
+          "door": "mcp",
+          "call": "revision-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "revision-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-new-rpc-id",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "native commands",
+          "call": "native-exact",
+          "status": 401
+        },
+        {
+          "door": "native commands",
+          "call": "native-fresh",
+          "status": 401
+        }
+      ],
+      "unchanged": {
+        "nativeState": true,
+        "nativeAudit": true,
+        "doorAudit": true,
+        "approvals": true,
+        "reviews": true,
+        "keyWitness": true,
+        "outbound": true
+      }
+    },
+    {
+      "mode": "autonomous",
+      "change": "suspend",
+      "lastOwnerGuard": true,
+      "freshIdentityProof": true,
+      "issuingKeyUnrevoked": true,
+      "administrativeOwnerAgentKeys": 0,
+      "allowed": {
+        "revision": true,
+        "mcpPreparation": true,
+        "mcpReplay": true,
+        "nativePreparation": true,
+        "pendingProposals": 2,
+        "publishedServices": 0
+      },
+      "refusals": [
+        {
+          "door": "mcp",
+          "call": "revision-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "revision-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-new-rpc-id",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "native commands",
+          "call": "native-exact",
+          "status": 401
+        },
+        {
+          "door": "native commands",
+          "call": "native-fresh",
+          "status": 401
+        }
+      ],
+      "unchanged": {
+        "nativeState": true,
+        "nativeAudit": true,
+        "doorAudit": true,
+        "approvals": true,
+        "reviews": true,
+        "keyWitness": true,
+        "outbound": true
+      }
+    },
+    {
+      "mode": "held",
+      "change": "downgrade",
+      "lastOwnerGuard": true,
+      "freshIdentityProof": true,
+      "issuingKeyUnrevoked": true,
+      "administrativeOwnerAgentKeys": 0,
+      "allowed": {
+        "revision": true,
+        "mcpPreparation": true,
+        "mcpReplay": true,
+        "nativePreparation": true,
+        "pendingProposals": 2,
+        "publishedServices": 0
+      },
+      "refusals": [
+        {
+          "door": "mcp",
+          "call": "revision-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "revision-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-new-rpc-id",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "native commands",
+          "call": "native-exact",
+          "status": 401
+        },
+        {
+          "door": "native commands",
+          "call": "native-fresh",
+          "status": 401
+        }
+      ],
+      "unchanged": {
+        "nativeState": true,
+        "nativeAudit": true,
+        "doorAudit": true,
+        "approvals": true,
+        "reviews": true,
+        "keyWitness": true,
+        "outbound": true
+      }
+    },
+    {
+      "mode": "held",
+      "change": "suspend",
+      "lastOwnerGuard": true,
+      "freshIdentityProof": true,
+      "issuingKeyUnrevoked": true,
+      "administrativeOwnerAgentKeys": 0,
+      "allowed": {
+        "revision": true,
+        "mcpPreparation": true,
+        "mcpReplay": true,
+        "nativePreparation": true,
+        "pendingProposals": 2,
+        "publishedServices": 0
+      },
+      "refusals": [
+        {
+          "door": "mcp",
+          "call": "revision-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "revision-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-exact",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-new-rpc-id",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "mcp",
+          "call": "preparation-fresh",
+          "status": 401,
+          "code": -32001
+        },
+        {
+          "door": "native commands",
+          "call": "native-exact",
+          "status": 401
+        },
+        {
+          "door": "native commands",
+          "call": "native-fresh",
+          "status": 401
+        }
+      ],
+      "unchanged": {
+        "nativeState": true,
+        "nativeAudit": true,
+        "doorAudit": true,
+        "approvals": true,
+        "reviews": true,
+        "keyWitness": true,
+        "outbound": true
+      }
+    }
+  ]
+}

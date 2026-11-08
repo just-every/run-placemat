@@ -1,0 +1,11 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+PROBE BASE-AGENT-005 point 3 autonomous downgrade: real owner-issued key reads revision, prepares and replays through MCP, and prepares through native command; only pending proposals, no service publication
+PROBE BASE-AGENT-005 point 3 autonomous downgrade: fresh-proof personal owner changes issuing owner; five MCP and two native fresh or exact retries return 401 with no private result; key unrevoked; post-administration state and outbound baseline unchanged
+PROBE BASE-AGENT-005 point 3 autonomous suspend: real owner-issued key reads revision, prepares and replays through MCP, and prepares through native command; only pending proposals, no service publication
+PROBE BASE-AGENT-005 point 3 autonomous suspend: fresh-proof personal owner changes issuing owner; five MCP and two native fresh or exact retries return 401 with no private result; key unrevoked; post-administration state and outbound baseline unchanged
+PROBE BASE-AGENT-005 point 3 held downgrade: real owner-issued key reads revision, prepares and replays through MCP, and prepares through native command; only pending proposals, no service publication
+PROBE BASE-AGENT-005 point 3 held downgrade: fresh-proof personal owner changes issuing owner; five MCP and two native fresh or exact retries return 401 with no private result; key unrevoked; post-administration state and outbound baseline unchanged
+PROBE BASE-AGENT-005 point 3 held suspend: real owner-issued key reads revision, prepares and replays through MCP, and prepares through native command; only pending proposals, no service publication
+PROBE BASE-AGENT-005 point 3 held suspend: fresh-proof personal owner changes issuing owner; five MCP and two native fresh or exact retries return 401 with no private result; key unrevoked; post-administration state and outbound baseline unchanged
