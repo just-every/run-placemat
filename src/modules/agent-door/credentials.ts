@@ -1,3 +1,4 @@
+import { businessRunning } from './business-state.ts'
 import type { AgentDoorOptions, Principal } from './types.ts'
 
 const encoder = new TextEncoder()
@@ -85,12 +86,12 @@ export async function authenticate(
         !Number.isFinite(now) || typeof claims.iat !== 'number' || !Number.isFinite(claims.iat) ||
         typeof claims.exp !== 'number' || !Number.isFinite(claims.exp) || claims.iat > now + 30 ||
         claims.exp <= now || claims.exp <= claims.iat || claims.exp - claims.iat > 900) return null
-      if (!nonempty(claims.consent)) return null
+      if (!nonempty(claims.consent) || !await businessRunning(options.people, claims.business)) return null
       const person = await options.people.sponsor({ sub: claims.sub })
       // A token outlives no change of address: its email must still be the subject's current native email.
       if (!person?.active || person.email.trim().toLowerCase() !== claims.email) return null
       return {
-        person,
+        person, source: 'business',
         agent: { id: claims.act.sub, name: claims.act.name, specialist: claims.act.specialist as string | null | undefined },
         scopes: claims.scope === '' ? [] : claims.scope.split(' '), clientId: claims.client_id, consent: claims.consent,
       }
@@ -102,7 +103,7 @@ export async function authenticate(
       !Array.isArray(local.scopes) || !local.scopes.every(nonempty)) return null
     const person = await options.people.person(local.sponsor.id)
     if (!person?.active) return null
-    return { person, agent: local.agent, scopes: local.scopes, clientId: local.clientId }
+    return { person, source: 'local', agent: local.agent, scopes: local.scopes, clientId: local.clientId }
   } catch {
     return null
   }

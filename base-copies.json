@@ -3107,11 +3107,76 @@
         "modules/agent-door/wire.ts"
       ],
       "adapted": {
-        "src/modules/agent-door/ADOPTING.md": "2135c394939f4a737adabdc8003b0e667b31ac5a"
+        "src/modules/agent-door/ADOPTING.md": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/approval-execution.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/audit.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/credentials.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/execution.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/index.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/operator-people.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/people.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/policy-store.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/principal.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/schema/agent-door.sql": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/transport.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/types.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/wire.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a"
       },
       "acknowledged": {
         "src/modules/agent-door/ADOPTING.md": {
           "sha256": "0d65dfaba0f543e596f0d533b9c7e4b929f9befea22429efe5dfada80df4cfe3",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/approval-execution.ts": {
+          "sha256": "cf80cc6c485a4f507994b35b5f8aee233f9844c32fc535065368d3768c7082f6",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/audit.ts": {
+          "sha256": "7a0cfafee742fe63005f156386306f386cfb893d5ca5424f9520be8312dd0e39",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/credentials.ts": {
+          "sha256": "eb75c277d3d8fad8c607c7b40b573c2a9720634f0f63162833ea2ec095656238",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/execution.ts": {
+          "sha256": "26051387fc2d25cbf63462bfd6da67e1bdc26c7c0bd893769aa8e8a74c9ffe63",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/index.ts": {
+          "sha256": "28ed6d351f478957baae3d36e7e95ba2f4faa311a4d59f822e918ce538155cac",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/operator-people.ts": {
+          "sha256": "a466a02dd11488b87e9797613e215a936c9986e870d819289807a810afd4268d",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/people.ts": {
+          "sha256": "c4da1bec970f06ddf754c98522bb7bddfa38e58976e76c684c2bcc1e0f196bd2",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/policy-store.ts": {
+          "sha256": "63dfe334efcedcf040c28452173fb3e7c5f5d887c2d8dee8b9fd9c375afb6acc",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/principal.ts": {
+          "sha256": "61560403e82c1747157988ccf84763bca3d180d76c28bd205c083d62efe90017",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/schema/agent-door.sql": {
+          "sha256": "8543a52e3d515815e12521a965c39c7fbc405789074bea070e1e34c903c84596",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/transport.ts": {
+          "sha256": "ce3b0e9d48a0b1e1ab0fda4138c4f8acecd78d6466f172675225a88004b4e2bd",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/types.ts": {
+          "sha256": "9364c683b469a5278d4f88ba5ef260e665965c062a8f2e13182f911653f0117e",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/wire.ts": {
+          "sha256": "46a417cf457cdfb285a9e89544d5f7abe44a2538f5e7f7d7a0807c95501e9244",
           "mode": "100644"
         }
       }

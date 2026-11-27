@@ -53,7 +53,8 @@
     "migrations/core/0054_business_people.sql",
     "migrations/core/0055_agent_door.sql",
     "migrations/core/0056_booking_mail_events.sql",
-    "migrations/core/0057_group_guestbook.sql"
+    "migrations/core/0057_group_guestbook.sql",
+    "migrations/core/0058_agent_door_relay.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Install with the pinned toolchain and apply all declared migrations on a fresh database. Preserve existing resource identities and migration bytes. For deployments with MAIL_PROVIDER=none, use rer signin."

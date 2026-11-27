@@ -14,7 +14,7 @@ test('Agent rate overruns isolate credentials, preserve native work and recover 
   let sequence=0
   const call=async(key,name='placemat.workspace.revision',args={})=>{
    const id=++sequence,response=await h.request('/mcp',{method:'POST',as:'',headers:{authorization:'Bearer '+key,'mcp-protocol-version':'2025-11-25'},body:{jsonrpc:'2.0',id,method:'tools/call',params:{name,arguments:args}}})
-   const body=await response.json();assert.equal(body.id,id)
+   const body=await response.json();assert.equal(body.id,response.status===401?null:id)
    return {response,body}
   }
   const revision=async(key,version,disposition)=>{
@@ -112,7 +112,7 @@ test('Agent rate overruns isolate credentials, preserve native work and recover 
    await h.api('/api/agent-keys/'+limited.id,undefined,{method:'DELETE'})
    now=boundary+60000
    const revoked=await witness(),denied=await call(limited.key)
-   assert.equal(denied.response.status,401);assert.equal(denied.body.result,undefined)
+   assert.equal(denied.response.status,401);assert.match(denied.response.headers.get('www-authenticate'),/resource_metadata=/);assert.equal(denied.body.result,undefined)
    assert.deepEqual(await witness(),revoked)
    await revision(other.key,personState.version,disposition)
    assert.deepEqual(await h.api('/api/state'),revoked.native)

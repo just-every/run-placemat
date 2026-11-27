@@ -8,7 +8,7 @@ export async function agentResponse(request: Request, env: Bindings): Promise<Re
   const docs = agentDocs(request, coordinatorTools)
   if (docs) return docs
   const path = new URL(request.url).pathname
-  if (!['/mcp', '/api/rer/agent-policy', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/agents'].includes(path)
+  if (!['/mcp', '/api/rer/agent-policy', '/api/rer/agent-decisions', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/agents'].includes(path)
     && !path.startsWith('/agents/api/') && !/^\/agents\/approvals\/[^/]+$/.test(path)) return null
   // The shipped adapter validates argument types. These static jobs also refuse
   // named string arguments, after its authentication and policy read guard.

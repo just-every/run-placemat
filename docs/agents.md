@@ -15,6 +15,14 @@ policy never substitutes for that native person requirement. A standard company
 policy approval authorizes preparation only; it does not approve the restaurant
 proposal that preparation creates.
 
+MCP initialization and discovery require a bearer credential. Initialize accepts the
+requested protocol version in the body. Later requests without a version header use
+2025-06-18. Supported versions are 2025-06-18, 2025-11-25 and 2026-07-28.
+
+A paired Business can pull its decision feed with a signed POST to
+`/api/rer/agent-decisions`. Detaching the Business closes the feed, ends its bearer
+access and prevents execution of its outstanding held calls.
+
 Business subjects bind to native people through signed settings. The original
 setup owner maps to Business owner; roster admin maps to native admin and
 Business editor; roster member maps to native member with no Business policy
