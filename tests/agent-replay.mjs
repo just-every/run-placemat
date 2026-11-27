@@ -26,7 +26,12 @@ export function preparationDoors({ request, origin, cookie }) {
   })
   const call = async (key, args) => {
     const id = randomUUID(), response = await send(key, args, id), body = await response.json()
-    assert.equal(body.id, id, 'Each retry uses its own JSON-RPC response id')
+    if (response.status === 401) {
+      assert.equal(body.id, null, 'Authentication challenges precede request parsing')
+      assert.match(response.headers.get('www-authenticate'), /resource_metadata=/)
+    } else {
+      assert.equal(body.id, id, 'Each admitted retry uses its own JSON-RPC response id')
+    }
     return { status: response.status, body }
   }
   return { person, send, call }

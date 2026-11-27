@@ -5214,7 +5214,7 @@
       "executable": false
     },
     "tests/agent-replay.mjs": {
-      "sha256": "da01d4c66a1d541c77793ec534997a795a887aa31a7abb02311dd566bd626ec4",
+      "sha256": "5d2b170ef5d41959f023903eb295020b781532e963cb448033cf80a432f5b8ba",
       "executable": false
     },
     "tests/allocation-ui.mjs": {
