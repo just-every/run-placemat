@@ -105,10 +105,14 @@
         {
           "value": "cloudflare",
           "label": "Cloudflare Email Sending"
+        },
+        {
+          "value": "none",
+          "label": "Off (owner signs in with rer signin)"
         }
       ],
       "group": "mail",
-      "help": "Local development suppresses external mail. Choose and configure a production provider before hosting."
+      "help": "Use a mail provider, or turn outbound mail off and sign in with rer signin."
     },
     {
       "name": "MAIL_FROM",

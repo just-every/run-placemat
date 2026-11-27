@@ -71,10 +71,10 @@ Both interfaces use the same product policy. Keep archives private and outside p
 
 ## Deploy to your Cloudflare account
 
-No domain purchase is needed for the Worker app. `rer deploy` uses Base's owner-account deploy kit, creates its declared D1, applies numbered migrations and checks the deployed health and assets. It does not run tests. Deployment needs your Cloudflare account/token and a verified mail sender; no credentials are included here.
+No domain purchase is needed for the Worker app. `rer deploy` uses Base's owner-account deploy kit, creates its declared D1, applies numbered migrations and checks the deployed health and assets. It does not run tests. Deployment needs your Cloudflare account and scoped API token.
 
-1. Stop local dev. In `deploy.json`, set `vars.MAIL_FROM` to your verified sending address and select the matching `MAIL_PROVIDER` (default `resend`). Keep the declared project, Worker and D1 identities. Commit source changes before a real deployment.
-2. Create a private mode-0600 `.env.deploy` using an editor, with `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `OWNER_EMAIL`, `SESSION_SECRET`, `SETUP_TOKEN` and `MAIL_API_KEY`. Session and setup secrets must be separate strong random values of at least 32 characters. The Cloudflare token must be scoped to your intended account with Worker and D1 deployment permissions. Never commit this file or put values into CLI arguments.
+1. Stop local dev. Choose an outbound mail provider and verified sender through setup, or add `MAIL_PROVIDER=none` to your private deployment environment. Keep the declared project, Worker and D1 identities. Commit source changes before a real deployment.
+2. Create a private mode-0600 `.env.deploy` using an editor, with `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `OWNER_EMAIL`, `SESSION_SECRET`, `SETUP_TOKEN` and, if you enabled mail, the provider credentials. Session and setup secrets must be separate strong random values of at least 32 characters. The Cloudflare token must be scoped to your intended account with Worker and D1 deployment permissions. Never commit this file or put values into CLI arguments.
 3. Run:
 
 ```sh

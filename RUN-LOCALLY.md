@@ -290,3 +290,10 @@ addresses). `rer door restart` drains and restarts the door: checkouts that
 were starting finish starting, and open tabs reconnect. After a reboot or logout the door needs `rer door start` (or any
 `rer dev` in a checkout that uses it); `rer door stop` and `rer door disable`
 stop it and opt this computer out.
+
+## Deploy with outbound mail off
+
+Run `MAIL_PROVIDER=none rer deploy --dry-run` to validate a deployment without
+a sender address or mail API key. After deployment, run `rer signin` with the
+deployment's Cloudflare credentials to issue a one-time owner sign-in link.
+Email sign-in and outbound messages require a configured mail provider.
